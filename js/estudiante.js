@@ -179,23 +179,24 @@ async function cargarDatosEstudiante() {
 }
 
 // =====================================================
-// CARGAR COLUMNAS Y NOTAS (IDENTIFICANDO AL CREADOR)
+// CARGAR COLUMNAS Y NOTAS (IDENTIFICANDO AL CREADOR DEL NIVEL)
 // =====================================================
 
 async function cargarColumnas(trimestre) {
     const salon = miEstudiante?.salon || null;
+    const nivelNum = salon ? salon.replace(/\D/g, '') : null;
 
-    let correosSalon = [];
-    if (salon) {
-        const { data: estSalon } = await supabase
+    let correosNivel = [];
+    if (nivelNum) {
+        const { data: estNivel } = await supabase
             .from("estudiantes")
             .select("correo, nombre")
-            .eq("salon", salon)
+            .like("salon", `${nivelNum}%`)
             .eq("es_prueba", false);
 
-        (estSalon || []).forEach((e) => {
+        (estNivel || []).forEach((e) => {
             if (e.correo) {
-                correosSalon.push(e.correo);
+                correosNivel.push(e.correo);
                 if (e.nombre) nombrePorCorreo[e.correo] = e.nombre;
             }
         });
@@ -208,13 +209,13 @@ async function cargarColumnas(trimestre) {
             .eq("trimestre", trimestre)
     ];
 
-    if (correosSalon.length > 0) {
+    if (correosNivel.length > 0) {
         consultas.push(
             supabase
                 .from("notas")
                 .select("correo, materia, tipo, numero")
                 .eq("trimestre", trimestre)
-                .in("correo", correosSalon)
+                .in("correo", correosNivel)
         );
     } else {
         consultas.push(
@@ -250,7 +251,7 @@ async function cargarColumnas(trimestre) {
     columnaEsOficial = {};
 
     if (errCol) console.error("❌ Error al cargar columnas:", errCol);
-    if (errNotas) console.warn("⚠️ No se pudieron revisar notas de este salón:", errNotas);
+    if (errNotas) console.warn("⚠️ No se pudieron revisar notas de este nivel:", errNotas);
 
     const agregarColumnaLocal = (materia, tipo, numero) => {
         if (!materia || !tipo || !numero) return false;
@@ -279,7 +280,7 @@ async function cargarColumnas(trimestre) {
 
     // 2. Definiciones explicitas de columnas
     (columnasDef || []).forEach((c) => {
-        if (!c.creado_por || correosSalon.includes(c.creado_por) || c.creado_por === usuarioActual.email) {
+        if (!c.creado_por || correosNivel.includes(c.creado_por) || c.creado_por === usuarioActual.email) {
             agregarColumnaLocal(c.materia, c.tipo, c.numero);
             if (c.creado_por) {
                 creadoPorPorCasilla[`${c.materia}|${c.tipo}|${c.numero}`] = c.creado_por;
@@ -287,13 +288,12 @@ async function cargarColumnas(trimestre) {
         }
     });
 
-    // 3. Casillas autocompletadas desde la tabla notas de su salón
+    // 3. Casillas autocompletadas desde la tabla notas de su nivel (9A, 9B, 9C, etc.)
     (notasTodas || []).forEach((n) => {
         const tipoNorm = (n.tipo || "").toLowerCase();
         if (tipoNorm === "apreciacion" || tipoNorm === "ejercicio") {
             agregarColumnaLocal(n.materia, tipoNorm, n.numero);
             const clave = `${n.materia}|${tipoNorm}|${n.numero}`;
-            // Guardar al primer estudiante que haya puesto la nota como el creador si no está registrado aún
             if (!creadoPorPorCasilla[clave] && n.correo) {
                 creadoPorPorCasilla[clave] = n.correo;
             }
@@ -340,14 +340,17 @@ async function cargarCompanerosConNotas(trimestre) {
 
     if (!miEstudiante?.salon) return;
 
+    // Extrae el dígito del nivel (ejemplo: "9A" -> "9", "8A" -> "8")
+    const nivelNum = miEstudiante.salon.replace(/\D/g, '');
+
     const { data: companeros, error: errComp } = await supabase
         .from("estudiantes")
-        .select("correo, nombre")
-        .eq("salon", miEstudiante.salon)
+        .select("correo, nombre, salon")
+        .like("salon", `${nivelNum}%`)
         .eq("es_prueba", false);
 
     if (errComp) {
-        console.warn("⚠️ No se pudo cargar la lista de estudiantes:", errComp);
+        console.warn("⚠️ No se pudo cargar la lista de estudiantes del nivel:", errComp);
         return;
     }
 
@@ -368,7 +371,7 @@ async function cargarCompanerosConNotas(trimestre) {
         .in("correo", correosCompaneros);
 
     if (errNotasComp) {
-        console.warn("⚠️ No se pudieron cargar las notas del salón:", errNotasComp);
+        console.warn("⚠️ No se pudieron cargar las notas del nivel:", errNotasComp);
         return;
     }
 
@@ -442,7 +445,6 @@ function celdaNotaHtml(materia, tipo, numero) {
     const valor = nota?.nota ?? "";
     const disabled = soloLectura ? "disabled" : "";
 
-    // Muestra el botón 👥 SIEMPRE que haya otros compañeros con nota en la casilla
     let avisoCompaneros = "";
     const clave = `${materia}|${tipo}|${numero}`;
     const nombres = companerosPorCasilla[clave] || [];
@@ -535,7 +537,7 @@ function tituloColumnaHeader(materia, tipo, numero) {
             : `Esta columna la creó: ${correoCreador}.`;
     }
 
-    return "Columna creada por un estudiante del salón.";
+    return "Columna creada por un estudiante de tu nivel.";
 }
 
 // =====================================================
@@ -972,7 +974,7 @@ contenedorMaterias.addEventListener("click", (e) => {
     } else if (e.target.matches(".btn-companeros")) {
         const nombres = e.target.dataset.nombres;
         const cantidad = e.target.dataset.cantidad;
-        alert(`${cantidad} estudiante(s) del salón ya tienen nota en esta casilla:\n\n${nombres}\n\nPuedes preguntarles o buscar la nota con el profesor(a).`);
+        alert(`${cantidad} estudiante(s) del nivel ya tienen nota en esta casilla:\n\n${nombres}\n\nPuedes preguntarles o buscar la nota con el profesor(a).`);
     }
 });
 
@@ -1054,17 +1056,18 @@ document.getElementById("btnPdf")?.addEventListener("click", async () => {
     const detallePendientesEstudiante = {};
 
     if (miEst?.salon) {
-        const { data: companerosSalon } = await supabase
-            .from("estudiantes").select("correo").eq("salon", miEst.salon).eq("es_prueba", false);
+        const nivelNum = miEst.salon.replace(/\D/g, '');
+        const { data: companerosNivel } = await supabase
+            .from("estudiantes").select("correo").like("salon", `${nivelNum}%`).eq("es_prueba", false);
 
-        const correosDelSalon = (companerosSalon || []).map((e) => e.correo).filter(Boolean);
+        const correosDelNivel = (companerosNivel || []).map((e) => e.correo).filter(Boolean);
 
-        if (correosDelSalon.length > 0) {
+        if (correosDelNivel.length > 0) {
             const { data: notasGrupo } = await supabase
                 .from("notas")
                 .select("correo, materia, tipo, numero")
                 .eq("trimestre", trimestreParaBoletin)
-                .in("correo", correosDelSalon);
+                .in("correo", correosDelNivel);
 
             const maxCasillaGrupo = {};
             (notasGrupo || []).forEach((n) => {
@@ -1306,7 +1309,7 @@ document.getElementById("btnPdf")?.addEventListener("click", async () => {
     if (huboIntencional) {
         doc.setFontSize(8);
         doc.setFont(undefined, "italic");
-        doc.text("F* = Falta marked por el consejero (cuenta como 0.0 en el promedio).", 20, y);
+        doc.text("F* = Falta marcada por el consejero (cuenta como 0.0 en el promedio).", 20, y);
         doc.setFont(undefined, "normal");
         doc.setFontSize(10);
         y += 10;
