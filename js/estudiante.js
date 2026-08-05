@@ -22,6 +22,32 @@ const MATERIAS_BASE = [
     "Religión, Moral y Valores"
 ];
 
+// Nombres cortos para que la columna de materia sea angosta y pareja.
+// El nombre completo real (el que se guarda en la base de datos) no cambia,
+// esto es solo para lo que se muestra en pantalla.
+const MATERIA_ABREVIADA = {
+    "Español": "Español",
+    "Matemática": "Matemática",
+    "Ciencias Naturales": "C. Naturales",
+    "Inglés": "Inglés",
+    "Expresión Artística": "Expr. Artística",
+    "Música": "Música",
+    "Educación Física": "Ed. Física",
+    "Familia y Desarrollo Comunitario": "Fam. y Des. Com.",
+    "Historia": "Historia",
+    "Educación Agropecuaria": "Ed. Agropecuaria",
+    "Contabilidad": "Contabilidad",
+    "Informática": "Informática",
+    "Geografía": "Geografía",
+    "Orientación": "Orientación",
+    "Cívica": "Cívica",
+    "Religión, Moral y Valores": "Relig. y Valores"
+};
+
+function materiaAbreviada(materia) {
+    return MATERIA_ABREVIADA[materia] || materia;
+}
+
 function materiasParaMostrar() {
     const base = miEstudiante?.salon === "8A"
         ? MATERIAS_BASE.map((m) => (m === "Contabilidad" ? "Informática" : m))
@@ -545,9 +571,9 @@ function tablaConsolidadaHtml() {
     filaHead1 += `</tr>`;
 
     let filaHead2 = `<tr>`;
-    for (let i = 1; i <= maxApr; i++) filaHead2 += `<th>${i.toFixed(1)}</th>`;
+    for (let i = 1; i <= maxApr; i++) filaHead2 += `<th>${i}</th>`;
     filaHead2 += `<th class="col-agregar">+</th>`;
-    for (let i = 1; i <= maxEje; i++) filaHead2 += `<th>${i.toFixed(1)}</th>`;
+    for (let i = 1; i <= maxEje; i++) filaHead2 += `<th>${i}</th>`;
     filaHead2 += `<th class="col-agregar">+</th>`;
     filaHead2 += `</tr>`;
 
@@ -559,7 +585,7 @@ function tablaConsolidadaHtml() {
         const promFinal = calcularPromedioFinal(materia, cols.apreciacion, cols.ejercicio);
 
         filas += `<tr>`;
-        filas += `<td class="col-materia">${escapeHtml(materia)}</td>`;
+        filas += `<td class="col-materia" title="${escapeHtml(materia)}">${escapeHtml(materiaAbreviada(materia))}</td>`;
 
         for (let i = 1; i <= maxApr; i++) {
             filas += cols.apreciacion.includes(i)
