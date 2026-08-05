@@ -232,6 +232,36 @@
     </div>
 
 
+    <!-- MODAL: ELEGIR ROL (cuando el correo es admin y consejero a la vez) -->
+    <div class="modal fade" id="modalElegirRol" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">¿Cómo deseas ingresar?</h5>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">
+                        Esta cuenta tiene acceso como <strong>administrador</strong> y
+                        también como <strong>consejero(a)</strong>. Elige con cuál rol
+                        quieres entrar ahora.
+                    </p>
+                    <div class="d-grid gap-2">
+                        <button type="button" id="btnEntrarComoAdmin" class="btn btn-outline-primary">
+                            <i class="fa-solid fa-user-shield me-2"></i>
+                            Entrar como Administrador
+                        </button>
+                        <button type="button" id="btnEntrarComoConsejero" class="btn btn-outline-primary">
+                            <i class="fa-solid fa-chalkboard-user me-2"></i>
+                            Entrar como Consejero(a)
+                            <span id="salonConsejeroBtn"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <!-- ==================================================
          JAVASCRIPT
          ==================================================
