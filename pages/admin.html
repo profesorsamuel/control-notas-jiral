@@ -155,19 +155,7 @@
 
                     <hr>
 
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle border">
-                            <thead class="table-light">
-                                <tr id="cabeceraNotasGrupo">
-                                    <th style="width:45px;">#</th>
-                                    <th>Estudiante</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tablaNotasGrupo"></tbody>
-                        </table>
-                    </div>
-
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
                         <button type="button" id="btnGuardarNotasGrupo" class="btn btn-success">
                             <i class="fa-solid fa-floppy-disk me-1"></i>
                             Guardar todas las notas
@@ -183,6 +171,19 @@
                         <span id="estadoGuardadoNotas" class="small"></span>
                     </div>
 
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle border">
+                            <thead class="table-light">
+                                <tr id="cabeceraNotasGrupo">
+                                    <th style="width:45px;">#</th>
+                                    <th>Estudiante</th>
+                                </tr>
+                                <tr id="cabeceraTemasGrupo"></tr>
+                            </thead>
+                            <tbody id="tablaNotasGrupo"></tbody>
+                        </table>
+                    </div>
+
                     <p class="text-muted small mt-2 mb-0">
                         <i class="fa-solid fa-circle-info me-1"></i>
                         Todas las columnas son editables, incluidas las de historial (por si te
@@ -191,7 +192,7 @@
                         misma columna. Las columnas <strong>Prom. Aprec.</strong>,
                         <strong>Prom. Ejer.</strong> y <strong>Prom. Final</strong> se calculan
                         solas mientras escribes. El sistema <strong>autoguarda cada 30
-                        segundos</strong> lo que hayas cambiado, además del botón de abajo. Las
+                        segundos</strong> lo que hayas cambiado, además del botón de arriba. Las
                         filas en amarillo (<span class="badge bg-warning text-dark">Sin cuenta · provisional</span>)
                         son estudiantes que aún no se registran; en cuanto lo hagan, sus notas se
                         vinculan solas a su cuenta.

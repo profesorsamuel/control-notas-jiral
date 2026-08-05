@@ -1,5 +1,5 @@
 import { supabase } from "./supabase.js";
-import { cedulaAEmail } from "./utils.js";
+import { cedulaAEmail, usuarioAEmail } from "./utils.js";
 
 const form = document.getElementById("registroForm");
 const tipoRegistro = document.getElementById("tipoRegistro");
@@ -255,7 +255,7 @@ async function cargarConsejerosDisponibles() {
 
     const { data: consejerosSalon, error } = await supabase
         .from("consejeros")
-        .select("correo, nombre, registrado")
+        .select("correo, usuario, nombre, registrado")
         .eq("salon", salon);
 
     if (error) {
@@ -274,27 +274,33 @@ async function cargarConsejerosDisponibles() {
     if (disponibles.length === 0) {
         const yaRegistrado = consejerosSalon[0];
         nombreConsejeroSelect.innerHTML =
-            `<option value="">El/la consejero(a) de este salón (${yaRegistrado.nombre || yaRegistrado.correo}) ya tiene cuenta</option>`;
+            `<option value="">El/la consejero(a) de este salón (${yaRegistrado.nombre || yaRegistrado.usuario || yaRegistrado.correo}) ya tiene cuenta</option>`;
         return;
     }
+
+    // Identificador para iniciar sesión: se usa "usuario" (ej. "JUANA2026").
+    // Si algún consejero(a) todavía no tiene un "usuario" asignado en la
+    // base de datos, se usa su correo como respaldo (para no dejarlo
+    // sin poder registrarse).
+    const idLogin = (c) => c.usuario || c.correo;
 
     // -------------------------------------------------
     // CASO NORMAL: un solo consejero(a) pendiente en el salón
     // -------------------------------------------------
     // No tiene sentido pedirle que "elija su nombre de una lista"
     // si solo hay una persona posible. Se autoselecciona y se
-    // completa el correo de una vez; el select queda bloqueado
+    // completa el usuario de una vez; el select queda bloqueado
     // (deshabilitado) solo para que se vea el nombre confirmado.
     if (disponibles.length === 1) {
         const unico = disponibles[0];
-        const nombreEscapado = String(unico.nombre || unico.correo).replace(/"/g, "&quot;");
-        const correoEscapado = String(unico.correo).replace(/"/g, "&quot;");
+        const nombreEscapado = String(unico.nombre || idLogin(unico)).replace(/"/g, "&quot;");
+        const usuarioEscapado = String(idLogin(unico)).replace(/"/g, "&quot;");
 
         nombreConsejeroSelect.innerHTML =
-            `<option value="${nombreEscapado}" data-correo="${correoEscapado}" selected>${unico.nombre || unico.correo}</option>`;
+            `<option value="${nombreEscapado}" data-usuario="${usuarioEscapado}" selected>${unico.nombre || idLogin(unico)}</option>`;
         nombreConsejeroSelect.disabled = true;
 
-        correoConsejeroInput.value = unico.correo;
+        correoConsejeroInput.value = idLogin(unico);
         return;
     }
 
@@ -304,20 +310,20 @@ async function cargarConsejerosDisponibles() {
     // al mismo salón). Aquí sí se le pide elegir de la lista.
     // -------------------------------------------------
     const opciones = disponibles.map((c) => {
-        const nombreEscapado = String(c.nombre || c.correo).replace(/"/g, "&quot;");
-        const correoEscapado = String(c.correo).replace(/"/g, "&quot;");
-        return `<option value="${nombreEscapado}" data-correo="${correoEscapado}">${c.nombre || c.correo}</option>`;
+        const nombreEscapado = String(c.nombre || idLogin(c)).replace(/"/g, "&quot;");
+        const usuarioEscapado = String(idLogin(c)).replace(/"/g, "&quot;");
+        return `<option value="${nombreEscapado}" data-usuario="${usuarioEscapado}">${c.nombre || idLogin(c)}</option>`;
     }).join("");
 
     nombreConsejeroSelect.innerHTML = `<option value="">Seleccione su nombre</option>${opciones}`;
     nombreConsejeroSelect.disabled = false;
 }
 
-// Al elegir el nombre, se completa automáticamente el correo que le
+// Al elegir el nombre, se completa automáticamente el usuario que le
 // corresponde (el mismo que ya tenía asignado ese salón)
 nombreConsejeroSelect.addEventListener("change", () => {
-    const correoSeleccionado = nombreConsejeroSelect.selectedOptions?.[0]?.dataset?.correo || "";
-    correoConsejeroInput.value = correoSeleccionado;
+    const usuarioSeleccionado = nombreConsejeroSelect.selectedOptions?.[0]?.dataset?.usuario || "";
+    correoConsejeroInput.value = usuarioSeleccionado;
 });
 
 salonInput.addEventListener("change", () => {
@@ -516,23 +522,30 @@ async function registrarEstudiante(salon, password) {
 // =====================================================
 async function registrarConsejero(salon, password) {
     const nombreConsejero = nombreConsejeroSelect.value;
-    const correoReal = correoConsejeroInput.value.trim();
+    const usuarioIngresado = correoConsejeroInput.value.trim();
 
-    if (!nombreConsejero || !correoReal) {
+    if (!nombreConsejero || !usuarioIngresado) {
         btnRegistrar.disabled = false;
         mostrarMensaje("Por favor, seleccione su nombre de la lista.", "error");
         return;
     }
 
+    // El usuario (ej. "JUANA2026") no es un correo real; se convierte
+    // a un correo interno único para poder usar Supabase Auth, igual
+    // que se hace con la cédula de los estudiantes.
+    const emailInterno = usuarioAEmail(usuarioIngresado);
+
     // -------------------------------------------------
     // ÚLTIMA VERIFICACIÓN ANTES DE REGISTRAR
     // -------------------------------------------------
     // Por si alguien más ya registró esta cuenta mientras esta
-    // persona tenía el formulario abierto.
+    // persona tenía el formulario abierto. Se busca por "usuario"
+    // (con respaldo por "correo" para quien todavía no tenga
+    // usuario asignado en la base de datos).
     const { data: chequeo, error: errChequeo } = await supabase
         .from("consejeros")
         .select("registrado, nombre")
-        .eq("correo", correoReal)
+        .or(`usuario.eq.${usuarioIngresado},correo.eq.${usuarioIngresado}`)
         .maybeSingle();
 
     if (!errChequeo && chequeo?.registrado) {
@@ -546,11 +559,12 @@ async function registrarConsejero(salon, password) {
     }
 
     const { error } = await supabase.auth.signUp({
-        email: correoReal,
+        email: emailInterno,
         password,
         options: {
             data: {
                 nombre: nombreConsejero,
+                usuario: usuarioIngresado,
                 rol: "consejero",
                 salon
             }
@@ -561,7 +575,7 @@ async function registrarConsejero(salon, password) {
         btnRegistrar.disabled = false;
 
         if (error.message.includes("already registered")) {
-            mostrarMensaje("Este correo ya está registrado. Intenta iniciar sesión.", "error");
+            mostrarMensaje("Este usuario ya está registrado. Intenta iniciar sesión.", "error");
         } else {
             mostrarMensaje(error.message, "error");
         }
@@ -569,15 +583,20 @@ async function registrarConsejero(salon, password) {
     }
 
     // Se actualiza (no se inserta una fila nueva) la fila que ya
-    // existía para este salón, marcándola como registrada.
+    // existía para este salón, marcándola como registrada. Se guarda
+    // el correo interno recién creado en "correo" (así el resto del
+    // sistema —login, panel del consejero, panel de admin— sigue
+    // funcionando igual, comparando contra "correo" como siempre).
     const { error: errorTabla } = await supabase
         .from("consejeros")
         .update({
             nombre: nombreConsejero,
+            usuario: usuarioIngresado,
+            correo: emailInterno,
             rol: "consejero",
             registrado: true
         })
-        .eq("correo", correoReal);
+        .or(`usuario.eq.${usuarioIngresado},correo.eq.${usuarioIngresado}`);
 
     if (errorTabla) {
         console.error("Error al actualizar datos del consejero:", errorTabla);

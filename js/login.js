@@ -1,5 +1,5 @@
 import { supabase } from "./supabase.js";
-import { cedulaAEmail } from "./utils.js";
+import { usuarioAEmail } from "./utils.js";
 
 // =================================================
 // SELECTOR DE ROL (correos con doble función)
@@ -75,13 +75,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // =================================================
-        // DETECTAR SI ES CÉDULA O CORREO
+        // DETECTAR SI ES CÉDULA, USUARIO DE CONSEJERO(A), O CORREO
         // =================================================
         //
         // - Si contiene "@" se asume que es un correo real
-        //   (por ejemplo, la cuenta del consejero/profesor).
-        // - Si no contiene "@" se asume que es una cédula de
-        //   estudiante, y se convierte al correo interno.
+        //   (por ejemplo, la cuenta de un consejero/profesor
+        //   que todavía usa su correo real).
+        // - Si no contiene "@", puede ser:
+        //     (a) una cédula de estudiante, o
+        //     (b) el "usuario" de un consejero(a), ej. "JUANA2026".
+        //   Se prueba primero como cédula; si no se encuentra,
+        //   se prueba como usuario de consejero(a).
 
         const esCorreoReal = valorIngresado.includes("@");
 
@@ -93,17 +97,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } else {
 
-            // Es una cédula: buscamos el correo real de acceso
-            // (puede ser el interno @notasjiral.local, o uno real
-            // si el consejero ya lo cambió desde su panel).
+            // 1) Se intenta primero como cédula de estudiante
             const { data: correoEncontrado, error: errBusqueda } =
                 await supabase.rpc("obtener_correo_login", {
                     p_cedula: valorIngresado
                 });
 
-            correo = (!errBusqueda && correoEncontrado)
-                ? correoEncontrado
-                : cedulaAEmail(valorIngresado); // respaldo por si acaso
+            if (!errBusqueda && correoEncontrado) {
+
+                correo = correoEncontrado;
+
+            } else {
+
+                // 2) No fue una cédula conocida: se revisa si es el
+                // usuario de un consejero(a) ya registrado (ej. "JUANA2026").
+                const { data: consejeroPorUsuario } = await supabase
+                    .from("consejeros")
+                    .select("correo")
+                    .eq("usuario", valorIngresado.toUpperCase())
+                    .maybeSingle();
+
+                correo = consejeroPorUsuario?.correo
+                    ? consejeroPorUsuario.correo
+                    : usuarioAEmail(valorIngresado); // respaldo por si acaso
+            }
         }
 
         try {

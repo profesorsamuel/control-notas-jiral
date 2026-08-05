@@ -201,6 +201,82 @@ document.addEventListener("DOMContentLoaded", async () => {
         return est.correo ? `correo:${est.correo}` : `id:${est.id}`;
     }
 
+    // Busca si ALGUIEN del grupo ya tiene un "tema" escrito en esa
+    // casilla, para mostrarlo como valor inicial del campo (así no
+    // se ve vacío si ya se había puesto uno antes).
+    function obtenerTemaCasilla(tipo, numero) {
+        const clave = claveCasilla(tipo, numero);
+
+        for (const claveEst in historiaPorEstudiante) {
+            const nota = historiaPorEstudiante[claveEst][clave];
+            if (nota && nota.tema) return nota.tema;
+        }
+
+        return "";
+    }
+
+    // Actualiza el "tema" de TODAS las notas que ya existan en esa
+    // casilla exacta (materia + tipo + número + trimestre) para el
+    // grupo cargado en pantalla. Se puede usar en cualquier momento,
+    // incluso mucho después de haber metido las notas.
+    async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
+
+        const materia = notasMateria.value.trim();
+        const trimestre = notasTrimestre.value;
+        const valorGuardar = nuevoTema || null;
+
+        const correosDelGrupo = grupoActualNotas.map((e) => e.correo).filter(Boolean);
+        const idsSinCuenta = grupoActualNotas.filter((e) => !e.correo).map((e) => e.id);
+
+        let huboError = false;
+
+        if (correosDelGrupo.length > 0) {
+            const { error } = await supabase
+                .from("notas")
+                .update({ tema: valorGuardar })
+                .eq("materia", materia)
+                .eq("trimestre", trimestre)
+                .eq("tipo", tipo)
+                .eq("numero", numero)
+                .in("correo", correosDelGrupo);
+
+            if (error) {
+                console.error("❌ Error al actualizar tema de la casilla:", error);
+                huboError = true;
+            }
+        }
+
+        if (idsSinCuenta.length > 0) {
+            const { error } = await supabase
+                .from("notas")
+                .update({ tema: valorGuardar })
+                .eq("materia", materia)
+                .eq("trimestre", trimestre)
+                .eq("tipo", tipo)
+                .eq("numero", numero)
+                .in("estudiante_id", idsSinCuenta);
+
+            if (error) {
+                console.error("❌ Error al actualizar tema de la casilla (sin cuenta):", error);
+                huboError = true;
+            }
+        }
+
+        // Se refleja también en la memoria local, para que el reporte
+        // en PDF/JPG y el propio campo queden consistentes sin recargar.
+        const clave = claveCasilla(tipo, numero);
+        Object.keys(historiaPorEstudiante).forEach((claveEst) => {
+            if (historiaPorEstudiante[claveEst][clave]) {
+                historiaPorEstudiante[claveEst][clave].tema = valorGuardar;
+            }
+        });
+
+        estadoGuardadoNotas.textContent = huboError
+            ? `⚠️ No se pudo actualizar el tema de ${etiquetaCasilla(tipo, numero)}.`
+            : `✅ Tema de "${etiquetaCasilla(tipo, numero)}" actualizado.`;
+        estadoGuardadoNotas.className = huboError ? "small text-danger" : "small text-success";
+    }
+
     // Precargar el trimestre activo como valor por defecto
     (async function precargarTrimestreActivo() {
         const { data: cfg } = await supabase
@@ -347,9 +423,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     function renderTablaNotasGrupo() {
 
         const cabecera = document.getElementById("cabeceraNotasGrupo");
+        const cabeceraTemas = document.getElementById("cabeceraTemasGrupo");
 
         if (grupoActualNotas.length === 0) {
             cabecera.innerHTML = `<th style="width:45px;">#</th><th>Estudiante</th>`;
+            cabeceraTemas.innerHTML = "";
             tablaNotasGrupo.innerHTML = `<tr><td colspan="2" class="text-center text-muted py-3">Este salón aún no tiene estudiantes cargados.</td></tr>`;
             return;
         }
@@ -372,6 +450,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
         htmlCabecera += `<th style="width:160px;">Estado</th>`;
         cabecera.innerHTML = htmlCabecera;
+
+        // -------- Segunda fila del encabezado: tema/descripción de cada casilla --------
+        // Se puede escribir o editar en cualquier momento (incluso después
+        // de ya haber metido las notas); al salir del campo se guarda solo.
+        let htmlTemas = `<th></th><th class="small text-muted fw-normal">Tema de cada casilla:</th>`;
+
+        casillasTabla.forEach((c) => {
+            const temaActual = obtenerTemaCasilla(c.tipo, c.numero);
+            htmlTemas += `
+                <th style="padding:2px 4px;">
+                    <input
+                        type="text"
+                        class="form-control form-control-sm input-tema-columna"
+                        data-tipo="${c.tipo}"
+                        data-numero="${c.numero}"
+                        value="${escapeHtmlAdmin(temaActual)}"
+                        placeholder="Ej: Prueba corta"
+                        style="font-size:11px; font-weight:normal;"
+                    >
+                </th>
+            `;
+        });
+
+        htmlTemas += `<th></th><th></th><th></th><th></th>`; // Prom.Aprec / Prom.Ejer / Prom.Final / Estado
+        cabeceraTemas.innerHTML = htmlTemas;
 
         // -------- Filas --------
         tablaNotasGrupo.innerHTML = grupoActualNotas.map((est, i) => {
@@ -423,6 +526,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         }).join("");
 
         recalcularPromedios();
+
+        // Al salir de un campo de "tema de la casilla", se guarda solo.
+        tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna").forEach((input) => {
+            input.addEventListener("blur", () => {
+                actualizarTemaCasilla(input.dataset.tipo, parseInt(input.dataset.numero, 10), input.value.trim());
+            });
+        });
 
         // Al presionar Enter en una casilla, se pasa el foco a la
         // MISMA columna, una fila más abajo (para llenar toda una
@@ -796,6 +906,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const trimestre = notasTrimestre.value;
         const profesor = MATERIA_A_PROFESOR[materia] || "(sin asignar)";
 
+        const fechaImpresion = new Date().toLocaleString("es-PA", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+
         const columnasApr = casillasTabla
             .filter((c) => c.tipo === "apreciacion")
             .sort((a, b) => a.numero - b.numero);
@@ -817,7 +935,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? "Todos los estudiantes tienen un promedio final de 3.0 o más en esta materia."
             : `${enRiesgo.length} estudiante(s) tienen un promedio por debajo de 3.0 y necesitan apoyo: ${enRiesgo.join(", ")}.`;
 
-        return { materia, salonTexto, trimestre, profesor, columnasApr, columnasEje, filas, enRiesgo, textoAnalisis };
+        return { materia, salonTexto, trimestre, profesor, fechaImpresion, columnasApr, columnasEje, filas, enRiesgo, textoAnalisis };
     }
 
     function validarReporteListo() {
@@ -836,7 +954,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     function generarPDFMateria() {
         if (!validarReporteListo()) return;
 
-        const { materia, salonTexto, trimestre, profesor, columnasApr, columnasEje, filas, textoAnalisis } = prepararReporte();
+        const { materia, salonTexto, trimestre, profesor, fechaImpresion, columnasApr, columnasEje, filas, textoAnalisis } = prepararReporte();
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: columnasApr.length + columnasEje.length > 6 ? "landscape" : "portrait" });
@@ -854,12 +972,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         doc.text(`Salón: ${salonTexto}`, 200, 32);
         doc.text(`Trimestre: ${trimestre}`, 200, 38);
 
-        const head = [[
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Fecha de impresión: ${fechaImpresion}`, 14, 44);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+
+        const filaTitulos = [
             "#", "Estudiante",
             ...columnasApr.map((c) => `Aprec.${c.numero}`), "Prom.Aprec.",
             ...columnasEje.map((c) => `Ejer.${c.numero}`), "Prom.Ejer.",
             "Prom.Final"
-        ]];
+        ];
+
+        // Segunda fila del encabezado: el tema/descripción de cada
+        // casilla (lo que se escribió en "Tema de cada casilla" en
+        // pantalla). Las columnas que no son casillas van en blanco.
+        const filaTemas = [
+            "", "Tema:",
+            ...columnasApr.map((c) => obtenerTemaCasilla(c.tipo, c.numero) || "-"),
+            "",
+            ...columnasEje.map((c) => obtenerTemaCasilla(c.tipo, c.numero) || "-"),
+            "",
+            ""
+        ];
+
+        const head = [filaTitulos, filaTemas];
 
         const body = filas.map((f, i) => {
             const row = [i + 1, f.nombre];
@@ -871,23 +1009,59 @@ document.addEventListener("DOMContentLoaded", async () => {
             return row;
         });
 
-        const indiceColumnaFinal = head[0].length - 1;
+        const indiceColumnaFinal = filaTitulos.length - 1;
+        const idxPromApr = 2 + columnasApr.length;
+        const idxPromEje = idxPromApr + 1 + columnasEje.length;
+        const idxPromFinal = idxPromEje + 1; // = indiceColumnaFinal
 
         doc.autoTable({
             head,
             body,
-            startY: 44,
-            styles: { fontSize: 8, halign: "center" },
-            headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+            startY: 50,
+            styles: { fontSize: 8, halign: "center", lineColor: [180, 180, 180], lineWidth: 0.1 },
+            headStyles: { fillColor: [31, 78, 121], textColor: 255, fontStyle: "bold" },
             columnStyles: { 1: { halign: "left", fontStyle: "bold" } },
+            alternateRowStyles: { fillColor: [246, 248, 251] },
             didParseCell: (data) => {
-                if (data.section !== "body") return;
 
-                const finalNum = parseFloat(body[data.row.index][indiceColumnaFinal]);
+                const col = data.column.index;
+                const esColumnaPromedio = col === idxPromApr || col === idxPromEje || col === idxPromFinal;
 
-                if (!isNaN(finalNum) && finalNum < PROMEDIO_MINIMO_APROBAR) {
-                    data.cell.styles.textColor = [200, 0, 0];
+                // Fila 0 del encabezado = títulos (Aprec.1, Ejer.1...)
+                // Fila 1 del encabezado = temas de cada casilla (más chica y en cursiva)
+                if (data.section === "head" && data.row.index === 1) {
+                    data.cell.styles.fontStyle = "italic";
+                    data.cell.styles.fontSize = 6.5;
+                    data.cell.styles.fillColor = [255, 255, 255];
+                    data.cell.styles.textColor = [90, 90, 90];
+                    data.cell.styles.lineColor = [200, 200, 200];
+                    return;
+                }
+
+                if (esColumnaPromedio) {
                     data.cell.styles.fontStyle = "bold";
+                }
+
+                if (data.section === "head" && data.row.index === 0 && esColumnaPromedio) {
+                    data.cell.styles.fillColor = [17, 53, 84];
+                }
+
+                if (data.section === "body") {
+
+                    const finalNum = parseFloat(body[data.row.index][indiceColumnaFinal]);
+                    const enRiesgo = !isNaN(finalNum) && finalNum < PROMEDIO_MINIMO_APROBAR;
+
+                    if (enRiesgo) {
+                        data.cell.styles.textColor = [200, 3, 17];
+                    }
+
+                    if (esColumnaPromedio) {
+                        if (col === idxPromFinal && enRiesgo) {
+                            data.cell.styles.fillColor = [253, 226, 226];
+                        } else {
+                            data.cell.styles.fillColor = col === idxPromFinal ? [227, 247, 227] : [238, 242, 255];
+                        }
+                    }
                 }
             }
         });
@@ -910,7 +1084,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // -------- JPG (html2canvas sobre un reporte armado aparte) --------
     function construirReporteDOM(datos) {
-        const { materia, salonTexto, trimestre, profesor, columnasApr, columnasEje, filas, textoAnalisis } = datos;
+        const { materia, salonTexto, trimestre, profesor, fechaImpresion, columnasApr, columnasEje, filas, textoAnalisis } = datos;
 
         const cont = document.createElement("div");
         cont.style.cssText = "position:fixed; left:-9999px; top:0; width:1100px; background:#fff; padding:26px; font-family:Arial, Helvetica, sans-serif; color:#111;";
@@ -948,10 +1122,27 @@ document.addEventListener("DOMContentLoaded", async () => {
             "Prom.Final"
         ].map((t) => `<th style="padding:6px 7px; border:1px solid #999; background:#1f4e79; color:#fff; font-size:12px;">${t}</th>`).join("");
 
+        // Segunda fila del encabezado: el tema/descripción de cada
+        // casilla, más chica y en cursiva debajo del título.
+        let filaTemasHtml = `<th style="border:1px solid #ccc;"></th><th style="border:1px solid #ccc; font-size:10px; font-weight:normal; color:#666;">Tema:</th>`;
+
+        columnasApr.forEach((c) => {
+            const tema = obtenerTemaCasilla(c.tipo, c.numero) || "-";
+            filaTemasHtml += `<th style="border:1px solid #ccc; font-size:10px; font-weight:normal; font-style:italic; color:#666;">${escapeHtmlAdmin(tema)}</th>`;
+        });
+        filaTemasHtml += `<th style="border:1px solid #ccc;"></th>`;
+
+        columnasEje.forEach((c) => {
+            const tema = obtenerTemaCasilla(c.tipo, c.numero) || "-";
+            filaTemasHtml += `<th style="border:1px solid #ccc; font-size:10px; font-weight:normal; font-style:italic; color:#666;">${escapeHtmlAdmin(tema)}</th>`;
+        });
+        filaTemasHtml += `<th style="border:1px solid #ccc;"></th><th style="border:1px solid #ccc;"></th>`;
+
         cont.innerHTML = `
             <div style="text-align:center; margin-bottom:16px;">
                 <h2 style="margin:0; font-size:22px; letter-spacing:1px;">CONTROL DE NOTAS</h2>
                 <h3 style="margin:4px 0 0; font-size:16px; color:#1f4e79;">C.E.B.G. EL JIRAL</h3>
+                <p style="margin:4px 0 0; font-size:11px; color:#777;">Fecha de impresión: ${escapeHtmlAdmin(fechaImpresion)}</p>
             </div>
             <table style="width:100%; margin-bottom:16px; font-size:13px; border-collapse:collapse;">
                 <tr>
@@ -964,7 +1155,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </tr>
             </table>
             <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                <thead><tr>${columnasEncabezado}</tr></thead>
+                <thead>
+                    <tr>${columnasEncabezado}</tr>
+                    <tr>${filaTemasHtml}</tr>
+                </thead>
                 <tbody>${filasHtml}</tbody>
             </table>
             <div style="margin-top:18px; padding:12px; border:1px solid #ccc; background:#f8f9fa; font-size:13px;">
