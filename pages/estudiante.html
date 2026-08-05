@@ -281,7 +281,6 @@
         }
 
         .btn-companeros {
-            margin-top: 3px;
             border: 1px solid #fbbf24;
             background: #fffbeb;
             color: #92400e;
@@ -293,6 +292,78 @@
 
         .btn-companeros:hover {
             background: #fef3c7;
+        }
+
+        /* Botón "❓" rojo: el estudiante no tiene nota pero algún
+           compañero de su nivel sí tiene nota en esa casilla */
+        .btn-companeros.falta {
+            border: 1px solid #dc2626;
+            background: #fee2e2;
+            color: #b91c1c;
+            font-weight: bold;
+        }
+
+        .btn-companeros.falta:hover {
+            background: #fecaca;
+        }
+
+        /* ============================================
+           TABLA CONSOLIDADA (todas las materias juntas)
+           ============================================ */
+
+        .col-materia {
+            text-align: left !important;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .celda-vacia {
+            background-color: #f8fafc !important;
+        }
+
+        .col-agregar {
+            min-width: 34px !important;
+            width: 34px;
+        }
+
+        .celda-agregar {
+            min-width: 34px !important;
+            width: 34px;
+        }
+
+        .celda-nota-acciones {
+            display: flex;
+            gap: 3px;
+            justify-content: center;
+            margin-top: 2px;
+            flex-wrap: wrap;
+        }
+
+        .btn-tema {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 11px;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .btn-tema:hover {
+            filter: brightness(1.3);
+        }
+
+        /* Casilla donde falta la nota (compañeros ya tienen) */
+        td.celda-falta {
+            background-color: #fef2f2;
+        }
+
+        .input-falta {
+            border-color: #dc2626 !important;
+        }
+
+        .input-falta::placeholder {
+            color: #dc2626;
+            font-weight: bold;
         }
 
         /* Fila de "Tema", debajo de los números de columna */
@@ -416,6 +487,10 @@
                 break-inside: avoid;
                 margin-bottom: 15px !important;
             }
+
+            .tabla-consolidada tr {
+                break-inside: avoid;
+            }
         }
 
         /* ============================================
@@ -482,9 +557,8 @@
                 min-width: 60px;
             }
 
-            /* Mantiene la columna de N° visible al deslizar */
-            .tabla-notas th:first-child,
-            .tabla-notas td:first-child {
+            /* Mantiene la columna de Materia visible al deslizar */
+            .tabla-notas .col-materia {
                 position: sticky;
                 left: 0;
                 z-index: 2;
@@ -492,7 +566,7 @@
                 box-shadow: 2px 0 4px rgba(0, 0, 0, 0.12);
             }
 
-            .tabla-notas thead th:first-child {
+            .tabla-notas thead .col-materia {
                 background-color: #1e293b;
                 z-index: 3;
             }
@@ -550,7 +624,7 @@
         </span>
     </div>
 
-    <p class="scroll-hint">📱 Desliza cada tabla hacia los lados para ver todas las columnas →</p>
+    <p class="scroll-hint">📱 Desliza la tabla hacia los lados para ver todas las columnas →</p>
 
     <!-- Aquí se generan, una por materia, las tarjetas con su tabla -->
     <div id="materias"></div>

@@ -431,6 +431,8 @@ function calcularPromedioFinal(materia, apr, eje) {
 function celdaNotaHtml(materia, tipo, numero) {
     const nota = notasPorMateria[materia]?.[tipo]?.[numero];
     const soloLectura = !estaEditando();
+    const clave = `${materia}|${tipo}|${numero}`;
+    const temaOficial = temasOficialesPorMateria[materia]?.[tipo]?.[numero];
 
     if (nota && nota.estado === "Intencional") {
         return `
@@ -445,208 +447,205 @@ function celdaNotaHtml(materia, tipo, numero) {
     const valor = nota?.nota ?? "";
     const disabled = soloLectura ? "disabled" : "";
 
-    let avisoCompaneros = "";
-    const clave = `${materia}|${tipo}|${numero}`;
     const nombres = companerosPorCasilla[clave] || [];
+    const faltaNota = !nota && nombres.length > 0;
 
-    if (nombres.length > 0) {
+    let avisoCompaneros = "";
+    if (faltaNota) {
         avisoCompaneros = `
             <button
                 type="button"
-                class="btn-companeros"
+                class="btn-companeros falta"
                 title="Ya tienen nota aquí: ${escapeHtml(nombres.join(", "))}"
                 data-nombres="${escapeHtml(nombres.join(", "))}"
                 data-cantidad="${nombres.length}"
-            >👥 ${nombres.length}</button>
+            >❓</button>
         `;
     }
 
+    let botonTema = "";
+    if (!soloLectura && nota && !temaOficial) {
+        botonTema = `
+            <button
+                type="button"
+                class="btn-tema"
+                title="${nota.tema ? "Tema: " + escapeHtml(nota.tema) : "Agregar tema (opcional)"}"
+                data-materia="${escapeHtml(materia)}"
+                data-tipo="${tipo}"
+                data-numero="${numero}"
+            >🏷️</button>
+        `;
+    }
+
+    let botonBorrar = "";
+    if (!soloLectura && !columnaEsOficial[clave]) {
+        botonBorrar = `
+            <button
+                type="button"
+                class="btn-borrar-col"
+                title="Eliminar esta columna (solo si nadie más tiene nota aquí)"
+                data-materia="${escapeHtml(materia)}"
+                data-tipo="${tipo}"
+                data-numero="${numero}"
+            >🗑️</button>
+        `;
+    }
+
+    const tituloTema = temaOficial
+        ? `Tema asignado por el profesor(a): ${escapeHtml(temaOficial)}`
+        : (nota?.tema ? `Tema: ${escapeHtml(nota.tema)}` : "");
+
     return `
-        <td>
+        <td class="${faltaNota ? "celda-falta" : ""}"${tituloTema ? ` title="${tituloTema}"` : ""}>
             <div class="celda-nota">
                 <input
                     type="number"
-                    class="input-nota"
+                    class="input-nota${faltaNota ? " input-falta" : ""}"
                     min="1" max="5" step="0.1"
                     value="${escapeHtml(valor)}"
-                    placeholder="—"
+                    placeholder="${faltaNota ? "❓" : "—"}"
                     data-materia="${escapeHtml(materia)}"
                     data-tipo="${tipo}"
                     data-numero="${numero}"
                     ${disabled}
                 >
-                ${avisoCompaneros}
+                <div class="celda-nota-acciones">
+                    ${avisoCompaneros}
+                    ${botonTema}
+                    ${botonBorrar}
+                </div>
             </div>
         </td>
     `;
 }
 
 // =====================================================
-// RENDER DE LA CELDA DE "TEMA"
+// TABLA CONSOLIDADA (todas las materias juntas)
 // =====================================================
 
-function celdaTemaHtml(materia, tipo, numero) {
-    const temaOficial = temasOficialesPorMateria[materia]?.[tipo]?.[numero];
+function tablaConsolidadaHtml() {
+    const materias = materiasParaMostrar();
+    const editando = estaEditando();
 
-    if (temaOficial) {
-        return `<th class="celda-tema-fija" title="Tema puesto por el profesor(a)/administrador — no se puede editar aquí">
-            🔒 ${escapeHtml(temaOficial)}
-        </th>`;
-    }
+    let maxApr = 0;
+    let maxEje = 0;
+    materias.forEach((m) => {
+        const cols = columnasPorMateria[m] || { apreciacion: [], ejercicio: [] };
+        if (cols.apreciacion.length) maxApr = Math.max(maxApr, Math.max(...cols.apreciacion));
+        if (cols.ejercicio.length) maxEje = Math.max(maxEje, Math.max(...cols.ejercicio));
+    });
 
-    const nota = notasPorMateria[materia]?.[tipo]?.[numero];
-    const soloLectura = !estaEditando();
-    const sinNotaAun = !nota || nota.estado === "Intencional";
-    const disabled = (soloLectura || sinNotaAun) ? "disabled" : "";
-    const placeholder = sinNotaAun ? "Escribe la nota primero" : "Tema (opcional)";
+    let filaHead1 = `<tr>`;
+    filaHead1 += `<th rowspan="2" class="col-materia">Materia</th>`;
+    filaHead1 += `<th colspan="${maxApr + 1}">Apreciación</th>`;
+    filaHead1 += `<th rowspan="2">Prom.<br>Apr.</th>`;
+    filaHead1 += `<th colspan="${maxEje + 1}">Ejercicio</th>`;
+    filaHead1 += `<th rowspan="2">Prom.<br>Eje.</th>`;
+    filaHead1 += `<th rowspan="2">Promedio<br>Final</th>`;
+    filaHead1 += `</tr>`;
+
+    let filaHead2 = `<tr>`;
+    for (let i = 1; i <= maxApr; i++) filaHead2 += `<th>${i.toFixed(1)}</th>`;
+    filaHead2 += `<th class="col-agregar">+</th>`;
+    for (let i = 1; i <= maxEje; i++) filaHead2 += `<th>${i.toFixed(1)}</th>`;
+    filaHead2 += `<th class="col-agregar">+</th>`;
+    filaHead2 += `</tr>`;
+
+    let filas = "";
+    materias.forEach((materia) => {
+        const cols = columnasPorMateria[materia] || { apreciacion: [], ejercicio: [] };
+        const promApr = calcularPromedio(materia, "apreciacion", cols.apreciacion);
+        const promEje = calcularPromedio(materia, "ejercicio", cols.ejercicio);
+        const promFinal = calcularPromedioFinal(materia, cols.apreciacion, cols.ejercicio);
+
+        filas += `<tr>`;
+        filas += `<td class="col-materia">${escapeHtml(materia)}</td>`;
+
+        for (let i = 1; i <= maxApr; i++) {
+            filas += cols.apreciacion.includes(i)
+                ? celdaNotaHtml(materia, "apreciacion", i)
+                : `<td class="celda-vacia"></td>`;
+        }
+        filas += celdaAgregarHtml(materia, "apreciacion", editando);
+        filas += `<td class="celda-promedio">${promApr !== null ? promApr.toFixed(1) : "-"}</td>`;
+
+        for (let i = 1; i <= maxEje; i++) {
+            filas += cols.ejercicio.includes(i)
+                ? celdaNotaHtml(materia, "ejercicio", i)
+                : `<td class="celda-vacia"></td>`;
+        }
+        filas += celdaAgregarHtml(materia, "ejercicio", editando);
+        filas += `<td class="celda-promedio">${promEje !== null ? promEje.toFixed(1) : "-"}</td>`;
+
+        filas += `<td class="celda-promedio celda-final">${promFinal !== null ? promFinal.toFixed(1) : "-"}</td>`;
+        filas += `</tr>`;
+    });
 
     return `
-        <th class="celda-tema-editable">
-            <input
-                type="text"
-                class="input-tema"
-                value="${escapeHtml(nota?.tema ?? "")}"
-                placeholder="${placeholder}"
+        <div class="tabla-contenedor">
+            <table class="tabla-notas tabla-consolidada">
+                <thead>${filaHead1}${filaHead2}</thead>
+                <tbody>${filas}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+function celdaAgregarHtml(materia, tipo, editando) {
+    if (!editando) return `<td class="celda-agregar"></td>`;
+    const etiqueta = tipo === "apreciacion" ? "Agregar apreciación" : "Agregar ejercicio";
+    return `
+        <td class="celda-agregar">
+            <button
+                type="button"
+                class="btn-agregar-col"
+                title="${etiqueta} a ${escapeHtml(materia)}"
                 data-materia="${escapeHtml(materia)}"
                 data-tipo="${tipo}"
-                data-numero="${numero}"
-                ${disabled}
-            >
-        </th>
-    `;
-}
-
-// =====================================================
-// TEXTO DEL TOOLTIP (REVELA CREADOR EXACTO)
-// =====================================================
-
-function tituloColumnaHeader(materia, tipo, numero) {
-    if (temasOficialesPorMateria[materia]?.[tipo]?.[numero]) {
-        return "Esta columna la creó el profesor(a) o el/la administrador(a) del sistema.";
-    }
-
-    const correoCreador = creadoPorPorCasilla[`${materia}|${tipo}|${numero}`];
-
-    if (correoCreador) {
-        if (correoCreador === usuarioActual.email) {
-            return "Esta columna la creaste tú.";
-        }
-        const nombre = nombrePorCorreo[correoCreador];
-        return nombre
-            ? `Esta columna la creó: ${nombre}.`
-            : `Esta columna la creó: ${correoCreador}.`;
-    }
-
-    return "Columna creada por un estudiante de tu nivel.";
-}
-
-// =====================================================
-// BOTÓN "ELIMINAR COLUMNA"
-// =====================================================
-
-function botonBorrarColumnaHtml(materia, tipo, numero) {
-    const clave = `${materia}|${tipo}|${numero}`;
-
-    if (!estaEditando()) return "";
-    if (columnaEsOficial[clave]) return "";
-
-    const nota = notasPorMateria[materia]?.[tipo]?.[numero];
-    if (nota && nota.estado === "Intencional") return "";
-
-    return `
-        <button
-            type="button"
-            class="btn-borrar-col"
-            title="Eliminar esta columna (solo si nadie más tiene nota aquí)"
-            data-materia="${escapeHtml(materia)}"
-            data-tipo="${tipo}"
-            data-numero="${numero}"
-        >🗑️</button>
-    `;
-}
-
-// =====================================================
-// RENDER DE LA TARJETA DE UNA MATERIA
-// =====================================================
-
-function materiaCardHtml(materia) {
-    const cols = columnasPorMateria[materia] || { apreciacion: [], ejercicio: [] };
-    const apr = cols.apreciacion;
-    const eje = cols.ejercicio;
-
-    let tabla = "";
-
-    if (apr.length === 0 && eje.length === 0) {
-        tabla = `<p style="color:#64748b; font-size:14px;">Todavía no hay columnas de notas para esta materia.</p>`;
-    } else {
-        let filaHead1 = `<tr>`;
-        if (apr.length > 0) filaHead1 += `<th colspan="${apr.length + 1}">Notas de Apreciación</th>`;
-        if (eje.length > 0) filaHead1 += `<th colspan="${eje.length + 1}">Notas de Ejercicio</th>`;
-        filaHead1 += `<th rowspan="3">Promedio Final</th></tr>`;
-
-        let filaHead2 = `<tr>`;
-        apr.forEach((n) => { filaHead2 += `<th title="${escapeHtml(tituloColumnaHeader(materia, "apreciacion", n))}">Apreciación ${n} ℹ️${botonBorrarColumnaHtml(materia, "apreciacion", n)}</th>`; });
-        if (apr.length > 0) filaHead2 += `<th>Prom. Apr.</th>`;
-        eje.forEach((n) => { filaHead2 += `<th title="${escapeHtml(tituloColumnaHeader(materia, "ejercicio", n))}">Ejercicio ${n} ℹ️${botonBorrarColumnaHtml(materia, "ejercicio", n)}</th>`; });
-        if (eje.length > 0) filaHead2 += `<th>Prom. Eje.</th>`;
-        filaHead2 += `</tr>`;
-
-        let filaHead3 = `<tr class="fila-temas">`;
-        apr.forEach((n) => { filaHead3 += celdaTemaHtml(materia, "apreciacion", n); });
-        if (apr.length > 0) filaHead3 += `<th class="celda-tema-vacia"></th>`;
-        eje.forEach((n) => { filaHead3 += celdaTemaHtml(materia, "ejercicio", n); });
-        if (eje.length > 0) filaHead3 += `<th class="celda-tema-vacia"></th>`;
-        filaHead3 += `</tr>`;
-
-        const promApr = calcularPromedio(materia, "apreciacion", apr);
-        const promEje = calcularPromedio(materia, "ejercicio", eje);
-        const promFinal = calcularPromedioFinal(materia, apr, eje);
-
-        let filaDatos = `<tr>`;
-        apr.forEach((n) => { filaDatos += celdaNotaHtml(materia, "apreciacion", n); });
-        if (apr.length > 0) {
-            filaDatos += `<td class="celda-promedio">${promApr !== null ? promApr.toFixed(1) : "-"}</td>`;
-        }
-        eje.forEach((n) => { filaDatos += celdaNotaHtml(materia, "ejercicio", n); });
-        if (eje.length > 0) {
-            filaDatos += `<td class="celda-promedio">${promEje !== null ? promEje.toFixed(1) : "-"}</td>`;
-        }
-        filaDatos += `<td class="celda-promedio">${promFinal !== null ? promFinal.toFixed(1) : "-"}</td>`;
-        filaDatos += `</tr>`;
-
-        tabla = `
-            <div class="tabla-contenedor">
-                <table class="tabla-notas">
-                    <thead>${filaHead1}${filaHead2}${filaHead3}</thead>
-                    <tbody>${filaDatos}</tbody>
-                </table>
-            </div>
-        `;
-    }
-
-    const botones = estaEditando() ? `
-        <div class="fila-botones-materia">
-            <button type="button" class="btn-agregar-col" data-materia="${escapeHtml(materia)}" data-tipo="apreciacion">
-                ➕ Agregar Apreciación
-            </button>
-            <button type="button" class="btn-agregar-col" data-materia="${escapeHtml(materia)}" data-tipo="ejercicio">
-                ➕ Agregar Ejercicio
-            </button>
-        </div>
-    ` : "";
-
-    return `
-        <section class="materia-card">
-            <h2>${escapeHtml(materia)}</h2>
-            ${tabla}
-            ${botones}
-        </section>
+            >➕</button>
+        </td>
     `;
 }
 
 function render() {
     avisoSoloLectura.style.display = estaEditando() ? "none" : "inline-block";
-    contenedorMaterias.innerHTML = materiasParaMostrar().map(materiaCardHtml).join("");
+    contenedorMaterias.innerHTML = tablaConsolidadaHtml();
+}
+
+// =====================================================
+// EDITAR EL TEMA DE UNA CASILLA (por ícono 🏷️)
+// =====================================================
+
+async function editarTemaCelda(materia, tipo, numero) {
+    if (!estaEditando()) return;
+
+    const nota = notasPorMateria[materia]?.[tipo]?.[numero];
+    if (!nota || nota.estado === "Intencional") {
+        mostrarToast("✍️ Primero escribe la nota");
+        return;
+    }
+
+    const actual = nota.tema || "";
+    const nuevo = window.prompt("Tema de esta actividad (opcional):", actual);
+    if (nuevo === null) return;
+
+    const nuevoLimpio = nuevo.trim();
+    if (nuevoLimpio === actual) return;
+
+    const { error } = await supabase
+        .from("notas")
+        .update({ tema: nuevoLimpio || null, actividad: nuevoLimpio || etiquetaCasillaRespaldo(tipo, numero) })
+        .eq("id", nota.id);
+
+    if (error) {
+        console.error("❌ Error al guardar el tema:", error);
+        mostrarToast("❌ No se pudo guardar el tema");
+        return;
+    }
+
+    nota.tema = nuevoLimpio || null;
+    mostrarToast("✅ Tema guardado");
+    render();
 }
 
 // =====================================================
@@ -975,6 +974,8 @@ contenedorMaterias.addEventListener("click", (e) => {
         const nombres = e.target.dataset.nombres;
         const cantidad = e.target.dataset.cantidad;
         alert(`${cantidad} estudiante(s) del nivel ya tienen nota en esta casilla:\n\n${nombres}\n\nPuedes preguntarles o buscar la nota con el profesor(a).`);
+    } else if (e.target.matches(".btn-tema")) {
+        editarTemaCelda(e.target.dataset.materia, e.target.dataset.tipo, Number(e.target.dataset.numero));
     }
 });
 
