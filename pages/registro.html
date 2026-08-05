@@ -177,7 +177,7 @@
 
             <div class="encabezado">
 
-                <h1>Registro de Estudiante</h1>
+                <h1 id="tituloRegistro">Registro de Estudiante</h1>
 
                 <p>
                     C.E.B.G. EL JIRAL<br>
@@ -189,7 +189,7 @@
             <form id="registroForm">
 
                 <!-- TIPO DE REGISTRO -->
-                <div class="grupo">
+                <div class="grupo" id="grupoTipoRegistro">
 
                     <label for="tipoRegistro">
                         ¿Quién se registra?
@@ -200,6 +200,19 @@
                         <option value="consejero">Consejero(a)</option>
                     </select>
 
+                </div>
+
+                <!--
+                    Se muestra en vez del selector de arriba cuando la
+                    persona llegó desde un link que ya indica su tipo
+                    (ej. registro.html?tipo=consejero), para no
+                    preguntarle algo que ya sabemos.
+                -->
+                <div class="grupo" id="avisoTipoPreseleccionado" style="display:none;">
+                    <p id="textoTipoPreseleccionado" style="margin:0; font-weight:bold; color:#1e3a8a;"></p>
+                    <a href="registro.html" class="nota" style="display:inline-block; margin-top:4px;">
+                        ¿No eres tú? Cambiar tipo de registro
+                    </a>
                 </div>
 
                 <!-- SALÓN -->

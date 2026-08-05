@@ -12,6 +12,12 @@ const nombreSelect = document.getElementById("nombre");
 const nombreConsejeroSelect = document.getElementById("nombreConsejero");
 const correoConsejeroInput = document.getElementById("correoConsejero");
 
+// Se guarda tal cual viene en el HTML (8°A, 9°A, 9°B, 9°C) para poder
+// restaurarla cuando el tipo de registro sea "Estudiante", ya que a
+// los estudiantes SÍ se les debe mostrar cualquier salón sin importar
+// si el consejero de ese salón ya se registró o no.
+const salonesTodasOpcionesHTML = salonInput.innerHTML;
+
 // =====================================================
 // MOSTRAR MENSAJES EN PANTALLA (en vez de alert)
 // =====================================================
@@ -34,10 +40,22 @@ function actualizarCampos() {
     nombreConsejeroSelect.required = esConsejero;
     correoConsejeroInput.required = esConsejero;
 
-    if (salonInput.value) {
-        if (esConsejero) {
-            cargarConsejerosDisponibles();
-        } else {
+    if (esConsejero) {
+
+        // Para consejero(a): el salón solo debe mostrar las opciones
+        // donde TODAVÍA falte alguien por registrarse. Si el consejero
+        // de 9°C ya tiene cuenta, 9°C ni siquiera debe aparecer aquí.
+        cargarSalonesDisponiblesParaConsejero();
+
+    } else {
+
+        // Para estudiante: se restauran los 4 salones fijos, porque
+        // siempre puede haber estudiantes de ese salón sin registrar,
+        // sin importar el estado del consejero.
+        salonInput.innerHTML = salonesTodasOpcionesHTML;
+        salonInput.disabled = false;
+
+        if (salonInput.value) {
             cargarNombresDisponibles();
         }
     }
@@ -49,12 +67,42 @@ tipoRegistro.addEventListener("change", actualizarCampos);
 // PRESELECCIONAR EL TIPO DE REGISTRO SEGÚN LA URL
 // (viene desde la página de inicio, ej. registro.html?tipo=consejero)
 // =====================================================
+//
+// Cuando la persona llega desde un link que ya indica su tipo
+// (por ejemplo la tarjeta "Soy Consejero(a)/Docente" de inicio.html),
+// ya sabemos quién se está registrando: no tiene sentido volver a
+// preguntarle. En ese caso se oculta el selector "¿Quién se registra?"
+// y se muestra un texto fijo en su lugar.
+
+const grupoTipoRegistro = document.getElementById("grupoTipoRegistro");
+const avisoTipoPreseleccionado = document.getElementById("avisoTipoPreseleccionado");
+const textoTipoPreseleccionado = document.getElementById("textoTipoPreseleccionado");
+const tituloRegistro = document.getElementById("tituloRegistro");
+
 function preseleccionarTipoDesdeURL() {
     const parametros = new URLSearchParams(window.location.search);
     const tipoParam = (parametros.get("tipo") || "").toLowerCase();
 
     if (tipoParam === "consejero" || tipoParam === "estudiante") {
         tipoRegistro.value = tipoParam;
+
+        if (grupoTipoRegistro && avisoTipoPreseleccionado && textoTipoPreseleccionado) {
+            grupoTipoRegistro.style.display = "none";
+            avisoTipoPreseleccionado.style.display = "block";
+            textoTipoPreseleccionado.textContent = tipoParam === "consejero"
+                ? "Te estás registrando como Consejero(a)."
+                : "Te estás registrando como Estudiante.";
+        }
+
+        if (tituloRegistro) {
+            tituloRegistro.textContent = tipoParam === "consejero"
+                ? "Registro de Consejero(a)"
+                : "Registro de Estudiante";
+        }
+
+        document.title = tipoParam === "consejero"
+            ? "Registro de Consejero(a) - Control de Notas"
+            : "Registro de Estudiante - Control de Notas";
     }
 }
 
@@ -88,7 +136,7 @@ async function cargarNombresDisponibles() {
 
     const { data: estudiantesSalon, error } = await supabase
         .from("estudiantes")
-        .select("codigo, nombre, correo")
+        .select("id, codigo, nombre, correo")
         .eq("salon", salon)
         .order("nombre", { ascending: true });
 
@@ -112,11 +160,75 @@ async function cargarNombresDisponibles() {
 
     const opciones = disponibles.map((e) => {
         const nombreEscapado = String(e.nombre).replace(/"/g, "&quot;");
-        return `<option value="${nombreEscapado}" data-codigo="${e.codigo}">${e.nombre}</option>`;
+        return `<option value="${nombreEscapado}" data-codigo="${e.codigo}" data-id="${e.id}">${e.nombre}</option>`;
     }).join("");
 
     nombreSelect.innerHTML = `<option value="">Seleccione un estudiante</option>${opciones}`;
     nombreSelect.disabled = false;
+}
+
+// =====================================================
+// CARGAR SOLO LOS SALONES CON CONSEJERO(A) PENDIENTE
+// =====================================================
+//
+// Se usa únicamente cuando el tipo de registro es "Consejero(a)".
+// Consulta TODA la tabla "consejeros" y arma la lista de salones
+// quedándose solo con los que tienen al menos un registro con
+// "registrado" = false. Así, si el consejero de 9°C ya se registró,
+// 9°C deja de aparecer como opción en el select de Salón.
+
+const ORDEN_SALONES = ["8A", "9A", "9B", "9C"];
+const ETIQUETAS_SALONES = { "8A": "8°A", "9A": "9°A", "9B": "9°B", "9C": "9°C" };
+
+async function cargarSalonesDisponiblesParaConsejero() {
+
+    const salonPrevio = salonInput.value;
+
+    salonInput.innerHTML = `<option value="">Cargando salones...</option>`;
+    salonInput.disabled = true;
+
+    const { data: consejerosTodos, error } = await supabase
+        .from("consejeros")
+        .select("salon, registrado");
+
+    if (error) {
+        console.error("❌ Error al cargar salones disponibles para consejero(a):", error);
+        // Si falla la consulta, se muestra la lista completa como respaldo
+        // en vez de dejar al usuario sin poder elegir nada.
+        salonInput.innerHTML = salonesTodasOpcionesHTML;
+        salonInput.disabled = false;
+        return;
+    }
+
+    const salonesConPendiente = new Set(
+        (consejerosTodos || [])
+            .filter((c) => !c.registrado)
+            .map((c) => c.salon)
+    );
+
+    if (salonesConPendiente.size === 0) {
+        salonInput.innerHTML = `<option value="">Todos los salones ya tienen su consejero(a) registrado(a)</option>`;
+        salonInput.disabled = true;
+        nombreConsejeroSelect.innerHTML = `<option value="">Seleccione primero un salón</option>`;
+        nombreConsejeroSelect.disabled = true;
+        correoConsejeroInput.value = "";
+        return;
+    }
+
+    const opciones = ORDEN_SALONES
+        .filter((s) => salonesConPendiente.has(s))
+        .map((s) => `<option value="${s}">${ETIQUETAS_SALONES[s] || s}</option>`)
+        .join("");
+
+    salonInput.innerHTML = `<option value="">Seleccione un salón</option>${opciones}`;
+    salonInput.disabled = false;
+
+    // Si el salón que tenía elegido sigue disponible, se mantiene
+    // seleccionado y se recarga el nombre del consejero de una vez.
+    if (salonPrevio && salonesConPendiente.has(salonPrevio)) {
+        salonInput.value = salonPrevio;
+        await cargarConsejerosDisponibles();
+    }
 }
 
 // =====================================================
@@ -166,6 +278,31 @@ async function cargarConsejerosDisponibles() {
         return;
     }
 
+    // -------------------------------------------------
+    // CASO NORMAL: un solo consejero(a) pendiente en el salón
+    // -------------------------------------------------
+    // No tiene sentido pedirle que "elija su nombre de una lista"
+    // si solo hay una persona posible. Se autoselecciona y se
+    // completa el correo de una vez; el select queda bloqueado
+    // (deshabilitado) solo para que se vea el nombre confirmado.
+    if (disponibles.length === 1) {
+        const unico = disponibles[0];
+        const nombreEscapado = String(unico.nombre || unico.correo).replace(/"/g, "&quot;");
+        const correoEscapado = String(unico.correo).replace(/"/g, "&quot;");
+
+        nombreConsejeroSelect.innerHTML =
+            `<option value="${nombreEscapado}" data-correo="${correoEscapado}" selected>${unico.nombre || unico.correo}</option>`;
+        nombreConsejeroSelect.disabled = true;
+
+        correoConsejeroInput.value = unico.correo;
+        return;
+    }
+
+    // -------------------------------------------------
+    // CASO POCO COMÚN: más de un consejero(a) pendiente
+    // (por ejemplo si el administrador asignó dos personas
+    // al mismo salón). Aquí sí se le pide elegir de la lista.
+    // -------------------------------------------------
     const opciones = disponibles.map((c) => {
         const nombreEscapado = String(c.nombre || c.correo).replace(/"/g, "&quot;");
         const correoEscapado = String(c.correo).replace(/"/g, "&quot;");
@@ -238,6 +375,7 @@ form.addEventListener("submit", async (e) => {
 async function registrarEstudiante(salon, password) {
     const nombre = nombreSelect.value;
     const codigoSeleccionado = nombreSelect.selectedOptions?.[0]?.dataset?.codigo || null;
+    const idSeleccionado = nombreSelect.selectedOptions?.[0]?.dataset?.id || null;
     const cedula = document.getElementById("cedula").value.trim();
 
     if (!nombre) {
@@ -338,6 +476,27 @@ async function registrarEstudiante(salon, password) {
 
         if (errorEstudiante) {
             console.error("Error al vincular el correo en 'estudiantes':", errorEstudiante);
+        }
+    }
+
+    // -------------------------------------------------
+    // VINCULAR NOTAS "PROVISIONALES" QUE EL ADMINISTRADOR
+    // YA LE HAYA PUESTO ANTES DE QUE ESTE ESTUDIANTE TUVIERA CUENTA
+    // -------------------------------------------------
+    // El panel de admin puede guardar notas de un estudiante sin
+    // cuenta usando "notas.estudiante_id" (en vez de "notas.correo",
+    // que todavía no existía). Ahora que el estudiante ya se registró,
+    // esas notas se actualizan para que también tengan su correo, y
+    // así aparezcan en el panel del consejero(a) y en su propio panel.
+    if (idSeleccionado) {
+        const { error: errorNotasVinculo } = await supabase
+            .from("notas")
+            .update({ correo: emailInterno })
+            .eq("estudiante_id", idSeleccionado)
+            .is("correo", null);
+
+        if (errorNotasVinculo) {
+            console.error("Error al vincular notas previas del estudiante:", errorNotasVinculo);
         }
     }
 

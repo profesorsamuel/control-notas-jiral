@@ -50,6 +50,158 @@
 
         <div id="mensajeAdmin" class="alert d-none" role="alert"></div>
 
+        <!-- ===================== AGREGAR NOTAS POR SECCIÓN ===================== -->
+        <section class="card shadow border-primary border-2 mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-clipboard-list me-2" aria-hidden="true"></i>
+                    Agregar notas por sección
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Elige el salón, la materia y la casilla que vas a llenar (por ejemplo
+                    <strong>Apreciación 2</strong> o <strong>Ejercicio 1</strong>), carga la lista
+                    del grupo y escribe la nota de cada estudiante en una sola tabla.
+                </p>
+
+                <div class="row g-3 align-items-end">
+
+                    <div class="col-6 col-md-3">
+                        <label for="notasSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-primary me-1"></i> Salón
+                        </label>
+                        <select id="notasSalon" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="8A">8°A</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label for="notasMateria" class="form-label fw-semibold">
+                            <i class="fa-solid fa-book text-primary me-1"></i> Materia
+                        </label>
+                        <select id="notasMateria" class="form-select" disabled>
+                            <option value="">Seleccione primero un salón</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-2">
+                        <label for="notasTipo" class="form-label fw-semibold">
+                            <i class="fa-solid fa-tag text-primary me-1"></i> Tipo
+                        </label>
+                        <select id="notasTipo" class="form-select">
+                            <option value="apreciacion">Apreciación</option>
+                            <option value="ejercicio">Ejercicio</option>
+                        </select>
+                    </div>
+
+                    <div class="col-3 col-md-1">
+                        <label for="notasNumero" class="form-label fw-semibold">N°</label>
+                        <select id="notasNumero" class="form-select">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                        </select>
+                    </div>
+
+                    <div class="col-3 col-md-3">
+                        <label for="notasTrimestre" class="form-label fw-semibold">
+                            <i class="fa-solid fa-calendar text-primary me-1"></i> Trimestre
+                        </label>
+                        <select id="notasTrimestre" class="form-select">
+                            <option value="Trimestre 1">Trimestre 1</option>
+                            <option value="Trimestre 2">Trimestre 2</option>
+                            <option value="Trimestre 3">Trimestre 3</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-8">
+                        <label for="notasTema" class="form-label fw-semibold">
+                            Tema / observación <span class="text-muted fw-normal">(opcional, aplica a todo el grupo)</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="notasTema"
+                            class="form-control"
+                            placeholder="Ej: Prueba de la unidad 2"
+                        >
+                    </div>
+
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" id="btnCargarGrupo" class="btn btn-primary w-100">
+                            <i class="fa-solid fa-users me-1"></i>
+                            Cargar estudiantes del salón
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TABLA DEL GRUPO (se llena al presionar "Cargar estudiantes") -->
+                <div id="bloqueTablaNotas" class="mt-4" style="display:none;">
+
+                    <hr>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle border">
+                            <thead class="table-light">
+                                <tr id="cabeceraNotasGrupo">
+                                    <th style="width:45px;">#</th>
+                                    <th>Estudiante</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaNotasGrupo"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button type="button" id="btnGuardarNotasGrupo" class="btn btn-success">
+                            <i class="fa-solid fa-floppy-disk me-1"></i>
+                            Guardar todas las notas
+                        </button>
+                        <button type="button" id="btnImprimirPDF" class="btn btn-outline-danger">
+                            <i class="fa-solid fa-file-pdf me-1"></i>
+                            Imprimir PDF
+                        </button>
+                        <button type="button" id="btnDescargarJPG" class="btn btn-outline-secondary">
+                            <i class="fa-solid fa-image me-1"></i>
+                            Descargar como imagen (JPG)
+                        </button>
+                        <span id="estadoGuardadoNotas" class="small"></span>
+                    </div>
+
+                    <p class="text-muted small mt-2 mb-0">
+                        <i class="fa-solid fa-circle-info me-1"></i>
+                        Todas las columnas son editables, incluidas las de historial (por si te
+                        equivocaste de casilla antes). Deja en blanco lo que no quieras tocar.
+                        Presiona <kbd>Enter</kbd> para bajar a la siguiente fila dentro de la
+                        misma columna. Las columnas <strong>Prom. Aprec.</strong>,
+                        <strong>Prom. Ejer.</strong> y <strong>Prom. Final</strong> se calculan
+                        solas mientras escribes. El sistema <strong>autoguarda cada 30
+                        segundos</strong> lo que hayas cambiado, además del botón de abajo. Las
+                        filas en amarillo (<span class="badge bg-warning text-dark">Sin cuenta · provisional</span>)
+                        son estudiantes que aún no se registran; en cuanto lo hagan, sus notas se
+                        vinculan solas a su cuenta.
+                    </p>
+
+                </div>
+
+            </div>
+        </section>
+
         <!-- ===================== USUARIOS ===================== -->
         <section class="card shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -115,6 +267,15 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Librería jsPDF (para generar el reporte de notas por materia en PDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Librería jsPDF-AutoTable -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Librería html2canvas (para exportar el reporte como imagen JPG) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <script type="module" src="../js/admin.js"></script>
 
