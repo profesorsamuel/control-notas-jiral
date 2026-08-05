@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Panel del Estudiante</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="../img/estudiante-favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../img/estudiante-favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../img/estudiante-favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../img/estudiante-apple-touch-icon.png">
+
+    <!-- Vista previa al compartir el enlace -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Panel del Estudiante | Control de Notas - C.E.B.G. El Jiral">
+    <meta property="og:description" content="Registra tus notas de apreciación y ejercicio de cada materia, y descarga tu boletín.">
+    <meta property="og:image" content="https://notasjiral.netlify.app/img/estudiante-og-image.jpg">
+    <meta property="og:url" content="https://notasjiral.netlify.app/pages/estudiante.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://notasjiral.netlify.app/img/estudiante-og-image.jpg">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background: #f5f7fa;
+        }
+
+        h1 {
+            color: #1f4e79;
+        }
+
+        #usuario {
+            max-width: 700px;
+            padding: 12px;
+            color: #155724;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .acciones-superiores {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        #btnSalir,
+        #btnPdf {
+            width: 220px;
+            padding: 10px 15px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        #btnSalir {
+            background: #dc3545;
+        }
+
+        #btnSalir:hover {
+            background: #b02a37;
+        }
+
+        #btnPdf {
+            background: #198754;
+        }
+
+        #btnPdf:hover {
+            background: #146c43;
+        }
+
+        .btn-accion {
+            width: 220px;
+            padding: 10px 15px;
+            color: white;
+            background: #6b46c1;
+            border: none;
+            border-radius: 5px;
+            font-size: 15px;
+            text-decoration: none;
+            text-align: center;
+            display: inline-block;
+        }
+
+        .btn-accion:hover {
+            background: #553c9a;
+        }
+
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 700px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .fila-doble {
+            display: flex;
+            gap: 10px;
+        }
+
+        .fila-doble > * {
+            flex: 1;
+            min-width: 0;
+        }
+
+        input,
+        select,
+        textarea {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        form button {
+            padding: 12px;
+            background: #1f4e79;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        form button:hover {
+            background: #163a5c;
+        }
+
+        #listaNotas {
+            max-width: 740px;
+        }
+
+        hr {
+            margin-top: 30px;
+            margin-bottom: 20px;
+            border: none;
+            border-top: 1px solid #ccc;
+        }
+
+        .filtro-trimestre {
+            max-width: 700px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filtro-trimestre label {
+            font-weight: bold;
+            color: #1f4e79;
+        }
+
+        #filtroTrimestre {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        /* ============================================
+           TABLA DE NOTAS (generada por estudiante.js)
+           ============================================ */
+
+        .tabla-contenedor {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tabla-notas {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            color: #0f172a;
+            font-size: 0.95rem;
+        }
+
+        .tabla-notas th,
+        .tabla-notas td {
+            border: 1px solid #cbd5e1;
+            padding: 10px 8px;
+            min-width: 40px;
+        }
+
+        .tabla-notas thead tr:first-child {
+            background-color: #1e293b;
+            color: #ffffff;
+        }
+
+        .tabla-notas thead tr:nth-child(2) {
+            background-color: #334155;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .tabla-notas tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .tabla-notas td:last-child {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .nota-valor {
+            font-weight: 600;
+        }
+
+        .nota-tema {
+            font-size: 11px;
+            color: #64748b;
+            max-width: 70px;
+            margin: 2px auto 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .notas-acciones {
+            margin-top: 4px;
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-nota {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px;
+        }
+
+        .scroll-hint {
+            display: none;
+            font-size: 13px;
+            color: #1f4e79;
+            margin: 6px 0 0;
+            text-align: center;
+        }
+
+        /* ============================================
+           RESPONSIVE - MÓVIL
+           ============================================ */
+
+        @media (max-width: 768px) {
+            body {
+                margin: 15px;
+            }
+
+            h1 {
+                font-size: 1.4rem;
+                text-align: center;
+            }
+
+            #usuario {
+                max-width: 100%;
+                font-size: 14px;
+                text-align: center;
+            }
+
+            .acciones-superiores {
+                flex-direction: column;
+            }
+
+            #btnSalir,
+            #btnPdf,
+            .btn-accion {
+                width: 100%;
+            }
+
+            .fila-doble {
+                flex-direction: column;
+            }
+
+            form {
+                max-width: 100%;
+                padding: 15px;
+            }
+
+            #listaNotas {
+                max-width: 100%;
+            }
+
+            .filtro-trimestre {
+                max-width: 100%;
+            }
+
+            #filtroTrimestre {
+                flex: 1;
+            }
+
+            .tabla-contenedor {
+                padding: 10px;
+                border-radius: 10px;
+            }
+
+            .tabla-notas {
+                font-size: 0.78rem;
+            }
+
+            .tabla-notas th,
+            .tabla-notas td {
+                padding: 6px 4px;
+                min-width: 34px;
+            }
+
+            /* Mantiene la columna de Materia visible al deslizar */
+            .tabla-notas th:first-child,
+            .tabla-notas td:first-child {
+                position: sticky;
+                left: 0;
+                z-index: 2;
+                background-color: #ffffff;
+                box-shadow: 2px 0 4px rgba(0, 0, 0, 0.12);
+            }
+
+            .tabla-notas thead th:first-child {
+                background-color: #1e293b;
+                z-index: 3;
+            }
+
+            .scroll-hint {
+                display: block;
+            }
+        }
+
+        @media (max-width: 420px) {
+            h1 {
+                font-size: 1.2rem;
+            }
+
+            input,
+            select,
+            textarea {
+                font-size: 13px;
+            }
+
+            .btn-nota {
+                font-size: 16px;
+                padding: 6px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>📚 Registro de Notas</h1>
+
+    <!-- Usuario conectado -->
+    <p id="usuario">
+        Verificando usuario conectado...
+    </p>
+
+    <div class="acciones-superiores">
+        <button type="button" id="btnSalir">
+            Cerrar sesión
+        </button>
+
+        <button type="button" id="btnPdf">
+            📄 Descargar Boletín PDF
+        </button>
+
+        <a href="datos.html" class="btn-accion">
+            📋 Mis Datos
+        </a>
+    </div>
+
+    <!-- Formulario para registrar notas -->
+    <form id="formNota">
+
+        <select id="materia" required aria-label="Materia">
+            <option value="">Seleccione una materia</option>
+            <option value="Español">Español</option>
+            <option value="Matemática">Matemática</option>
+            <option value="Ciencias Naturales">Ciencias Naturales</option>
+            <option value="Inglés">Inglés</option>
+            <option value="Expresión Artística">Expresión Artística</option>
+            <option value="Música">Música</option>
+            <option value="Familia y Desarrollo Comunitario">Familia y Desarrollo Comunitario</option>
+            <option value="Historia">Historia</option>
+            <option value="Educación Agropecuaria">Educación Agropecuaria</option>
+            <option value="Contabilidad">Contabilidad</option>
+            <option value="Geografía">Geografía</option>
+            <option value="Orientación">Orientación</option>
+            <option value="Cívica">Cívica</option>
+            <option value="Religión, Moral y Valores">Religión, Moral y Valores</option>
+        </select>
+
+        <div class="fila-doble">
+            <select id="tipo" required aria-label="Tipo de actividad">
+                <option value="">Tipo</option>
+                <option value="apreciacion">Apreciación</option>
+                <option value="ejercicio">Ejercicio</option>
+            </select>
+
+            <select id="numero" required aria-label="Número de casilla">
+                <option value="">N° (1-10)</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+            </select>
+        </div>
+
+        <input
+            type="text"
+            id="tema"
+            placeholder="Tema de esta apreciación/ejercicio"
+            aria-label="Tema de la actividad"
+            required
+        >
+
+        <input
+            type="date"
+            id="fecha"
+            aria-label="Fecha"
+            required
+        >
+
+        <input
+            type="number"
+            id="nota"
+            min="1"
+            max="5"
+            step="0.1"
+            placeholder="Nota de 1.0 a 5.0"
+            aria-label="Nota de 1.0 a 5.0"
+            required
+        >
+
+        <textarea
+            id="observacion"
+            placeholder="Observación (opcional)"
+            aria-label="Observación"
+            rows="4"
+        ></textarea>
+
+        <button type="submit">
+            💾 Guardar nota
+        </button>
+
+    </form>
+
+    <hr>
+
+    <h2>📝 Notas registradas</h2>
+
+    <div class="filtro-trimestre">
+        <label for="filtroTrimestre">🔍 Ver:</label>
+        <select id="filtroTrimestre" aria-label="Filtrar por trimestre">
+            <option value="todos">Todos los trimestres</option>
+            <option value="Trimestre 1">Trimestre 1</option>
+            <option value="Trimestre 2">Trimestre 2</option>
+            <option value="Trimestre 3">Trimestre 3</option>
+        </select>
+    </div>
+
+    <p class="scroll-hint">📱 Desliza la tabla hacia los lados para ver todas las columnas →</p>
+
+    <div id="listaNotas"></div>
+
+    <!-- Librería jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Librería jsPDF-AutoTable -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- JavaScript principal -->
+    <script type="module" src="../js/estudiante.js"></script>
+
+</body>
+</html>

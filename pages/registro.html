@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Registro de Estudiante - Control de Notas</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="../img/registro-favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../img/registro-favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../img/registro-favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../img/registro-apple-touch-icon.png">
+
+    <!-- Vista previa al compartir el enlace -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Registro | Control de Notas - C.E.B.G. El Jiral">
+    <meta property="og:description" content="Crea tu cuenta como estudiante o consejero(a) en el sistema de Control de Notas.">
+    <meta property="og:image" content="https://notasjiral.netlify.app/img/registro-og-image.jpg">
+    <meta property="og:url" content="https://notasjiral.netlify.app/pages/registro.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://notasjiral.netlify.app/img/registro-og-image.jpg">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f1f5f9;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .contenedor {
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .tarjeta {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .encabezado {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .encabezado h1 {
+            margin: 0;
+            color: #1e3a8a;
+            font-size: 26px;
+        }
+
+        .encabezado p {
+            color: #64748b;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        .grupo {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 7px;
+            color: #334155;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            background: #ffffff;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        select:disabled {
+            background: #f1f5f9;
+            color: #94a3b8;
+        }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .mensaje {
+            margin-top: 18px;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        .exito {
+            display: block;
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .error {
+            display: block;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .cargando {
+            display: block;
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .volver {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .volver:hover {
+            text-decoration: underline;
+        }
+
+        .nota {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="contenedor">
+
+        <div class="tarjeta">
+
+            <div class="encabezado">
+
+                <h1>Registro de Estudiante</h1>
+
+                <p>
+                    C.E.B.G. EL JIRAL<br>
+                    Consejería 9.º C - 2026
+                </p>
+
+            </div>
+
+            <form id="registroForm">
+
+                <!-- TIPO DE REGISTRO -->
+                <div class="grupo">
+
+                    <label for="tipoRegistro">
+                        ¿Quién se registra?
+                    </label>
+
+                    <select id="tipoRegistro" name="tipoRegistro" required>
+                        <option value="estudiante">Estudiante</option>
+                        <option value="consejero">Consejero(a)</option>
+                    </select>
+
+                </div>
+
+                <!-- SALÓN -->
+                <div class="grupo">
+
+                    <label for="salon">
+                        Salón
+                    </label>
+
+                    <select id="salon" name="salon" required>
+                        <option value="">Seleccione un salón</option>
+                        <option value="8A">8°A</option>
+                        <option value="9A">9°A</option>
+                        <option value="9B">9°B</option>
+                        <option value="9C">9°C</option>
+                    </select>
+
+                </div>
+
+                <!-- CAMPOS DE ESTUDIANTE -->
+                <div id="camposEstudiante">
+
+                <div class="grupo">
+
+                    <label for="nombre">
+                        Nombre del estudiante
+                    </label>
+
+                    <!--
+                        IMPORTANTE: esta lista ya NO está fija en el HTML.
+                        registro.js la llena dinámicamente consultando la
+                        tabla "estudiantes" del salón elegido, y solo
+                        muestra a quienes todavía NO tienen una cuenta
+                        creada (correo = NULL). Así, en cuanto alguien se
+                        registra, su nombre desaparece de esta lista para
+                        que nadie más pueda registrarse como esa persona.
+                    -->
+                    <select id="nombre" name="nombre" required disabled>
+                        <option value="">Seleccione primero un salón</option>
+                    </select>
+
+                </div>
+
+
+                <!-- CÉDULA -->
+                <div class="grupo">
+
+                    <label for="cedula">
+                        Cédula del estudiante
+                    </label>
+
+                    <input
+                        type="text"
+                        id="cedula"
+                        name="cedula"
+                        placeholder="8-123-4567"
+                        autocomplete="off"
+                    >
+
+                    <div class="nota">
+                        Se usará para iniciar sesión (en vez de correo electrónico).
+                    </div>
+
+                </div>
+
+                </div>
+                <!-- /camposEstudiante -->
+
+                <!-- CAMPOS DE CONSEJERO(A) -->
+                <div id="camposConsejero" style="display:none;">
+
+                    <div class="grupo">
+
+                        <label for="nombreConsejero">
+                            Consejero(a) de este salón
+                        </label>
+
+                        <!--
+                            IMPORTANTE: esta lista ya NO se escribe a mano.
+                            registro.js la llena consultando la tabla
+                            "consejeros" del salón elegido, y solo muestra
+                            a quienes todavía NO tienen cuenta creada
+                            (columna "registrado" = false). Así, en cuanto
+                            alguien se registra, desaparece de la lista.
+                        -->
+                        <select id="nombreConsejero" name="nombreConsejero" disabled>
+                            <option value="">Seleccione primero un salón</option>
+                        </select>
+
+                    </div>
+
+                    <div class="grupo">
+
+                        <label for="correoConsejero">
+                            Correo para iniciar sesión
+                        </label>
+
+                        <input
+                            type="email"
+                            id="correoConsejero"
+                            name="correoConsejero"
+                            placeholder="Se completa al elegir tu nombre"
+                            autocomplete="off"
+                            readonly
+                        >
+
+                        <div class="nota">
+                            Este es el correo que ya está asignado a tu salón; se usará para iniciar sesión.
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- CONTRASEÑA -->
+                <div class="grupo">
+
+                    <label for="password">
+                        Contraseña
+                    </label>
+
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Escriba una contraseña"
+                        autocomplete="new-password"
+                        minlength="6"
+                        required
+                    >
+
+                    <div class="nota">
+                        La contraseña debe tener mínimo 6 caracteres.
+                    </div>
+
+                </div>
+
+
+                <!-- CONFIRMAR CONTRASEÑA -->
+                <div class="grupo">
+
+                    <label for="confirmPassword">
+                        Confirmar contraseña
+                    </label>
+
+                    <input
+                        type="password"
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        placeholder="Repita la contraseña"
+                        autocomplete="new-password"
+                        minlength="6"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- BOTÓN -->
+                <button
+                    type="submit"
+                    id="btnRegistrar"
+                >
+                    Registrarse
+                </button>
+
+
+                <!-- MENSAJE -->
+                <div
+                    id="mensaje"
+                    class="mensaje"
+                    role="alert"
+                ></div>
+
+            </form>
+
+
+            <!-- VOLVER AL LOGIN -->
+            <a
+                href="login.html"
+                class="volver"
+            >
+                ← Volver al inicio
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- IMPORTANTE:
+         registro.js utiliza import/export,
+         por eso debe llevar type="module".
+    -->
+    <script
+        type="module"
+        src="../js/registro.js"
+    ></script>
+
+</body>
+
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel del Docente</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="../img/profesor-favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../img/profesor-favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../img/profesor-favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../img/profesor-apple-touch-icon.png">
+
+    <!-- Vista previa al compartir el enlace -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Panel del Docente | Control de Notas - C.E.B.G. El Jiral">
+    <meta property="og:description" content="Consulta las notas registradas y configura el trimestre activo del sistema.">
+    <meta property="og:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
+    <meta property="og:url" content="https://notasjiral.netlify.app/pages/profesor.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+
+        h1 {
+            color: #1f4e79;
+        }
+
+        #buscarCorreo {
+            width: 350px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background: #1f4e79;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .resumen {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+        }
+
+        .trimestre-panel {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .trimestre-panel label {
+            font-weight: bold;
+            color: #1f4e79;
+        }
+
+        #selectTrimestre {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #btnGuardarTrimestre {
+            padding: 8px 16px;
+            background: #1f4e79;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #btnGuardarTrimestre:hover {
+            background: #163a5c;
+        }
+
+        #estadoTrimestre {
+            font-size: 13px;
+            color: #198754;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>👨‍🏫 Panel del Docente</h1>
+
+    <!-- Selector de trimestre activo -->
+    <div class="trimestre-panel">
+        <label for="selectTrimestre">📅 Trimestre activo:</label>
+        <select id="selectTrimestre">
+            <option value="Trimestre 1">Trimestre 1</option>
+            <option value="Trimestre 2">Trimestre 2</option>
+            <option value="Trimestre 3">Trimestre 3</option>
+        </select>
+        <button type="button" id="btnGuardarTrimestre">
+            💾 Guardar
+        </button>
+        <span id="estadoTrimestre"></span>
+    </div>
+
+    <div class="resumen">
+        <p><strong>Total de notas:</strong> <span id="totalNotas">0</span></p>
+        <p><strong>Total de estudiantes:</strong> <span id="totalEstudiantes">0</span></p>
+    </div>
+
+    <input
+        type="text"
+        id="buscarCorreo"
+        placeholder="🔍 Buscar estudiante por correo...">
+
+    <div id="listaEstudiantes">
+        Cargando notas...
+    </div>
+
+    <script type="module" src="../js/profesor.js"></script>
+
+</body>
+
+</html>
