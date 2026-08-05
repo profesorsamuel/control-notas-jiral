@@ -490,7 +490,18 @@ function celdaNotaHtml(materia, tipo, numero) {
     }
 
     let botonTema = "";
-    if (!soloLectura && nota && !temaOficial) {
+    if (temaOficial) {
+        // El profesor(a) o administrador ya puso el tema: el estudiante solo lo ve, no lo edita.
+        botonTema = `
+            <button
+                type="button"
+                class="btn-tema btn-tema-oficial"
+                title="Tema (puesto por el profesor/a): ${escapeHtml(temaOficial)}"
+                data-tema="${escapeHtml(temaOficial)}"
+            >🔒</button>
+        `;
+    } else if (!soloLectura && nota) {
+        // El estudiante puede poner o editar su propio tema para esta nota.
         botonTema = `
             <button
                 type="button"
@@ -499,6 +510,16 @@ function celdaNotaHtml(materia, tipo, numero) {
                 data-materia="${escapeHtml(materia)}"
                 data-tipo="${tipo}"
                 data-numero="${numero}"
+            >🏷️</button>
+        `;
+    } else if (soloLectura && nota?.tema) {
+        // Trimestre no editable, pero el estudiante ya le había puesto un tema: se sigue viendo.
+        botonTema = `
+            <button
+                type="button"
+                class="btn-tema btn-tema-oficial"
+                title="Tema: ${escapeHtml(nota.tema)}"
+                data-tema="${escapeHtml(nota.tema)}"
             >🏷️</button>
         `;
     }
@@ -1000,6 +1021,8 @@ contenedorMaterias.addEventListener("click", (e) => {
         const nombres = e.target.dataset.nombres;
         const cantidad = e.target.dataset.cantidad;
         alert(`${cantidad} estudiante(s) del nivel ya tienen nota en esta casilla:\n\n${nombres}\n\nPuedes preguntarles o buscar la nota con el profesor(a).`);
+    } else if (e.target.matches(".btn-tema-oficial")) {
+        alert(`📌 Tema de esta nota:\n\n${e.target.dataset.tema}`);
     } else if (e.target.matches(".btn-tema")) {
         editarTemaCelda(e.target.dataset.materia, e.target.dataset.tipo, Number(e.target.dataset.numero));
     }
