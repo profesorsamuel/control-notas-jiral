@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function cargarUsuarios() {
 
         const tablaUsuarios = document.getElementById("tablaUsuarios");
-        tablaUsuarios.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Cargando usuarios...</td></tr>`;
+        tablaUsuarios.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">Cargando usuarios...</td></tr>`;
 
         const { data, error } = await supabase
             .from("usuarios")
@@ -64,12 +64,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (error) {
             console.error("❌ Error al cargar usuarios:", error);
-            tablaUsuarios.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-4">Error: ${error.message}</td></tr>`;
+            tablaUsuarios.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Error: ${error.message}</td></tr>`;
             return;
         }
 
         if (!data || data.length === 0) {
-            tablaUsuarios.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>`;
+            tablaUsuarios.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>`;
             return;
         }
 
@@ -83,11 +83,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ? new Date(u.created_at).toLocaleString("es-PA")
                 : "-";
 
+            const btnInspeccionar = u.correo 
+                ? `<a href="estudiante.html?correo=${encodeURIComponent(u.correo)}" target="_blank" class="btn btn-sm btn-outline-primary py-0">👁️ Ver Boletín</a>`
+                : '-';
+
             fila.innerHTML = `
                 <td>${u.correo ?? "-"}</td>
                 <td><span class="badge bg-secondary">${u.rol ?? "-"}</span></td>
                 <td>${u.activo ? "✅" : "❌"}</td>
                 <td>${fecha}</td>
+                <td>${btnInspeccionar}</td>
             `;
 
             tablaUsuarios.appendChild(fila);
@@ -97,10 +102,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // =================================================
     // 4) CARGAR NOTAS DE TODOS LOS ESTUDIANTES
     // =================================================
-    //
-    // Se usa select("*") porque el esquema exacto de la
-    // tabla "notas" puede variar; las columnas se muestran
-    // dinámicamente según lo que devuelva la consulta.
 
     async function cargarNotas() {
 
@@ -126,7 +127,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        // Construir cabecera dinámicamente a partir de las columnas
         const columnas = Object.keys(data[0]);
 
         const filaCabecera = document.createElement("tr");
@@ -135,9 +135,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             th.textContent = col;
             filaCabecera.appendChild(th);
         });
+        filaCabecera.innerHTML += `<th>Acción</th>`;
         cabeceraNotas.appendChild(filaCabecera);
 
-        // Construir filas
         tablaNotas.innerHTML = "";
 
         data.forEach((registro) => {
@@ -147,19 +147,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                 td.textContent = registro[col] ?? "-";
                 fila.appendChild(td);
             });
+
+            const tdAccion = document.createElement("td");
+            tdAccion.innerHTML = registro.correo 
+                ? `<a href="estudiante.html?correo=${encodeURIComponent(registro.correo)}" target="_blank" class="btn btn-sm btn-outline-primary py-0">👁️ Ver</a>`
+                : '-';
+            fila.appendChild(tdAccion);
+
             tablaNotas.appendChild(fila);
         });
     }
 
     // =================================================
-    // 5) AGREGAR NOTAS POR SECCIÓN (formulario masivo)
+    // 5) AGREGAR NOTAS POR SECCIÓN
     // =================================================
-    //
-    // Usa exactamente las mismas columnas que ya usa el resto del
-    // sistema en la tabla "notas" (correo, materia, tipo, numero,
-    // trimestre, etc. -- ver consejero.js) para que las notas que
-    // el administrador agregue aquí se vean igual en el panel del
-    // consejero(a) y en el boletín del estudiante.
 
     function escapeHtmlAdmin(str) {
         return String(str ?? "")
@@ -175,19 +176,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const notasTipo = document.getElementById("notasTipo");
     const notasNumero = document.getElementById("notasNumero");
     const notasTrimestre = document.getElementById("notasTrimestre");
-    const notasTema = document.getElementById("notasTema");
     const btnCargarGrupo = document.getElementById("btnCargarGrupo");
     const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
     const tablaNotasGrupo = document.getElementById("tablaNotasGrupo");
     const btnGuardarNotasGrupo = document.getElementById("btnGuardarNotasGrupo");
     const estadoGuardadoNotas = document.getElementById("estadoGuardadoNotas");
 
-    // Estudiantes del salón elegido, y el historial COMPLETO de notas
-    // del grupo en la materia/trimestre elegidos (todas las casillas
-    // de Apreciación y Ejercicio que ya existan, no solo una).
     let grupoActualNotas = [];
-    let historiaPorEstudiante = {}; // claveEstudiante -> { "tipo-numero": {id, nota, tema} }
-    let casillasTabla = [];         // [{tipo, numero}] TODAS las columnas a mostrar (historial + la elegida arriba)
+    let historiaPorEstudiante = {}; 
+    let casillasTabla = [];         
+    let temasCasillasBD = {};       
 
     function claveCasilla(tipo, numero) {
         return `${tipo}-${numero}`;
@@ -201,11 +199,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         return est.correo ? `correo:${est.correo}` : `id:${est.id}`;
     }
 
-    // Busca si ALGUIEN del grupo ya tiene un "tema" escrito en esa
-    // casilla, para mostrarlo como valor inicial del campo (así no
-    // se ve vacío si ya se había puesto uno antes).
     function obtenerTemaCasilla(tipo, numero) {
         const clave = claveCasilla(tipo, numero);
+
+        if (temasCasillasBD[clave]) return temasCasillasBD[clave];
 
         for (const claveEst in historiaPorEstudiante) {
             const nota = historiaPorEstudiante[claveEst][clave];
@@ -215,23 +212,42 @@ document.addEventListener("DOMContentLoaded", async () => {
         return "";
     }
 
-    // Actualiza el "tema" de TODAS las notas que ya existan en esa
-    // casilla exacta (materia + tipo + número + trimestre) para el
-    // grupo cargado en pantalla. Se puede usar en cualquier momento,
-    // incluso mucho después de haber metido las notas.
     async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
 
+        const salon = notasSalon.value;
         const materia = notasMateria.value.trim();
         const trimestre = notasTrimestre.value;
         const valorGuardar = nuevoTema || null;
 
+        const { error: errorTemaTabla } = await supabase
+            .from("temas_casillas")
+            .upsert(
+                {
+                    salon,
+                    materia,
+                    trimestre,
+                    tipo,
+                    numero,
+                    tema: valorGuardar,
+                    updated_at: new Date().toISOString()
+                },
+                { onConflict: "salon,materia,trimestre,tipo,numero" }
+            );
+
+        if (errorTemaTabla) {
+            console.error("❌ Error al guardar el tema de la casilla:", errorTemaTabla);
+            estadoGuardadoNotas.textContent = `⚠️ No se pudo guardar el tema de ${etiquetaCasilla(tipo, numero)}.`;
+            estadoGuardadoNotas.className = "small text-danger";
+            return;
+        }
+
+        temasCasillasBD[claveCasilla(tipo, numero)] = valorGuardar || "";
+
         const correosDelGrupo = grupoActualNotas.map((e) => e.correo).filter(Boolean);
         const idsSinCuenta = grupoActualNotas.filter((e) => !e.correo).map((e) => e.id);
 
-        let huboError = false;
-
         if (correosDelGrupo.length > 0) {
-            const { error } = await supabase
+            await supabase
                 .from("notas")
                 .update({ tema: valorGuardar })
                 .eq("materia", materia)
@@ -239,15 +255,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .eq("tipo", tipo)
                 .eq("numero", numero)
                 .in("correo", correosDelGrupo);
-
-            if (error) {
-                console.error("❌ Error al actualizar tema de la casilla:", error);
-                huboError = true;
-            }
         }
 
         if (idsSinCuenta.length > 0) {
-            const { error } = await supabase
+            await supabase
                 .from("notas")
                 .update({ tema: valorGuardar })
                 .eq("materia", materia)
@@ -255,15 +266,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .eq("tipo", tipo)
                 .eq("numero", numero)
                 .in("estudiante_id", idsSinCuenta);
-
-            if (error) {
-                console.error("❌ Error al actualizar tema de la casilla (sin cuenta):", error);
-                huboError = true;
-            }
         }
 
-        // Se refleja también en la memoria local, para que el reporte
-        // en PDF/JPG y el propio campo queden consistentes sin recargar.
         const clave = claveCasilla(tipo, numero);
         Object.keys(historiaPorEstudiante).forEach((claveEst) => {
             if (historiaPorEstudiante[claveEst][clave]) {
@@ -271,13 +275,58 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
-        estadoGuardadoNotas.textContent = huboError
-            ? `⚠️ No se pudo actualizar el tema de ${etiquetaCasilla(tipo, numero)}.`
-            : `✅ Tema de "${etiquetaCasilla(tipo, numero)}" actualizado.`;
-        estadoGuardadoNotas.className = huboError ? "small text-danger" : "small text-success";
+        estadoGuardadoNotas.textContent = `✅ Tema de "${etiquetaCasilla(tipo, numero)}" actualizado.`;
+        estadoGuardadoNotas.className = "small text-success";
     }
 
-    // Precargar el trimestre activo como valor por defecto
+    async function eliminarColumnaCasilla(tipo, numero) {
+        const salon = notasSalon.value;
+        const materia = notasMateria.value.trim();
+        const trimestre = notasTrimestre.value;
+        const etiqueta = etiquetaCasilla(tipo, numero);
+
+        const confirmar = confirm(`¿Estás seguro de que deseas eliminar permanentemente la casilla "${etiqueta}" (${materia} - ${salon}) y TODAS las notas registradas en ella?`);
+        if (!confirmar) return;
+
+        estadoGuardadoNotas.textContent = `Eliminando columna ${etiqueta}...`;
+        estadoGuardadoNotas.className = "small text-primary";
+
+        try {
+            await supabase.from("notas")
+                .delete()
+                .eq("materia", materia)
+                .eq("trimestre", trimestre)
+                .eq("tipo", tipo)
+                .eq("numero", numero);
+
+            await supabase.from("temas_casillas")
+                .delete()
+                .eq("salon", salon)
+                .eq("materia", materia)
+                .eq("trimestre", trimestre)
+                .eq("tipo", tipo)
+                .eq("numero", numero);
+
+            await supabase.from("columnas_materia")
+                .delete()
+                .eq("materia", materia)
+                .eq("trimestre", trimestre)
+                .eq("tipo", tipo)
+                .eq("numero", numero);
+
+            estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} eliminada correctamente.`;
+            estadoGuardadoNotas.className = "small text-success";
+
+            btnCargarGrupo.click();
+            cargarNotas();
+
+        } catch (error) {
+            console.error("❌ Error al eliminar casilla:", error);
+            estadoGuardadoNotas.textContent = `⚠️ Error al eliminar la casilla: ${error.message || String(error)}`;
+            estadoGuardadoNotas.className = "small text-danger";
+        }
+    }
+
     (async function precargarTrimestreActivo() {
         const { data: cfg } = await supabase
             .from("configuracion")
@@ -289,9 +338,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     })();
 
-    // Lista fija de materias del colegio (la misma que usa
-    // estudiante.html). En 8°A la materia "Contabilidad" no se da:
-    // en su lugar se da "Informática".
     const MATERIAS_BASE = [
         "Español",
         "Matemática",
@@ -315,15 +361,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? MATERIAS_BASE.map((m) => (m === "Contabilidad" ? "Informática" : m))
             : MATERIAS_BASE;
 
-        // Se ordena en español (localeCompare con "es") para que los
-        // acentos se acomoden bien (ej. "Educación" antes de "Español").
         return [...lista].sort((a, b) => a.localeCompare(b, "es"));
     }
 
-    // Profesor(a) responsable de cada materia, para que aparezca en el
-    // encabezado del reporte impreso. "Historia" e "Informática" no se
-    // incluyeron en la lista que se dio, así que salen como "(sin
-    // asignar)" hasta que se indique quién las da.
     const MATERIA_A_PROFESOR = {
         "Español": "Yadira de Gracia",
         "Geografía": "Faustina Rodríguez",
@@ -342,9 +382,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const ETIQUETAS_SALON = { "8A": "8°A", "9A": "9°A", "9B": "9°B", "9C": "9°C" };
-
-    // Nota mínima para aprobar en esta escala (0 a 5). Se usa para
-    // resaltar en rojo, en el reporte, a los estudiantes en riesgo.
     const PROMEDIO_MINIMO_APROBAR = 3.0;
 
     function actualizarOpcionesMateria() {
@@ -367,17 +404,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     notasSalon.addEventListener("change", actualizarOpcionesMateria);
 
-    // =================================================
-    // PROMEDIOS EN VIVO (misma fórmula que usa el boletín en PDF
-    // de consejero.js): promedio de Apreciación, de Ejercicio, y
-    // el promedio final es el promedio de esos dos promedios (si
-    // solo hay uno de los dos tipos, el final es igual a ese).
-    // =================================================
     function recalcularPromedios() {
         tablaNotasGrupo.querySelectorAll("tr").forEach((tr) => {
 
             const inputsFila = tr.querySelectorAll(".input-nota-grupo");
-            if (inputsFila.length === 0) return; // fila de "sin estudiantes"
+            if (inputsFila.length === 0) return;
 
             const aprValores = [];
             const ejeValores = [];
@@ -416,7 +447,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (celdaApr) celdaApr.textContent = promApr !== null ? promApr.toFixed(1) : "–";
             if (celdaEje) celdaEje.textContent = promEje !== null ? promEje.toFixed(1) : "–";
-            if (celdaFinal) celdaFinal.textContent = promFinal !== null ? promFinal.toFixed(1) : "–";
+
+            if (celdaFinal) {
+                celdaFinal.textContent = promFinal !== null ? promFinal.toFixed(1) : "–";
+
+                const enRiesgo = promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR;
+
+                if (enRiesgo) {
+                    tr.classList.add("table-danger");
+                    celdaFinal.classList.add("text-danger");
+                } else {
+                    tr.classList.remove("table-danger");
+                    celdaFinal.classList.remove("text-danger");
+                }
+            }
         });
     }
 
@@ -432,9 +476,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        // -------- Encabezado: # | Estudiante | ...todas las casillas... | Estado --------
-        // La casilla que se eligió arriba (Tipo + N°) se resalta en azul
-        // para ubicarla rápido, pero TODAS las columnas son editables.
         const claveSeleccionada = claveCasilla(notasTipo.value, parseInt(notasNumero.value, 10));
 
         let htmlCabecera = `<th style="width:45px;">#</th><th>Estudiante</th>`;
@@ -442,7 +483,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         casillasTabla.forEach((c) => {
             const esSeleccionada = claveCasilla(c.tipo, c.numero) === claveSeleccionada;
             const claseTh = esSeleccionada ? "table-primary text-primary" : "text-muted";
-            htmlCabecera += `<th class="text-center small ${claseTh}" style="width:80px;">${etiquetaCasilla(c.tipo, c.numero)}</th>`;
+            htmlCabecera += `
+                <th class="text-center small ${claseTh}" style="width:90px;">
+                    <div>${etiquetaCasilla(c.tipo, c.numero)}</div>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna y sus notas">🗑️</button>
+                </th>`;
         });
 
         htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Aprec.</th>`;
@@ -451,9 +496,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         htmlCabecera += `<th style="width:160px;">Estado</th>`;
         cabecera.innerHTML = htmlCabecera;
 
-        // -------- Segunda fila del encabezado: tema/descripción de cada casilla --------
-        // Se puede escribir o editar en cualquier momento (incluso después
-        // de ya haber metido las notas); al salir del campo se guarda solo.
         let htmlTemas = `<th></th><th class="small text-muted fw-normal">Tema de cada casilla:</th>`;
 
         casillasTabla.forEach((c) => {
@@ -465,6 +507,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         class="form-control form-control-sm input-tema-columna"
                         data-tipo="${c.tipo}"
                         data-numero="${c.numero}"
+                        data-tema-guardado="${escapeHtmlAdmin(temaActual)}"
                         value="${escapeHtmlAdmin(temaActual)}"
                         placeholder="Ej: Prueba corta"
                         style="font-size:11px; font-weight:normal;"
@@ -473,10 +516,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             `;
         });
 
-        htmlTemas += `<th></th><th></th><th></th><th></th>`; // Prom.Aprec / Prom.Ejer / Prom.Final / Estado
+        htmlTemas += `<th></th><th></th><th></th><th></th>`; 
         cabeceraTemas.innerHTML = htmlTemas;
 
-        // -------- Filas --------
         tablaNotasGrupo.innerHTML = grupoActualNotas.map((est, i) => {
             const sinCuenta = !est.correo;
             const historialEst = historiaPorEstudiante[claveEstudiante(est)] || {};
@@ -508,14 +550,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `;
             }).join("");
 
+            const nombreEnlace = est.correo
+                ? `<a href="estudiante.html?correo=${encodeURIComponent(est.correo)}" target="_blank" class="fw-bold text-decoration-none text-primary" title="Hacer clic para ver/editar las notas individuales de este estudiante">${escapeHtmlAdmin(est.nombre)} 👁️</a>`
+                : escapeHtmlAdmin(est.nombre);
+
             const badge = sinCuenta
-                ? `<span class="badge bg-warning text-dark">Sin cuenta · provisional</span>`
-                : `<span class="badge bg-light text-muted border">Con cuenta</span>`;
+                ? `<span class="badge bg-warning text-dark">Sin cuenta</span>`
+                : `<a href="estudiante.html?correo=${encodeURIComponent(est.correo)}" target="_blank" class="badge bg-primary text-decoration-none">👁️ Ver Boletín</a>`;
 
             return `
                 <tr class="${sinCuenta ? "table-warning" : ""}">
                     <td>${i + 1}</td>
-                    <td>${escapeHtmlAdmin(est.nombre)}</td>
+                    <td>${nombreEnlace}</td>
                     ${columnasNotas}
                     <td class="celda-prom-apr text-center fw-bold">–</td>
                     <td class="celda-prom-eje text-center fw-bold">–</td>
@@ -527,16 +573,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         recalcularPromedios();
 
-        // Al salir de un campo de "tema de la casilla", se guarda solo.
-        tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna").forEach((input) => {
-            input.addEventListener("blur", () => {
-                actualizarTemaCasilla(input.dataset.tipo, parseInt(input.dataset.numero, 10), input.value.trim());
+        cabecera.querySelectorAll(".btn-eliminar-columna").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                eliminarColumnaCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10));
             });
         });
 
-        // Al presionar Enter en una casilla, se pasa el foco a la
-        // MISMA columna, una fila más abajo (para llenar toda una
-        // columna de corrido, ej. todas las notas de "Ejer. 1").
+        tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna").forEach((input) => {
+            input.addEventListener("blur", async () => {
+                const nuevoValor = input.value.trim();
+                if (nuevoValor === input.dataset.temaGuardado) return;
+                await actualizarTemaCasilla(input.dataset.tipo, parseInt(input.dataset.numero, 10), nuevoValor);
+                input.dataset.temaGuardado = nuevoValor;
+            });
+        });
+
         const todosLosInputs = Array.from(tablaNotasGrupo.querySelectorAll(".input-nota-grupo"));
         const inputsPorColumna = {};
 
@@ -591,12 +642,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             btnCargarGrupo.disabled = true;
             btnCargarGrupo.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
 
-            // 1) Estudiantes del salón elegido (se pide también "id"
-            // porque a los que no tienen cuenta se les va a guardar
-            // la nota usando notas.estudiante_id en vez de correo).
             const { data: estudiantesSalon, error: errEst } = await supabase
                 .from("estudiantes")
-                .select("id, codigo, nombre, correo")
+                .select("id, codigo, nombre, correo, es_prueba")
                 .eq("salon", salon)
                 .order("nombre", { ascending: true });
 
@@ -608,17 +656,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            grupoActualNotas = estudiantesSalon || [];
+            grupoActualNotas = (estudiantesSalon || []).filter((e) => !e.es_prueba);
 
-            // 2) Historial COMPLETO de notas del grupo en esta materia
-            // y trimestre (todas las casillas, no solo la seleccionada),
-            // para mostrarlas como columnas de referencia.
-            //
-            // Se busca por DOS vías:
-            // - Por correo: estudiantes que ya tienen cuenta.
-            // - Por estudiante_id: estudiantes SIN cuenta todavía, cuyas
-            //   notas se guardaron "provisionalmente" ligadas a su fila
-            //   en la tabla "estudiantes" en vez de a un correo.
             const correosDelGrupo = grupoActualNotas.map((e) => e.correo).filter(Boolean);
             const idsSinCuenta = grupoActualNotas.filter((e) => !e.correo).map((e) => e.id);
 
@@ -662,10 +701,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
-            // Columnas a mostrar = todas las casillas que el grupo ya
-            // tiene MÁS la que se eligió arriba (Tipo + N°), aunque
-            // todavía nadie tenga nota ahí (para poder empezar a
-            // llenarla). Todas quedan editables.
+            temasCasillasBD = {};
+
+            const { data: temasGuardados, error: errTemas } = await supabase
+                .from("temas_casillas")
+                .select("tipo, numero, tema")
+                .eq("salon", salon)
+                .eq("materia", materia)
+                .eq("trimestre", trimestre);
+
+            if (errTemas) {
+                console.error("❌ Error al cargar temas de casillas:", errTemas);
+            } else if (temasGuardados) {
+                temasGuardados.forEach((t) => {
+                    const claveCas = claveCasilla(t.tipo, t.numero);
+                    temasCasillasBD[claveCas] = t.tema || "";
+                    if (t.tema) casillasEncontradas.add(claveCas);
+                });
+            }
+
             const claveActual = claveCasilla(tipo, numero);
             casillasEncontradas.add(claveActual);
 
@@ -691,37 +745,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // =================================================
-    // GUARDAR NOTAS (manual o automático)
+    // GUARDAR NOTAS
     // =================================================
-    //
-    // esAutomatico = true: lo llama el autoguardado cada 30 segundos.
-    // Solo guarda las casillas que CAMBIARON desde el último guardado
-    // (usando data-ultimo-valor-guardado), no interrumpe al admin con
-    // alerts, y NO recarga toda la tabla (para no perder el foco de
-    // lo que esté escribiendo en ese momento).
-    //
-    // esAutomatico = false: lo llama el botón "Guardar todas las
-    // notas". Guarda todo lo que tenga valor, muestra progreso, y al
-    // terminar recarga la tabla y la lista general de notas.
+
     async function guardarNotasGrupo(esAutomatico = false) {
 
         const materia = notasMateria.value.trim();
         const trimestre = notasTrimestre.value;
-        const tema = notasTema.value.trim() || null;
         const hoy = new Date().toISOString().slice(0, 10);
+
+        const inputsTema = Array.from(tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna"));
+        const temaPorCasilla = {};
+        for (const inputTema of inputsTema) {
+            const valorActual = inputTema.value.trim();
+            temaPorCasilla[claveCasilla(inputTema.dataset.tipo, parseInt(inputTema.dataset.numero, 10))] = valorActual || null;
+            if (valorActual !== inputTema.dataset.temaGuardado) {
+                await actualizarTemaCasilla(inputTema.dataset.tipo, parseInt(inputTema.dataset.numero, 10), valorActual);
+                inputTema.dataset.temaGuardado = valorActual;
+            }
+        }
 
         const inputs = tablaNotasGrupo.querySelectorAll(".input-nota-grupo");
         const aGuardar = [];
 
         inputs.forEach((input) => {
             const valor = input.value.trim();
-            if (valor === "") return; // en blanco = no se toca
+            if (valor === "") return;
 
             const notaNum = parseFloat(valor);
             if (isNaN(notaNum)) return;
 
-            // En modo automático, si el valor no cambió desde el
-            // último guardado, no hay nada que hacer con esta casilla.
             if (esAutomatico && input.dataset.ultimoValorGuardado === valor) return;
 
             aGuardar.push({
@@ -756,9 +809,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (item.notaId) {
 
-                // Ya existía una nota en esa casilla: se actualiza en vez de duplicarla
-                // (esto es lo que permite corregir un error, ej. si se
-                // escribió una nota en la casilla equivocada).
                 const { error } = await supabase
                     .from("notas")
                     .update({
@@ -777,13 +827,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             } else {
 
-                // No existía: se crea una nueva, usando el tipo/número
-                // propio de la columna donde se escribió (no el del
-                // selector de arriba, porque ahora cualquier columna
-                // se puede llenar). Se pide de vuelta el "id" para
-                // guardarlo en el input: así, si se vuelve a guardar
-                // esta misma casilla (ej. en el próximo autoguardado),
-                // se actualiza en vez de crear una fila duplicada.
                 const { data: insertado, error } = await supabase
                     .from("notas")
                     .insert([{
@@ -792,8 +835,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                         materia,
                         tipo: item.tipo,
                         numero: item.numero,
-                        tema,
-                        actividad: tema || `${item.tipo === "apreciacion" ? "Apreciación" : "Ejercicio"} ${item.numero}`,
+                        tema: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || null,
+                        actividad: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || `${item.tipo === "apreciacion" ? "Apreciación" : "Ejercicio"} ${item.numero}`,
                         fecha: hoy,
                         nota: item.nota,
                         observacion: item.correo
@@ -836,14 +879,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 : `✅ ${exitosas} nota(s) guardada(s) correctamente.`;
             estadoGuardadoNotas.className = "small text-success";
         } else {
-            estadoGuardadoNotas.textContent = `⚠️ ${exitosas} guardada(s), ${fallidas} con error (revisa la consola).`;
+            estadoGuardadoNotas.textContent = `⚠️ ${exitosas} guardada(s), ${fallidas} con error.`;
             estadoGuardadoNotas.className = "small text-danger";
         }
 
-        // Solo se recarga toda la tabla en un guardado MANUAL. En el
-        // autoguardado NO se recarga, para no interrumpir al admin
-        // mientras sigue escribiendo (perdería el foco/cursor cada
-        // 30 segundos si se recargara).
         if (!esAutomatico) {
             btnCargarGrupo.click();
             cargarNotas();
@@ -854,8 +893,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         btnGuardarNotasGrupo.addEventListener("click", () => guardarNotasGrupo(false));
     }
 
-    // Autoguardado cada 30 segundos, solo si hay un grupo cargado
-    // en pantalla (para no intentar guardar cuando no hay nada).
     setInterval(() => {
         if (bloqueTablaNotas && bloqueTablaNotas.style.display !== "none") {
             guardarNotasGrupo(true);
@@ -863,340 +900,278 @@ document.addEventListener("DOMContentLoaded", async () => {
     }, 30000);
 
     // =================================================
-    // IMPRIMIR / EXPORTAR REPORTE DE LA MATERIA
+    // 5.5) VISTA GENERAL POR SALÓN
     // =================================================
-    //
-    // Lee directamente la tabla que está en pantalla (con los valores
-    // actuales de cada casilla y los promedios ya calculados por
-    // recalcularPromedios), así el reporte siempre refleja lo que el
-    // administrador está viendo, incluso si algo no se ha guardado aún.
 
-    function recolectarDatosTablaActual() {
-        const filas = [];
+    const vistaGeneralSalon = document.getElementById("vistaGeneralSalon");
+    const vistaGeneralTrimestre = document.getElementById("vistaGeneralTrimestre");
+    const btnCargarVistaGeneral = document.getElementById("btnCargarVistaGeneral");
+    const vistaGeneralContenedor = document.getElementById("vistaGeneralContenedor");
+    const vistaGeneralFiltroMateria = document.getElementById("vistaGeneralFiltroMateria");
 
-        tablaNotasGrupo.querySelectorAll("tr").forEach((tr) => {
-            const inputs = tr.querySelectorAll(".input-nota-grupo");
-            if (inputs.length === 0) return; // fila de "sin estudiantes"
+    let datosVistaGeneral = null;
 
-            const nombreEst = tr.children[1]?.textContent?.trim() || "";
-            const valoresPorCasilla = {};
-
-            inputs.forEach((input) => {
-                const clave = `${input.dataset.tipo}-${input.dataset.numero}`;
-                valoresPorCasilla[clave] = input.value.trim();
-            });
-
-            filas.push({
-                nombre: nombreEst,
-                valoresPorCasilla,
-                promApr: tr.querySelector(".celda-prom-apr")?.textContent?.trim() || "–",
-                promEje: tr.querySelector(".celda-prom-eje")?.textContent?.trim() || "–",
-                promFinal: tr.querySelector(".celda-prom-final")?.textContent?.trim() || "–",
-                sinCuenta: tr.classList.contains("table-warning")
-            });
-        });
-
-        return filas;
+    function claveCasillaVG(tipo, numero) {
+        return `${tipo}|${numero}`;
     }
 
-    // Datos comunes que necesitan tanto el PDF como el JPG
-    function prepararReporte() {
-        const materia = notasMateria.value;
-        const salonTexto = ETIQUETAS_SALON[notasSalon.value] || notasSalon.value;
-        const trimestre = notasTrimestre.value;
-        const profesor = MATERIA_A_PROFESOR[materia] || "(sin asignar)";
+    async function construirDatosVistaGeneral(salon, trimestre) {
+        const { data: estudiantesSalon, error: errEst } = await supabase
+            .from("estudiantes")
+            .select("id, codigo, nombre, correo, es_prueba")
+            .eq("salon", salon)
+            .order("nombre", { ascending: true });
 
-        const fechaImpresion = new Date().toLocaleString("es-PA", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit"
-        });
+        if (errEst) throw errEst;
 
-        const columnasApr = casillasTabla
-            .filter((c) => c.tipo === "apreciacion")
-            .sort((a, b) => a.numero - b.numero);
+        const estudiantes = (estudiantesSalon || []).filter((e) => !e.es_prueba);
+        if (estudiantes.length === 0) return { estudiantes: [], materias: [] };
 
-        const columnasEje = casillasTabla
-            .filter((c) => c.tipo === "ejercicio")
-            .sort((a, b) => a.numero - b.numero);
+        const correosConCuenta = estudiantes.map((e) => e.correo).filter(Boolean);
+        const idsSinCuenta = estudiantes.filter((e) => !e.correo).map((e) => e.id);
 
-        const filas = recolectarDatosTablaActual();
+        let notas = [];
 
-        const enRiesgo = filas
-            .filter((f) => {
-                const n = parseFloat(f.promFinal);
-                return !isNaN(n) && n < PROMEDIO_MINIMO_APROBAR;
-            })
-            .map((f) => f.nombre);
-
-        const textoAnalisis = enRiesgo.length === 0
-            ? "Todos los estudiantes tienen un promedio final de 3.0 o más en esta materia."
-            : `${enRiesgo.length} estudiante(s) tienen un promedio por debajo de 3.0 y necesitan apoyo: ${enRiesgo.join(", ")}.`;
-
-        return { materia, salonTexto, trimestre, profesor, fechaImpresion, columnasApr, columnasEje, filas, enRiesgo, textoAnalisis };
-    }
-
-    function validarReporteListo() {
-        if (grupoActualNotas.length === 0) {
-            alert("Primero elige salón y materia, y presiona \"Cargar estudiantes del salón\".");
-            return false;
+        if (correosConCuenta.length > 0) {
+            const { data, error } = await supabase
+                .from("notas")
+                .select("correo, estudiante_id, materia, tipo, numero, nota, tema, estado")
+                .eq("trimestre", trimestre)
+                .in("correo", correosConCuenta);
+            if (error) throw error;
+            notas = notas.concat(data || []);
         }
-        if (!notasMateria.value) {
-            alert("Selecciona una materia.");
-            return false;
+
+        if (idsSinCuenta.length > 0) {
+            const { data, error } = await supabase
+                .from("notas")
+                .select("correo, estudiante_id, materia, tipo, numero, nota, tema, estado")
+                .eq("trimestre", trimestre)
+                .in("estudiante_id", idsSinCuenta);
+            if (error) throw error;
+            notas = notas.concat(data || []);
         }
-        return true;
-    }
 
-    // -------- PDF (jsPDF + autoTable) --------
-    function generarPDFMateria() {
-        if (!validarReporteListo()) return;
+        const [{ data: columnasDef }, { data: temasCasillas }] = await Promise.all([
+            supabase.from("columnas_materia").select("materia, tipo, numero").eq("trimestre", trimestre),
+            supabase.from("temas_casillas").select("materia, tipo, numero, tema").eq("trimestre", trimestre).eq("salon", salon)
+        ]);
 
-        const { materia, salonTexto, trimestre, profesor, fechaImpresion, columnasApr, columnasEje, filas, textoAnalisis } = prepararReporte();
+        const columnasPorMateria = {};
+        const temaPorCasilla = {};
 
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: columnasApr.length + columnasEje.length > 6 ? "landscape" : "portrait" });
+        function agregarCol(materia, tipo, numero) {
+            if (!materia || !tipo || !numero) return;
+            if (!columnasPorMateria[materia]) columnasPorMateria[materia] = { apreciacion: new Set(), ejercicio: new Set() };
+            if (columnasPorMateria[materia][tipo]) columnasPorMateria[materia][tipo].add(numero);
+        }
 
-        doc.setFont(undefined, "bold");
-        doc.setFontSize(16);
-        doc.text("CONTROL DE NOTAS", 148, 15, { align: "center" });
-        doc.setFontSize(13);
-        doc.text("C.E.B.G. EL JIRAL", 148, 22, { align: "center" });
+        function guardarTemaSiFalta(materia, tipo, numero, tema) {
+            if (!tema || !tema.trim()) return;
+            if (!temaPorCasilla[materia]) temaPorCasilla[materia] = {};
+            const clave = claveCasillaVG(tipo, numero);
+            if (!temaPorCasilla[materia][clave]) temaPorCasilla[materia][clave] = tema.trim();
+        }
 
-        doc.setFont(undefined, "normal");
-        doc.setFontSize(10);
-        doc.text(`Materia: ${materia}`, 14, 32);
-        doc.text(`Profesor(a): ${profesor}`, 14, 38);
-        doc.text(`Salón: ${salonTexto}`, 200, 32);
-        doc.text(`Trimestre: ${trimestre}`, 200, 38);
-
-        doc.setFontSize(8);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Fecha de impresión: ${fechaImpresion}`, 14, 44);
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(10);
-
-        const filaTitulos = [
-            "#", "Estudiante",
-            ...columnasApr.map((c) => `Aprec.${c.numero}`), "Prom.Aprec.",
-            ...columnasEje.map((c) => `Ejer.${c.numero}`), "Prom.Ejer.",
-            "Prom.Final"
-        ];
-
-        // Segunda fila del encabezado: el tema/descripción de cada
-        // casilla (lo que se escribió en "Tema de cada casilla" en
-        // pantalla). Las columnas que no son casillas van en blanco.
-        const filaTemas = [
-            "", "Tema:",
-            ...columnasApr.map((c) => obtenerTemaCasilla(c.tipo, c.numero) || "-"),
-            "",
-            ...columnasEje.map((c) => obtenerTemaCasilla(c.tipo, c.numero) || "-"),
-            "",
-            ""
-        ];
-
-        const head = [filaTitulos, filaTemas];
-
-        const body = filas.map((f, i) => {
-            const row = [i + 1, f.nombre];
-            columnasApr.forEach((c) => row.push(f.valoresPorCasilla[`apreciacion-${c.numero}`] || "-"));
-            row.push(f.promApr);
-            columnasEje.forEach((c) => row.push(f.valoresPorCasilla[`ejercicio-${c.numero}`] || "-"));
-            row.push(f.promEje);
-            row.push(f.promFinal);
-            return row;
+        (columnasDef || []).forEach((c) => agregarCol(c.materia, c.tipo, c.numero));
+        (temasCasillas || []).forEach((c) => {
+            agregarCol(c.materia, c.tipo, c.numero);
+            guardarTemaSiFalta(c.materia, c.tipo, c.numero, c.tema);
         });
 
-        const indiceColumnaFinal = filaTitulos.length - 1;
-        const idxPromApr = 2 + columnasApr.length;
-        const idxPromEje = idxPromApr + 1 + columnasEje.length;
-        const idxPromFinal = idxPromEje + 1; // = indiceColumnaFinal
-
-        doc.autoTable({
-            head,
-            body,
-            startY: 50,
-            styles: { fontSize: 8, halign: "center", lineColor: [180, 180, 180], lineWidth: 0.1 },
-            headStyles: { fillColor: [31, 78, 121], textColor: 255, fontStyle: "bold" },
-            columnStyles: { 1: { halign: "left", fontStyle: "bold" } },
-            alternateRowStyles: { fillColor: [246, 248, 251] },
-            didParseCell: (data) => {
-
-                const col = data.column.index;
-                const esColumnaPromedio = col === idxPromApr || col === idxPromEje || col === idxPromFinal;
-
-                // Fila 0 del encabezado = títulos (Aprec.1, Ejer.1...)
-                // Fila 1 del encabezado = temas de cada casilla (más chica y en cursiva)
-                if (data.section === "head" && data.row.index === 1) {
-                    data.cell.styles.fontStyle = "italic";
-                    data.cell.styles.fontSize = 6.5;
-                    data.cell.styles.fillColor = [255, 255, 255];
-                    data.cell.styles.textColor = [90, 90, 90];
-                    data.cell.styles.lineColor = [200, 200, 200];
-                    return;
-                }
-
-                if (esColumnaPromedio) {
-                    data.cell.styles.fontStyle = "bold";
-                }
-
-                if (data.section === "head" && data.row.index === 0 && esColumnaPromedio) {
-                    data.cell.styles.fillColor = [17, 53, 84];
-                }
-
-                if (data.section === "body") {
-
-                    const finalNum = parseFloat(body[data.row.index][indiceColumnaFinal]);
-                    const enRiesgo = !isNaN(finalNum) && finalNum < PROMEDIO_MINIMO_APROBAR;
-
-                    if (enRiesgo) {
-                        data.cell.styles.textColor = [200, 3, 17];
-                    }
-
-                    if (esColumnaPromedio) {
-                        if (col === idxPromFinal && enRiesgo) {
-                            data.cell.styles.fillColor = [253, 226, 226];
-                        } else {
-                            data.cell.styles.fillColor = col === idxPromFinal ? [227, 247, 227] : [238, 242, 255];
-                        }
-                    }
-                }
+        notas.forEach((n) => {
+            const tipoNorm = (n.tipo || "").toLowerCase();
+            if (tipoNorm === "apreciacion" || tipoNorm === "ejercicio") {
+                agregarCol(n.materia, tipoNorm, n.numero);
+                guardarTemaSiFalta(n.materia, tipoNorm, n.numero, n.tema);
             }
         });
 
-        let y = doc.lastAutoTable.finalY + 10;
+        const claveEstudianteVG = (n) => n.correo ? `correo:${n.correo}` : `id:${n.estudiante_id}`;
+        const notasPorEstudianteMateria = {};
 
-        doc.setFont(undefined, "bold");
-        doc.setFontSize(11);
-        doc.text("Análisis:", 14, y);
-        y += 6;
+        notas.forEach((n) => {
+            const claveEst = claveEstudianteVG(n);
+            if (!notasPorEstudianteMateria[claveEst]) notasPorEstudianteMateria[claveEst] = {};
+            if (!notasPorEstudianteMateria[claveEst][n.materia]) notasPorEstudianteMateria[claveEst][n.materia] = {};
+            notasPorEstudianteMateria[claveEst][n.materia][claveCasillaVG(n.tipo, n.numero)] = n;
+        });
 
-        doc.setFont(undefined, "normal");
-        doc.setFontSize(9);
-        const lineas = doc.splitTextToSize(textoAnalisis, 260);
-        doc.text(lineas, 14, y);
+        const materiasOrdenadas = materiasParaSalon(salon);
+        const materias = [];
 
-        const nombreArchivo = `Notas_${materia}_${salonTexto}_${trimestre}`.replace(/[\s°]+/g, "_");
-        doc.save(`${nombreArchivo}.pdf`);
+        materiasOrdenadas.forEach((materia) => {
+            const cols = columnasPorMateria[materia];
+            if (!cols) return;
+
+            const apr = [...cols.apreciacion].sort((a, b) => a - b);
+            const eje = [...cols.ejercicio].sort((a, b) => a - b);
+            const temas = temaPorCasilla[materia] || {};
+
+            const filas = estudiantes.map((est) => {
+                const claveEst = est.correo ? `correo:${est.correo}` : `id:${est.id}`;
+                const notasEstMateria = notasPorEstudianteMateria[claveEst]?.[materia] || {};
+
+                const celdasApr = apr.map((n) => notasEstMateria[claveCasillaVG("apreciacion", n)] || null);
+                const celdasEje = eje.map((n) => notasEstMateria[claveCasillaVG("ejercicio", n)] || null);
+
+                const valoresApr = celdasApr.filter((n) => n && n.estado !== "Intencional");
+                const valoresEje = celdasEje.filter((n) => n && n.estado !== "Intencional");
+
+                const promApr = valoresApr.length > 0
+                    ? valoresApr.reduce((a, b) => a + Number(b.nota), 0) / valoresApr.length : null;
+                const promEje = valoresEje.length > 0
+                    ? valoresEje.reduce((a, b) => a + Number(b.nota), 0) / valoresEje.length : null;
+
+                let promFinal = null;
+                if (promApr !== null && promEje !== null) promFinal = (promApr + promEje) / 2;
+                else if (promApr !== null) promFinal = promApr;
+                else if (promEje !== null) promFinal = promEje;
+
+                return {
+                    nombre: est.nombre,
+                    correo: est.correo,
+                    sinCuenta: !est.correo,
+                    celdasApr, celdasEje,
+                    promApr, promEje, promFinal
+                };
+            });
+
+            const tieneNotasReales = filas.some((f) => 
+                f.celdasApr.some((n) => n !== null && n.nota !== null && n.nota !== undefined) || 
+                f.celdasEje.some((n) => n !== null && n.nota !== null && n.nota !== undefined)
+            );
+
+            if (tieneNotasReales) {
+                materias.push({ materia, apr, eje, temas, filas });
+            }
+        });
+
+        return { estudiantes, materias };
     }
 
-    // -------- JPG (html2canvas sobre un reporte armado aparte) --------
-    function construirReporteDOM(datos) {
-        const { materia, salonTexto, trimestre, profesor, fechaImpresion, columnasApr, columnasEje, filas, textoAnalisis } = datos;
+    function renderVistaGeneralHTML(datos, salon, trimestre, filtroMateria) {
+        if (datos.materias.length === 0) {
+            vistaGeneralContenedor.innerHTML = `<p class="text-muted">Todavía no hay ninguna nota registrada para este salón en ${escapeHtmlAdmin(trimestre)}.</p>`;
+            return;
+        }
 
-        const cont = document.createElement("div");
-        cont.style.cssText = "position:fixed; left:-9999px; top:0; width:1100px; background:#fff; padding:26px; font-family:Arial, Helvetica, sans-serif; color:#111;";
+        const materiasAMostrar = filtroMateria
+            ? datos.materias.filter((m) => m.materia === filtroMateria)
+            : datos.materias;
 
-        let filasHtml = "";
+        let html = `<h4 class="mb-3">${ETIQUETAS_SALON[salon] || salon} — ${escapeHtmlAdmin(trimestre)}</h4>`;
 
-        filas.forEach((f, i) => {
-            const finalNum = parseFloat(f.promFinal);
-            const riesgo = !isNaN(finalNum) && finalNum < PROMEDIO_MINIMO_APROBAR;
+        materiasAMostrar.forEach(({ materia, apr, eje, temas, filas }) => {
+            const profesor = MATERIA_A_PROFESOR[materia] || "(sin asignar)";
 
-            let celdas = `
-                <td style="padding:5px 7px; border:1px solid #ccc;">${i + 1}</td>
-                <td style="padding:5px 7px; border:1px solid #ccc; text-align:left; font-weight:bold;">${escapeHtmlAdmin(f.nombre)}</td>
+            let filaEncabezado = `<tr><th style="min-width:160px;">Estudiante</th>`;
+            apr.forEach((n) => { filaEncabezado += `<th class="text-center">Apr.${n}</th>`; });
+            if (apr.length > 0) filaEncabezado += `<th class="text-center fw-bold">Prom.Apr.</th>`;
+            eje.forEach((n) => { filaEncabezado += `<th class="text-center">Eje.${n}</th>`; });
+            if (eje.length > 0) filaEncabezado += `<th class="text-center fw-bold">Prom.Eje.</th>`;
+            filaEncabezado += `<th class="text-center fw-bold table-success">Prom.Final</th></tr>`;
+
+            let filaTemas = `<tr class="table-light"><th class="small text-muted fw-normal">Tema:</th>`;
+            apr.forEach((n) => {
+                const tema = temas[claveCasillaVG("apreciacion", n)] || "-";
+                filaTemas += `<th class="small text-muted fw-normal fst-italic">${escapeHtmlAdmin(tema)}</th>`;
+            });
+            if (apr.length > 0) filaTemas += `<th></th>`;
+            eje.forEach((n) => {
+                const tema = temas[claveCasillaVG("ejercicio", n)] || "-";
+                filaTemas += `<th class="small text-muted fw-normal fst-italic">${escapeHtmlAdmin(tema)}</th>`;
+            });
+            if (eje.length > 0) filaTemas += `<th></th>`;
+            filaTemas += `<th></th></tr>`;
+
+            const celdaHtml = (n) => {
+                if (!n) return `<td class="text-center text-muted">—</td>`;
+                if (n.estado === "Intencional") return `<td class="text-center" title="Falta intencional">⚠️</td>`;
+                return `<td class="text-center">${escapeHtmlAdmin(Number(n.nota).toFixed(1))}</td>`;
+            };
+
+            let filasCuerpo = "";
+            filas.forEach((fila) => {
+                const enRiesgo = fila.promFinal !== null && fila.promFinal < PROMEDIO_MINIMO_APROBAR;
+
+                const nombreClickeable = fila.correo
+                    ? `<a href="estudiante.html?correo=${encodeURIComponent(fila.correo)}" target="_blank" class="fw-bold text-decoration-none text-primary" title="Hacer clic para abrir y editar el boletín de este estudiante">${escapeHtmlAdmin(fila.nombre)} 👁️</a>`
+                    : escapeHtmlAdmin(fila.nombre);
+
+                filasCuerpo += `<tr class="${enRiesgo ? "table-danger" : (fila.sinCuenta ? "table-warning" : "")}">`;
+                filasCuerpo += `<td>${nombreClickeable}${fila.sinCuenta ? ' <span class="badge bg-warning text-dark">sin cuenta</span>' : ""}</td>`;
+                fila.celdasApr.forEach((n) => { filasCuerpo += celdaHtml(n); });
+                if (apr.length > 0) filasCuerpo += `<td class="text-center fw-bold">${fila.promApr !== null ? fila.promApr.toFixed(1) : "-"}</td>`;
+                fila.celdasEje.forEach((n) => { filasCuerpo += celdaHtml(n); });
+                if (eje.length > 0) filasCuerpo += `<td class="text-center fw-bold">${fila.promEje !== null ? fila.promEje.toFixed(1) : "-"}</td>`;
+                filasCuerpo += `<td class="text-center fw-bold ${enRiesgo ? "text-danger" : ""}">${fila.promFinal !== null ? fila.promFinal.toFixed(1) : "-"}</td>`;
+                filasCuerpo += `</tr>`;
+            });
+
+            html += `
+                <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+                    <h6 class="m-0 font-weight-bold">${escapeHtmlAdmin(materia)}</h6>
+                    <span class="small text-muted"><strong>Profesor(a):</strong> ${escapeHtmlAdmin(profesor)}</span>
+                </div>
+                <div class="table-responsive mb-2">
+                    <table class="table table-sm table-bordered align-middle">
+                        <thead class="table-light">${filaEncabezado}${filaTemas}</thead>
+                        <tbody>${filasCuerpo}</tbody>
+                    </table>
+                </div>
             `;
-
-            columnasApr.forEach((c) => {
-                celdas += `<td style="padding:5px 7px; border:1px solid #ccc; text-align:center;">${escapeHtmlAdmin(f.valoresPorCasilla[`apreciacion-${c.numero}`] || "-")}</td>`;
-            });
-            celdas += `<td style="padding:5px 7px; border:1px solid #ccc; text-align:center; font-weight:bold; background:#eef2ff;">${escapeHtmlAdmin(f.promApr)}</td>`;
-
-            columnasEje.forEach((c) => {
-                celdas += `<td style="padding:5px 7px; border:1px solid #ccc; text-align:center;">${escapeHtmlAdmin(f.valoresPorCasilla[`ejercicio-${c.numero}`] || "-")}</td>`;
-            });
-            celdas += `<td style="padding:5px 7px; border:1px solid #ccc; text-align:center; font-weight:bold; background:#eef2ff;">${escapeHtmlAdmin(f.promEje)}</td>`;
-
-            celdas += `<td style="padding:5px 7px; border:1px solid #ccc; text-align:center; font-weight:bold; background:${riesgo ? "#fde2e2" : "#e3f7e3"};">${escapeHtmlAdmin(f.promFinal)}</td>`;
-
-            filasHtml += `<tr style="${riesgo ? "color:#c00311;" : ""}">${celdas}</tr>`;
         });
 
-        const columnasEncabezado = [
-            "#", "Estudiante",
-            ...columnasApr.map((c) => `Aprec.${c.numero}`), "Prom.Aprec.",
-            ...columnasEje.map((c) => `Ejer.${c.numero}`), "Prom.Ejer.",
-            "Prom.Final"
-        ].map((t) => `<th style="padding:6px 7px; border:1px solid #999; background:#1f4e79; color:#fff; font-size:12px;">${t}</th>`).join("");
-
-        // Segunda fila del encabezado: el tema/descripción de cada
-        // casilla, más chica y en cursiva debajo del título.
-        let filaTemasHtml = `<th style="border:1px solid #ccc;"></th><th style="border:1px solid #ccc; font-size:10px; font-weight:normal; color:#666;">Tema:</th>`;
-
-        columnasApr.forEach((c) => {
-            const tema = obtenerTemaCasilla(c.tipo, c.numero) || "-";
-            filaTemasHtml += `<th style="border:1px solid #ccc; font-size:10px; font-weight:normal; font-style:italic; color:#666;">${escapeHtmlAdmin(tema)}</th>`;
-        });
-        filaTemasHtml += `<th style="border:1px solid #ccc;"></th>`;
-
-        columnasEje.forEach((c) => {
-            const tema = obtenerTemaCasilla(c.tipo, c.numero) || "-";
-            filaTemasHtml += `<th style="border:1px solid #ccc; font-size:10px; font-weight:normal; font-style:italic; color:#666;">${escapeHtmlAdmin(tema)}</th>`;
-        });
-        filaTemasHtml += `<th style="border:1px solid #ccc;"></th><th style="border:1px solid #ccc;"></th>`;
-
-        cont.innerHTML = `
-            <div style="text-align:center; margin-bottom:16px;">
-                <h2 style="margin:0; font-size:22px; letter-spacing:1px;">CONTROL DE NOTAS</h2>
-                <h3 style="margin:4px 0 0; font-size:16px; color:#1f4e79;">C.E.B.G. EL JIRAL</h3>
-                <p style="margin:4px 0 0; font-size:11px; color:#777;">Fecha de impresión: ${escapeHtmlAdmin(fechaImpresion)}</p>
-            </div>
-            <table style="width:100%; margin-bottom:16px; font-size:13px; border-collapse:collapse;">
-                <tr>
-                    <td style="padding:3px 0;"><strong>Materia:</strong> ${escapeHtmlAdmin(materia)}</td>
-                    <td style="padding:3px 0;"><strong>Profesor(a):</strong> ${escapeHtmlAdmin(profesor)}</td>
-                </tr>
-                <tr>
-                    <td style="padding:3px 0;"><strong>Salón:</strong> ${escapeHtmlAdmin(salonTexto)}</td>
-                    <td style="padding:3px 0;"><strong>Trimestre:</strong> ${escapeHtmlAdmin(trimestre)}</td>
-                </tr>
-            </table>
-            <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                <thead>
-                    <tr>${columnasEncabezado}</tr>
-                    <tr>${filaTemasHtml}</tr>
-                </thead>
-                <tbody>${filasHtml}</tbody>
-            </table>
-            <div style="margin-top:18px; padding:12px; border:1px solid #ccc; background:#f8f9fa; font-size:13px;">
-                <strong>Análisis:</strong><br>${escapeHtmlAdmin(textoAnalisis)}
-            </div>
-        `;
-
-        return cont;
+        vistaGeneralContenedor.innerHTML = html;
     }
 
-    async function generarJPGMateria() {
-        if (!validarReporteListo()) return;
+    async function cargarVistaGeneral() {
+        const salon = vistaGeneralSalon.value;
+        const trimestre = vistaGeneralTrimestre.value;
 
-        const datos = prepararReporte();
-        const cont = construirReporteDOM(datos);
-        document.body.appendChild(cont);
+        if (!salon) {
+            alert("Selecciona un salón.");
+            return;
+        }
+
+        const textoOriginal = btnCargarVistaGeneral.innerHTML;
+        btnCargarVistaGeneral.disabled = true;
+        btnCargarVistaGeneral.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
+        vistaGeneralContenedor.innerHTML = "";
 
         try {
-            const canvas = await html2canvas(cont, { scale: 2, backgroundColor: "#ffffff" });
-            const nombreArchivo = `Notas_${datos.materia}_${datos.salonTexto}_${datos.trimestre}`.replace(/[\s°]+/g, "_");
+            datosVistaGeneral = await construirDatosVistaGeneral(salon, trimestre);
+            datosVistaGeneral.salon = salon;
+            datosVistaGeneral.trimestre = trimestre;
 
-            const enlace = document.createElement("a");
-            enlace.download = `${nombreArchivo}.jpg`;
-            enlace.href = canvas.toDataURL("image/jpeg", 0.95);
-            enlace.click();
-        } catch (err) {
-            console.error("❌ Error al generar la imagen:", err);
-            alert("No se pudo generar la imagen. Revisa la consola.");
+            vistaGeneralFiltroMateria.innerHTML = `<option value="">Todas las materias</option>` +
+                datosVistaGeneral.materias.map((m) => `<option value="${escapeHtmlAdmin(m.materia)}">${escapeHtmlAdmin(m.materia)}</option>`).join("");
+
+            const materiaSeleccionada = vistaGeneralFiltroMateria.value;
+            vistaGeneralFiltroMateria.disabled = datosVistaGeneral.materias.length === 0;
+
+            renderVistaGeneralHTML(datosVistaGeneral, salon, trimestre, materiaSeleccionada);
+
+        } catch (error) {
+            console.error("❌ Error al cargar la vista general:", error);
+            vistaGeneralContenedor.innerHTML = `<p class="text-danger">Error al cargar: ${escapeHtmlAdmin(error.message || String(error))}</p>`;
         } finally {
-            document.body.removeChild(cont);
+            btnCargarVistaGeneral.disabled = false;
+            btnCargarVistaGeneral.innerHTML = textoOriginal;
         }
     }
 
-    const btnImprimirPDF = document.getElementById("btnImprimirPDF");
-    const btnDescargarJPG = document.getElementById("btnDescargarJPG");
+    if (btnCargarVistaGeneral) {
+        btnCargarVistaGeneral.addEventListener("click", cargarVistaGeneral);
+    }
 
-    if (btnImprimirPDF) btnImprimirPDF.addEventListener("click", generarPDFMateria);
-    if (btnDescargarJPG) btnDescargarJPG.addEventListener("click", generarJPGMateria);
+    if (vistaGeneralFiltroMateria) {
+        vistaGeneralFiltroMateria.addEventListener("change", () => {
+            if (!datosVistaGeneral) return;
+            renderVistaGeneralHTML(datosVistaGeneral, datosVistaGeneral.salon, datosVistaGeneral.trimestre, vistaGeneralFiltroMateria.value);
+        });
+    }
 
     // =================================================
     // 6) BOTONES DE RECARGA
@@ -1205,7 +1180,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     btnRecargarUsuarios.addEventListener("click", cargarUsuarios);
     btnRecargarNotas.addEventListener("click", cargarNotas);
 
-    // Carga inicial
     cargarUsuarios();
     cargarNotas();
 

@@ -117,6 +117,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     let trimestreActivo = "Trimestre 1";
     let resumenEstudiantes = [];
     let correoDetalleAbierto = null; // para reabrir el modal tras marcar una falta
+    let maxCasillaGrupoGlobal = {}; // "materia|tipo" -> casilla más alta que el grupo ya trabajó (para el PDF)
+    let casillasGrupoConNotaGlobal = new Set(); // "materia|tipo|numero" que SÍ tienen al menos una nota real de alguien
 
     // =====================================================
     // CARGAR TRIMESTRE, ESTUDIANTES Y NOTAS
@@ -141,10 +143,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             // -------- Estudiantes --------
+            // es_prueba = false: los estudiantes de prueba nunca aparecen
+            // en este panel, ni en el resumen, ni en los boletines
+            // individuales o masivos que salen de aquí.
             const { data: estudiantes, error: errEst } = await supabase
                 .from("estudiantes")
                 .select("id, codigo, nombre, correo")
                 .eq("salon", salonActual)
+                .eq("es_prueba", false)
                 .order("codigo", { ascending: true });
 
             if (errEst) {
@@ -189,6 +195,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             // -------- Casilla más alta llenada por el grupo, por materia+tipo --------
             const maxCasillaGrupo = {};
+            const casillasGrupoConNota = new Set();
 
             notas.forEach((n) => {
                 const clave = `${n.materia}|${n.tipo}`;
@@ -197,7 +204,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (!maxCasillaGrupo[clave] || num > maxCasillaGrupo[clave]) {
                     maxCasillaGrupo[clave] = num;
                 }
+
+                // Casilla exacta (no solo "hasta dónde llegó el grupo"),
+                // para no marcar como pendiente una columna que existe
+                // pero que en realidad nadie ha llenado todavía.
+                casillasGrupoConNota.add(`${n.materia}|${n.tipo}|${num}`);
             });
+
+            // Se guarda también en la variable de afuera, para que el
+            // generador de PDF pueda armar filas de materias donde el
+            // grupo ya trabajó aunque este estudiante no tenga notas ahí.
+            maxCasillaGrupoGlobal = maxCasillaGrupo;
+            casillasGrupoConNotaGlobal = casillasGrupoConNota;
 
             // -------- Construir resumen por estudiante --------
             resumenEstudiantes = estudiantes.map((est) => {
@@ -768,7 +786,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         // -------- Tabla de notas --------
         let y;
 
-        if (est.notas.length === 0) {
+        if (est.notas.length === 0 && Object.keys(maxCasillaGrupoGlobal).length === 0) {
 
             doc.setFont(undefined, "italic");
 
@@ -788,20 +806,37 @@ document.addEventListener("DOMContentLoaded", async () => {
             let maxApreciacion = 0;
             let maxEjercicio = 0;
 
+            function asegurarMateria(mat) {
+                if (!materiasMap[mat]) {
+                    materiasMap[mat] = { apreciacion: {}, ejercicio: {} };
+                }
+            }
+
+            // Primero se agregan las materias donde el GRUPO ya trabajó
+            // (aunque este estudiante todavía no tenga ninguna nota ahí),
+            // usando maxCasillaGrupoGlobal para saber cuántas columnas
+            // mostrar. Así, esas materias también salen en el boletín,
+            // con "?" en cada casilla que le falte a este estudiante.
+            Object.keys(maxCasillaGrupoGlobal).forEach((clave) => {
+                const separador = clave.lastIndexOf("|");
+                const materia = clave.slice(0, separador);
+                const tipo = clave.slice(separador + 1);
+                const max = maxCasillaGrupoGlobal[clave];
+
+                asegurarMateria(materia);
+
+                if (tipo === "apreciacion" && max > maxApreciacion) maxApreciacion = max;
+                if (tipo === "ejercicio" && max > maxEjercicio) maxEjercicio = max;
+            });
+
             est.notas.forEach((item) => {
                 const mat = item.materia || "Sin Materia";
-
-                if (!materiasMap[mat]) {
-                    materiasMap[mat] = {
-                        apreciacion: Array(10).fill(null),
-                        ejercicio: Array(10).fill(null)
-                    };
-                }
+                asegurarMateria(mat);
 
                 const tipoNorm = (item.tipo || "").toLowerCase();
                 const casilla = Number(item.numero);
 
-                if (!casilla || casilla < 1 || casilla > 10) return;
+                if (!casilla || casilla < 1) return;
 
                 const valor = {
                     nota: Number(item.nota),
@@ -809,10 +844,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 };
 
                 if (tipoNorm === "apreciacion") {
-                    materiasMap[mat].apreciacion[casilla - 1] = valor;
+                    materiasMap[mat].apreciacion[casilla] = valor;
                     if (casilla > maxApreciacion) maxApreciacion = casilla;
                 } else if (tipoNorm === "ejercicio") {
-                    materiasMap[mat].ejercicio[casilla - 1] = valor;
+                    materiasMap[mat].ejercicio[casilla] = valor;
                     if (casilla > maxEjercicio) maxEjercicio = casilla;
                 }
             });
@@ -830,21 +865,37 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             let huboCasillasSinRegistrar = false;
 
-            const celdaTexto = (v) => {
-                if (v === null) {
-                    huboCasillasSinRegistrar = true;
-                    return "-";
+            const celdaTexto = (v, algunOtroTiene) => {
+                if (v === null || v === undefined) {
+                    if (algunOtroTiene) {
+                        huboCasillasSinRegistrar = true;
+                        return "?";
+                    }
+                    return ""; // nadie (ni siquiera otro estudiante) tiene nota ahí: no se marca como pendiente
                 }
                 if (v.intencional) return "F*";
                 return v.nota.toFixed(1);
             };
 
-            Object.keys(materiasMap).forEach((materia) => {
-                const apr = materiasMap[materia].apreciacion.slice(0, maxApreciacion);
-                const eje = materiasMap[materia].ejercicio.slice(0, maxEjercicio);
+            Object.keys(materiasMap).sort().forEach((materia) => {
+                const apr = [];
+                for (let i = 1; i <= maxApreciacion; i++) {
+                    apr.push({
+                        valor: materiasMap[materia].apreciacion[i] ?? null,
+                        algunOtroTiene: casillasGrupoConNotaGlobal.has(`${materia}|apreciacion|${i}`)
+                    });
+                }
 
-                const aprValidos = apr.filter((v) => v !== null);
-                const ejeValidos = eje.filter((v) => v !== null);
+                const eje = [];
+                for (let i = 1; i <= maxEjercicio; i++) {
+                    eje.push({
+                        valor: materiasMap[materia].ejercicio[i] ?? null,
+                        algunOtroTiene: casillasGrupoConNotaGlobal.has(`${materia}|ejercicio|${i}`)
+                    });
+                }
+
+                const aprValidos = apr.map((c) => c.valor).filter((v) => v !== null);
+                const ejeValidos = eje.map((c) => c.valor).filter((v) => v !== null);
 
                 const promApr = aprValidos.length > 0
                     ? aprValidos.reduce((a, b) => a + b.nota, 0) / aprValidos.length
@@ -864,9 +915,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
 
                 const row = [materia];
-                apr.forEach((v) => row.push(celdaTexto(v)));
+                apr.forEach((c) => row.push(celdaTexto(c.valor, c.algunOtroTiene)));
                 if (maxApreciacion > 0) row.push(promApr !== null ? promApr.toFixed(1) : "-");
-                eje.forEach((v) => row.push(celdaTexto(v)));
+                eje.forEach((c) => row.push(celdaTexto(c.valor, c.algunOtroTiene)));
                 if (maxEjercicio > 0) row.push(promEje !== null ? promEje.toFixed(1) : "-");
                 row.push(promFinal !== null ? promFinal.toFixed(1) : "-");
 
@@ -901,7 +952,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 doc.setFontSize(8);
                 doc.setTextColor(100, 100, 100);
                 doc.text(
-                    "Nota: el simbolo \"-\" indica que el estudiante aun no ha buscado ni registrado esa nota en el sistema " +
+                    "Nota: el simbolo \"?\" indica que el estudiante aun no ha buscado ni registrado esa nota en el sistema " +
                     "(no significa que el docente no la haya asignado o calificado).",
                     20,
                     y,
@@ -992,8 +1043,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const total = d.apreciacion + d.ejercicio;
                     return [
                         materia,
-                        d.apreciacion > 0 ? String(d.apreciacion) : "-",
-                        d.ejercicio > 0 ? String(d.ejercicio) : "-",
+                        d.apreciacion > 0 ? `${d.apreciacion} ?` : "-",
+                        d.ejercicio > 0 ? `${d.ejercicio} ?` : "-",
                         String(total)
                     ];
                 });

@@ -8,6 +8,23 @@ async function cargarNotas() {
 
     const contenedor = document.getElementById("listaEstudiantes");
 
+    // Primero se obtienen los correos marcados como "de prueba"
+    // (es_prueba = true), para poder excluir sus notas más abajo.
+    // Esta tabla no guarda "materia/correo" por estudiante, así que
+    // el filtro se hace del lado del cliente, sobre la lista de notas.
+    const { data: estudiantesPrueba, error: errPrueba } = await supabase
+        .from("estudiantes")
+        .select("correo")
+        .eq("es_prueba", true);
+
+    if (errPrueba) {
+        console.error("Error al obtener estudiantes de prueba:", errPrueba);
+    }
+
+    const correosDePrueba = new Set(
+        (estudiantesPrueba || []).map((e) => (e.correo || "").toLowerCase()).filter(Boolean)
+    );
+
     const { data, error } = await supabase
         .from("notas")
         .select("*")
@@ -19,7 +36,10 @@ async function cargarNotas() {
         return;
     }
 
-    todasLasNotas = data || [];
+    // Se excluyen las notas de cualquier estudiante marcado como "de prueba".
+    todasLasNotas = (data || []).filter(
+        (n) => !correosDePrueba.has((n.correo || "").toLowerCase())
+    );
 
     actualizarResumen(todasLasNotas);
     renderizarTabla(todasLasNotas);

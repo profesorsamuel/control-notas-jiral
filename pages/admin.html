@@ -130,19 +130,7 @@
                 </div>
 
                 <div class="row g-3 mt-1">
-                    <div class="col-md-8">
-                        <label for="notasTema" class="form-label fw-semibold">
-                            Tema / observación <span class="text-muted fw-normal">(opcional, aplica a todo el grupo)</span>
-                        </label>
-                        <input
-                            type="text"
-                            id="notasTema"
-                            class="form-control"
-                            placeholder="Ej: Prueba de la unidad 2"
-                        >
-                    </div>
-
-                    <div class="col-md-4 d-flex align-items-end">
+                    <div class="col-12">
                         <button type="button" id="btnCargarGrupo" class="btn btn-primary w-100">
                             <i class="fa-solid fa-users me-1"></i>
                             Cargar estudiantes del salón
@@ -164,10 +152,6 @@
                             <i class="fa-solid fa-file-pdf me-1"></i>
                             Imprimir PDF
                         </button>
-                        <button type="button" id="btnDescargarJPG" class="btn btn-outline-secondary">
-                            <i class="fa-solid fa-image me-1"></i>
-                            Descargar como imagen (JPG)
-                        </button>
                         <span id="estadoGuardadoNotas" class="small"></span>
                     </div>
 
@@ -186,19 +170,74 @@
 
                     <p class="text-muted small mt-2 mb-0">
                         <i class="fa-solid fa-circle-info me-1"></i>
-                        Todas las columnas son editables, incluidas las de historial (por si te
-                        equivocaste de casilla antes). Deja en blanco lo que no quieras tocar.
-                        Presiona <kbd>Enter</kbd> para bajar a la siguiente fila dentro de la
-                        misma columna. Las columnas <strong>Prom. Aprec.</strong>,
-                        <strong>Prom. Ejer.</strong> y <strong>Prom. Final</strong> se calculan
-                        solas mientras escribes. El sistema <strong>autoguarda cada 30
-                        segundos</strong> lo que hayas cambiado, además del botón de arriba. Las
-                        filas en amarillo (<span class="badge bg-warning text-dark">Sin cuenta · provisional</span>)
-                        son estudiantes que aún no se registran; en cuanto lo hagan, sus notas se
-                        vinculan solas a su cuenta.
+                        Haz clic sobre el nombre azul de cualquier estudiante para abrir y revisar su boletín personal. 
+                        Presiona <kbd>Enter</kbd> para bajar a la siguiente fila dentro de la misma columna. 
+                        El sistema <strong>autoguarda cada 30 segundos</strong> lo que hayas cambiado.
                     </p>
 
                 </div>
+
+            </div>
+        </section>
+
+        <!-- ===================== VISTA GENERAL POR SALÓN ===================== -->
+        <section class="card shadow border-info border-2 mb-4">
+            <div class="card-header bg-info text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-table-list me-2" aria-hidden="true"></i>
+                    Vista general de calificaciones (todas las materias)
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Elige un salón y un trimestre para ver, una tabla por materia, a todos los
+                    estudiantes de ese salón con sus notas. Haz clic sobre el nombre del estudiante para abrir su boletín individual.
+                </p>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-6 col-md-3">
+                        <label for="vistaGeneralSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-info me-1"></i> Salón
+                        </label>
+                        <select id="vistaGeneralSalon" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="8A">8°A</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label for="vistaGeneralTrimestre" class="form-label fw-semibold">
+                            <i class="fa-solid fa-calendar text-info me-1"></i> Trimestre
+                        </label>
+                        <select id="vistaGeneralTrimestre" class="form-select">
+                            <option value="Trimestre 1">Trimestre 1</option>
+                            <option value="Trimestre 2">Trimestre 2</option>
+                            <option value="Trimestre 3">Trimestre 3</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <button type="button" id="btnCargarVistaGeneral" class="btn btn-info text-white w-100">
+                            <i class="fa-solid fa-magnifying-glass me-1"></i>
+                            Cargar vista general
+                        </button>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label for="vistaGeneralFiltroMateria" class="form-label fw-semibold">
+                            <i class="fa-solid fa-filter text-info me-1"></i> Filtrar por materia
+                        </label>
+                        <select id="vistaGeneralFiltroMateria" class="form-select" disabled>
+                            <option value="">Todas las materias</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="vistaGeneralContenedor" class="mt-4"></div>
 
             </div>
         </section>
@@ -223,11 +262,12 @@
                                 <th>Rol</th>
                                 <th>Activo</th>
                                 <th>Registrado</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody id="tablaUsuarios">
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-4">
+                                <td colspan="5" class="text-center text-muted py-4">
                                     Cargando usuarios...
                                 </td>
                             </tr>
@@ -274,9 +314,6 @@
 
     <!-- Librería jsPDF-AutoTable -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-
-    <!-- Librería html2canvas (para exportar el reporte como imagen JPG) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <script type="module" src="../js/admin.js"></script>
 
