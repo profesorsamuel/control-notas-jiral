@@ -169,6 +169,23 @@
             color: #222 !important;
         }
 
+        /* Ancho mínimo fijo para que un valor como "3.5" siempre quepa
+           completo dentro de la casilla, incluso en pantallas angostas
+           de celular (antes se podía recortar o quedar dentro de un
+           campo demasiado angosto que requería scroll para leerse). */
+        td.celda-nota {
+            width: 68px;
+            min-width: 68px;
+        }
+        .input-nota-grupo {
+            width: 100%;
+            min-width: 60px;
+            box-sizing: border-box;
+            text-align: center;
+            padding: 6px 1px;
+            font-size: 14px;
+        }
+
         #tablaScroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         #tablaScroll table { border-collapse: separate; border-spacing: 0; }
         #tablaScroll th, #tablaScroll td { border: 1px solid #ddd4c4; }
