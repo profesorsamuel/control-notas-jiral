@@ -1,350 +1,924 @@
-<!DOCTYPE html>
-<html lang="es">
+import { supabase } from "./supabase.js";
+import { pintarCambiarPanel } from "./roles.js";
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel del Docente</title>
+// =========================================================
+// 0) UTILIDADES
+// =========================================================
 
-    <link rel="icon" type="image/x-icon" href="../img/profesor-favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="../img/profesor-favicon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../img/profesor-favicon-16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../img/profesor-apple-touch-icon.png">
+function escapeHtml(str) {
+    return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
 
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Panel del Docente | Control de Notas - C.E.B.G. El Jiral">
-    <meta property="og:description" content="Registra y edita las notas de tus estudiantes por salón y materia.">
-    <meta property="og:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
-    <meta property="og:url" content="https://notasjiral.netlify.app/pages/profesor.html">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
+const PROMEDIO_MINIMO_APROBAR = 3.0;
 
-    <!-- Bootstrap: necesario para las clases usadas en la tabla de notas (form-control, badge, table-danger, etc.) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+// Mientras el/la docente escribe: solo deja pasar dígitos y un único punto
+// decimal, y limita a 1 dígito entero + 1 decimal (así nunca se puede
+// llegar a escribir algo como "33").
+function sanitizarEntradaNota(valor) {
+    let v = valor.replace(",", ".").replace(/[^0-9.]/g, "");
 
-    <!-- Tipografía propia: Baloo 2 para títulos (cálida, redondeada, con
-         aire escolar) + Inter para datos y texto de la tabla (legible en
-         tamaños chicos). Reemplaza el Arial genérico de antes. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    const partes = v.split(".");
+    if (partes.length > 2) v = partes[0] + "." + partes.slice(1).join("");
 
-    <!-- Necesarias para exportar el reporte de notas a PDF y JPG -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    let [entero, decimal] = v.split(".");
+    entero = (entero || "").slice(0, 1);
 
-    <style>
-        /* Candado general: nada en la página (ni siquiera el contenedor
-           que se arma fuera de pantalla para exportar PDF/JPG) puede
-           hacer que el ancho total se salga del celular. */
-        html, body {
-            max-width: 100%;
-            overflow-x: hidden;
+    if (decimal !== undefined) {
+        decimal = decimal.slice(0, 1);
+        return `${entero}.${decimal}`;
+    }
+    return entero;
+}
+
+// Al salir de la casilla: convierte "3" en "3.0", ".6" en "0.6", y
+// limita cualquier valor al rango 0–5.
+function formatearNotaFinal(valor) {
+    const texto = (valor ?? "").trim();
+    if (texto === "" || texto === ".") return "";
+
+    let num = parseFloat(texto);
+    if (isNaN(num)) return "";
+
+    if (num < 0) num = 0;
+    if (num > 5) num = 5;
+
+    return num.toFixed(1);
+}
+
+function claveCasilla(tipo, numero) {
+    return `${tipo}-${numero}`;
+}
+
+function etiquetaCasilla(tipo, numero) {
+    return `${tipo === "apreciacion" ? "Aprec." : "Ejer."} ${numero}`;
+}
+
+// =========================================================
+// 1) VERIFICAR SESIÓN Y QUE SEA PROFESOR
+// =========================================================
+
+let correoProfesor = "";
+let nombreProfesor = "";
+let misAsignaciones = []; // [{materia, salon}, ...] -- solo lo que este profesor da
+let bloqueoActual = false; // ¿la materia/salón cargada está bloqueada para estudiantes?
+
+// El acceso a este panel se decide igual que en consejero.js:
+// por pertenecer a la tabla correspondiente (profesor_materias),
+// no por el campo "rol" de la tabla "usuarios". Así una cuenta
+// puede ser profesor(a) sin dejar de ser también admin/consejero(a).
+async function verificarSesion() {
+    const { data: { user }, error: errUser } = await supabase.auth.getUser();
+
+    if (errUser || !user) {
+        window.location.href = "login.html";
+        return false;
+    }
+
+    correoProfesor = (user.email || "").trim().toLowerCase();
+
+    const { data: materias, error: errMaterias } = await supabase
+        .from("profesor_materias")
+        .select("materia, salon")
+        .eq("correo_profesor", correoProfesor);
+
+    if (errMaterias) {
+        console.error("❌ Error al verificar acceso de docente:", errMaterias);
+        alert("Ocurrió un error al verificar tu acceso. Intenta de nuevo.");
+        window.location.href = "login.html";
+        return false;
+    }
+
+    if (!materias || materias.length === 0) {
+        alert("⛔ Esta cuenta no tiene materias asignadas como docente. Contacta al administrador.");
+        window.location.href = "login.html";
+        return false;
+    }
+
+    misAsignaciones = materias;
+
+    const { data: perfilProfesor } = await supabase
+        .from("profesores")
+        .select("nombre_profesor")
+        .eq("correo_profesor", correoProfesor)
+        .maybeSingle();
+    nombreProfesor = perfilProfesor?.nombre_profesor || correoProfesor;
+
+    return true;
+}
+
+// =========================================================
+// 2) SELECTORES DE SALÓN / MATERIA (solo lo que este profesor da)
+// =========================================================
+
+const selectSalonNota = document.getElementById("selectSalonNota");
+const selectMateriaNota = document.getElementById("selectMateriaNota");
+const selectTipoNota = document.getElementById("selectTipoNota");
+const inputNumeroNota = document.getElementById("inputNumeroNota");
+const selectTrimestreNota = document.getElementById("selectTrimestreNota");
+const btnCargarSalon = document.getElementById("btnCargarSalon");
+const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
+const cabeceraNotasGrupo = document.getElementById("cabeceraNotasGrupo");
+const cabeceraTemasGrupo = document.getElementById("cabeceraTemasGrupo");
+const tablaNotasGrupo = document.getElementById("tablaNotasGrupo");
+const btnGuardarNotasGrupo = document.getElementById("btnGuardarNotasGrupo");
+const estadoGuardadoNotas = document.getElementById("estadoGuardadoNotas");
+const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
+const checkBloqueoEstudiantes = document.getElementById("checkBloqueoEstudiantes");
+const btnExportarPdf = document.getElementById("btnExportarPdf");
+const btnExportarJpg = document.getElementById("btnExportarJpg");
+
+function poblarSelectSalon() {
+    const salones = [...new Set(misAsignaciones.map((a) => a.salon))].sort();
+
+    if (salones.length === 0) {
+        selectSalonNota.innerHTML = `<option value="">No tienes salones asignados</option>`;
+        selectSalonNota.disabled = true;
+        avisoSinAsignaciones.style.display = "block";
+        return;
+    }
+
+    avisoSinAsignaciones.style.display = "none";
+    selectSalonNota.innerHTML =
+        `<option value="">Seleccione un salón</option>` +
+        salones.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+    selectSalonNota.disabled = false;
+}
+
+function poblarSelectMateria() {
+    const salon = selectSalonNota.value;
+
+    if (!salon) {
+        selectMateriaNota.innerHTML = `<option value="">Seleccione primero un salón</option>`;
+        selectMateriaNota.disabled = true;
+        return;
+    }
+
+    const materias = misAsignaciones
+        .filter((a) => a.salon === salon)
+        .map((a) => a.materia);
+
+    // Si el/la docente solo tiene UNA materia asignada en este salón, no
+    // tiene sentido hacerla elegir: la seleccionamos sola y directamente
+    // disparamos la carga del salón (como si hubiera dado clic en
+    // "Cargar salón"). Si hay varias, se deja el comportamiento normal
+    // de elegir manualmente.
+    if (materias.length === 1) {
+        selectMateriaNota.innerHTML =
+            `<option value="${escapeHtml(materias[0])}" selected>${escapeHtml(materias[0])}</option>`;
+        selectMateriaNota.disabled = false;
+        btnCargarSalon.click();
+        return;
+    }
+
+    selectMateriaNota.innerHTML =
+        `<option value="">Seleccione una materia</option>` +
+        materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+    selectMateriaNota.disabled = false;
+}
+
+selectSalonNota?.addEventListener("change", poblarSelectMateria);
+
+// =========================================================
+// 3) TABLA DE ESTUDIANTES CON NOTAS EDITABLES (misma lógica del admin)
+// =========================================================
+
+let grupoActual = [];
+let historiaPorEstudiante = {};
+let casillasTabla = [];
+let temasCasillasBD = {};
+
+function claveEstudiante(est) {
+    return est.correo ? `correo:${est.correo}` : `id:${est.id}`;
+}
+
+function obtenerTemaCasilla(tipo, numero) {
+    const clave = claveCasilla(tipo, numero);
+    if (temasCasillasBD[clave]) return temasCasillasBD[clave];
+
+    for (const claveEst in historiaPorEstudiante) {
+        const nota = historiaPorEstudiante[claveEst][clave];
+        if (nota && nota.tema) return nota.tema;
+    }
+    return "";
+}
+
+async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const valorGuardar = nuevoTema || null;
+
+    const { error } = await supabase
+        .from("temas_casillas")
+        .upsert(
+            { salon, materia, trimestre, tipo, numero, tema: valorGuardar, updated_at: new Date().toISOString() },
+            { onConflict: "salon,materia,trimestre,tipo,numero" }
+        );
+
+    if (error) {
+        console.error("❌ Error al guardar el tema:", error);
+        estadoGuardadoNotas.textContent = `⚠️ No se pudo guardar el tema de ${etiquetaCasilla(tipo, numero)}.`;
+        estadoGuardadoNotas.className = "small text-danger";
+        return;
+    }
+
+    temasCasillasBD[claveCasilla(tipo, numero)] = valorGuardar || "";
+
+    const correos = grupoActual.map((e) => e.correo).filter(Boolean);
+    const idsSinCuenta = grupoActual.filter((e) => !e.correo).map((e) => e.id);
+
+    if (correos.length > 0) {
+        await supabase.from("notas").update({ tema: valorGuardar })
+            .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+            .in("correo", correos);
+    }
+    if (idsSinCuenta.length > 0) {
+        await supabase.from("notas").update({ tema: valorGuardar })
+            .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+            .in("estudiante_id", idsSinCuenta);
+    }
+
+    estadoGuardadoNotas.textContent = `✅ Tema de "${etiquetaCasilla(tipo, numero)}" actualizado.`;
+    estadoGuardadoNotas.className = "small text-success";
+}
+
+async function eliminarColumnaCasilla(tipo, numero) {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const etiqueta = etiquetaCasilla(tipo, numero);
+
+    if (!confirm(`¿Eliminar permanentemente la casilla "${etiqueta}" (${materia} - ${salon}) y todas las notas en ella?`)) return;
+
+    await supabase.from("notas").delete()
+        .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero);
+    await supabase.from("temas_casillas").delete()
+        .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero);
+
+    estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} eliminada.`;
+    estadoGuardadoNotas.className = "small text-success";
+    btnCargarSalon.click();
+}
+
+function recalcularPromedios() {
+    tablaNotasGrupo.querySelectorAll("tr").forEach((tr) => {
+        const inputsFila = tr.querySelectorAll(".input-nota-grupo");
+        if (inputsFila.length === 0) return;
+
+        const apr = [], eje = [];
+        inputsFila.forEach((input) => {
+            const v = input.value.trim();
+            if (v === "") return;
+            const num = parseFloat(v);
+            if (isNaN(num)) return;
+            (input.dataset.tipo === "apreciacion" ? apr : eje).push(num);
+        });
+
+        const promApr = apr.length ? apr.reduce((a, b) => a + b, 0) / apr.length : null;
+        const promEje = eje.length ? eje.reduce((a, b) => a + b, 0) / eje.length : null;
+        let promFinal = null;
+        if (promApr !== null && promEje !== null) promFinal = (promApr + promEje) / 2;
+        else if (promApr !== null) promFinal = promApr;
+        else if (promEje !== null) promFinal = promEje;
+
+        const cApr = tr.querySelector(".celda-prom-apr");
+        const cEje = tr.querySelector(".celda-prom-eje");
+        const cFinal = tr.querySelector(".celda-prom-final");
+        if (cApr) cApr.textContent = promApr !== null ? promApr.toFixed(1) : "–";
+        if (cEje) cEje.textContent = promEje !== null ? promEje.toFixed(1) : "–";
+        if (cFinal) {
+            cFinal.textContent = promFinal !== null ? promFinal.toFixed(1) : "–";
+            const enRiesgo = promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR;
+            tr.classList.toggle("table-danger", enRiesgo);
+            cFinal.classList.toggle("text-danger", enRiesgo);
         }
+    });
+}
 
-        /* ============ Paleta propia (verde pizarra + dorado) ============
-           En vez del azul marino genérico de Bootstrap: un verde pizarra
-           profundo como color principal (evoca el salón de clases, sin
-           ser negro-azulado plano) y un dorado cálido como color de
-           acción, sobre un fondo crema tipo cuaderno. */
-        :root {
-            --color-fondo: #faf6ee;
-            --color-panel: #ffffff;
-            --color-primario: #2f6f62;
-            --color-primario-oscuro: #234f45;
-            --color-primario-claro: #e3efec;
-            --color-acento: #cf8b2c;
-            --color-acento-oscuro: #a86f1f;
-            --color-texto: #2c2620;
+function renderTabla() {
+    if (grupoActual.length === 0) {
+        cabeceraNotasGrupo.innerHTML = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
+        cabeceraTemasGrupo.innerHTML = "";
+        tablaNotasGrupo.innerHTML = `<tr><td colspan="2" class="text-center text-muted py-3">Este salón aún no tiene estudiantes cargados.</td></tr>`;
+        return;
+    }
+
+    const claveSel = claveCasilla(selectTipoNota.value, parseInt(inputNumeroNota.value, 10));
+
+    let htmlCabecera = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
+    casillasTabla.forEach((c) => {
+        const sel = claveCasilla(c.tipo, c.numero) === claveSel;
+        htmlCabecera += `
+            <th class="text-center small ${sel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
+                <div>${etiquetaCasilla(c.tipo, c.numero)}</div>
+                <button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna">🗑️</button>
+            </th>`;
+    });
+    htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Aprec.</th>`;
+    htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Ejer.</th>`;
+    htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
+    cabeceraNotasGrupo.innerHTML = htmlCabecera;
+
+    let htmlTemas = `<th class="col-fija col-fija-num"></th><th class="col-fija col-fija-nombre small text-muted fw-normal">Tema de cada casilla:</th>`;
+    casillasTabla.forEach((c) => {
+        const tema = obtenerTemaCasilla(c.tipo, c.numero);
+        htmlTemas += `
+            <th style="padding:2px 4px;">
+                <input type="text" class="form-control form-control-sm input-tema-columna"
+                    data-tipo="${c.tipo}" data-numero="${c.numero}" data-tema-guardado="${escapeHtml(tema)}"
+                    value="${escapeHtml(tema)}" placeholder="Ej: Proyecto 2" style="font-size:11px; font-weight:normal;">
+            </th>`;
+    });
+    htmlTemas += `<th></th><th></th><th></th>`;
+    cabeceraTemasGrupo.innerHTML = htmlTemas;
+
+    tablaNotasGrupo.innerHTML = grupoActual.map((est, i) => {
+        const sinCuenta = !est.correo;
+        const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
+
+        const columnas = casillasTabla.map((c, colIndex) => {
+            const claveCas = claveCasilla(c.tipo, c.numero);
+            const n = historial[claveCas];
+            const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
+            const valor = crudo === "" ? "" : formatearNotaFinal(String(crudo));
+            return `
+                <td class="celda-nota">
+                    <input type="text" inputmode="decimal" class="form-control form-control-sm input-nota-grupo"
+                        data-col="${colIndex}" data-correo="${sinCuenta ? "" : escapeHtml(est.correo)}"
+                        data-estudiante-id="${sinCuenta ? escapeHtml(est.id) : ""}" data-nota-id="${n ? n.id : ""}"
+                        data-tipo="${c.tipo}" data-numero="${c.numero}" data-ultimo-valor-guardado="${valor}"
+                        value="${valor}" placeholder="–">
+                </td>`;
+        }).join("");
+
+        return `
+            <tr class="${sinCuenta ? "table-warning" : ""}">
+                <td class="col-fija col-fija-num">${i + 1}</td>
+                <td class="col-fija col-fija-nombre">${escapeHtml(est.nombre)}${sinCuenta ? ' <span class="badge bg-warning text-dark">Sin cuenta</span>' : ""}</td>
+                ${columnas}
+                <td class="celda-prom-apr text-center fw-bold">–</td>
+                <td class="celda-prom-eje text-center fw-bold">–</td>
+                <td class="celda-prom-final text-center fw-bold table-success bg-opacity-25">–</td>
+            </tr>`;
+    }).join("");
+
+    recalcularPromedios();
+
+    cabeceraNotasGrupo.querySelectorAll(".btn-eliminar-columna").forEach((btn) => {
+        btn.addEventListener("click", () => eliminarColumnaCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10)));
+    });
+
+    tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna").forEach((input) => {
+        input.addEventListener("blur", async () => {
+            const nuevo = input.value.trim();
+            if (nuevo === input.dataset.temaGuardado) return;
+            await actualizarTemaCasilla(input.dataset.tipo, parseInt(input.dataset.numero, 10), nuevo);
+            input.dataset.temaGuardado = nuevo;
+        });
+    });
+
+    const todosInputs = Array.from(tablaNotasGrupo.querySelectorAll(".input-nota-grupo"));
+    const porColumna = {};
+    todosInputs.forEach((input) => {
+        (porColumna[input.dataset.col] ??= []).push(input);
+    });
+    todosInputs.forEach((input) => {
+        input.addEventListener("input", () => {
+            const alFinal = input.selectionEnd === input.value.length;
+            input.value = sanitizarEntradaNota(input.value);
+            if (alFinal) input.selectionStart = input.selectionEnd = input.value.length;
+            recalcularPromedios();
+        });
+
+        input.addEventListener("keydown", (e) => {
+            const lista = porColumna[input.dataset.col] || [];
+
+            if (e.key === "Enter" || e.key === "ArrowDown") {
+                e.preventDefault();
+                const siguiente = lista[lista.indexOf(input) + 1];
+                if (siguiente) { siguiente.focus(); siguiente.select(); }
+                return;
+            }
+            if (e.key === "ArrowUp") {
+                e.preventDefault();
+                const anterior = lista[lista.indexOf(input) - 1];
+                if (anterior) { anterior.focus(); anterior.select(); }
+            }
+        });
+    });
+}
+
+btnCargarSalon?.addEventListener("click", async () => {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const tipo = selectTipoNota.value;
+    const numero = parseInt(inputNumeroNota.value, 10);
+    const trimestre = selectTrimestreNota.value;
+
+    if (!salon) return alert("Selecciona un salón.");
+    if (!materia) return alert("Selecciona una materia.");
+
+    const esMia = misAsignaciones.some((a) => a.salon === salon && a.materia === materia);
+    if (!esMia) return alert("Esa materia/salón no está asignada a tu cuenta.");
+
+    const textoOriginal = btnCargarSalon.innerHTML;
+    btnCargarSalon.disabled = true;
+    btnCargarSalon.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
+
+    const { data: estudiantesSalon, error: errEst } = await supabase
+        .from("estudiantes")
+        .select("id, codigo, nombre, correo, es_prueba")
+        .eq("salon", salon)
+        .order("nombre", { ascending: true });
+
+    if (errEst) {
+        alert("Error al cargar estudiantes: " + errEst.message);
+        btnCargarSalon.disabled = false;
+        btnCargarSalon.innerHTML = textoOriginal;
+        return;
+    }
+
+    grupoActual = (estudiantesSalon || []).filter((e) => !e.es_prueba);
+
+    const correos = grupoActual.map((e) => e.correo).filter(Boolean);
+    const idsSinCuenta = grupoActual.filter((e) => !e.correo).map((e) => e.id);
+
+    historiaPorEstudiante = {};
+    const casillasEncontradas = new Set();
+
+    function registrar(clave, n) {
+        (historiaPorEstudiante[clave] ??= {})[claveCasilla(n.tipo, n.numero)] = n;
+        casillasEncontradas.add(claveCasilla(n.tipo, n.numero));
+    }
+
+    if (correos.length > 0) {
+        const { data } = await supabase.from("notas").select("id, correo, tipo, numero, nota, tema")
+            .eq("materia", materia).eq("trimestre", trimestre).in("correo", correos);
+        (data || []).forEach((n) => registrar(`correo:${n.correo}`, n));
+    }
+    if (idsSinCuenta.length > 0) {
+        const { data } = await supabase.from("notas").select("id, estudiante_id, tipo, numero, nota, tema")
+            .eq("materia", materia).eq("trimestre", trimestre).in("estudiante_id", idsSinCuenta);
+        (data || []).forEach((n) => registrar(`id:${n.estudiante_id}`, n));
+    }
+
+    temasCasillasBD = {};
+    const { data: temas } = await supabase.from("temas_casillas").select("tipo, numero, tema")
+        .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre);
+    (temas || []).forEach((t) => {
+        temasCasillasBD[claveCasilla(t.tipo, t.numero)] = t.tema || "";
+        if (t.tema) casillasEncontradas.add(claveCasilla(t.tipo, t.numero));
+    });
+
+    casillasEncontradas.add(claveCasilla(tipo, numero));
+    casillasTabla = [...casillasEncontradas].map((c) => {
+        const sep = c.lastIndexOf("-");
+        return { tipo: c.slice(0, sep), numero: parseInt(c.slice(sep + 1), 10) };
+    }).sort((a, b) => a.tipo !== b.tipo ? (a.tipo === "apreciacion" ? -1 : 1) : a.numero - b.numero);
+
+    const { data: filaAsignacion } = await supabase
+        .from("profesor_materias")
+        .select("bloqueado_para_estudiantes")
+        .eq("correo_profesor", correoProfesor).eq("materia", materia).eq("salon", salon)
+        .maybeSingle();
+    bloqueoActual = !!filaAsignacion?.bloqueado_para_estudiantes;
+    if (checkBloqueoEstudiantes) checkBloqueoEstudiantes.checked = bloqueoActual;
+
+    renderTabla();
+    bloqueTablaNotas.style.display = "block";
+
+    btnCargarSalon.disabled = false;
+    btnCargarSalon.innerHTML = textoOriginal;
+});
+
+// =========================================================
+// 4) GUARDAR NOTAS
+// =========================================================
+
+async function guardarNotas(esAutomatico = false) {
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const hoy = new Date().toISOString().slice(0, 10);
+
+    const inputsTema = Array.from(tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna"));
+    const temaPorCasilla = {};
+    for (const inputTema of inputsTema) {
+        const valor = inputTema.value.trim();
+        temaPorCasilla[claveCasilla(inputTema.dataset.tipo, parseInt(inputTema.dataset.numero, 10))] = valor || null;
+        if (valor !== inputTema.dataset.temaGuardado) {
+            await actualizarTemaCasilla(inputTema.dataset.tipo, parseInt(inputTema.dataset.numero, 10), valor);
+            inputTema.dataset.temaGuardado = valor;
         }
+    }
 
-        body {
-            font-family: 'Inter', Arial, sans-serif;
-            padding: 20px;
-            background: var(--color-fondo);
-            color: var(--color-texto);
+    const inputs = tablaNotasGrupo.querySelectorAll(".input-nota-grupo");
+    const aGuardar = [];
+    inputs.forEach((input) => {
+        const valor = input.value.trim();
+        if (valor === "") return;
+        const notaNum = parseFloat(valor);
+        if (isNaN(notaNum)) return;
+        if (esAutomatico && input.dataset.ultimoValorGuardado === valor) return;
+        aGuardar.push({
+            input,
+            correo: input.dataset.correo || null,
+            estudianteId: input.dataset.estudianteId || null,
+            notaId: input.dataset.notaId || null,
+            tipo: input.dataset.tipo,
+            numero: parseInt(input.dataset.numero, 10),
+            nota: notaNum
+        });
+    });
+
+    if (aGuardar.length === 0) {
+        if (!esAutomatico) alert("No escribiste ninguna nota para guardar.");
+        return;
+    }
+
+    if (!esAutomatico) btnGuardarNotasGrupo.disabled = true;
+    estadoGuardadoNotas.textContent = esAutomatico ? "Autoguardando..." : `Guardando 0 / ${aGuardar.length}...`;
+    estadoGuardadoNotas.className = "small text-primary";
+
+    let exitosas = 0, fallidas = 0;
+
+    for (let i = 0; i < aGuardar.length; i++) {
+        const item = aGuardar[i];
+
+        if (item.notaId) {
+            const { error } = await supabase.from("notas").update({ nota: item.nota, fecha: hoy, origen: "profesor" }).eq("id", item.notaId);
+            if (error) { fallidas++; } else { exitosas++; item.input.dataset.ultimoValorGuardado = String(item.nota); }
+        } else {
+            const { data: insertado, error } = await supabase.from("notas").insert([{
+                correo: item.correo,
+                estudiante_id: item.estudianteId,
+                materia,
+                tipo: item.tipo,
+                numero: item.numero,
+                tema: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || null,
+                actividad: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || `${item.tipo === "apreciacion" ? "Apreciación" : "Ejercicio"} ${item.numero}`,
+                fecha: hoy,
+                nota: item.nota,
+                observacion: `Agregada por el/la docente (${correoProfesor})`,
+                trimestre,
+                estado: "Activa",
+                origen: "profesor"
+            }]).select("id");
+
+            if (error) { fallidas++; }
+            else {
+                exitosas++;
+                item.input.dataset.ultimoValorGuardado = String(item.nota);
+                if (insertado && insertado[0]) item.input.dataset.notaId = insertado[0].id;
+            }
         }
+        if (!esAutomatico) estadoGuardadoNotas.textContent = `Guardando ${i + 1} / ${aGuardar.length}...`;
+    }
 
-        h1, h2 {
-            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
+    if (!esAutomatico) btnGuardarNotasGrupo.disabled = false;
+    const hora = new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+    if (fallidas === 0) {
+        estadoGuardadoNotas.textContent = esAutomatico ? `✅ Autoguardado (${exitosas}) a las ${hora}` : `✅ ${exitosas} nota(s) guardada(s).`;
+        estadoGuardadoNotas.className = "small text-success";
+    } else {
+        estadoGuardadoNotas.textContent = `⚠️ ${exitosas} guardada(s), ${fallidas} con error.`;
+        estadoGuardadoNotas.className = "small text-danger";
+    }
+
+    if (!esAutomatico) btnCargarSalon.click();
+}
+
+checkBloqueoEstudiantes?.addEventListener("change", async () => {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    if (!salon || !materia) return;
+
+    bloqueoActual = checkBloqueoEstudiantes.checked;
+    const { error } = await supabase
+        .from("profesor_materias")
+        .update({ bloqueado_para_estudiantes: bloqueoActual })
+        .eq("correo_profesor", correoProfesor).eq("materia", materia).eq("salon", salon);
+
+    if (error) {
+        estadoGuardadoNotas.textContent = "❌ No se pudo guardar el candado: " + error.message;
+        estadoGuardadoNotas.className = "small text-danger";
+        checkBloqueoEstudiantes.checked = !bloqueoActual;
+        bloqueoActual = !bloqueoActual;
+        return;
+    }
+
+    estadoGuardadoNotas.textContent = bloqueoActual
+        ? "🔒 Los estudiantes ya no pueden agregar notas en esta materia/salón."
+        : "🔓 Los estudiantes pueden volver a agregar notas donde no haya nota tuya.";
+    estadoGuardadoNotas.className = "small text-success";
+});
+
+// Auto-guardado real: cada celda se guarda sola al salir de ella (blur)
+// o al presionar Enter, sin necesidad de un botón "Guardar".
+tablaNotasGrupo?.addEventListener("blur", (e) => {
+    if (e.target.classList?.contains("input-nota-grupo")) {
+        e.target.value = formatearNotaFinal(e.target.value);
+        recalcularPromedios();
+        guardarNotas(true);
+    }
+}, true);
+
+// Respaldo por si algo quedó sin guardar (ej. el profesor cerró la pestaña
+// mientras seguía escribiendo en la misma celda sin salir de ella).
+setInterval(() => {
+    if (bloqueTablaNotas && bloqueTablaNotas.style.display !== "none") guardarNotas(true);
+}, 30000);
+
+// =========================================================
+// 5) HISTORIAL DE NOTAS (funcionalidad que ya existía, ahora
+//    filtrada a solo las materias que este profesor da)
+// =========================================================
+
+let todasLasNotas = [];
+
+async function cargarHistorialNotas() {
+    const contenedor = document.getElementById("listaEstudiantes");
+    const misMaterias = new Set(misAsignaciones.map((a) => a.materia));
+
+    if (misMaterias.size === 0) {
+        contenedor.innerHTML = "<p>No hay notas para mostrar.</p>";
+        return;
+    }
+
+    const { data: estudiantesPrueba } = await supabase.from("estudiantes").select("correo").eq("es_prueba", true);
+    const correosDePrueba = new Set((estudiantesPrueba || []).map((e) => (e.correo || "").toLowerCase()).filter(Boolean));
+
+    const { data, error } = await supabase
+        .from("notas")
+        .select("*")
+        .in("materia", [...misMaterias])
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        console.error(error);
+        contenedor.innerHTML = `<p style="color:red;">Error al cargar las notas: ${error.message}</p>`;
+        return;
+    }
+
+    todasLasNotas = (data || []).filter((n) => !correosDePrueba.has((n.correo || "").toLowerCase()));
+
+    actualizarResumen(todasLasNotas);
+    renderizarTablaHistorial(todasLasNotas);
+
+    const inputBuscar = document.getElementById("buscarCorreo");
+    inputBuscar.addEventListener("input", () => {
+        const filtro = inputBuscar.value.trim().toLowerCase();
+        renderizarTablaHistorial(todasLasNotas.filter((n) => (n.correo || "").toLowerCase().includes(filtro)));
+    });
+}
+
+function actualizarResumen(notas) {
+    document.getElementById("totalNotas").textContent = notas.length;
+    document.getElementById("totalEstudiantes").textContent = new Set(notas.map((n) => n.correo)).size;
+}
+
+function renderizarTablaHistorial(notas) {
+    const contenedor = document.getElementById("listaEstudiantes");
+
+    if (!notas || notas.length === 0) {
+        contenedor.innerHTML = "<p>No hay notas para mostrar.</p>";
+        return;
+    }
+
+    let html = `<table><tr><th>Correo</th><th>Materia</th><th>Tema</th><th>Tipo</th><th>Nota</th><th>Trimestre</th></tr>`;
+    notas.forEach((nota) => {
+        html += `<tr>
+            <td>${escapeHtml(nota.correo)}</td>
+            <td>${escapeHtml(nota.materia)}</td>
+            <td>${escapeHtml(nota.tema || nota.actividad || "")}</td>
+            <td>${escapeHtml(nota.tipo)}</td>
+            <td>${escapeHtml(nota.nota)}</td>
+            <td>${escapeHtml(nota.trimestre)}</td>
+        </tr>`;
+    });
+    html += "</table>";
+    contenedor.innerHTML = html;
+}
+
+// =========================================================
+// 6) TRIMESTRE ACTIVO (funcionalidad que ya existía)
+// =========================================================
+
+const selectTrimestre = document.getElementById("selectTrimestre");
+const btnGuardarTrimestre = document.getElementById("btnGuardarTrimestre");
+const estadoTrimestre = document.getElementById("estadoTrimestre");
+
+async function cargarTrimestreActivo() {
+    const { data, error } = await supabase.from("configuracion").select("trimestre_activo").eq("id", 1).single();
+    if (error) { console.error(error); return; }
+    if (data) {
+        selectTrimestre.value = data.trimestre_activo;
+        if (selectTrimestreNota) selectTrimestreNota.value = data.trimestre_activo;
+    }
+}
+
+btnGuardarTrimestre?.addEventListener("click", async () => {
+    const trimestreSeleccionado = selectTrimestre.value;
+    btnGuardarTrimestre.disabled = true;
+    estadoTrimestre.style.color = "#198754";
+    estadoTrimestre.textContent = "Guardando...";
+
+    const { error } = await supabase.from("configuracion").update({ trimestre_activo: trimestreSeleccionado }).eq("id", 1);
+    btnGuardarTrimestre.disabled = false;
+
+    if (error) {
+        estadoTrimestre.style.color = "#dc3545";
+        estadoTrimestre.textContent = "❌ Error al guardar";
+    } else {
+        estadoTrimestre.style.color = "#198754";
+        estadoTrimestre.textContent = "✅ Guardado";
+    }
+    setTimeout(() => { estadoTrimestre.textContent = ""; }, 2000);
+});
+
+// =========================================================
+// EXPORTAR REPORTE (PDF y JPG) — membrete, notas malas en rojo, firma
+// =========================================================
+
+function construirReporteHtml() {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const fechaHoyTexto = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
+
+    // Clonamos la tabla actual tal cual está en pantalla (con sus promedios
+    // ya calculados), pero sin los botones de eliminar columna ni los
+    // inputs editables — solo texto, para que se vea limpio al exportar.
+    const tablaOriginal = document.querySelector("#bloqueTablaNotas table");
+    const tablaClon = tablaOriginal.cloneNode(true);
+
+    tablaClon.querySelectorAll(".btn-eliminar-columna").forEach((b) => b.remove());
+    tablaClon.querySelectorAll("input.input-nota-grupo").forEach((input) => {
+        const valor = input.value.trim();
+        const numero = valor === "" ? null : parseFloat(valor);
+        const td = document.createElement("td");
+        td.textContent = valor === "" ? "–" : valor;
+        td.style.textAlign = "center";
+        td.style.padding = "6px";
+        if (numero !== null && numero < PROMEDIO_MINIMO_APROBAR) {
+            td.style.color = "#c0392b";
+            td.style.fontWeight = "bold";
         }
-        h1 { color: var(--color-primario); font-weight: 700; }
-        h2 { color: var(--color-primario); font-size: 1.2rem; margin-top: 30px; font-weight: 600; }
-
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #ddd4c4; padding: 8px; text-align: center; }
-        th { background: var(--color-primario); color: white; font-family: 'Inter', Arial, sans-serif; }
-
-        .resumen, .trimestre-panel, .panel-blanco {
-            background: white;
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+        input.closest("td").replaceWith(td);
+    });
+    tablaClon.querySelectorAll("input.input-tema-columna").forEach((input) => {
+        const th = document.createElement("th");
+        th.textContent = input.value.trim();
+        th.style.fontWeight = "normal";
+        th.style.fontSize = "11px";
+        input.closest("th").replaceWith(th);
+    });
+    // Notas malas también en la columna de promedio final (ya la marca table-danger,
+    // reforzamos el color por si el exportador no respeta las clases de Bootstrap).
+    tablaClon.querySelectorAll(".celda-prom-final").forEach((td) => {
+        const val = parseFloat(td.textContent);
+        if (!isNaN(val) && val < PROMEDIO_MINIMO_APROBAR) {
+            td.style.color = "#c0392b";
+            td.style.fontWeight = "bold";
         }
+    });
 
-        .trimestre-panel {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .trimestre-panel label { font-weight: bold; color: var(--color-primario); }
-
-        #selectTrimestre {
-            padding: 8px 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
-            font-weight: bold;
-        }
-
-        #btnGuardarTrimestre {
-            padding: 8px 16px;
-            background: var(--color-acento);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        #btnGuardarTrimestre:hover { background: var(--color-acento-oscuro); }
-        #estadoTrimestre { font-size: 13px; color: #1f5c3d; }
-
-        .form-notas-fila {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            align-items: flex-end;
-        }
-
-        .form-notas-fila > div { display: flex; flex-direction: column; gap: 4px; }
-        .form-notas-fila label { font-size: 13px; font-weight: bold; color: var(--color-primario); }
-        .form-notas-fila select, .form-notas-fila input {
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
-        #btnCargarSalon, #btnGuardarNotasGrupo {
-            padding: 8px 16px;
-            background: var(--color-acento);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            height: 38px;
-        }
-
-        #btnGuardarNotasGrupo { background: var(--color-primario); margin-top: 15px; }
-
-        /* Paleta pastel: fondos suaves con letra oscura, y las casillas
-           de nota siempre en blanco para que se lean bien encima. */
-        .table-danger, tr.table-danger > td, tr.table-danger > th {
-            background-color: #fbe2e2 !important;
-            color: #7a2e2e !important;
-        }
-        .table-warning, tr.table-warning > td, tr.table-warning > th {
-            background-color: #fdf3d6 !important;
-            color: #6b5100 !important;
-        }
-        .table-success, td.table-success {
-            background-color: var(--color-primario-claro) !important;
-            color: var(--color-primario-oscuro) !important;
-        }
-        .text-danger { color: #c0575a !important; }
-        .badge.bg-warning { background-color: #fdf3d6 !important; color: #6b5100 !important; }
-
-        /* Columna actualmente seleccionada en el formulario de arriba:
-           antes era el azul genérico de Bootstrap (table-primary), ahora
-           usa el dorado de acento para que combine con el resto. */
-        .table-primary, th.table-primary { background-color: #f7e6c4 !important; }
-        .text-primary { color: var(--color-acento-oscuro) !important; }
-
-        .input-nota-grupo, .input-tema-columna {
-            background-color: #fff !important;
-            color: #222 !important;
-        }
-
-        /* Ancho mínimo fijo para que un valor como "3.5" siempre quepa
-           completo dentro de la casilla, incluso en pantallas angostas
-           de celular (antes se podía recortar o quedar dentro de un
-           campo demasiado angosto que requería scroll para leerse). */
-        td.celda-nota {
-            width: 68px;
-            min-width: 68px;
-        }
-        .input-nota-grupo {
-            width: 100%;
-            min-width: 60px;
-            box-sizing: border-box;
-            text-align: center;
-            padding: 6px 1px;
-            font-size: 14px;
-        }
-
-        #tablaScroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
-        #tablaScroll table { border-collapse: separate; border-spacing: 0; }
-        #tablaScroll th, #tablaScroll td { border: 1px solid #ddd4c4; }
-
-        /* Que cada columna (excepto las fijas de # y Estudiante) quede
-           "trabada" completa al terminar de deslizar en celular, en vez
-           de poder quedar cortada a la mitad justo en el borde de la
-           pantalla. */
-        #tablaScroll th:not(.col-fija), #tablaScroll td:not(.col-fija) {
-            scroll-snap-align: start;
-        }
-
-        /* Columnas fijas: # y Estudiante quedan pegadas a la izquierda
-           mientras el resto de la tabla se desliza por debajo. */
-        .col-fija {
-            position: sticky;
-            background: #fff;
-            z-index: 1;
-        }
-        .col-fija-num { left: 0; width: 34px; min-width: 34px; }
-        .col-fija-nombre {
-            left: 34px;
-            width: 120px;
-            min-width: 120px;
-            max-width: 120px;
-            text-align: left;
-            white-space: normal;
-            box-shadow: 2px 0 4px rgba(0, 0, 0, .12);
-        }
-        thead .col-fija { background: var(--color-primario); color: #fff; z-index: 2; }
-        tr.table-warning td.col-fija { background-color: #fdf3d6; }
-        tr.table-danger td.col-fija { background-color: #fbe2e2; }
-
-        /* Bootstrap pinta ".text-muted" en gris oscuro, que sobre el verde
-           del encabezado casi no se ve. Lo aclaramos solo dentro de la tabla. */
-        #tablaScroll thead .text-muted { color: #cfe3dd !important; }
-        #tablaScroll thead .btn-eliminar-columna { color: #ffb199 !important; }
-
-        /* Celular: menos relleno alrededor y campos del formulario a todo
-           el ancho, para que no quede tanto espacio vacío. */
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-            .resumen, .trimestre-panel, .panel-blanco { padding: 12px; }
-            h1 { font-size: 1.25rem; }
-            .form-notas-fila { flex-direction: column; align-items: stretch; gap: 10px; }
-            .form-notas-fila > div { width: 100%; }
-            .form-notas-fila select, .form-notas-fila input { width: 100%; box-sizing: border-box; }
-            #btnCargarSalon { width: 100%; }
-            #buscarCorreo { width: 100%; box-sizing: border-box; }
-            .trimestre-panel { flex-direction: column; align-items: stretch; }
-            #selectTrimestre, #btnGuardarTrimestre { width: 100%; box-sizing: border-box; }
-        }
-
-        #buscarCorreo {
-            width: 350px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-    </style>
-</head>
-
-<body>
-
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h1>👨‍🏫 Panel del Docente</h1>
-        <span id="navCambiarPanel"></span>
-    </div>
-
-    <!-- Selector de trimestre activo (configuración global del sistema) -->
-    <div class="trimestre-panel">
-        <label for="selectTrimestre">📅 Trimestre activo:</label>
-        <select id="selectTrimestre">
-            <option value="Trimestre 1">Trimestre 1</option>
-            <option value="Trimestre 2">Trimestre 2</option>
-            <option value="Trimestre 3">Trimestre 3</option>
-        </select>
-        <button type="button" id="btnGuardarTrimestre">💾 Guardar</button>
-        <span id="estadoTrimestre"></span>
-    </div>
-
-    <!-- ================= REGISTRAR / EDITAR NOTAS ================= -->
-    <h2>📝 Registrar notas</h2>
-
-    <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc3545;">
-        Todavía no tienes materias ni salones asignados. Pídele al administrador que te
-        agregue en la pantalla de "Asignaciones de profesores".
-    </div>
-
-    <div class="panel-blanco">
-        <div class="form-notas-fila">
-            <div>
-                <label for="selectSalonNota">Salón</label>
-                <select id="selectSalonNota"><option value="">Cargando...</option></select>
-            </div>
-            <div>
-                <label for="selectMateriaNota">Materia</label>
-                <select id="selectMateriaNota" disabled><option value="">Seleccione primero un salón</option></select>
-            </div>
-            <div>
-                <label for="selectTipoNota">Tipo</label>
-                <select id="selectTipoNota">
-                    <option value="apreciacion">Apreciación</option>
-                    <option value="ejercicio">Ejercicio</option>
-                </select>
-            </div>
-            <div>
-                <label for="inputNumeroNota">Número de casilla</label>
-                <input type="number" id="inputNumeroNota" min="1" max="10" value="1" style="width:90px;">
-            </div>
-            <div>
-                <label for="selectTrimestreNota">Trimestre</label>
-                <select id="selectTrimestreNota">
-                    <option value="Trimestre 1">Trimestre 1</option>
-                    <option value="Trimestre 2">Trimestre 2</option>
-                    <option value="Trimestre 3">Trimestre 3</option>
-                </select>
-            </div>
-            <div>
-                <button type="button" id="btnCargarSalon">📋 Cargar salón</button>
+    const contenedor = document.createElement("div");
+    contenedor.style.cssText = "background:#fff; padding:24px; width:1000px; font-family:Arial, sans-serif; color:#222;";
+    contenedor.innerHTML = `
+        <div style="text-align:center; margin-bottom:14px;">
+            <h2 style="margin:0; color:#1f4e79;">🏫 CENTRO BÁSICO GENERAL EL JIRAL</h2>
+            <p style="margin:4px 0 0; font-size:14px;">Reporte de notas · ${fechaHoyTexto}</p>
+        </div>
+        <table style="width:100%; margin-bottom:14px; font-size:13px;">
+            <tr>
+                <td><strong>Profesor(a):</strong> ${escapeHtml(nombreProfesor)}</td>
+                <td><strong>Materia:</strong> ${escapeHtml(materia)}</td>
+            </tr>
+            <tr>
+                <td><strong>Salón:</strong> ${escapeHtml(salon)}</td>
+                <td><strong>Trimestre activo:</strong> ${escapeHtml(trimestre)}</td>
+            </tr>
+        </table>
+        <div id="tablaReporteContenedor"></div>
+        <div style="margin-top:60px; display:flex; justify-content:center;">
+            <div style="text-align:center;">
+                <div style="border-top:1px solid #333; width:280px; margin-bottom:6px;"></div>
+                <div style="font-size:13px;">Firma del/de la docente</div>
             </div>
         </div>
-        <div class="mt-3 form-check">
-            <input type="checkbox" class="form-check-input" id="checkBloqueoEstudiantes">
-            <label class="form-check-label small" for="checkBloqueoEstudiantes">
-                🔒 No permitir que los estudiantes agreguen o modifiquen notas de esta materia/salón
-                (siempre podrás editar tú aunque esté activado)
-            </label>
-        </div>
-    </div>
+    `;
+    contenedor.querySelector("#tablaReporteContenedor").appendChild(tablaClon);
+    tablaClon.style.width = "100%";
+    tablaClon.style.borderCollapse = "collapse";
+    tablaClon.querySelectorAll("th, td").forEach((cell) => {
+        cell.style.border = "1px solid #ccc";
+    });
 
-    <div id="bloqueTablaNotas" class="panel-blanco" style="display:none;">
-        <div id="tablaScroll">
-            <table>
-                <thead>
-                    <tr id="cabeceraNotasGrupo"></tr>
-                    <tr id="cabeceraTemasGrupo"></tr>
-                </thead>
-                <tbody id="tablaNotasGrupo"></tbody>
-            </table>
-        </div>
-        <button type="button" id="btnGuardarNotasGrupo" style="display:none;">💾 Guardar notas</button>
-        <span id="estadoGuardadoNotas" class="small" style="margin-left:0;"></span>
-        <p style="font-size:12px; color:#888; margin-top:8px;">
-            ✅ Cada nota se guarda sola apenas sales de la casilla (no hace falta presionar nada).
-            Escribe la casilla arriba (tipo + número) que quieras usar y presiona "Cargar salón";
-            si ya existe se editará, si no, se crea al escribir la primera nota. Puedes escribir un
-            texto en "Tema de cada casilla" para describir de qué se trata esa nota.
-        </p>
-        <div class="mt-2">
-            <button type="button" id="btnExportarPdf" class="btn btn-outline-primary btn-sm">📄 Descargar PDF</button>
-            <button type="button" id="btnExportarJpg" class="btn btn-outline-primary btn-sm">🖼️ Descargar JPG</button>
-        </div>
-    </div>
+    return contenedor;
+}
 
-    <script type="module" src="../js/profesor.js"></script>
+async function generarCanvasReporte() {
+    const contenedor = construirReporteHtml();
+    contenedor.style.position = "fixed";
+    contenedor.style.left = "-99999px";
+    contenedor.style.top = "0";
+    document.body.appendChild(contenedor);
 
-</body>
+    try {
+        const canvas = await html2canvas(contenedor, { scale: 3, backgroundColor: "#ffffff" });
+        return canvas;
+    } finally {
+        contenedor.remove();
+    }
+}
 
-</html>
+btnExportarPdf?.addEventListener("click", async () => {
+    if (!selectSalonNota.value || !selectMateriaNota.value) return alert("Primero carga un salón y materia.");
+    btnExportarPdf.disabled = true;
+    btnExportarPdf.textContent = "Generando PDF...";
+    try {
+        const canvas = await generarCanvasReporte();
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+        const w = canvas.width * ratio;
+        const h = canvas.height * ratio;
+        pdf.addImage(canvas.toDataURL("image/jpeg", 1.0), "JPEG", (pageWidth - w) / 2, 20, w, h);
+        pdf.save(`Notas_${selectMateriaNota.value}_${selectSalonNota.value}.pdf`);
+    } catch (err) {
+        console.error(err);
+        alert("No se pudo generar el PDF: " + err.message);
+    } finally {
+        btnExportarPdf.disabled = false;
+        btnExportarPdf.textContent = "📄 Descargar PDF";
+    }
+});
+
+btnExportarJpg?.addEventListener("click", async () => {
+    if (!selectSalonNota.value || !selectMateriaNota.value) return alert("Primero carga un salón y materia.");
+    btnExportarJpg.disabled = true;
+    btnExportarJpg.textContent = "Generando JPG...";
+    try {
+        const canvas = await generarCanvasReporte();
+        const enlace = document.createElement("a");
+        enlace.download = `Notas_${selectMateriaNota.value}_${selectSalonNota.value}.jpg`;
+        enlace.href = canvas.toDataURL("image/jpeg", 1.0);
+        enlace.click();
+    } catch (err) {
+        console.error(err);
+        alert("No se pudo generar el JPG: " + err.message);
+    } finally {
+        btnExportarJpg.disabled = false;
+        btnExportarJpg.textContent = "🖼️ Descargar JPG";
+    }
+});
+
+// =========================================================
+// INICIO
+// =========================================================
+
+// =========================================================
+// 7) CONTROL DE ANCHO DE LAS CASILLAS DE NOTA (ajuste manual)
+// =========================================================
+
+const rangoAnchoCasilla = document.getElementById("rangoAnchoCasilla");
+const valorAnchoCasilla = document.getElementById("valorAnchoCasilla");
+const CLAVE_ANCHO_CASILLA = "controlNotas_anchoCasilla";
+
+function aplicarAnchoCasilla(px) {
+    document.documentElement.style.setProperty("--ancho-celda-nota", `${px}px`);
+    if (valorAnchoCasilla) valorAnchoCasilla.textContent = `${px}px`;
+}
+
+function iniciarControlAnchoCasilla() {
+    if (!rangoAnchoCasilla) return;
+
+    const guardado = localStorage.getItem(CLAVE_ANCHO_CASILLA);
+    const inicial = guardado ? parseInt(guardado, 10) : 68;
+    rangoAnchoCasilla.value = inicial;
+    aplicarAnchoCasilla(inicial);
+
+    rangoAnchoCasilla.addEventListener("input", () => {
+        const px = parseInt(rangoAnchoCasilla.value, 10);
+        aplicarAnchoCasilla(px);
+        localStorage.setItem(CLAVE_ANCHO_CASILLA, String(px));
+    });
+}
+
+(async function init() {
+    const ok = await verificarSesion();
+    if (!ok) return;
+
+    pintarCambiarPanel("profesor", "oscuro-sobre-claro");
+    poblarSelectSalon();
+    cargarTrimestreActivo();
+    iniciarControlAnchoCasilla();
+})();
