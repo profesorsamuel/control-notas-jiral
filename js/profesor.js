@@ -285,18 +285,37 @@ async function eliminarColumnaCasilla(tipo, numero) {
 }
 
 function recalcularPromedios() {
-    tablaNotasGrupo.querySelectorAll("tr").forEach((tr) => {
-        const inputsFila = tr.querySelectorAll(".input-nota-grupo");
-        if (inputsFila.length === 0) return;
+    // Los promedios se calculan usando TODAS las casillas que existen
+    // (casillasTabla), no solo las que están visibles en pantalla en
+    // este momento. Para las casillas visibles usamos el valor que el
+    // docente tiene escrito ahora mismo (aunque no lo haya guardado
+    // todavía); para las que están ocultas, usamos el último valor
+    // guardado en la base de datos. Así el resumen de promedios
+    // funciona igual de bien con cualquier combinación de columnas
+    // visibles/ocultas.
+    tablaNotasGrupo.querySelectorAll("tr[data-clave-estudiante]").forEach((tr) => {
+        const historial = historiaPorEstudiante[tr.dataset.claveEstudiante] || {};
+
+        const valoresEnPantalla = {};
+        tr.querySelectorAll(".input-nota-grupo").forEach((input) => {
+            valoresEnPantalla[claveCasilla(input.dataset.tipo, parseInt(input.dataset.numero, 10))] = input.value.trim();
+        });
 
         const apr = [], eje = [], exa = [];
-        inputsFila.forEach((input) => {
-            const v = input.value.trim();
-            if (v === "") return;
-            const num = parseFloat(v);
+        casillasTabla.forEach((c) => {
+            const clave = claveCasilla(c.tipo, c.numero);
+            let valorStr;
+            if (clave in valoresEnPantalla) {
+                valorStr = valoresEnPantalla[clave];
+            } else {
+                const n = historial[clave];
+                valorStr = (n && n.nota !== null && n.nota !== undefined) ? String(n.nota) : "";
+            }
+            if (valorStr === "") return;
+            const num = parseFloat(valorStr);
             if (isNaN(num)) return;
-            if (input.dataset.tipo === "apreciacion") apr.push(num);
-            else if (input.dataset.tipo === "examen") exa.push(num);
+            if (c.tipo === "apreciacion") apr.push(num);
+            else if (c.tipo === "examen") exa.push(num);
             else eje.push(num);
         });
 
@@ -485,7 +504,7 @@ function renderTabla() {
         }).join("");
 
         return `
-            <tr class="${sinCuenta ? "table-warning" : ""}">
+            <tr class="${sinCuenta ? "table-warning" : ""}" data-clave-estudiante="${escapeHtml(claveEstudiante(est))}">
                 <td class="col-fija col-fija-num">${i + 1}</td>
                 <td class="col-fija col-fija-nombre">${escapeHtml(est.nombre)}${sinCuenta ? ' <span class="badge bg-warning text-dark">Sin cuenta</span>' : ""}</td>
                 ${columnas}
@@ -641,6 +660,26 @@ btnCargarSalon?.addEventListener("click", async () => {
 // 4) GUARDAR NOTAS
 // =========================================================
 
+// Después de guardar una nota (nueva o editada) en la base de datos,
+// actualizamos también nuestra copia en memoria (historiaPorEstudiante)
+// para que los promedios y cualquier otra vista que dependa de esos
+// datos reflejen el cambio al instante, sin tener que volver a
+// presionar "Cargar salón".
+function actualizarHistorialEnMemoria(item, temaPorCasilla, idInsertado) {
+    const claveEst = item.correo ? `correo:${item.correo}` : `id:${item.estudianteId}`;
+    const claveCas = claveCasilla(item.tipo, item.numero);
+    const notaId = item.notaId || idInsertado;
+
+    if (!historiaPorEstudiante[claveEst]) historiaPorEstudiante[claveEst] = {};
+    historiaPorEstudiante[claveEst][claveCas] = {
+        id: notaId,
+        tipo: item.tipo,
+        numero: item.numero,
+        nota: item.nota,
+        tema: temaPorCasilla[claveCas] ?? (historiaPorEstudiante[claveEst][claveCas]?.tema ?? null)
+    };
+}
+
 async function guardarNotas(esAutomatico = false) {
     const materia = selectMateriaNota.value;
     const trimestre = selectTrimestreNota.value;
@@ -692,7 +731,11 @@ async function guardarNotas(esAutomatico = false) {
 
         if (item.notaId) {
             const { error } = await supabase.from("notas").update({ nota: item.nota, fecha: hoy, origen: "profesor" }).eq("id", item.notaId);
-            if (error) { fallidas++; } else { exitosas++; item.input.dataset.ultimoValorGuardado = String(item.nota); }
+            if (error) { fallidas++; } else {
+                exitosas++;
+                item.input.dataset.ultimoValorGuardado = String(item.nota);
+                actualizarHistorialEnMemoria(item, temaPorCasilla);
+            }
         } else {
             const { data: insertado, error } = await supabase.from("notas").insert([{
                 correo: item.correo,
@@ -715,6 +758,7 @@ async function guardarNotas(esAutomatico = false) {
                 exitosas++;
                 item.input.dataset.ultimoValorGuardado = String(item.nota);
                 if (insertado && insertado[0]) item.input.dataset.notaId = insertado[0].id;
+                actualizarHistorialEnMemoria(item, temaPorCasilla, insertado && insertado[0] ? insertado[0].id : null);
             }
         }
         if (!esAutomatico) estadoGuardadoNotas.textContent = `Guardando ${i + 1} / ${aGuardar.length}...`;
