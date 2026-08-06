@@ -295,6 +295,47 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // =================================================
+    // ENLACE DIRECTO ENVIADO POR EL ADMINISTRADOR
+    // =================================================
+    //
+    // Si el enlace incluye ?recuperarCorreo=..., se salta el
+    // Paso 1 (no hace falta escribir la cédula) y se muestran
+    // las preguntas de seguridad directamente. Así el admin
+    // puede mandar un enlace listo por WhatsApp o correo.
+
+    const parametrosUrl = new URLSearchParams(window.location.search);
+    const correoDesdeEnlace = parametrosUrl.get("recuperarCorreo");
+
+    if (correoDesdeEnlace && modalEl) {
+        (async () => {
+            const { data: tienePreguntas, error } = await supabase.rpc(
+                "tiene_preguntas_seguridad",
+                { p_correo: correoDesdeEnlace }
+            );
+
+            modalOlvido = new bootstrap.Modal(modalEl);
+
+            if (error || !tienePreguntas) {
+                formPaso1.classList.remove("d-none");
+                formPreguntas.classList.add("d-none");
+                mostrarMensaje(
+                    mensajePaso1,
+                    "⚠️ Esta cuenta todavía no tiene preguntas de seguridad configuradas. Pídele al administrador que las configure primero.",
+                    "warning"
+                );
+                modalOlvido.show();
+                return;
+            }
+
+            correoParaPreguntas = correoDesdeEnlace;
+            mensajePreguntas.className = "alert d-none";
+            formPaso1.classList.add("d-none");
+            formPreguntas.classList.remove("d-none");
+            modalOlvido.show();
+        })();
+    }
+
     if (formPaso1) {
 
         formPaso1.addEventListener("submit", async (e) => {

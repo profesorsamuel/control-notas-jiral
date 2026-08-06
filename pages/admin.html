@@ -283,6 +283,29 @@
                     </div>
                 </div>
 
+                <!-- ENLACE PARA QUE EL ESTUDIANTE RECUPERE SU CONTRASEÑA ÉL MISMO -->
+                <div id="bloqueEnlaceRecuperacion" class="alert alert-light border mb-3" style="display:none;">
+                    <label class="form-label fw-semibold mb-1">
+                        <i class="fa-solid fa-link text-warning me-1"></i>
+                        Enlace para que el estudiante recupere su contraseña
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" id="enlaceRecuperacion" class="form-control" readonly>
+                        <button type="button" id="btnCopiarEnlace" class="btn btn-outline-secondary">
+                            <i class="fa-solid fa-copy"></i> Copiar
+                        </button>
+                        <a id="btnEnviarWhatsapp" href="#" target="_blank" class="btn btn-success">
+                            <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                        </a>
+                    </div>
+                    <p class="text-muted small mt-2 mb-0">
+                        Enviaselo por WhatsApp o pegalo en un correo. Al abrirlo, el estudiante
+                        va directo a responder sus 3 preguntas de seguridad y poner una
+                        contraseña nueva — solo funciona si ya tiene las preguntas configuradas
+                        (con vos, arriba, o él mismo la primera vez que entró al sistema).
+                    </p>
+                </div>
+
                 <form id="formPregSeguridadAdmin">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">📚 ¿Cuál es tu materia favorita?</label>

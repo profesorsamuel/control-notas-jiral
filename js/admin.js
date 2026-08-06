@@ -1204,6 +1204,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             btnGuardarPregSeguridad.disabled = true;
             mensajePregSeguridad.className = "alert d-none";
 
+            const bloqueEnlace = document.getElementById("bloqueEnlaceRecuperacion");
+            if (bloqueEnlace) bloqueEnlace.style.display = "none";
+
             if (!salon) {
                 pregEstudiante.innerHTML = `<option value="">Seleccione primero un salón</option>`;
                 return;
@@ -1240,8 +1243,43 @@ document.addEventListener("DOMContentLoaded", async () => {
         pregEstudiante.addEventListener("change", () => {
             btnGuardarPregSeguridad.disabled = !pregEstudiante.value;
             mensajePregSeguridad.className = "alert d-none";
+
+            const bloqueEnlace = document.getElementById("bloqueEnlaceRecuperacion");
+            const inputEnlace = document.getElementById("enlaceRecuperacion");
+            const btnWhatsapp = document.getElementById("btnEnviarWhatsapp");
+
+            if (pregEstudiante.value) {
+                const url = `${window.location.origin}/pages/login.html?recuperarCorreo=${encodeURIComponent(pregEstudiante.value)}`;
+                const nombreEst = pregEstudiante.options[pregEstudiante.selectedIndex].text;
+
+                inputEnlace.value = url;
+
+                const mensajeWa = encodeURIComponent(
+                    `Hola ${nombreEst}, para poner una contraseña nueva en el sistema de notas, ` +
+                    `entrá a este enlace y respondé tus 3 preguntas de seguridad:\n${url}`
+                );
+                btnWhatsapp.href = `https://wa.me/?text=${mensajeWa}`;
+
+                bloqueEnlace.style.display = "block";
+            } else {
+                bloqueEnlace.style.display = "none";
+            }
         });
     }
+
+    document.getElementById("btnCopiarEnlace")?.addEventListener("click", async () => {
+        const inputEnlace = document.getElementById("enlaceRecuperacion");
+        if (!inputEnlace.value) return;
+
+        try {
+            await navigator.clipboard.writeText(inputEnlace.value);
+        } catch (err) {
+            inputEnlace.select();
+            document.execCommand("copy");
+        }
+
+        mostrarMensajePreg("🔗 Enlace copiado al portapapeles.", "success");
+    });
 
     if (formPregSeguridadAdmin) {
         formPregSeguridadAdmin.addEventListener("submit", async (e) => {
