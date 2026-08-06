@@ -331,7 +331,8 @@ function renderTabla() {
         const columnas = casillasTabla.map((c, colIndex) => {
             const claveCas = claveCasilla(c.tipo, c.numero);
             const n = historial[claveCas];
-            const valor = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
+            const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
+            const valor = crudo === "" ? "" : formatearNotaFinal(String(crudo));
             return `
                 <td>
                     <input type="text" inputmode="decimal" class="form-control form-control-sm input-nota-grupo"
