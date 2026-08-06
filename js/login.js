@@ -1,32 +1,39 @@
 import { supabase } from "./supabase.js";
 import { usuarioAEmail } from "./utils.js";
+import { obtenerRolesDeCuenta } from "./roles.js";
 
 // =================================================
-// SELECTOR DE ROL (correos con doble función)
+// SELECTOR DE ROL (cuentas con más de una función)
 // =================================================
 //
-// Se muestra únicamente cuando el correo que inició sesión
-// tiene rol de administrador Y también aparece en la tabla
-// de consejeros. El usuario elige con qué panel quiere
-// trabajar en esta sesión.
+// Se muestra cuando el correo que inició sesión tiene más de
+// uno de estos roles: administrador, consejero(a), profesor(a).
+// El usuario elige con cuál panel quiere trabajar en esta sesión.
+// Cada botón se muestra u oculta según los roles que sí tenga.
 
-function mostrarSelectorDeRol(consejeroEncontrado) {
+function mostrarSelectorDeRol({ esAdmin, consejeroInfo, esProfesor }) {
 
     const modalEl = document.getElementById("modalElegirRol");
     const btnAdmin = document.getElementById("btnEntrarComoAdmin");
     const btnConsejero = document.getElementById("btnEntrarComoConsejero");
+    const btnProfesor = document.getElementById("btnEntrarComoProfesor");
     const salonSpan = document.getElementById("salonConsejeroBtn");
 
-    if (!modalEl || !btnAdmin || !btnConsejero) {
+    if (!modalEl || !btnAdmin || !btnConsejero || !btnProfesor) {
         // Si por alguna razón el modal no existe en el HTML,
-        // se cae al admin como comportamiento por defecto.
-        sessionStorage.setItem("rolActivo", "admin");
-        window.location.href = "admin.html";
+        // se cae al primer rol disponible como comportamiento por defecto.
+        if (esAdmin) { sessionStorage.setItem("rolActivo", "admin"); window.location.href = "admin.html"; }
+        else if (consejeroInfo) { sessionStorage.setItem("rolActivo", "consejero"); window.location.href = "consejero.html"; }
+        else { sessionStorage.setItem("rolActivo", "profesor"); window.location.href = "profesor.html"; }
         return;
     }
 
-    if (salonSpan && consejeroEncontrado && consejeroEncontrado.salon) {
-        salonSpan.textContent = ` (${consejeroEncontrado.salon})`;
+    btnAdmin.classList.toggle("d-none", !esAdmin);
+    btnConsejero.classList.toggle("d-none", !consejeroInfo);
+    btnProfesor.classList.toggle("d-none", !esProfesor);
+
+    if (salonSpan && consejeroInfo && consejeroInfo.salon) {
+        salonSpan.textContent = ` (${consejeroInfo.salon})`;
     }
 
     const modal = new bootstrap.Modal(modalEl);
@@ -39,6 +46,11 @@ function mostrarSelectorDeRol(consejeroEncontrado) {
     btnConsejero.addEventListener("click", () => {
         sessionStorage.setItem("rolActivo", "consejero");
         window.location.href = "consejero.html";
+    }, { once: true });
+
+    btnProfesor.addEventListener("click", () => {
+        sessionStorage.setItem("rolActivo", "profesor");
+        window.location.href = "profesor.html";
     }, { once: true });
 
     modal.show();
@@ -153,54 +165,31 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("✅ Inicio de sesión correcto");
 
             /*
-             * ¿ES CUENTA DE ADMINISTRADOR?
-             * Se busca en "usuarios" (por auth_user_id, que es
-             * el UUID real de la sesión) si el rol es "admin".
+             * ¿QUÉ ROLES TIENE ESTA CUENTA?
+             * Una misma cuenta puede ser admin, consejero(a) y
+             * profesor(a) a la vez (cada rol vive en su propia
+             * tabla: usuarios / consejeros / profesor_materias).
+             * Se revisan los tres antes de decidir a dónde ir.
              */
-            const { data: perfilLogin, error: errPerfilLogin } = await supabase
-                .from("usuarios")
-                .select("rol")
-                .eq("auth_user_id", data.user.id)
-                .single();
+            const { esAdmin, consejeroInfo, esProfesor } =
+                await obtenerRolesDeCuenta(data.user.id, correo);
 
-            console.log("🛡️ Perfil de usuario (para revisar rol):", perfilLogin, "Error:", errPerfilLogin);
+            console.log("🛡️ Roles detectados:", { esAdmin, consejeroInfo, esProfesor });
 
-            const esAdmin = !errPerfilLogin && perfilLogin && perfilLogin.rol === "admin";
-
-            /*
-             * ¿ES CUENTA DE CONSEJERO(A)?
-             * Se busca en la tabla "consejeros", que asocia cada
-             * correo con su salón (9A, 9B, 9C, 8A...).
-             *
-             * IMPORTANTE: ya NO se corta el flujo apenas se sabe
-             * que es admin, porque un mismo correo puede tener
-             * los dos roles a la vez (admin y consejero). Se
-             * revisan ambos primero y se decide al final.
-             */
-            const correoLoginNormalizado = (correo || "").trim().toLowerCase();
-
-            const { data: consejerosParaLogin, error: errConsejerosLogin } = await supabase
-                .from("consejeros")
-                .select("correo, salon, nombre");
-
-            console.log("📋 Consejeros (para decidir a dónde redirigir):", consejerosParaLogin, "Error:", errConsejerosLogin);
-
-            const consejeroEncontrado = (!errConsejerosLogin && Array.isArray(consejerosParaLogin))
-                ? consejerosParaLogin.find((c) => (c.correo || "").trim().toLowerCase() === correoLoginNormalizado) || null
-                : null;
+            const cantidadRoles = [esAdmin, !!consejeroInfo, esProfesor].filter(Boolean).length;
 
             /*
              * DECISIÓN FINAL
-             * - Si tiene AMBOS roles (admin y consejero), se le
-             *   muestra un modal para que elija con cuál entrar.
+             * - Si tiene MÁS DE UN rol, se le muestra un modal
+             *   para que elija con cuál entrar esta vez.
              * - Si solo tiene uno, se manda directo a ese panel.
              * - Si no tiene ninguno, se asume estudiante.
              */
-            if (esAdmin && consejeroEncontrado) {
+            if (cantidadRoles > 1) {
 
-                console.log("🔀 Esta cuenta tiene ambos roles. Mostrando selector...");
+                console.log("🔀 Esta cuenta tiene varios roles. Mostrando selector...");
 
-                mostrarSelectorDeRol(consejeroEncontrado);
+                mostrarSelectorDeRol({ esAdmin, consejeroInfo, esProfesor });
 
             } else if (esAdmin) {
 
@@ -209,12 +198,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 sessionStorage.setItem("rolActivo", "admin");
                 window.location.href = "admin.html";
 
-            } else if (consejeroEncontrado) {
+            } else if (consejeroInfo) {
 
-                console.log("👨‍🏫 Acceso como consejero(a) de", consejeroEncontrado.salon);
+                console.log("👨‍🏫 Acceso como consejero(a) de", consejeroInfo.salon);
 
                 sessionStorage.setItem("rolActivo", "consejero");
                 window.location.href = "consejero.html";
+
+            } else if (esProfesor) {
+
+                console.log("📝 Acceso como profesor(a)");
+
+                sessionStorage.setItem("rolActivo", "profesor");
+                window.location.href = "profesor.html";
 
             } else {
 

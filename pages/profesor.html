@@ -6,20 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel del Docente</title>
 
-    <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="../img/profesor-favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="../img/profesor-favicon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="../img/profesor-favicon-16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="../img/profesor-apple-touch-icon.png">
 
-    <!-- Vista previa al compartir el enlace -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="Panel del Docente | Control de Notas - C.E.B.G. El Jiral">
-    <meta property="og:description" content="Consulta las notas registradas y configura el trimestre activo del sistema.">
+    <meta property="og:description" content="Registra y edita las notas de tus estudiantes por salón y materia.">
     <meta property="og:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
     <meta property="og:url" content="https://notasjiral.netlify.app/pages/profesor.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
+
+    <!-- Bootstrap: necesario para las clases usadas en la tabla de notas (form-control, badge, table-danger, etc.) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
         body {
@@ -28,65 +29,29 @@
             background: #f5f7fa;
         }
 
-        h1 {
-            color: #1f4e79;
-        }
+        h1 { color: #1f4e79; }
+        h2 { color: #1f4e79; font-size: 1.2rem; margin-top: 30px; }
 
-        #buscarCorreo {
-            width: 350px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background: #1f4e79; color: white; }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        .resumen, .trimestre-panel, .panel-blanco {
             background: white;
-        }
-
-        th,
-        td {
-            border: 1px solid #ccc;
-            padding: 10px;
-            text-align: center;
-        }
-
-        th {
-            background: #1f4e79;
-            color: white;
-        }
-
-        tr:nth-child(even) {
-            background: #f8f9fa;
-        }
-
-        .resumen {
-            background: white;
-            padding: 15px;
+            padding: 15px 20px;
             border-radius: 10px;
             margin-bottom: 20px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
         }
 
         .trimestre-panel {
-            background: white;
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
             display: flex;
             align-items: center;
             gap: 10px;
             flex-wrap: wrap;
         }
 
-        .trimestre-panel label {
-            font-weight: bold;
-            color: #1f4e79;
-        }
+        .trimestre-panel label { font-weight: bold; color: #1f4e79; }
 
         #selectTrimestre {
             padding: 8px 12px;
@@ -106,22 +71,59 @@
             font-size: 14px;
         }
 
-        #btnGuardarTrimestre:hover {
-            background: #163a5c;
+        #btnGuardarTrimestre:hover { background: #163a5c; }
+        #estadoTrimestre { font-size: 13px; color: #198754; }
+
+        .form-notas-fila {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: flex-end;
         }
 
-        #estadoTrimestre {
-            font-size: 13px;
-            color: #198754;
+        .form-notas-fila > div { display: flex; flex-direction: column; gap: 4px; }
+        .form-notas-fila label { font-size: 13px; font-weight: bold; color: #1f4e79; }
+        .form-notas-fila select, .form-notas-fila input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        #btnCargarSalon, #btnGuardarNotasGrupo {
+            padding: 8px 16px;
+            background: #198754;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            height: 38px;
+        }
+
+        #btnGuardarNotasGrupo { background: #1f4e79; margin-top: 15px; }
+
+        #tablaScroll { overflow-x: auto; }
+
+        #buscarCorreo {
+            width: 350px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
         }
     </style>
 </head>
 
 <body>
 
-    <h1>👨‍🏫 Panel del Docente</h1>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h1>👨‍🏫 Panel del Docente</h1>
+        <span id="navCambiarPanel"></span>
+    </div>
 
-    <!-- Selector de trimestre activo -->
+    <!-- Selector de trimestre activo (configuración global del sistema) -->
     <div class="trimestre-panel">
         <label for="selectTrimestre">📅 Trimestre activo:</label>
         <select id="selectTrimestre">
@@ -129,25 +131,84 @@
             <option value="Trimestre 2">Trimestre 2</option>
             <option value="Trimestre 3">Trimestre 3</option>
         </select>
-        <button type="button" id="btnGuardarTrimestre">
-            💾 Guardar
-        </button>
+        <button type="button" id="btnGuardarTrimestre">💾 Guardar</button>
         <span id="estadoTrimestre"></span>
     </div>
+
+    <!-- ================= REGISTRAR / EDITAR NOTAS ================= -->
+    <h2>📝 Registrar notas</h2>
+
+    <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc3545;">
+        Todavía no tienes materias ni salones asignados. Pídele al administrador que te
+        agregue en la pantalla de "Asignaciones de profesores".
+    </div>
+
+    <div class="panel-blanco">
+        <div class="form-notas-fila">
+            <div>
+                <label for="selectSalonNota">Salón</label>
+                <select id="selectSalonNota"><option value="">Cargando...</option></select>
+            </div>
+            <div>
+                <label for="selectMateriaNota">Materia</label>
+                <select id="selectMateriaNota" disabled><option value="">Seleccione primero un salón</option></select>
+            </div>
+            <div>
+                <label for="selectTipoNota">Tipo</label>
+                <select id="selectTipoNota">
+                    <option value="apreciacion">Apreciación</option>
+                    <option value="ejercicio">Ejercicio</option>
+                </select>
+            </div>
+            <div>
+                <label for="inputNumeroNota">Número de casilla</label>
+                <input type="number" id="inputNumeroNota" min="1" max="10" value="1" style="width:90px;">
+            </div>
+            <div>
+                <label for="selectTrimestreNota">Trimestre</label>
+                <select id="selectTrimestreNota">
+                    <option value="Trimestre 1">Trimestre 1</option>
+                    <option value="Trimestre 2">Trimestre 2</option>
+                    <option value="Trimestre 3">Trimestre 3</option>
+                </select>
+            </div>
+            <div>
+                <button type="button" id="btnCargarSalon">📋 Cargar salón</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="bloqueTablaNotas" class="panel-blanco" style="display:none;">
+        <div id="tablaScroll">
+            <table>
+                <thead>
+                    <tr id="cabeceraNotasGrupo"></tr>
+                    <tr id="cabeceraTemasGrupo"></tr>
+                </thead>
+                <tbody id="tablaNotasGrupo"></tbody>
+            </table>
+        </div>
+        <button type="button" id="btnGuardarNotasGrupo">💾 Guardar notas</button>
+        <span id="estadoGuardadoNotas" class="small" style="margin-left:10px;"></span>
+        <p style="font-size:12px; color:#888; margin-top:8px;">
+            Se guarda automáticamente cada 30 segundos mientras esta tabla esté abierta.
+            Escribe la casilla arriba (tipo + número) que quieras usar y presiona "Cargar salón";
+            si ya existe se editará, si no, se crea al guardar la primera nota. Puedes escribir un
+            texto en "Tema de cada casilla" para describir de qué se trata esa nota.
+        </p>
+    </div>
+
+    <!-- ================= HISTORIAL (funcionalidad existente) ================= -->
+    <h2>📚 Historial de notas registradas</h2>
 
     <div class="resumen">
         <p><strong>Total de notas:</strong> <span id="totalNotas">0</span></p>
         <p><strong>Total de estudiantes:</strong> <span id="totalEstudiantes">0</span></p>
     </div>
 
-    <input
-        type="text"
-        id="buscarCorreo"
-        placeholder="🔍 Buscar estudiante por correo...">
+    <input type="text" id="buscarCorreo" placeholder="🔍 Buscar estudiante por correo...">
 
-    <div id="listaEstudiantes">
-        Cargando notas...
-    </div>
+    <div id="listaEstudiantes">Cargando notas...</div>
 
     <script type="module" src="../js/profesor.js"></script>
 

@@ -1,6 +1,9 @@
 import { supabase } from "./supabase.js";
+import { pintarCambiarPanel } from "./roles.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
+
+    pintarCambiarPanel("admin");
 
     const mensajeAdmin = document.getElementById("mensajeAdmin");
     const nombreAdmin = document.getElementById("nombreAdmin");
@@ -1186,13 +1189,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const pregSalon = document.getElementById("pregSalon");
     const pregEstudiante = document.getElementById("pregEstudiante");
-    const formPregSeguridadAdmin = document.getElementById("formPregSeguridadAdmin");
-    const btnGuardarPregSeguridad = document.getElementById("btnGuardarPregSeguridad");
     const mensajePregSeguridad = document.getElementById("mensajePregSeguridad");
 
     function mostrarMensajePreg(texto, tipo) {
         mensajePregSeguridad.textContent = texto;
-        mensajePregSeguridad.className = `alert alert-${tipo}`;
+        mensajePregSeguridad.className = `alert alert-${tipo} mt-2 mb-0`;
     }
 
     if (pregSalon) {
@@ -1201,11 +1202,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             pregEstudiante.innerHTML = `<option value="">Cargando...</option>`;
             pregEstudiante.disabled = true;
-            btnGuardarPregSeguridad.disabled = true;
-            mensajePregSeguridad.className = "alert d-none";
 
             const bloqueEnlace = document.getElementById("bloqueEnlaceRecuperacion");
             if (bloqueEnlace) bloqueEnlace.style.display = "none";
+            mensajePregSeguridad.className = "alert d-none";
 
             if (!salon) {
                 pregEstudiante.innerHTML = `<option value="">Seleccione primero un salón</option>`;
@@ -1241,7 +1241,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (pregEstudiante) {
         pregEstudiante.addEventListener("change", () => {
-            btnGuardarPregSeguridad.disabled = !pregEstudiante.value;
             mensajePregSeguridad.className = "alert d-none";
 
             const bloqueEnlace = document.getElementById("bloqueEnlaceRecuperacion");
@@ -1281,44 +1280,134 @@ document.addEventListener("DOMContentLoaded", async () => {
         mostrarMensajePreg("🔗 Enlace copiado al portapapeles.", "success");
     });
 
-    if (formPregSeguridadAdmin) {
-        formPregSeguridadAdmin.addEventListener("submit", async (e) => {
-            e.preventDefault();
+    // =================================================
+    // 8) ACTIVIDAD DE ESTUDIANTES (VISITAS A LA PLATAFORMA)
+    // =================================================
 
-            const correo = pregEstudiante.value;
-            if (!correo) return;
+    const visitasSalon = document.getElementById("visitasSalon");
+    const btnCargarVisitas = document.getElementById("btnCargarVisitas");
+    const tablaVisitas = document.getElementById("tablaVisitas");
 
-            const r1 = document.getElementById("pregRespuesta1").value.trim();
-            const r2 = document.getElementById("pregRespuesta2").value.trim();
-            const r3 = document.getElementById("pregRespuesta3").value.trim();
+    function formatearDuracion(segundosTotales) {
+        const segundos = Math.max(0, Math.round(segundosTotales));
+        const horas = Math.floor(segundos / 3600);
+        const minutos = Math.floor((segundos % 3600) / 60);
+        if (horas > 0) return `${horas}h ${minutos}min`;
+        if (minutos > 0) return `${minutos}min`;
+        return `${segundos}seg`;
+    }
 
-            if (!r1 || !r2 || !r3) {
-                mostrarMensajePreg("⚠️ Completa las 3 respuestas.", "warning");
-                return;
+    async function cargarVisitas() {
+        const salon = visitasSalon.value;
+
+        if (!salon) {
+            alert("Selecciona un salón.");
+            return;
+        }
+
+        const textoOriginal = btnCargarVisitas.innerHTML;
+        btnCargarVisitas.disabled = true;
+        btnCargarVisitas.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
+
+        tablaVisitas.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Cargando...</td></tr>`;
+
+        const { data: estudiantesSalon, error: errEst } = await supabase
+            .from("estudiantes")
+            .select("correo, nombre, es_prueba")
+            .eq("salon", salon)
+            .order("nombre", { ascending: true });
+
+        btnCargarVisitas.disabled = false;
+        btnCargarVisitas.innerHTML = textoOriginal;
+
+        if (errEst) {
+            console.error("❌ Error al cargar estudiantes:", errEst);
+            tablaVisitas.innerHTML = `<tr><td colspan="6" class="text-danger text-center py-3">Error al cargar estudiantes.</td></tr>`;
+            return;
+        }
+
+        const estudiantesReales = (estudiantesSalon || []).filter((e) => !e.es_prueba && e.correo);
+
+        if (estudiantesReales.length === 0) {
+            tablaVisitas.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">No hay estudiantes en este salón.</td></tr>`;
+            return;
+        }
+
+        const correos = estudiantesReales.map((e) => e.correo);
+
+        const { data: visitas, error: errVis } = await supabase
+            .from("visitas")
+            .select("correo, inicio, ultima_actividad")
+            .in("correo", correos);
+
+        if (errVis) {
+            console.error("❌ Error al cargar visitas:", errVis);
+            tablaVisitas.innerHTML = `<tr><td colspan="6" class="text-danger text-center py-3">Error al cargar las visitas.</td></tr>`;
+            return;
+        }
+
+        const resumenPorCorreo = {};
+
+        (visitas || []).forEach((v) => {
+            if (!resumenPorCorreo[v.correo]) {
+                resumenPorCorreo[v.correo] = {
+                    totalVisitas: 0,
+                    tiempoTotalSeg: 0,
+                    primeraVisita: null,
+                    ultimaVisita: null,
+                    diasDistintos: new Set()
+                };
             }
 
-            btnGuardarPregSeguridad.disabled = true;
-            btnGuardarPregSeguridad.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Guardando...`;
+            const r = resumenPorCorreo[v.correo];
+            const inicio = new Date(v.inicio);
+            const fin = new Date(v.ultima_actividad || v.inicio);
+            const duracionSeg = Math.max(0, (fin - inicio) / 1000);
 
-            const { data: ok, error } = await supabase.rpc("guardar_preguntas_seguridad", {
-                p_correo: correo,
-                p_respuesta1: r1,
-                p_respuesta2: r2,
-                p_respuesta3: r3
-            });
+            r.totalVisitas++;
+            r.tiempoTotalSeg += duracionSeg;
+            r.diasDistintos.add(inicio.toISOString().slice(0, 10));
 
-            btnGuardarPregSeguridad.disabled = false;
-            btnGuardarPregSeguridad.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i> Guardar respuestas`;
-
-            if (error || !ok) {
-                console.error("❌ Error al guardar preguntas de seguridad:", error);
-                mostrarMensajePreg("❌ No se pudieron guardar las respuestas.", "danger");
-                return;
-            }
-
-            mostrarMensajePreg("✅ Respuestas guardadas. El estudiante ya puede recuperar su contraseña con estas preguntas.", "success");
-            formPregSeguridadAdmin.reset();
+            if (!r.primeraVisita || inicio < r.primeraVisita) r.primeraVisita = inicio;
+            if (!r.ultimaVisita || fin > r.ultimaVisita) r.ultimaVisita = fin;
         });
+
+        const opcionesFecha = { day: "2-digit", month: "2-digit", year: "numeric" };
+        const opcionesFechaHora = { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" };
+
+        const filas = estudiantesReales.map((est) => {
+            const r = resumenPorCorreo[est.correo];
+
+            if (!r) {
+                return `
+                    <tr class="table-light">
+                        <td>${escapeHtmlAdmin(est.nombre || est.correo)}</td>
+                        <td class="text-center">0</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center">—</td>
+                        <td class="text-center text-muted">Nunca entró</td>
+                    </tr>
+                `;
+            }
+
+            return `
+                <tr>
+                    <td>${escapeHtmlAdmin(est.nombre || est.correo)}</td>
+                    <td class="text-center fw-bold">${r.totalVisitas}</td>
+                    <td class="text-center">${r.diasDistintos.size}</td>
+                    <td class="text-center">${formatearDuracion(r.tiempoTotalSeg)}</td>
+                    <td class="text-center">${r.primeraVisita.toLocaleDateString("es-PA", opcionesFecha)}</td>
+                    <td class="text-center">${r.ultimaVisita.toLocaleString("es-PA", opcionesFechaHora)}</td>
+                </tr>
+            `;
+        });
+
+        tablaVisitas.innerHTML = filas.join("");
+    }
+
+    if (btnCargarVisitas) {
+        btnCargarVisitas.addEventListener("click", cargarVisitas);
     }
 
 });

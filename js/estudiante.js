@@ -1620,6 +1620,60 @@ async function verificarPreguntasSeguridadObligatorias() {
     });
 }
 
+// =====================================================
+// REGISTRO DE VISITAS A LA PLATAFORMA
+// =====================================================
+//
+// Cada vez que un estudiante entra a esta página se crea una fila
+// en "visitas" con la hora de inicio. Mientras tenga la pestaña
+// abierta y visible, cada 30 segundos se actualiza "ultima_actividad"
+// (esto es lo que permite calcular después, en el panel de admin o
+// consejero, cuánto tiempo estuvo realmente conectado).
+// No se activa si es el administrador revisando el boletín de otro
+// estudiante (modo simulado con ?correo=...).
+
+let visitaActualId = null;
+let heartbeatVisitaInterval = null;
+
+async function iniciarRegistroVisita() {
+    if (usuarioActual?.esAdminSimulado) return;
+
+    try {
+        const { data, error } = await supabase
+            .from("visitas")
+            .insert([{
+                correo: usuarioActual.email,
+                salon: miEstudiante?.salon || null
+            }])
+            .select("id")
+            .single();
+
+        if (error || !data) {
+            console.warn("⚠️ No se pudo registrar la visita:", error);
+            return;
+        }
+
+        visitaActualId = data.id;
+
+        heartbeatVisitaInterval = setInterval(() => {
+            if (!visitaActualId) return;
+            if (document.visibilityState !== "visible") return;
+
+            supabase
+                .from("visitas")
+                .update({ ultima_actividad: new Date().toISOString() })
+                .eq("id", visitaActualId)
+                .then(({ error: errHeartbeat }) => {
+                    if (errHeartbeat) {
+                        console.warn("⚠️ No se pudo actualizar la visita:", errHeartbeat);
+                    }
+                });
+        }, 30000);
+    } catch (err) {
+        console.warn("⚠️ Error inesperado al registrar la visita:", err);
+    }
+}
+
 async function inicializarPagina() {
     const user = await mostrarUsuario();
     if (!user) return;
@@ -1631,6 +1685,8 @@ async function inicializarPagina() {
 
     trimestreSeleccionado = trimestreActivo;
     if (filtroTrimestre) filtroTrimestre.value = trimestreActivo;
+
+    iniciarRegistroVisita();
 
     await verificarPreguntasSeguridadObligatorias();
 

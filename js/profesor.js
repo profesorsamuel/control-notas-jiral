@@ -1,34 +1,543 @@
 import { supabase } from "./supabase.js";
+import { pintarCambiarPanel } from "./roles.js";
+
+// =========================================================
+// 0) UTILIDADES
+// =========================================================
+
+function escapeHtml(str) {
+    return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+const PROMEDIO_MINIMO_APROBAR = 3.0;
+
+function claveCasilla(tipo, numero) {
+    return `${tipo}-${numero}`;
+}
+
+function etiquetaCasilla(tipo, numero) {
+    return `${tipo === "apreciacion" ? "Aprec." : "Ejer."} ${numero}`;
+}
+
+// =========================================================
+// 1) VERIFICAR SESIÓN Y QUE SEA PROFESOR
+// =========================================================
+
+let correoProfesor = "";
+let misAsignaciones = []; // [{materia, salon}, ...] -- solo lo que este profesor da
+
+// El acceso a este panel se decide igual que en consejero.js:
+// por pertenecer a la tabla correspondiente (profesor_materias),
+// no por el campo "rol" de la tabla "usuarios". Así una cuenta
+// puede ser profesor(a) sin dejar de ser también admin/consejero(a).
+async function verificarSesion() {
+    const { data: { user }, error: errUser } = await supabase.auth.getUser();
+
+    if (errUser || !user) {
+        window.location.href = "login.html";
+        return false;
+    }
+
+    correoProfesor = (user.email || "").trim().toLowerCase();
+
+    const { data: materias, error: errMaterias } = await supabase
+        .from("profesor_materias")
+        .select("materia, salon")
+        .eq("correo_profesor", correoProfesor);
+
+    if (errMaterias) {
+        console.error("❌ Error al verificar acceso de docente:", errMaterias);
+        alert("Ocurrió un error al verificar tu acceso. Intenta de nuevo.");
+        window.location.href = "login.html";
+        return false;
+    }
+
+    if (!materias || materias.length === 0) {
+        alert("⛔ Esta cuenta no tiene materias asignadas como docente. Contacta al administrador.");
+        window.location.href = "login.html";
+        return false;
+    }
+
+    misAsignaciones = materias;
+    return true;
+}
+
+// =========================================================
+// 2) SELECTORES DE SALÓN / MATERIA (solo lo que este profesor da)
+// =========================================================
+
+const selectSalonNota = document.getElementById("selectSalonNota");
+const selectMateriaNota = document.getElementById("selectMateriaNota");
+const selectTipoNota = document.getElementById("selectTipoNota");
+const inputNumeroNota = document.getElementById("inputNumeroNota");
+const selectTrimestreNota = document.getElementById("selectTrimestreNota");
+const btnCargarSalon = document.getElementById("btnCargarSalon");
+const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
+const cabeceraNotasGrupo = document.getElementById("cabeceraNotasGrupo");
+const cabeceraTemasGrupo = document.getElementById("cabeceraTemasGrupo");
+const tablaNotasGrupo = document.getElementById("tablaNotasGrupo");
+const btnGuardarNotasGrupo = document.getElementById("btnGuardarNotasGrupo");
+const estadoGuardadoNotas = document.getElementById("estadoGuardadoNotas");
+const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
+
+function poblarSelectSalon() {
+    const salones = [...new Set(misAsignaciones.map((a) => a.salon))].sort();
+
+    if (salones.length === 0) {
+        selectSalonNota.innerHTML = `<option value="">No tienes salones asignados</option>`;
+        selectSalonNota.disabled = true;
+        avisoSinAsignaciones.style.display = "block";
+        return;
+    }
+
+    avisoSinAsignaciones.style.display = "none";
+    selectSalonNota.innerHTML =
+        `<option value="">Seleccione un salón</option>` +
+        salones.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+    selectSalonNota.disabled = false;
+}
+
+function poblarSelectMateria() {
+    const salon = selectSalonNota.value;
+
+    if (!salon) {
+        selectMateriaNota.innerHTML = `<option value="">Seleccione primero un salón</option>`;
+        selectMateriaNota.disabled = true;
+        return;
+    }
+
+    const materias = misAsignaciones
+        .filter((a) => a.salon === salon)
+        .map((a) => a.materia);
+
+    selectMateriaNota.innerHTML =
+        `<option value="">Seleccione una materia</option>` +
+        materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+    selectMateriaNota.disabled = false;
+}
+
+selectSalonNota?.addEventListener("change", poblarSelectMateria);
+
+// =========================================================
+// 3) TABLA DE ESTUDIANTES CON NOTAS EDITABLES (misma lógica del admin)
+// =========================================================
+
+let grupoActual = [];
+let historiaPorEstudiante = {};
+let casillasTabla = [];
+let temasCasillasBD = {};
+
+function claveEstudiante(est) {
+    return est.correo ? `correo:${est.correo}` : `id:${est.id}`;
+}
+
+function obtenerTemaCasilla(tipo, numero) {
+    const clave = claveCasilla(tipo, numero);
+    if (temasCasillasBD[clave]) return temasCasillasBD[clave];
+
+    for (const claveEst in historiaPorEstudiante) {
+        const nota = historiaPorEstudiante[claveEst][clave];
+        if (nota && nota.tema) return nota.tema;
+    }
+    return "";
+}
+
+async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const valorGuardar = nuevoTema || null;
+
+    const { error } = await supabase
+        .from("temas_casillas")
+        .upsert(
+            { salon, materia, trimestre, tipo, numero, tema: valorGuardar, updated_at: new Date().toISOString() },
+            { onConflict: "salon,materia,trimestre,tipo,numero" }
+        );
+
+    if (error) {
+        console.error("❌ Error al guardar el tema:", error);
+        estadoGuardadoNotas.textContent = `⚠️ No se pudo guardar el tema de ${etiquetaCasilla(tipo, numero)}.`;
+        estadoGuardadoNotas.className = "small text-danger";
+        return;
+    }
+
+    temasCasillasBD[claveCasilla(tipo, numero)] = valorGuardar || "";
+
+    const correos = grupoActual.map((e) => e.correo).filter(Boolean);
+    const idsSinCuenta = grupoActual.filter((e) => !e.correo).map((e) => e.id);
+
+    if (correos.length > 0) {
+        await supabase.from("notas").update({ tema: valorGuardar })
+            .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+            .in("correo", correos);
+    }
+    if (idsSinCuenta.length > 0) {
+        await supabase.from("notas").update({ tema: valorGuardar })
+            .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+            .in("estudiante_id", idsSinCuenta);
+    }
+
+    estadoGuardadoNotas.textContent = `✅ Tema de "${etiquetaCasilla(tipo, numero)}" actualizado.`;
+    estadoGuardadoNotas.className = "small text-success";
+}
+
+async function eliminarColumnaCasilla(tipo, numero) {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const etiqueta = etiquetaCasilla(tipo, numero);
+
+    if (!confirm(`¿Eliminar permanentemente la casilla "${etiqueta}" (${materia} - ${salon}) y todas las notas en ella?`)) return;
+
+    await supabase.from("notas").delete()
+        .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero);
+    await supabase.from("temas_casillas").delete()
+        .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero);
+
+    estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} eliminada.`;
+    estadoGuardadoNotas.className = "small text-success";
+    btnCargarSalon.click();
+}
+
+function recalcularPromedios() {
+    tablaNotasGrupo.querySelectorAll("tr").forEach((tr) => {
+        const inputsFila = tr.querySelectorAll(".input-nota-grupo");
+        if (inputsFila.length === 0) return;
+
+        const apr = [], eje = [];
+        inputsFila.forEach((input) => {
+            const v = input.value.trim();
+            if (v === "") return;
+            const num = parseFloat(v);
+            if (isNaN(num)) return;
+            (input.dataset.tipo === "apreciacion" ? apr : eje).push(num);
+        });
+
+        const promApr = apr.length ? apr.reduce((a, b) => a + b, 0) / apr.length : null;
+        const promEje = eje.length ? eje.reduce((a, b) => a + b, 0) / eje.length : null;
+        let promFinal = null;
+        if (promApr !== null && promEje !== null) promFinal = (promApr + promEje) / 2;
+        else if (promApr !== null) promFinal = promApr;
+        else if (promEje !== null) promFinal = promEje;
+
+        const cApr = tr.querySelector(".celda-prom-apr");
+        const cEje = tr.querySelector(".celda-prom-eje");
+        const cFinal = tr.querySelector(".celda-prom-final");
+        if (cApr) cApr.textContent = promApr !== null ? promApr.toFixed(1) : "–";
+        if (cEje) cEje.textContent = promEje !== null ? promEje.toFixed(1) : "–";
+        if (cFinal) {
+            cFinal.textContent = promFinal !== null ? promFinal.toFixed(1) : "–";
+            const enRiesgo = promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR;
+            tr.classList.toggle("table-danger", enRiesgo);
+            cFinal.classList.toggle("text-danger", enRiesgo);
+        }
+    });
+}
+
+function renderTabla() {
+    if (grupoActual.length === 0) {
+        cabeceraNotasGrupo.innerHTML = `<th style="width:45px;">#</th><th>Estudiante</th>`;
+        cabeceraTemasGrupo.innerHTML = "";
+        tablaNotasGrupo.innerHTML = `<tr><td colspan="2" class="text-center text-muted py-3">Este salón aún no tiene estudiantes cargados.</td></tr>`;
+        return;
+    }
+
+    const claveSel = claveCasilla(selectTipoNota.value, parseInt(inputNumeroNota.value, 10));
+
+    let htmlCabecera = `<th style="width:45px;">#</th><th>Estudiante</th>`;
+    casillasTabla.forEach((c) => {
+        const sel = claveCasilla(c.tipo, c.numero) === claveSel;
+        htmlCabecera += `
+            <th class="text-center small ${sel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
+                <div>${etiquetaCasilla(c.tipo, c.numero)}</div>
+                <button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna">🗑️</button>
+            </th>`;
+    });
+    htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Aprec.</th>`;
+    htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Ejer.</th>`;
+    htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
+    cabeceraNotasGrupo.innerHTML = htmlCabecera;
+
+    let htmlTemas = `<th></th><th class="small text-muted fw-normal">Tema de cada casilla:</th>`;
+    casillasTabla.forEach((c) => {
+        const tema = obtenerTemaCasilla(c.tipo, c.numero);
+        htmlTemas += `
+            <th style="padding:2px 4px;">
+                <input type="text" class="form-control form-control-sm input-tema-columna"
+                    data-tipo="${c.tipo}" data-numero="${c.numero}" data-tema-guardado="${escapeHtml(tema)}"
+                    value="${escapeHtml(tema)}" placeholder="Ej: Proyecto 2" style="font-size:11px; font-weight:normal;">
+            </th>`;
+    });
+    htmlTemas += `<th></th><th></th><th></th>`;
+    cabeceraTemasGrupo.innerHTML = htmlTemas;
+
+    tablaNotasGrupo.innerHTML = grupoActual.map((est, i) => {
+        const sinCuenta = !est.correo;
+        const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
+
+        const columnas = casillasTabla.map((c, colIndex) => {
+            const claveCas = claveCasilla(c.tipo, c.numero);
+            const n = historial[claveCas];
+            const valor = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
+            return `
+                <td>
+                    <input type="number" step="0.1" min="0" max="5" class="form-control form-control-sm input-nota-grupo"
+                        data-col="${colIndex}" data-correo="${sinCuenta ? "" : escapeHtml(est.correo)}"
+                        data-estudiante-id="${sinCuenta ? escapeHtml(est.id) : ""}" data-nota-id="${n ? n.id : ""}"
+                        data-tipo="${c.tipo}" data-numero="${c.numero}" data-ultimo-valor-guardado="${valor}"
+                        value="${valor}" placeholder="–">
+                </td>`;
+        }).join("");
+
+        return `
+            <tr class="${sinCuenta ? "table-warning" : ""}">
+                <td>${i + 1}</td>
+                <td>${escapeHtml(est.nombre)}${sinCuenta ? ' <span class="badge bg-warning text-dark">Sin cuenta</span>' : ""}</td>
+                ${columnas}
+                <td class="celda-prom-apr text-center fw-bold">–</td>
+                <td class="celda-prom-eje text-center fw-bold">–</td>
+                <td class="celda-prom-final text-center fw-bold table-success bg-opacity-25">–</td>
+            </tr>`;
+    }).join("");
+
+    recalcularPromedios();
+
+    cabeceraNotasGrupo.querySelectorAll(".btn-eliminar-columna").forEach((btn) => {
+        btn.addEventListener("click", () => eliminarColumnaCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10)));
+    });
+
+    tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna").forEach((input) => {
+        input.addEventListener("blur", async () => {
+            const nuevo = input.value.trim();
+            if (nuevo === input.dataset.temaGuardado) return;
+            await actualizarTemaCasilla(input.dataset.tipo, parseInt(input.dataset.numero, 10), nuevo);
+            input.dataset.temaGuardado = nuevo;
+        });
+    });
+
+    const todosInputs = Array.from(tablaNotasGrupo.querySelectorAll(".input-nota-grupo"));
+    const porColumna = {};
+    todosInputs.forEach((input) => {
+        (porColumna[input.dataset.col] ??= []).push(input);
+    });
+    todosInputs.forEach((input) => {
+        input.addEventListener("input", recalcularPromedios);
+        input.addEventListener("keydown", (e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            const lista = porColumna[input.dataset.col] || [];
+            const siguiente = lista[lista.indexOf(input) + 1];
+            if (siguiente) { siguiente.focus(); siguiente.select(); }
+        });
+    });
+}
+
+btnCargarSalon?.addEventListener("click", async () => {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const tipo = selectTipoNota.value;
+    const numero = parseInt(inputNumeroNota.value, 10);
+    const trimestre = selectTrimestreNota.value;
+
+    if (!salon) return alert("Selecciona un salón.");
+    if (!materia) return alert("Selecciona una materia.");
+
+    const esMia = misAsignaciones.some((a) => a.salon === salon && a.materia === materia);
+    if (!esMia) return alert("Esa materia/salón no está asignada a tu cuenta.");
+
+    const textoOriginal = btnCargarSalon.innerHTML;
+    btnCargarSalon.disabled = true;
+    btnCargarSalon.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
+
+    const { data: estudiantesSalon, error: errEst } = await supabase
+        .from("estudiantes")
+        .select("id, codigo, nombre, correo, es_prueba")
+        .eq("salon", salon)
+        .order("nombre", { ascending: true });
+
+    if (errEst) {
+        alert("Error al cargar estudiantes: " + errEst.message);
+        btnCargarSalon.disabled = false;
+        btnCargarSalon.innerHTML = textoOriginal;
+        return;
+    }
+
+    grupoActual = (estudiantesSalon || []).filter((e) => !e.es_prueba);
+
+    const correos = grupoActual.map((e) => e.correo).filter(Boolean);
+    const idsSinCuenta = grupoActual.filter((e) => !e.correo).map((e) => e.id);
+
+    historiaPorEstudiante = {};
+    const casillasEncontradas = new Set();
+
+    function registrar(clave, n) {
+        (historiaPorEstudiante[clave] ??= {})[claveCasilla(n.tipo, n.numero)] = n;
+        casillasEncontradas.add(claveCasilla(n.tipo, n.numero));
+    }
+
+    if (correos.length > 0) {
+        const { data } = await supabase.from("notas").select("id, correo, tipo, numero, nota, tema")
+            .eq("materia", materia).eq("trimestre", trimestre).in("correo", correos);
+        (data || []).forEach((n) => registrar(`correo:${n.correo}`, n));
+    }
+    if (idsSinCuenta.length > 0) {
+        const { data } = await supabase.from("notas").select("id, estudiante_id, tipo, numero, nota, tema")
+            .eq("materia", materia).eq("trimestre", trimestre).in("estudiante_id", idsSinCuenta);
+        (data || []).forEach((n) => registrar(`id:${n.estudiante_id}`, n));
+    }
+
+    temasCasillasBD = {};
+    const { data: temas } = await supabase.from("temas_casillas").select("tipo, numero, tema")
+        .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre);
+    (temas || []).forEach((t) => {
+        temasCasillasBD[claveCasilla(t.tipo, t.numero)] = t.tema || "";
+        if (t.tema) casillasEncontradas.add(claveCasilla(t.tipo, t.numero));
+    });
+
+    casillasEncontradas.add(claveCasilla(tipo, numero));
+    casillasTabla = [...casillasEncontradas].map((c) => {
+        const sep = c.lastIndexOf("-");
+        return { tipo: c.slice(0, sep), numero: parseInt(c.slice(sep + 1), 10) };
+    }).sort((a, b) => a.tipo !== b.tipo ? (a.tipo === "apreciacion" ? -1 : 1) : a.numero - b.numero);
+
+    renderTabla();
+    bloqueTablaNotas.style.display = "block";
+
+    btnCargarSalon.disabled = false;
+    btnCargarSalon.innerHTML = textoOriginal;
+});
+
+// =========================================================
+// 4) GUARDAR NOTAS
+// =========================================================
+
+async function guardarNotas(esAutomatico = false) {
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const hoy = new Date().toISOString().slice(0, 10);
+
+    const inputsTema = Array.from(tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna"));
+    const temaPorCasilla = {};
+    for (const inputTema of inputsTema) {
+        const valor = inputTema.value.trim();
+        temaPorCasilla[claveCasilla(inputTema.dataset.tipo, parseInt(inputTema.dataset.numero, 10))] = valor || null;
+        if (valor !== inputTema.dataset.temaGuardado) {
+            await actualizarTemaCasilla(inputTema.dataset.tipo, parseInt(inputTema.dataset.numero, 10), valor);
+            inputTema.dataset.temaGuardado = valor;
+        }
+    }
+
+    const inputs = tablaNotasGrupo.querySelectorAll(".input-nota-grupo");
+    const aGuardar = [];
+    inputs.forEach((input) => {
+        const valor = input.value.trim();
+        if (valor === "") return;
+        const notaNum = parseFloat(valor);
+        if (isNaN(notaNum)) return;
+        if (esAutomatico && input.dataset.ultimoValorGuardado === valor) return;
+        aGuardar.push({
+            input,
+            correo: input.dataset.correo || null,
+            estudianteId: input.dataset.estudianteId || null,
+            notaId: input.dataset.notaId || null,
+            tipo: input.dataset.tipo,
+            numero: parseInt(input.dataset.numero, 10),
+            nota: notaNum
+        });
+    });
+
+    if (aGuardar.length === 0) {
+        if (!esAutomatico) alert("No escribiste ninguna nota para guardar.");
+        return;
+    }
+
+    if (!esAutomatico) btnGuardarNotasGrupo.disabled = true;
+    estadoGuardadoNotas.textContent = esAutomatico ? "Autoguardando..." : `Guardando 0 / ${aGuardar.length}...`;
+    estadoGuardadoNotas.className = "small text-primary";
+
+    let exitosas = 0, fallidas = 0;
+
+    for (let i = 0; i < aGuardar.length; i++) {
+        const item = aGuardar[i];
+
+        if (item.notaId) {
+            const { error } = await supabase.from("notas").update({ nota: item.nota, fecha: hoy }).eq("id", item.notaId);
+            if (error) { fallidas++; } else { exitosas++; item.input.dataset.ultimoValorGuardado = String(item.nota); }
+        } else {
+            const { data: insertado, error } = await supabase.from("notas").insert([{
+                correo: item.correo,
+                estudiante_id: item.estudianteId,
+                materia,
+                tipo: item.tipo,
+                numero: item.numero,
+                tema: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || null,
+                actividad: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || `${item.tipo === "apreciacion" ? "Apreciación" : "Ejercicio"} ${item.numero}`,
+                fecha: hoy,
+                nota: item.nota,
+                observacion: `Agregada por el/la docente (${correoProfesor})`,
+                trimestre,
+                estado: "Activa"
+            }]).select("id");
+
+            if (error) { fallidas++; }
+            else {
+                exitosas++;
+                item.input.dataset.ultimoValorGuardado = String(item.nota);
+                if (insertado && insertado[0]) item.input.dataset.notaId = insertado[0].id;
+            }
+        }
+        if (!esAutomatico) estadoGuardadoNotas.textContent = `Guardando ${i + 1} / ${aGuardar.length}...`;
+    }
+
+    if (!esAutomatico) btnGuardarNotasGrupo.disabled = false;
+    const hora = new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+    if (fallidas === 0) {
+        estadoGuardadoNotas.textContent = esAutomatico ? `✅ Autoguardado (${exitosas}) a las ${hora}` : `✅ ${exitosas} nota(s) guardada(s).`;
+        estadoGuardadoNotas.className = "small text-success";
+    } else {
+        estadoGuardadoNotas.textContent = `⚠️ ${exitosas} guardada(s), ${fallidas} con error.`;
+        estadoGuardadoNotas.className = "small text-danger";
+    }
+
+    if (!esAutomatico) btnCargarSalon.click();
+}
+
+btnGuardarNotasGrupo?.addEventListener("click", () => guardarNotas(false));
+setInterval(() => {
+    if (bloqueTablaNotas && bloqueTablaNotas.style.display !== "none") guardarNotas(true);
+}, 30000);
+
+// =========================================================
+// 5) HISTORIAL DE NOTAS (funcionalidad que ya existía, ahora
+//    filtrada a solo las materias que este profesor da)
+// =========================================================
 
 let todasLasNotas = [];
 
-cargarNotas();
-
-async function cargarNotas() {
-
+async function cargarHistorialNotas() {
     const contenedor = document.getElementById("listaEstudiantes");
+    const misMaterias = new Set(misAsignaciones.map((a) => a.materia));
 
-    // Primero se obtienen los correos marcados como "de prueba"
-    // (es_prueba = true), para poder excluir sus notas más abajo.
-    // Esta tabla no guarda "materia/correo" por estudiante, así que
-    // el filtro se hace del lado del cliente, sobre la lista de notas.
-    const { data: estudiantesPrueba, error: errPrueba } = await supabase
-        .from("estudiantes")
-        .select("correo")
-        .eq("es_prueba", true);
-
-    if (errPrueba) {
-        console.error("Error al obtener estudiantes de prueba:", errPrueba);
+    if (misMaterias.size === 0) {
+        contenedor.innerHTML = "<p>No hay notas para mostrar.</p>";
+        return;
     }
 
-    const correosDePrueba = new Set(
-        (estudiantesPrueba || []).map((e) => (e.correo || "").toLowerCase()).filter(Boolean)
-    );
+    const { data: estudiantesPrueba } = await supabase.from("estudiantes").select("correo").eq("es_prueba", true);
+    const correosDePrueba = new Set((estudiantesPrueba || []).map((e) => (e.correo || "").toLowerCase()).filter(Boolean));
 
     const { data, error } = await supabase
         .from("notas")
         .select("*")
-        .order("created_at");
+        .in("materia", [...misMaterias])
+        .order("created_at", { ascending: false });
 
     if (error) {
         console.error(error);
@@ -36,33 +545,24 @@ async function cargarNotas() {
         return;
     }
 
-    // Se excluyen las notas de cualquier estudiante marcado como "de prueba".
-    todasLasNotas = (data || []).filter(
-        (n) => !correosDePrueba.has((n.correo || "").toLowerCase())
-    );
+    todasLasNotas = (data || []).filter((n) => !correosDePrueba.has((n.correo || "").toLowerCase()));
 
     actualizarResumen(todasLasNotas);
-    renderizarTabla(todasLasNotas);
+    renderizarTablaHistorial(todasLasNotas);
 
     const inputBuscar = document.getElementById("buscarCorreo");
     inputBuscar.addEventListener("input", () => {
         const filtro = inputBuscar.value.trim().toLowerCase();
-        const filtradas = todasLasNotas.filter((nota) =>
-            nota.correo.toLowerCase().includes(filtro)
-        );
-        renderizarTabla(filtradas);
+        renderizarTablaHistorial(todasLasNotas.filter((n) => (n.correo || "").toLowerCase().includes(filtro)));
     });
 }
 
 function actualizarResumen(notas) {
-    const totalNotas = notas.length;
-    const totalEstudiantes = new Set(notas.map((n) => n.correo)).size;
-
-    document.getElementById("totalNotas").textContent = totalNotas;
-    document.getElementById("totalEstudiantes").textContent = totalEstudiantes;
+    document.getElementById("totalNotas").textContent = notas.length;
+    document.getElementById("totalEstudiantes").textContent = new Set(notas.map((n) => n.correo)).size;
 }
 
-function renderizarTabla(notas) {
+function renderizarTablaHistorial(notas) {
     const contenedor = document.getElementById("listaEstudiantes");
 
     if (!notas || notas.length === 0) {
@@ -70,79 +570,67 @@ function renderizarTabla(notas) {
         return;
     }
 
-    let html = `
-        <table>
-            <tr>
-                <th>Correo</th>
-                <th>Materia</th>
-                <th>Tipo</th>
-                <th>Nota</th>
-            </tr>
-    `;
-
+    let html = `<table><tr><th>Correo</th><th>Materia</th><th>Tema</th><th>Tipo</th><th>Nota</th><th>Trimestre</th></tr>`;
     notas.forEach((nota) => {
-        html += `
-            <tr>
-                <td>${nota.correo}</td>
-                <td>${nota.materia}</td>
-                <td>${nota.tipo}</td>
-                <td>${nota.nota}</td>
-            </tr>
-        `;
+        html += `<tr>
+            <td>${escapeHtml(nota.correo)}</td>
+            <td>${escapeHtml(nota.materia)}</td>
+            <td>${escapeHtml(nota.tema || nota.actividad || "")}</td>
+            <td>${escapeHtml(nota.tipo)}</td>
+            <td>${escapeHtml(nota.nota)}</td>
+            <td>${escapeHtml(nota.trimestre)}</td>
+        </tr>`;
     });
-
     html += "</table>";
-
     contenedor.innerHTML = html;
 }
 
-// --- Guardar trimestre activo ---
+// =========================================================
+// 6) TRIMESTRE ACTIVO (funcionalidad que ya existía)
+// =========================================================
+
 const selectTrimestre = document.getElementById("selectTrimestre");
 const btnGuardarTrimestre = document.getElementById("btnGuardarTrimestre");
 const estadoTrimestre = document.getElementById("estadoTrimestre");
 
 async function cargarTrimestreActivo() {
-    const { data, error } = await supabase
-        .from("configuracion")
-        .select("trimestre_activo")
-        .eq("id", 1)
-        .single();
-
-    if (error) {
-        console.error("Error al cargar trimestre activo:", error);
-        return;
-    }
-
+    const { data, error } = await supabase.from("configuracion").select("trimestre_activo").eq("id", 1).single();
+    if (error) { console.error(error); return; }
     if (data) {
         selectTrimestre.value = data.trimestre_activo;
+        if (selectTrimestreNota) selectTrimestreNota.value = data.trimestre_activo;
     }
 }
-cargarTrimestreActivo();
 
-btnGuardarTrimestre.addEventListener("click", async () => {
+btnGuardarTrimestre?.addEventListener("click", async () => {
     const trimestreSeleccionado = selectTrimestre.value;
-
     btnGuardarTrimestre.disabled = true;
     estadoTrimestre.style.color = "#198754";
     estadoTrimestre.textContent = "Guardando...";
 
-    const { error } = await supabase
-        .from("configuracion")
-        .update({ trimestre_activo: trimestreSeleccionado })
-        .eq("id", 1);
-
+    const { error } = await supabase.from("configuracion").update({ trimestre_activo: trimestreSeleccionado }).eq("id", 1);
     btnGuardarTrimestre.disabled = false;
 
     if (error) {
-        console.error(error);
         estadoTrimestre.style.color = "#dc3545";
         estadoTrimestre.textContent = "❌ Error al guardar";
     } else {
         estadoTrimestre.style.color = "#198754";
         estadoTrimestre.textContent = "✅ Guardado";
     }
-
-    setTimeout(() => {
-        estadoTrimestre.textContent = "";
-    }, 2000);
+    setTimeout(() => { estadoTrimestre.textContent = ""; }, 2000);
 });
+
+// =========================================================
+// INICIO
+// =========================================================
+
+(async function init() {
+    const ok = await verificarSesion();
+    if (!ok) return;
+
+    pintarCambiarPanel("profesor", "oscuro-sobre-claro");
+    poblarSelectSalon();
+    cargarTrimestreActivo();
+    cargarHistorialNotas();
+})();

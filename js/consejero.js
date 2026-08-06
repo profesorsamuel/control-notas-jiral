@@ -10,8 +10,11 @@
 // =====================================================
 
 import { supabase } from "./supabase.js";
+import { pintarCambiarPanel } from "./roles.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
+
+    pintarCambiarPanel("consejero");
     const totalEstudiantesEl = document.getElementById("totalEstudiantes");
     const totalRegistradosEl = document.getElementById("totalRegistrados");
     const totalNotasEl = document.getElementById("totalNotas");
