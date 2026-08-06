@@ -4,13 +4,16 @@ import { cedulaAEmail, usuarioAEmail } from "./utils.js";
 const form = document.getElementById("registroForm");
 const tipoRegistro = document.getElementById("tipoRegistro");
 const salonInput = document.getElementById("salon");
+const grupoSalon = document.getElementById("grupoSalon");
 const camposEstudiante = document.getElementById("camposEstudiante");
 const camposConsejero = document.getElementById("camposConsejero");
+const camposProfesor = document.getElementById("camposProfesor");
 const mensaje = document.getElementById("mensaje");
 const btnRegistrar = document.getElementById("btnRegistrar");
 const nombreSelect = document.getElementById("nombre");
 const nombreConsejeroSelect = document.getElementById("nombreConsejero");
 const correoConsejeroInput = document.getElementById("correoConsejero");
+const correoProfesorInput = document.getElementById("correoProfesor");
 
 // Se guarda tal cual viene en el HTML (8°A, 9°A, 9°B, 9°C) para poder
 // restaurarla cuando el tipo de registro sea "Estudiante", ya que a
@@ -30,17 +33,32 @@ function mostrarMensaje(texto, tipo) {
 // ALTERNAR CAMPOS SEGÚN TIPO DE REGISTRO
 // =====================================================
 function actualizarCampos() {
-    const esConsejero = tipoRegistro.value === "consejero";
+    const tipo = tipoRegistro.value; // "estudiante" | "consejero" | "profesor"
+    const esConsejero = tipo === "consejero";
+    const esProfesor = tipo === "profesor";
 
-    camposEstudiante.style.display = esConsejero ? "none" : "block";
+    camposEstudiante.style.display = (esConsejero || esProfesor) ? "none" : "block";
     camposConsejero.style.display = esConsejero ? "block" : "none";
+    camposProfesor.style.display = esProfesor ? "block" : "none";
 
-    nombreSelect.required = !esConsejero;
-    document.getElementById("cedula").required = !esConsejero;
+    nombreSelect.required = !esConsejero && !esProfesor;
+    document.getElementById("cedula").required = !esConsejero && !esProfesor;
     nombreConsejeroSelect.required = esConsejero;
     correoConsejeroInput.required = esConsejero;
+    correoProfesorInput.required = esProfesor;
 
-    if (esConsejero) {
+    if (esProfesor) {
+
+        // Un profesor puede dar clases en varios salones a la vez
+        // (ya definidos en Asignaciones), así que aquí no se pide salón.
+        grupoSalon.style.display = "none";
+        salonInput.required = false;
+        salonInput.value = "";
+
+    } else if (esConsejero) {
+
+        grupoSalon.style.display = "block";
+        salonInput.required = true;
 
         // Para consejero(a): el salón solo debe mostrar las opciones
         // donde TODAVÍA falte alguien por registrarse. Si el consejero
@@ -48,6 +66,9 @@ function actualizarCampos() {
         cargarSalonesDisponiblesParaConsejero();
 
     } else {
+
+        grupoSalon.style.display = "block";
+        salonInput.required = true;
 
         // Para estudiante: se restauran los 4 salones fijos, porque
         // siempre puede haber estudiantes de ese salón sin registrar,
@@ -79,30 +100,36 @@ const avisoTipoPreseleccionado = document.getElementById("avisoTipoPreselecciona
 const textoTipoPreseleccionado = document.getElementById("textoTipoPreseleccionado");
 const tituloRegistro = document.getElementById("tituloRegistro");
 
+const TITULOS_POR_TIPO = {
+    consejero: "Registro de Consejero(a)",
+    profesor: "Registro de Profesor(a)",
+    estudiante: "Registro de Estudiante"
+};
+
+const TEXTOS_PRESELECCION = {
+    consejero: "Te estás registrando como Consejero(a).",
+    profesor: "Te estás registrando como Profesor(a).",
+    estudiante: "Te estás registrando como Estudiante."
+};
+
 function preseleccionarTipoDesdeURL() {
     const parametros = new URLSearchParams(window.location.search);
     const tipoParam = (parametros.get("tipo") || "").toLowerCase();
 
-    if (tipoParam === "consejero" || tipoParam === "estudiante") {
+    if (tipoParam === "consejero" || tipoParam === "estudiante" || tipoParam === "profesor") {
         tipoRegistro.value = tipoParam;
 
         if (grupoTipoRegistro && avisoTipoPreseleccionado && textoTipoPreseleccionado) {
             grupoTipoRegistro.style.display = "none";
             avisoTipoPreseleccionado.style.display = "block";
-            textoTipoPreseleccionado.textContent = tipoParam === "consejero"
-                ? "Te estás registrando como Consejero(a)."
-                : "Te estás registrando como Estudiante.";
+            textoTipoPreseleccionado.textContent = TEXTOS_PRESELECCION[tipoParam];
         }
 
         if (tituloRegistro) {
-            tituloRegistro.textContent = tipoParam === "consejero"
-                ? "Registro de Consejero(a)"
-                : "Registro de Estudiante";
+            tituloRegistro.textContent = TITULOS_POR_TIPO[tipoParam];
         }
 
-        document.title = tipoParam === "consejero"
-            ? "Registro de Consejero(a) - Control de Notas"
-            : "Registro de Estudiante - Control de Notas";
+        document.title = `${TITULOS_POR_TIPO[tipoParam]} - Control de Notas`;
     }
 }
 
@@ -329,7 +356,7 @@ nombreConsejeroSelect.addEventListener("change", () => {
 salonInput.addEventListener("change", () => {
     if (tipoRegistro.value === "consejero") {
         cargarConsejerosDisponibles();
-    } else {
+    } else if (tipoRegistro.value === "estudiante") {
         cargarNombresDisponibles();
     }
 });
@@ -339,7 +366,7 @@ salonInput.addEventListener("change", () => {
 if (salonInput.value) {
     if (tipoRegistro.value === "consejero") {
         cargarConsejerosDisponibles();
-    } else {
+    } else if (tipoRegistro.value === "estudiante") {
         cargarNombresDisponibles();
     }
 }
@@ -350,12 +377,14 @@ if (salonInput.value) {
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const esConsejero = tipoRegistro.value === "consejero";
+    const tipo = tipoRegistro.value;
+    const esConsejero = tipo === "consejero";
+    const esProfesor = tipo === "profesor";
     const salon = salonInput.value;
     const password = document.getElementById("password").value;
     const confirmPassword = document.getElementById("confirmPassword").value;
 
-    if (!salon) {
+    if (!esProfesor && !salon) {
         mostrarMensaje("Por favor, seleccione el salón.", "error");
         return;
     }
@@ -370,6 +399,8 @@ form.addEventListener("submit", async (e) => {
 
     if (esConsejero) {
         await registrarConsejero(salon, password);
+    } else if (esProfesor) {
+        await registrarProfesor(password);
     } else {
         await registrarEstudiante(salon, password);
     }
@@ -611,4 +642,95 @@ async function registrarConsejero(salon, password) {
     if (salonInput.value) {
         await cargarConsejerosDisponibles();
     }
+}
+
+// =====================================================
+// REGISTRO DE PROFESOR(A)
+// =====================================================
+//
+// A diferencia del consejero(a) (que usa un "usuario" inventado),
+// el profesor(a) usa su correo REAL desde el inicio (así ya lo
+// espera login.js). Por seguridad, solo puede registrarse si ese
+// correo YA fue agregado antes por el administrador en la pantalla
+// de "Asignaciones de profesores" (tabla "profesores"). Así nadie
+// puede crearse una cuenta de profesor(a) por su cuenta.
+async function registrarProfesor(password) {
+    const correo = correoProfesorInput.value.trim().toLowerCase();
+
+    if (!correo) {
+        btnRegistrar.disabled = false;
+        mostrarMensaje("Por favor, escribe tu correo.", "error");
+        return;
+    }
+
+    // -------------------------------------------------
+    // VERIFICAR QUE EL ADMINISTRADOR YA LO HAYA AGREGADO
+    // -------------------------------------------------
+    const { data: profesorFila, error: errBusqueda } = await supabase
+        .from("profesores")
+        .select("nombre_profesor, registrado")
+        .eq("correo_profesor", correo)
+        .maybeSingle();
+
+    if (errBusqueda) {
+        btnRegistrar.disabled = false;
+        mostrarMensaje("❌ Ocurrió un error al verificar tu correo. Intenta de nuevo.", "error");
+        console.error("Error al verificar profesor:", errBusqueda);
+        return;
+    }
+
+    if (!profesorFila) {
+        btnRegistrar.disabled = false;
+        mostrarMensaje(
+            "⚠️ Tu correo todavía no ha sido agregado por el administrador. Pídele que te agregue primero en 'Asignaciones de profesores' antes de registrarte.",
+            "error"
+        );
+        return;
+    }
+
+    if (profesorFila.registrado) {
+        btnRegistrar.disabled = false;
+        mostrarMensaje(
+            `⚠️ ${profesorFila.nombre_profesor || "Esta cuenta"} ya tiene una cuenta registrada. Si eres tú, inicia sesión en vez de registrarte de nuevo.`,
+            "error"
+        );
+        return;
+    }
+
+    const { error } = await supabase.auth.signUp({
+        email: correo,
+        password,
+        options: {
+            data: {
+                nombre: profesorFila.nombre_profesor,
+                rol: "profesor"
+            }
+        }
+    });
+
+    if (error) {
+        btnRegistrar.disabled = false;
+
+        if (error.message.includes("already registered")) {
+            mostrarMensaje("Este correo ya está registrado. Intenta iniciar sesión.", "error");
+        } else {
+            mostrarMensaje(error.message, "error");
+        }
+        return;
+    }
+
+    // Marca esa fila como ya registrada
+    const { error: errorTabla } = await supabase
+        .from("profesores")
+        .update({ registrado: true, actualizado_en: new Date().toISOString() })
+        .eq("correo_profesor", correo);
+
+    if (errorTabla) {
+        console.error("Error al marcar al profesor como registrado:", errorTabla);
+    }
+
+    btnRegistrar.disabled = false;
+    mostrarMensaje("✅ Profesor(a) registrado(a) correctamente. Ya puedes iniciar sesión.", "exito");
+    form.reset();
+    actualizarCampos();
 }

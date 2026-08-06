@@ -16,7 +16,7 @@
     <!-- Vista previa al compartir el enlace -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="Registro | Control de Notas - C.E.B.G. El Jiral">
-    <meta property="og:description" content="Crea tu cuenta como estudiante o consejero(a) en el sistema de Control de Notas.">
+    <meta property="og:description" content="Crea tu cuenta como estudiante, consejero(a) o profesor(a) en el sistema de Control de Notas.">
     <meta property="og:image" content="https://notasjiral.netlify.app/img/registro-og-image.jpg">
     <meta property="og:url" content="https://notasjiral.netlify.app/pages/registro.html">
     <meta name="twitter:card" content="summary_large_image">
@@ -198,6 +198,7 @@
                     <select id="tipoRegistro" name="tipoRegistro" required>
                         <option value="estudiante">Estudiante</option>
                         <option value="consejero">Consejero(a)</option>
+                        <option value="profesor">Profesor(a)</option>
                     </select>
 
                 </div>
@@ -215,14 +216,15 @@
                     </a>
                 </div>
 
-                <!-- SALÓN -->
-                <div class="grupo">
+                <!-- SALÓN (no aplica a Profesor(a): un profesor puede dar en varios salones,
+                     eso ya se define en la pantalla de Asignaciones, no aquí) -->
+                <div class="grupo" id="grupoSalon">
 
                     <label for="salon">
                         Salón
                     </label>
 
-                    <select id="salon" name="salon" required>
+                    <select id="salon" name="salon">
                         <option value="">Seleccione un salón</option>
                         <option value="8A">8°A</option>
                         <option value="9A">9°A</option>
@@ -322,6 +324,34 @@
                         <div class="nota">
                             Este es tu usuario para iniciar sesión (no es un correo real);
                             úsalo junto con la contraseña que elijas abajo.
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- CAMPOS DE PROFESOR(A) -->
+                <div id="camposProfesor" style="display:none;">
+
+                    <div class="grupo">
+
+                        <label for="correoProfesor">
+                            Correo del profesor(a)
+                        </label>
+
+                        <input
+                            type="email"
+                            id="correoProfesor"
+                            name="correoProfesor"
+                            placeholder="profesor@correo.com"
+                            autocomplete="username"
+                        >
+
+                        <div class="nota" id="notaCorreoProfesor">
+                            Debe ser el mismo correo que el administrador ya agregó en
+                            "Asignaciones de profesores". Si todavía no te ha agregado,
+                            pídeselo antes de registrarte.
                         </div>
 
                     </div>

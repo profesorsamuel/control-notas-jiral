@@ -29,7 +29,9 @@ function etiquetaCasilla(tipo, numero) {
 // =========================================================
 
 let correoProfesor = "";
+let nombreProfesor = "";
 let misAsignaciones = []; // [{materia, salon}, ...] -- solo lo que este profesor da
+let bloqueoActual = false; // ¿la materia/salón cargada está bloqueada para estudiantes?
 
 // El acceso a este panel se decide igual que en consejero.js:
 // por pertenecer a la tabla correspondiente (profesor_materias),
@@ -64,6 +66,14 @@ async function verificarSesion() {
     }
 
     misAsignaciones = materias;
+
+    const { data: perfilProfesor } = await supabase
+        .from("profesores")
+        .select("nombre_profesor")
+        .eq("correo_profesor", correoProfesor)
+        .maybeSingle();
+    nombreProfesor = perfilProfesor?.nombre_profesor || correoProfesor;
+
     return true;
 }
 
@@ -84,6 +94,9 @@ const tablaNotasGrupo = document.getElementById("tablaNotasGrupo");
 const btnGuardarNotasGrupo = document.getElementById("btnGuardarNotasGrupo");
 const estadoGuardadoNotas = document.getElementById("estadoGuardadoNotas");
 const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
+const checkBloqueoEstudiantes = document.getElementById("checkBloqueoEstudiantes");
+const btnExportarPdf = document.getElementById("btnExportarPdf");
+const btnExportarJpg = document.getElementById("btnExportarJpg");
 
 function poblarSelectSalon() {
     const salones = [...new Set(misAsignaciones.map((a) => a.salon))].sort();
@@ -406,6 +419,14 @@ btnCargarSalon?.addEventListener("click", async () => {
         return { tipo: c.slice(0, sep), numero: parseInt(c.slice(sep + 1), 10) };
     }).sort((a, b) => a.tipo !== b.tipo ? (a.tipo === "apreciacion" ? -1 : 1) : a.numero - b.numero);
 
+    const { data: filaAsignacion } = await supabase
+        .from("profesor_materias")
+        .select("bloqueado_para_estudiantes")
+        .eq("correo_profesor", correoProfesor).eq("materia", materia).eq("salon", salon)
+        .maybeSingle();
+    bloqueoActual = !!filaAsignacion?.bloqueado_para_estudiantes;
+    if (checkBloqueoEstudiantes) checkBloqueoEstudiantes.checked = bloqueoActual;
+
     renderTabla();
     bloqueTablaNotas.style.display = "block";
 
@@ -467,7 +488,7 @@ async function guardarNotas(esAutomatico = false) {
         const item = aGuardar[i];
 
         if (item.notaId) {
-            const { error } = await supabase.from("notas").update({ nota: item.nota, fecha: hoy }).eq("id", item.notaId);
+            const { error } = await supabase.from("notas").update({ nota: item.nota, fecha: hoy, origen: "profesor" }).eq("id", item.notaId);
             if (error) { fallidas++; } else { exitosas++; item.input.dataset.ultimoValorGuardado = String(item.nota); }
         } else {
             const { data: insertado, error } = await supabase.from("notas").insert([{
@@ -482,7 +503,8 @@ async function guardarNotas(esAutomatico = false) {
                 nota: item.nota,
                 observacion: `Agregada por el/la docente (${correoProfesor})`,
                 trimestre,
-                estado: "Activa"
+                estado: "Activa",
+                origen: "profesor"
             }]).select("id");
 
             if (error) { fallidas++; }
@@ -509,7 +531,39 @@ async function guardarNotas(esAutomatico = false) {
     if (!esAutomatico) btnCargarSalon.click();
 }
 
-btnGuardarNotasGrupo?.addEventListener("click", () => guardarNotas(false));
+checkBloqueoEstudiantes?.addEventListener("change", async () => {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    if (!salon || !materia) return;
+
+    bloqueoActual = checkBloqueoEstudiantes.checked;
+    const { error } = await supabase
+        .from("profesor_materias")
+        .update({ bloqueado_para_estudiantes: bloqueoActual })
+        .eq("correo_profesor", correoProfesor).eq("materia", materia).eq("salon", salon);
+
+    if (error) {
+        estadoGuardadoNotas.textContent = "❌ No se pudo guardar el candado: " + error.message;
+        estadoGuardadoNotas.className = "small text-danger";
+        checkBloqueoEstudiantes.checked = !bloqueoActual;
+        bloqueoActual = !bloqueoActual;
+        return;
+    }
+
+    estadoGuardadoNotas.textContent = bloqueoActual
+        ? "🔒 Los estudiantes ya no pueden agregar notas en esta materia/salón."
+        : "🔓 Los estudiantes pueden volver a agregar notas donde no haya nota tuya.";
+    estadoGuardadoNotas.className = "small text-success";
+});
+
+// Auto-guardado real: cada celda se guarda sola al salir de ella (blur)
+// o al presionar Enter, sin necesidad de un botón "Guardar".
+tablaNotasGrupo?.addEventListener("blur", (e) => {
+    if (e.target.classList?.contains("input-nota-grupo")) guardarNotas(true);
+}, true);
+
+// Respaldo por si algo quedó sin guardar (ej. el profesor cerró la pestaña
+// mientras seguía escribiendo en la misma celda sin salir de ella).
 setInterval(() => {
     if (bloqueTablaNotas && bloqueTablaNotas.style.display !== "none") guardarNotas(true);
 }, 30000);
@@ -619,6 +673,146 @@ btnGuardarTrimestre?.addEventListener("click", async () => {
         estadoTrimestre.textContent = "✅ Guardado";
     }
     setTimeout(() => { estadoTrimestre.textContent = ""; }, 2000);
+});
+
+// =========================================================
+// EXPORTAR REPORTE (PDF y JPG) — membrete, notas malas en rojo, firma
+// =========================================================
+
+function construirReporteHtml() {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const fechaHoyTexto = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
+
+    // Clonamos la tabla actual tal cual está en pantalla (con sus promedios
+    // ya calculados), pero sin los botones de eliminar columna ni los
+    // inputs editables — solo texto, para que se vea limpio al exportar.
+    const tablaOriginal = document.querySelector("#bloqueTablaNotas table");
+    const tablaClon = tablaOriginal.cloneNode(true);
+
+    tablaClon.querySelectorAll(".btn-eliminar-columna").forEach((b) => b.remove());
+    tablaClon.querySelectorAll("input.input-nota-grupo").forEach((input) => {
+        const valor = input.value.trim();
+        const numero = valor === "" ? null : parseFloat(valor);
+        const td = document.createElement("td");
+        td.textContent = valor === "" ? "–" : valor;
+        td.style.textAlign = "center";
+        td.style.padding = "6px";
+        if (numero !== null && numero < PROMEDIO_MINIMO_APROBAR) {
+            td.style.color = "#c0392b";
+            td.style.fontWeight = "bold";
+        }
+        input.closest("td").replaceWith(td);
+    });
+    tablaClon.querySelectorAll("input.input-tema-columna").forEach((input) => {
+        const th = document.createElement("th");
+        th.textContent = input.value.trim();
+        th.style.fontWeight = "normal";
+        th.style.fontSize = "11px";
+        input.closest("th").replaceWith(th);
+    });
+    // Notas malas también en la columna de promedio final (ya la marca table-danger,
+    // reforzamos el color por si el exportador no respeta las clases de Bootstrap).
+    tablaClon.querySelectorAll(".celda-prom-final").forEach((td) => {
+        const val = parseFloat(td.textContent);
+        if (!isNaN(val) && val < PROMEDIO_MINIMO_APROBAR) {
+            td.style.color = "#c0392b";
+            td.style.fontWeight = "bold";
+        }
+    });
+
+    const contenedor = document.createElement("div");
+    contenedor.style.cssText = "background:#fff; padding:24px; width:1000px; font-family:Arial, sans-serif; color:#222;";
+    contenedor.innerHTML = `
+        <div style="text-align:center; margin-bottom:14px;">
+            <h2 style="margin:0; color:#1f4e79;">🏫 CENTRO BÁSICO GENERAL EL JIRAL</h2>
+            <p style="margin:4px 0 0; font-size:14px;">Reporte de notas · ${fechaHoyTexto}</p>
+        </div>
+        <table style="width:100%; margin-bottom:14px; font-size:13px;">
+            <tr>
+                <td><strong>Profesor(a):</strong> ${escapeHtml(nombreProfesor)}</td>
+                <td><strong>Materia:</strong> ${escapeHtml(materia)}</td>
+            </tr>
+            <tr>
+                <td><strong>Salón:</strong> ${escapeHtml(salon)}</td>
+                <td><strong>Trimestre activo:</strong> ${escapeHtml(trimestre)}</td>
+            </tr>
+        </table>
+        <div id="tablaReporteContenedor"></div>
+        <div style="margin-top:60px; display:flex; justify-content:center;">
+            <div style="text-align:center;">
+                <div style="border-top:1px solid #333; width:280px; margin-bottom:6px;"></div>
+                <div style="font-size:13px;">Firma del/de la docente</div>
+            </div>
+        </div>
+    `;
+    contenedor.querySelector("#tablaReporteContenedor").appendChild(tablaClon);
+    tablaClon.style.width = "100%";
+    tablaClon.style.borderCollapse = "collapse";
+    tablaClon.querySelectorAll("th, td").forEach((cell) => {
+        cell.style.border = "1px solid #ccc";
+    });
+
+    return contenedor;
+}
+
+async function generarCanvasReporte() {
+    const contenedor = construirReporteHtml();
+    contenedor.style.position = "fixed";
+    contenedor.style.left = "-99999px";
+    contenedor.style.top = "0";
+    document.body.appendChild(contenedor);
+
+    try {
+        const canvas = await html2canvas(contenedor, { scale: 3, backgroundColor: "#ffffff" });
+        return canvas;
+    } finally {
+        contenedor.remove();
+    }
+}
+
+btnExportarPdf?.addEventListener("click", async () => {
+    if (!selectSalonNota.value || !selectMateriaNota.value) return alert("Primero carga un salón y materia.");
+    btnExportarPdf.disabled = true;
+    btnExportarPdf.textContent = "Generando PDF...";
+    try {
+        const canvas = await generarCanvasReporte();
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+        const w = canvas.width * ratio;
+        const h = canvas.height * ratio;
+        pdf.addImage(canvas.toDataURL("image/jpeg", 1.0), "JPEG", (pageWidth - w) / 2, 20, w, h);
+        pdf.save(`Notas_${selectMateriaNota.value}_${selectSalonNota.value}.pdf`);
+    } catch (err) {
+        console.error(err);
+        alert("No se pudo generar el PDF: " + err.message);
+    } finally {
+        btnExportarPdf.disabled = false;
+        btnExportarPdf.textContent = "📄 Descargar PDF";
+    }
+});
+
+btnExportarJpg?.addEventListener("click", async () => {
+    if (!selectSalonNota.value || !selectMateriaNota.value) return alert("Primero carga un salón y materia.");
+    btnExportarJpg.disabled = true;
+    btnExportarJpg.textContent = "Generando JPG...";
+    try {
+        const canvas = await generarCanvasReporte();
+        const enlace = document.createElement("a");
+        enlace.download = `Notas_${selectMateriaNota.value}_${selectSalonNota.value}.jpg`;
+        enlace.href = canvas.toDataURL("image/jpeg", 1.0);
+        enlace.click();
+    } catch (err) {
+        console.error(err);
+        alert("No se pudo generar el JPG: " + err.message);
+    } finally {
+        btnExportarJpg.disabled = false;
+        btnExportarJpg.textContent = "🖼️ Descargar JPG";
+    }
 });
 
 // =========================================================

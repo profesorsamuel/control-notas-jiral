@@ -83,6 +83,7 @@ let datosEstudiante = null;
 
 let columnasPorMateria = {};
 let notasPorMateria = {};
+let materiasBloqueadas = new Set(); // materias donde el profesor apagó la edición del estudiante
 let temasOficialesPorMateria = {};
 let companerosPorCasilla = {};
 let creadoPorPorCasilla = {};
@@ -416,11 +417,26 @@ async function cargarCompanerosConNotas(trimestre) {
     });
 }
 
+async function cargarMateriasBloqueadas() {
+    materiasBloqueadas = new Set();
+    if (!miEstudiante?.salon) return;
+
+    const { data, error } = await supabase
+        .from("profesor_materias")
+        .select("materia")
+        .eq("salon", miEstudiante.salon)
+        .eq("bloqueado_para_estudiantes", true);
+
+    if (error) { console.warn("⚠️ No se pudo revisar materias bloqueadas:", error); return; }
+    (data || []).forEach((fila) => materiasBloqueadas.add(fila.materia));
+}
+
 async function cargarTodo(trimestre) {
     await Promise.all([
         cargarColumnas(trimestre),
         cargarNotasEstudiante(trimestre),
-        cargarCompanerosConNotas(trimestre)
+        cargarCompanerosConNotas(trimestre),
+        cargarMateriasBloqueadas()
     ]);
     render();
 }
@@ -471,8 +487,14 @@ function celdaNotaHtml(materia, tipo, numero) {
         `;
     }
 
+    const notaEsDelProfesor = nota && nota.origen === "profesor";
+    const materiaBloqueada = materiasBloqueadas.has(materia);
+    // El estudiante no puede tocar una nota que puso el profesor, ni agregar
+    // una nueva si el profesor bloqueó la materia y todavía no hay nota ahí.
+    const bloqueadaParaEstudiante = notaEsDelProfesor || (!nota && materiaBloqueada);
+
     const valor = nota?.nota ?? "";
-    const disabled = soloLectura ? "disabled" : "";
+    const disabled = (soloLectura || bloqueadaParaEstudiante) ? "disabled" : "";
 
     const nombres = companerosPorCasilla[clave] || [];
     const faltaNota = !nota && nombres.length > 0;
@@ -542,9 +564,18 @@ function celdaNotaHtml(materia, tipo, numero) {
         `;
     }
 
-    const tituloTema = temaOficial
+    let tituloTema = temaOficial
         ? `Tema asignado por el profesor(a): ${escapeHtml(temaOficial)}`
         : (nota?.tema ? `Tema: ${escapeHtml(nota.tema)}` : "");
+
+    let candadoIcono = "";
+    if (notaEsDelProfesor) {
+        tituloTema = `🔒 Nota puesta por el profesor(a). No se puede modificar. ${tituloTema}`.trim();
+        candadoIcono = `<span class="icono-candado" title="Nota puesta por el profesor(a)">🔒</span>`;
+    } else if (!nota && materiaBloqueada && !soloLectura) {
+        tituloTema = `🔒 El profesor(a) desactivó agregar notas nuevas en esta materia.`;
+        candadoIcono = `<span class="icono-candado" title="El profesor(a) desactivó agregar notas nuevas aquí">🔒</span>`;
+    }
 
     const claseGrupo = tipo === "apreciacion" ? "grupo-apreciacion" : "grupo-ejercicio";
 
@@ -563,9 +594,10 @@ function celdaNotaHtml(materia, tipo, numero) {
                     ${disabled}
                 >
                 <div class="celda-nota-acciones">
+                    ${candadoIcono}
                     ${avisoCompaneros}
-                    ${botonTema}
-                    ${botonBorrar}
+                    ${notaEsDelProfesor ? "" : botonTema}
+                    ${notaEsDelProfesor ? "" : botonBorrar}
                 </div>
             </div>
         </td>
@@ -682,6 +714,10 @@ async function editarTemaCelda(materia, tipo, numero) {
         mostrarToast("✍️ Primero escribe la nota");
         return;
     }
+    if (nota.origen === "profesor") {
+        mostrarToast("🔒 Esta nota la puso el profesor(a), no se puede modificar");
+        return;
+    }
 
     const actual = nota.tema || "";
     const nuevo = window.prompt("Tema de esta actividad (opcional):", actual);
@@ -719,6 +755,17 @@ async function guardarCelda(inputEl) {
     const notaExistente = notasPorMateria[materia]?.[tipo]?.[numero] || null;
 
     const contenedorCelda = inputEl.closest(".celda-nota");
+
+    if (notaExistente && notaExistente.origen === "profesor") {
+        mostrarToast("🔒 Esta nota la puso el profesor(a), no se puede modificar");
+        inputEl.value = notaExistente.nota;
+        return;
+    }
+    if (!notaExistente && materiasBloqueadas.has(materia)) {
+        mostrarToast("🔒 El profesor(a) desactivó agregar notas nuevas en esta materia");
+        inputEl.value = "";
+        return;
+    }
 
     if (valorTexto === "") {
         if (!notaExistente) return;
@@ -778,7 +825,8 @@ async function guardarCelda(inputEl) {
                 nota: valor,
                 observacion: null,
                 trimestre: trimestreActivo,
-                estado: "Activa"
+                estado: "Activa",
+                origen: "estudiante"
             }])
             .select()
             .single();
@@ -888,7 +936,7 @@ async function eliminarColumna(materia, tipo, numero) {
 
     const { data: notasAhi, error: errConsulta } = await supabase
         .from("notas")
-        .select("id, correo")
+        .select("id, correo, origen")
         .eq("materia", materia)
         .eq("tipo", tipo)
         .eq("numero", numero)
@@ -901,7 +949,14 @@ async function eliminarColumna(materia, tipo, numero) {
     }
 
     const filas = notasAhi || [];
-    const soloLaMia = filas.length === 1 && filas[0].correo === usuarioActual.email;
+    const soloLaMia = filas.length === 1
+        && filas[0].correo === usuarioActual.email
+        && filas[0].origen !== "profesor";
+
+    if (filas.length > 0 && filas[0].origen === "profesor" && filas[0].correo === usuarioActual.email) {
+        mostrarToast("🔒 Esta nota la puso el profesor(a), no se puede eliminar");
+        return;
+    }
 
     if (filas.length > 0 && !soloLaMia) {
         alert(
@@ -960,6 +1015,8 @@ async function guardarTodosLosCambios() {
 
     const inputs = Array.from(document.querySelectorAll(".input-nota"));
     const filas = [];
+    let omitidasPorProfesor = 0;
+    let omitidasPorBloqueo = 0;
 
     inputs.forEach((input) => {
         const valorTexto = input.value.trim();
@@ -971,7 +1028,11 @@ async function guardarTodosLosCambios() {
         const materia = input.dataset.materia;
         const tipo = input.dataset.tipo;
         const numero = Number(input.dataset.numero);
-        const esNueva = !notasPorMateria[materia]?.[tipo]?.[numero];
+        const notaExistente = notasPorMateria[materia]?.[tipo]?.[numero];
+        const esNueva = !notaExistente;
+
+        if (notaExistente && notaExistente.origen === "profesor") { omitidasPorProfesor++; return; }
+        if (esNueva && materiasBloqueadas.has(materia)) { omitidasPorBloqueo++; return; }
 
         const fila = {
             correo: usuarioActual.email,
@@ -981,7 +1042,8 @@ async function guardarTodosLosCambios() {
             fecha: fechaHoy(),
             nota: valor,
             trimestre: trimestreActivo,
-            estado: "Activa"
+            estado: "Activa",
+            origen: "estudiante"
         };
 
         if (esNueva) {
@@ -991,8 +1053,15 @@ async function guardarTodosLosCambios() {
         filas.push(fila);
     });
 
+    if (omitidasPorProfesor > 0 || omitidasPorBloqueo > 0) {
+        const partes = [];
+        if (omitidasPorProfesor > 0) partes.push(`${omitidasPorProfesor} puesta(s) por el profesor(a)`);
+        if (omitidasPorBloqueo > 0) partes.push(`${omitidasPorBloqueo} en materia(s) bloqueada(s)`);
+        mostrarToast(`🔒 Se omitieron ${partes.join(" y ")}`);
+    }
+
     if (filas.length === 0) {
-        mostrarToast("No hay calificaciones para guardar");
+        if (omitidasPorProfesor === 0 && omitidasPorBloqueo === 0) mostrarToast("No hay calificaciones para guardar");
         return;
     }
 
