@@ -129,6 +129,7 @@ const btnGuardarNotasGrupo = document.getElementById("btnGuardarNotasGrupo");
 const estadoGuardadoNotas = document.getElementById("estadoGuardadoNotas");
 const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
 const checkBloqueoEstudiantes = document.getElementById("checkBloqueoEstudiantes");
+const checkSoloColumnaActual = document.getElementById("checkSoloColumnaActual");
 const btnExportarPdf = document.getElementById("btnExportarPdf");
 const btnExportarJpg = document.getElementById("btnExportarJpg");
 
@@ -310,8 +311,26 @@ function renderTabla() {
 
     const claveSel = claveCasilla(selectTipoNota.value, parseInt(inputNumeroNota.value, 10));
 
+    // Si la casilla que el docente seleccionó arriba (Tipo + Número)
+    // todavía no tiene ninguna nota guardada, no aparecerá en
+    // casillasTabla; la agregamos igual para que la columna esté lista
+    // para escribir desde el primer momento.
+    if (!casillasTabla.some((c) => claveCasilla(c.tipo, c.numero) === claveSel)) {
+        casillasTabla.push({ tipo: selectTipoNota.value, numero: parseInt(inputNumeroNota.value, 10) });
+        casillasTabla.sort((a, b) => a.tipo !== b.tipo ? (a.tipo === "apreciacion" ? -1 : 1) : a.numero - b.numero);
+    }
+
+    // Si el docente marcó "Mostrar solo la casilla que estoy editando",
+    // ocultamos las demás columnas de nota y dejamos únicamente la que
+    // está seleccionada arriba (Tipo + Número). Así en el celular no hay
+    // riesgo de escribir por accidente en la columna vecina.
+    const soloColumnaActual = !!checkSoloColumnaActual?.checked;
+    const columnasVisibles = soloColumnaActual
+        ? casillasTabla.filter((c) => claveCasilla(c.tipo, c.numero) === claveSel)
+        : casillasTabla;
+
     let htmlCabecera = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
-    casillasTabla.forEach((c) => {
+    columnasVisibles.forEach((c) => {
         const sel = claveCasilla(c.tipo, c.numero) === claveSel;
         htmlCabecera += `
             <th class="text-center small ${sel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
@@ -325,7 +344,7 @@ function renderTabla() {
     cabeceraNotasGrupo.innerHTML = htmlCabecera;
 
     let htmlTemas = `<th class="col-fija col-fija-num"></th><th class="col-fija col-fija-nombre small text-muted fw-normal">Tema de cada casilla:</th>`;
-    casillasTabla.forEach((c) => {
+    columnasVisibles.forEach((c) => {
         const tema = obtenerTemaCasilla(c.tipo, c.numero);
         htmlTemas += `
             <th style="padding:2px 4px;">
@@ -341,7 +360,7 @@ function renderTabla() {
         const sinCuenta = !est.correo;
         const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
 
-        const columnas = casillasTabla.map((c, colIndex) => {
+        const columnas = columnasVisibles.map((c, colIndex) => {
             const claveCas = claveCasilla(c.tipo, c.numero);
             const n = historial[claveCas];
             const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
@@ -412,6 +431,20 @@ function renderTabla() {
         });
     });
 }
+
+// Si el docente cambia si quiere ver "solo la casilla actual" o cambia
+// cuál casilla está editando (Tipo / Número), volvemos a dibujar la
+// tabla al instante con los datos que ya están en memoria (sin tener
+// que volver a presionar "Cargar salón").
+checkSoloColumnaActual?.addEventListener("change", () => {
+    if (grupoActual.length > 0) renderTabla();
+});
+selectTipoNota?.addEventListener("change", () => {
+    if (grupoActual.length > 0) renderTabla();
+});
+inputNumeroNota?.addEventListener("input", () => {
+    if (grupoActual.length > 0) renderTabla();
+});
 
 btnCargarSalon?.addEventListener("click", async () => {
     const salon = selectSalonNota.value;
