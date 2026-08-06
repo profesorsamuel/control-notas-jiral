@@ -130,6 +130,12 @@ const estadoGuardadoNotas = document.getElementById("estadoGuardadoNotas");
 const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
 const checkBloqueoEstudiantes = document.getElementById("checkBloqueoEstudiantes");
 const checkSoloColumnaActual = document.getElementById("checkSoloColumnaActual");
+const checkMostrarPromedios = document.getElementById("checkMostrarPromedios");
+const btnElegirColumnas = document.getElementById("btnElegirColumnas");
+const panelElegirColumnas = document.getElementById("panelElegirColumnas");
+const listaChecksColumnas = document.getElementById("listaChecksColumnas");
+const btnColumnasSeleccionarTodas = document.getElementById("btnColumnasSeleccionarTodas");
+const btnColumnasSeleccionarNinguna = document.getElementById("btnColumnasSeleccionarNinguna");
 const btnExportarPdf = document.getElementById("btnExportarPdf");
 const btnExportarJpg = document.getElementById("btnExportarJpg");
 
@@ -301,6 +307,67 @@ function recalcularPromedios() {
     });
 }
 
+// "actual" = solo la casilla seleccionada arriba. "todas" = todas las
+// columnas juntas. "manual" = el docente eligió a mano cuáles columnas
+// quiere ver (por ejemplo, solo Ejer. 4 y Ejer. 6).
+let modoColumnas = "actual";
+let columnasManualOcultas = new Set(); // claves ocultas cuando modoColumnas === "manual"
+
+function renderizarListaChecksColumnas() {
+    if (!listaChecksColumnas) return;
+    listaChecksColumnas.innerHTML = casillasTabla.map((c) => {
+        const clave = claveCasilla(c.tipo, c.numero);
+        const marcado = !columnasManualOcultas.has(clave);
+        return `
+            <label class="form-check" style="display:flex; align-items:center; gap:4px; margin:0;">
+                <input type="checkbox" class="form-check-input check-columna-manual" data-clave="${clave}" ${marcado ? "checked" : ""} style="margin:0;">
+                <span class="small">${etiquetaCasilla(c.tipo, c.numero)}</span>
+            </label>`;
+    }).join("");
+
+    listaChecksColumnas.querySelectorAll(".check-columna-manual").forEach((chk) => {
+        chk.addEventListener("change", () => {
+            const clave = chk.dataset.clave;
+            if (chk.checked) columnasManualOcultas.delete(clave);
+            else columnasManualOcultas.add(clave);
+            modoColumnas = "manual";
+            if (checkSoloColumnaActual) checkSoloColumnaActual.checked = false;
+            renderTabla();
+        });
+    });
+}
+
+btnElegirColumnas?.addEventListener("click", () => {
+    if (!panelElegirColumnas) return;
+    const visible = panelElegirColumnas.style.display !== "none";
+    panelElegirColumnas.style.display = visible ? "none" : "block";
+});
+
+btnColumnasSeleccionarTodas?.addEventListener("click", () => {
+    columnasManualOcultas.clear();
+    modoColumnas = "manual";
+    if (checkSoloColumnaActual) checkSoloColumnaActual.checked = false;
+    renderizarListaChecksColumnas();
+    renderTabla();
+});
+
+btnColumnasSeleccionarNinguna?.addEventListener("click", () => {
+    casillasTabla.forEach((c) => columnasManualOcultas.add(claveCasilla(c.tipo, c.numero)));
+    modoColumnas = "manual";
+    if (checkSoloColumnaActual) checkSoloColumnaActual.checked = false;
+    renderizarListaChecksColumnas();
+    renderTabla();
+});
+
+checkSoloColumnaActual?.addEventListener("change", () => {
+    modoColumnas = checkSoloColumnaActual.checked ? "actual" : "todas";
+    if (grupoActual.length > 0) renderTabla();
+});
+
+checkMostrarPromedios?.addEventListener("change", () => {
+    if (grupoActual.length > 0) renderTabla();
+});
+
 function renderTabla() {
     if (grupoActual.length === 0) {
         cabeceraNotasGrupo.innerHTML = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
@@ -320,14 +387,22 @@ function renderTabla() {
         casillasTabla.sort((a, b) => a.tipo !== b.tipo ? (a.tipo === "apreciacion" ? -1 : 1) : a.numero - b.numero);
     }
 
-    // Si el docente marcó "Mostrar solo la casilla que estoy editando",
-    // ocultamos las demás columnas de nota y dejamos únicamente la que
-    // está seleccionada arriba (Tipo + Número). Así en el celular no hay
-    // riesgo de escribir por accidente en la columna vecina.
-    const soloColumnaActual = !!checkSoloColumnaActual?.checked;
-    const columnasVisibles = soloColumnaActual
-        ? casillasTabla.filter((c) => claveCasilla(c.tipo, c.numero) === claveSel)
-        : casillasTabla;
+    // Según el modo elegido, decidimos qué columnas de nota mostrar:
+    // "actual" = solo la casilla seleccionada arriba; "manual" = las que
+    // el docente marcó a mano en el panel de "Elegir columnas
+    // específicas"; "todas" = la tabla completa.
+    let columnasVisibles;
+    if (modoColumnas === "manual") {
+        columnasVisibles = casillasTabla.filter((c) => !columnasManualOcultas.has(claveCasilla(c.tipo, c.numero)));
+    } else if (modoColumnas === "actual") {
+        columnasVisibles = casillasTabla.filter((c) => claveCasilla(c.tipo, c.numero) === claveSel);
+    } else {
+        columnasVisibles = casillasTabla;
+    }
+
+    const mostrarProm = !!checkMostrarPromedios?.checked;
+
+    renderizarListaChecksColumnas();
 
     let htmlCabecera = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
     columnasVisibles.forEach((c) => {
@@ -338,9 +413,11 @@ function renderTabla() {
                 <button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna">🗑️</button>
             </th>`;
     });
-    htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Aprec.</th>`;
-    htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Ejer.</th>`;
-    htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
+    if (mostrarProm) {
+        htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Aprec.</th>`;
+        htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Ejer.</th>`;
+        htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
+    }
     cabeceraNotasGrupo.innerHTML = htmlCabecera;
 
     let htmlTemas = `<th class="col-fija col-fija-num"></th><th class="col-fija col-fija-nombre small text-muted fw-normal">Tema de cada casilla:</th>`;
@@ -353,7 +430,7 @@ function renderTabla() {
                     value="${escapeHtml(tema)}" placeholder="Ej: Proyecto 2" style="font-size:11px; font-weight:normal;">
             </th>`;
     });
-    htmlTemas += `<th></th><th></th><th></th>`;
+    if (mostrarProm) htmlTemas += `<th></th><th></th><th></th>`;
     cabeceraTemasGrupo.innerHTML = htmlTemas;
 
     tablaNotasGrupo.innerHTML = grupoActual.map((est, i) => {
@@ -380,9 +457,10 @@ function renderTabla() {
                 <td class="col-fija col-fija-num">${i + 1}</td>
                 <td class="col-fija col-fija-nombre">${escapeHtml(est.nombre)}${sinCuenta ? ' <span class="badge bg-warning text-dark">Sin cuenta</span>' : ""}</td>
                 ${columnas}
+                ${mostrarProm ? `
                 <td class="celda-prom-apr text-center fw-bold">–</td>
                 <td class="celda-prom-eje text-center fw-bold">–</td>
-                <td class="celda-prom-final text-center fw-bold table-success bg-opacity-25">–</td>
+                <td class="celda-prom-final text-center fw-bold table-success bg-opacity-25">–</td>` : ""}
             </tr>`;
     }).join("");
 
@@ -432,13 +510,9 @@ function renderTabla() {
     });
 }
 
-// Si el docente cambia si quiere ver "solo la casilla actual" o cambia
-// cuál casilla está editando (Tipo / Número), volvemos a dibujar la
-// tabla al instante con los datos que ya están en memoria (sin tener
-// que volver a presionar "Cargar salón").
-checkSoloColumnaActual?.addEventListener("change", () => {
-    if (grupoActual.length > 0) renderTabla();
-});
+// Si el docente cambia cuál casilla está editando (Tipo / Número),
+// volvemos a dibujar la tabla al instante con los datos que ya están en
+// memoria (sin tener que volver a presionar "Cargar salón").
 selectTipoNota?.addEventListener("change", () => {
     if (grupoActual.length > 0) renderTabla();
 });
