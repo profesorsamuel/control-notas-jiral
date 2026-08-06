@@ -461,8 +461,9 @@ function celdaNotaHtml(materia, tipo, numero) {
     const temaOficial = temasOficialesPorMateria[materia]?.[tipo]?.[numero];
 
     if (nota && nota.estado === "Intencional") {
+        const claseGrupoFalta = tipo === "apreciacion" ? "grupo-apreciacion" : "grupo-ejercicio";
         return `
-            <td>
+            <td class="${claseGrupoFalta}">
                 <div class="celda-nota solo-lectura" title="Falta marcada por el consejero(a) (cuenta como 0.0)">
                     ⚠️
                 </div>
@@ -542,8 +543,10 @@ function celdaNotaHtml(materia, tipo, numero) {
         ? `Tema asignado por el profesor(a): ${escapeHtml(temaOficial)}`
         : (nota?.tema ? `Tema: ${escapeHtml(nota.tema)}` : "");
 
+    const claseGrupo = tipo === "apreciacion" ? "grupo-apreciacion" : "grupo-ejercicio";
+
     return `
-        <td class="${faltaNota ? "celda-falta" : ""}"${tituloTema ? ` title="${tituloTema}"` : ""}>
+        <td class="${claseGrupo}${faltaNota ? " celda-falta" : ""}"${tituloTema ? ` title="${tituloTema}"` : ""}>
             <div class="celda-nota">
                 <input
                     type="number"
@@ -584,18 +587,18 @@ function tablaConsolidadaHtml() {
 
     let filaHead1 = `<tr>`;
     filaHead1 += `<th rowspan="2" class="col-materia">Materia</th>`;
-    filaHead1 += `<th colspan="${maxApr + 1}">Apreciación</th>`;
-    filaHead1 += `<th rowspan="2">Prom.<br>Apr.</th>`;
-    filaHead1 += `<th colspan="${maxEje + 1}">Ejercicio</th>`;
-    filaHead1 += `<th rowspan="2">Prom.<br>Eje.</th>`;
-    filaHead1 += `<th rowspan="2">Promedio<br>Final</th>`;
+    filaHead1 += `<th colspan="${maxApr + 1}" class="th-grupo th-apreciacion">Apreciación</th>`;
+    filaHead1 += `<th rowspan="2" class="th-prom">Prom.<br>Apr.</th>`;
+    filaHead1 += `<th colspan="${maxEje + 1}" class="th-grupo th-ejercicio">Ejercicio</th>`;
+    filaHead1 += `<th rowspan="2" class="th-prom">Prom.<br>Eje.</th>`;
+    filaHead1 += `<th rowspan="2" class="th-final">Promedio<br>Final</th>`;
     filaHead1 += `</tr>`;
 
     let filaHead2 = `<tr>`;
-    for (let i = 1; i <= maxApr; i++) filaHead2 += `<th>${i}</th>`;
-    filaHead2 += `<th class="col-agregar">+</th>`;
-    for (let i = 1; i <= maxEje; i++) filaHead2 += `<th>${i}</th>`;
-    filaHead2 += `<th class="col-agregar">+</th>`;
+    for (let i = 1; i <= maxApr; i++) filaHead2 += `<th class="th-apreciacion-num">${i}</th>`;
+    filaHead2 += `<th class="col-agregar th-apreciacion-num">+</th>`;
+    for (let i = 1; i <= maxEje; i++) filaHead2 += `<th class="th-ejercicio-num">${i}</th>`;
+    filaHead2 += `<th class="col-agregar th-ejercicio-num">+</th>`;
     filaHead2 += `</tr>`;
 
     let filas = "";
@@ -611,20 +614,24 @@ function tablaConsolidadaHtml() {
         for (let i = 1; i <= maxApr; i++) {
             filas += cols.apreciacion.includes(i)
                 ? celdaNotaHtml(materia, "apreciacion", i)
-                : `<td class="celda-vacia"></td>`;
+                : `<td class="celda-vacia grupo-apreciacion"></td>`;
         }
         filas += celdaAgregarHtml(materia, "apreciacion", editando);
-        filas += `<td class="celda-promedio">${promApr !== null ? promApr.toFixed(1) : "-"}</td>`;
+        filas += `<td class="celda-promedio prom-apreciacion">${promApr !== null ? promApr.toFixed(1) : "-"}</td>`;
 
         for (let i = 1; i <= maxEje; i++) {
             filas += cols.ejercicio.includes(i)
                 ? celdaNotaHtml(materia, "ejercicio", i)
-                : `<td class="celda-vacia"></td>`;
+                : `<td class="celda-vacia grupo-ejercicio"></td>`;
         }
         filas += celdaAgregarHtml(materia, "ejercicio", editando);
-        filas += `<td class="celda-promedio">${promEje !== null ? promEje.toFixed(1) : "-"}</td>`;
+        filas += `<td class="celda-promedio prom-ejercicio">${promEje !== null ? promEje.toFixed(1) : "-"}</td>`;
 
-        filas += `<td class="celda-promedio celda-final">${promFinal !== null ? promFinal.toFixed(1) : "-"}</td>`;
+        let claseFinal = "celda-promedio celda-final";
+        if (promFinal !== null) {
+            claseFinal += promFinal < 3 ? " reprobado" : " aprobado";
+        }
+        filas += `<td class="${claseFinal}">${promFinal !== null ? promFinal.toFixed(1) : "-"}</td>`;
         filas += `</tr>`;
     });
 
@@ -639,10 +646,11 @@ function tablaConsolidadaHtml() {
 }
 
 function celdaAgregarHtml(materia, tipo, editando) {
-    if (!editando) return `<td class="celda-agregar"></td>`;
+    const claseGrupo = tipo === "apreciacion" ? "grupo-apreciacion" : "grupo-ejercicio";
+    if (!editando) return `<td class="celda-agregar ${claseGrupo}"></td>`;
     const etiqueta = tipo === "apreciacion" ? "Agregar apreciación" : "Agregar ejercicio";
     return `
-        <td class="celda-agregar">
+        <td class="celda-agregar ${claseGrupo}">
             <button
                 type="button"
                 class="btn-agregar-col"
@@ -1034,7 +1042,45 @@ contenedorMaterias.addEventListener("click", (e) => {
 // Se oculta en vez de borrarlo del HTML, por si en el futuro se reactiva.
 document.getElementById("btnGuardarTodo")?.style.setProperty("display", "none");
 
-document.getElementById("btnImprimir")?.addEventListener("click", () => window.print());
+document.getElementById("btnJpg")?.addEventListener("click", async () => {
+    const btn = document.getElementById("btnJpg");
+    const textoOriginal = btn.innerHTML;
+
+    if (typeof html2canvas !== "function") {
+        mostrarToast("❌ No se pudo cargar el generador de imágenes");
+        return;
+    }
+
+    const elemento = document.getElementById("materias");
+    if (!elemento) return;
+
+    btn.disabled = true;
+    btn.textContent = "Generando imagen...";
+
+    try {
+        const canvas = await html2canvas(elemento, {
+            backgroundColor: "#ffffff",
+            scale: 2,
+            useCORS: true
+        });
+
+        const nombreArchivo = (miEstudiante?.nombre || datosEstudiante?.nombre_apellido || "Notas")
+            .replace(/[,\s]+/g, "_");
+
+        const enlace = document.createElement("a");
+        enlace.download = `Notas_${nombreArchivo}.jpg`;
+        enlace.href = canvas.toDataURL("image/jpeg", 0.92);
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+    } catch (error) {
+        console.error("❌ Error al generar la imagen:", error);
+        mostrarToast("❌ No se pudo generar la imagen");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = textoOriginal;
+    }
+});
 
 filtroTrimestre?.addEventListener("change", async () => {
     trimestreSeleccionado = filtroTrimestre.value;

@@ -69,7 +69,7 @@
 
         #btnSalir,
         #btnPdf,
-        #btnImprimir,
+        #btnJpg,
         #btnGuardarTodo {
             padding: 10px 15px;
             color: white;
@@ -95,11 +95,11 @@
             background: #146c43;
         }
 
-        #btnImprimir {
+        #btnJpg {
             background: #0f766e;
         }
 
-        #btnImprimir:hover {
+        #btnJpg:hover {
             background: #0b5c56;
         }
 
@@ -322,6 +322,77 @@
             font-size: 0.82rem;
         }
 
+        /* ============================================
+           COLORES POR GRUPO: APRECIACIÓN / EJERCICIO / FINAL
+           ============================================ */
+
+        .th-grupo {
+            font-size: 0.85rem;
+            letter-spacing: .3px;
+        }
+
+        .th-apreciacion {
+            background: linear-gradient(180deg, #4f46e5, #4338ca) !important;
+        }
+
+        .th-apreciacion-num {
+            background-color: #eef2ff !important;
+            color: #3730a3 !important;
+        }
+
+        .th-ejercicio {
+            background: linear-gradient(180deg, #ea580c, #c2410c) !important;
+        }
+
+        .th-ejercicio-num {
+            background-color: #fff7ed !important;
+            color: #9a3412 !important;
+        }
+
+        .th-prom {
+            background: #475569 !important;
+        }
+
+        .th-final {
+            background: linear-gradient(180deg, #0f766e, #115e59) !important;
+        }
+
+        td.grupo-apreciacion {
+            background-color: #f5f6ff;
+        }
+
+        td.grupo-ejercicio {
+            background-color: #fffaf3;
+        }
+
+        td.prom-apreciacion {
+            background-color: #e0e7ff !important;
+            color: #3730a3;
+            font-weight: 700;
+        }
+
+        td.prom-ejercicio {
+            background-color: #fed7aa !important;
+            color: #9a3412;
+            font-weight: 700;
+        }
+
+        td.celda-final {
+            font-weight: 800;
+            font-size: 1rem;
+            border-left: 2px solid #cbd5e1;
+        }
+
+        td.celda-final.aprobado {
+            background-color: #dcfce7 !important;
+            color: #15803d;
+        }
+
+        td.celda-final.reprobado {
+            background-color: #fee2e2 !important;
+            color: #b91c1c;
+        }
+
         .celda-vacia {
             background-color: #f8fafc !important;
         }
@@ -538,7 +609,7 @@
 
             #btnSalir,
             #btnPdf,
-            #btnImprimir,
+            #btnJpg,
             #btnGuardarTodo,
             .btn-accion {
                 width: 100%;
@@ -711,8 +782,8 @@
             💾 Guardar todos los cambios
         </button>
 
-        <button type="button" id="btnImprimir">
-            🖨️ Imprimir
+        <button type="button" id="btnJpg">
+            📷 Descargar como imagen
         </button>
 
         <button type="button" id="btnPdf">
@@ -777,6 +848,9 @@
 
     <!-- Librería jsPDF-AutoTable -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Librería html2canvas (para descargar la tabla de notas como imagen JPG) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <!-- JavaScript principal -->
     <script type="module" src="../js/estudiante.js"></script>
