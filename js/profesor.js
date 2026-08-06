@@ -140,11 +140,6 @@ const btnGuardarNotasGrupo = document.getElementById("btnGuardarNotasGrupo");
 const estadoGuardadoNotas = document.getElementById("estadoGuardadoNotas");
 const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
 const checkBloqueoEstudiantes = document.getElementById("checkBloqueoEstudiantes");
-const checkSoloColumnaActual = document.getElementById("checkSoloColumnaActual");
-const checkMostrarPromedios = document.getElementById("checkMostrarPromedios");
-const checkSoloResumen = document.getElementById("checkSoloResumen");
-const btnElegirColumnas = document.getElementById("btnElegirColumnas");
-const panelElegirColumnas = document.getElementById("panelElegirColumnas");
 const listaChecksColumnas = document.getElementById("listaChecksColumnas");
 const btnColumnasSeleccionarTodas = document.getElementById("btnColumnasSeleccionarTodas");
 const btnColumnasSeleccionarNinguna = document.getElementById("btnColumnasSeleccionarNinguna");
@@ -352,66 +347,63 @@ function recalcularPromedios() {
 // "actual" = solo la casilla seleccionada arriba. "todas" = todas las
 // columnas juntas. "manual" = el docente eligió a mano cuáles columnas
 // quiere ver (por ejemplo, solo Ejer. 4 y Ejer. 6).
-let modoColumnas = "actual";
-let columnasManualOcultas = new Set(); // claves ocultas cuando modoColumnas === "manual"
+// quiere ver (por ejemplo, solo Ejer. 4 y Ejer. 6, o solo los
+// promedios). Empieza vacío: por defecto TODO está visible (nada
+// oculto) hasta que el docente desmarque algo.
+let columnasOcultas = new Set();
+
+// Claves reservadas para las 4 columnas de promedio, que ahora también
+// se eligen desde la misma lista de checkboxes que las casillas de nota.
+const CLAVE_PROM_APREC = "__prom_aprec__";
+const CLAVE_PROM_EJER = "__prom_ejer__";
+const CLAVE_PROM_EXAMEN = "__prom_examen__";
+const CLAVE_PROM_FINAL = "__prom_final__";
+const PROMEDIOS_SELECCIONABLES = [
+    { clave: CLAVE_PROM_APREC, etiqueta: "Prom. Aprec." },
+    { clave: CLAVE_PROM_EJER, etiqueta: "Prom. Ejer." },
+    { clave: CLAVE_PROM_EXAMEN, etiqueta: "Prom. Examen" },
+    { clave: CLAVE_PROM_FINAL, etiqueta: "Prom. Final" },
+];
 
 function renderizarListaChecksColumnas() {
     if (!listaChecksColumnas) return;
-    listaChecksColumnas.innerHTML = casillasTabla.map((c) => {
-        const clave = claveCasilla(c.tipo, c.numero);
-        const marcado = !columnasManualOcultas.has(clave);
+
+    const itemsCasillas = casillasTabla.map((c) => ({
+        clave: claveCasilla(c.tipo, c.numero),
+        etiqueta: etiquetaCasilla(c.tipo, c.numero),
+    }));
+    const todosLosItems = [...itemsCasillas, ...PROMEDIOS_SELECCIONABLES];
+
+    listaChecksColumnas.innerHTML = todosLosItems.map(({ clave, etiqueta }) => {
+        const marcado = !columnasOcultas.has(clave);
         return `
             <label class="form-check" style="display:flex; align-items:center; gap:4px; margin:0;">
                 <input type="checkbox" class="form-check-input check-columna-manual" data-clave="${clave}" ${marcado ? "checked" : ""} style="margin:0;">
-                <span class="small">${etiquetaCasilla(c.tipo, c.numero)}</span>
+                <span class="small">${etiqueta}</span>
             </label>`;
     }).join("");
 
     listaChecksColumnas.querySelectorAll(".check-columna-manual").forEach((chk) => {
         chk.addEventListener("change", () => {
             const clave = chk.dataset.clave;
-            if (chk.checked) columnasManualOcultas.delete(clave);
-            else columnasManualOcultas.add(clave);
-            modoColumnas = "manual";
-            if (checkSoloColumnaActual) checkSoloColumnaActual.checked = false;
+            if (chk.checked) columnasOcultas.delete(clave);
+            else columnasOcultas.add(clave);
             renderTabla();
         });
     });
 }
 
-btnElegirColumnas?.addEventListener("click", () => {
-    if (!panelElegirColumnas) return;
-    const visible = panelElegirColumnas.style.display !== "none";
-    panelElegirColumnas.style.display = visible ? "none" : "block";
-});
-
 btnColumnasSeleccionarTodas?.addEventListener("click", () => {
-    columnasManualOcultas.clear();
-    modoColumnas = "manual";
-    if (checkSoloColumnaActual) checkSoloColumnaActual.checked = false;
+    columnasOcultas.clear();
     renderizarListaChecksColumnas();
     renderTabla();
 });
 
 btnColumnasSeleccionarNinguna?.addEventListener("click", () => {
-    casillasTabla.forEach((c) => columnasManualOcultas.add(claveCasilla(c.tipo, c.numero)));
-    modoColumnas = "manual";
-    if (checkSoloColumnaActual) checkSoloColumnaActual.checked = false;
+    casillasTabla.forEach((c) => columnasOcultas.add(claveCasilla(c.tipo, c.numero)));
+    PROMEDIOS_SELECCIONABLES.forEach((p) => columnasOcultas.add(p.clave));
     renderizarListaChecksColumnas();
     renderTabla();
-});
-
-checkSoloColumnaActual?.addEventListener("change", () => {
-    modoColumnas = checkSoloColumnaActual.checked ? "actual" : "todas";
-    if (grupoActual.length > 0) renderTabla();
-});
-
-checkMostrarPromedios?.addEventListener("change", () => {
-    if (grupoActual.length > 0) renderTabla();
-});
-
-checkSoloResumen?.addEventListener("change", () => {
-    if (grupoActual.length > 0) renderTabla();
 });
 
 function renderTabla() {
@@ -433,24 +425,13 @@ function renderTabla() {
         ordenarCasillas(casillasTabla);
     }
 
-    // Según el modo elegido, decidimos qué columnas de nota mostrar:
-    // "actual" = solo la casilla seleccionada arriba; "manual" = las que
-    // el docente marcó a mano en el panel de "Elegir columnas
-    // específicas"; "todas" = la tabla completa.
-    let columnasVisibles;
-    if (modoColumnas === "manual") {
-        columnasVisibles = casillasTabla.filter((c) => !columnasManualOcultas.has(claveCasilla(c.tipo, c.numero)));
-    } else if (modoColumnas === "actual") {
-        columnasVisibles = casillasTabla.filter((c) => claveCasilla(c.tipo, c.numero) === claveSel);
-    } else {
-        columnasVisibles = casillasTabla;
-    }
-
-    // "Ver solo el resumen" oculta TODAS las casillas de nota y obliga a
-    // mostrar los promedios, sin importar el modo de columnas elegido.
-    const soloResumen = !!checkSoloResumen?.checked;
-    if (soloResumen) columnasVisibles = [];
-    const mostrarProm = soloResumen || !!checkMostrarPromedios?.checked;
+    // Cada columna (de nota o de promedio) se muestra u oculta según lo
+    // que el docente haya marcado en el panel "Elegir columnas para ver".
+    const columnasVisibles = casillasTabla.filter((c) => !columnasOcultas.has(claveCasilla(c.tipo, c.numero)));
+    const mostrarPromApr = !columnasOcultas.has(CLAVE_PROM_APREC);
+    const mostrarPromEje = !columnasOcultas.has(CLAVE_PROM_EJER);
+    const mostrarPromExa = !columnasOcultas.has(CLAVE_PROM_EXAMEN);
+    const mostrarPromFinal = !columnasOcultas.has(CLAVE_PROM_FINAL);
 
     renderizarListaChecksColumnas();
 
@@ -463,12 +444,10 @@ function renderTabla() {
                 <button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna">🗑️</button>
             </th>`;
     });
-    if (mostrarProm) {
-        htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Aprec.</th>`;
-        htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Ejer.</th>`;
-        htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Examen</th>`;
-        htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
-    }
+    if (mostrarPromApr) htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Aprec.</th>`;
+    if (mostrarPromEje) htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Ejer.</th>`;
+    if (mostrarPromExa) htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Examen</th>`;
+    if (mostrarPromFinal) htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
     cabeceraNotasGrupo.innerHTML = htmlCabecera;
 
     let htmlTemas = `<th class="col-fija col-fija-num"></th><th class="col-fija col-fija-nombre small text-muted fw-normal">Tema de cada casilla:</th>`;
@@ -481,7 +460,9 @@ function renderTabla() {
                     value="${escapeHtml(tema)}" placeholder="Ej: Proyecto 2" style="font-size:11px; font-weight:normal;">
             </th>`;
     });
-    if (mostrarProm) htmlTemas += `<th></th><th></th><th></th><th></th>`;
+    [mostrarPromApr, mostrarPromEje, mostrarPromExa, mostrarPromFinal].forEach((mostrar) => {
+        if (mostrar) htmlTemas += `<th></th>`;
+    });
     cabeceraTemasGrupo.innerHTML = htmlTemas;
 
     tablaNotasGrupo.innerHTML = grupoActual.map((est, i) => {
@@ -508,11 +489,10 @@ function renderTabla() {
                 <td class="col-fija col-fija-num">${i + 1}</td>
                 <td class="col-fija col-fija-nombre">${escapeHtml(est.nombre)}${sinCuenta ? ' <span class="badge bg-warning text-dark">Sin cuenta</span>' : ""}</td>
                 ${columnas}
-                ${mostrarProm ? `
-                <td class="celda-prom-apr text-center fw-bold">–</td>
-                <td class="celda-prom-eje text-center fw-bold">–</td>
-                <td class="celda-prom-examen text-center fw-bold">–</td>
-                <td class="celda-prom-final text-center fw-bold table-success bg-opacity-25">–</td>` : ""}
+                ${mostrarPromApr ? `<td class="celda-prom-apr text-center fw-bold">–</td>` : ""}
+                ${mostrarPromEje ? `<td class="celda-prom-eje text-center fw-bold">–</td>` : ""}
+                ${mostrarPromExa ? `<td class="celda-prom-examen text-center fw-bold">–</td>` : ""}
+                ${mostrarPromFinal ? `<td class="celda-prom-final text-center fw-bold table-success bg-opacity-25">–</td>` : ""}
             </tr>`;
     }).join("");
 
