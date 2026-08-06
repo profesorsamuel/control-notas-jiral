@@ -486,6 +486,9 @@ function celdaNotaHtml(materia, tipo, numero) {
                 title="Ya tienen nota aquí: ${escapeHtml(nombres.join(", "))}"
                 data-nombres="${escapeHtml(nombres.join(", "))}"
                 data-cantidad="${nombres.length}"
+                data-materia="${escapeHtml(materia)}"
+                data-tipo="${tipo}"
+                data-numero="${numero}"
             >❓</button>
         `;
     }
@@ -1012,6 +1015,42 @@ async function guardarTodosLosCambios() {
 // EVENTOS
 // =====================================================
 
+// =====================================================
+// ORDEN REAL EN QUE LOS COMPAÑEROS PUSIERON SU NOTA
+// =====================================================
+
+async function mostrarOrdenCompaneros(materia, tipo, numero, nombresRespaldo, cantidadRespaldo) {
+    const { data, error } = await supabase
+        .from("notas")
+        .select("correo, created_at")
+        .eq("materia", materia)
+        .eq("tipo", tipo)
+        .eq("numero", numero)
+        .eq("trimestre", trimestreSeleccionado)
+        .order("created_at", { ascending: true });
+
+    if (error || !data || data.length === 0) {
+        console.error("❌ Error al consultar el orden de las notas:", error);
+        // Si falla la consulta, se muestra al menos la lista simple que ya se tenía.
+        alert(`${cantidadRespaldo} estudiante(s) del nivel ya tienen nota en esta casilla:\n\n${nombresRespaldo}\n\nPuedes preguntarles o buscar la nota con el profesor(a).`);
+        return;
+    }
+
+    const lineas = data.map((fila, indice) => {
+        const nombre = nombrePorCorreo[fila.correo] || fila.correo;
+        const fecha = fila.created_at
+            ? new Date(fila.created_at).toLocaleString("es-PA", {
+                  day: "2-digit", month: "2-digit", year: "numeric",
+                  hour: "2-digit", minute: "2-digit"
+              })
+            : "";
+        const medalla = indice === 0 ? "🥇" : (indice === 1 ? "🥈" : (indice === 2 ? "🥉" : `${indice + 1}°`));
+        return `${medalla} ${nombre}${fecha ? " — " + fecha : ""}`;
+    });
+
+    alert(`Orden en que se puso la nota en esta casilla:\n\n${lineas.join("\n")}`);
+}
+
 contenedorMaterias.addEventListener("change", (e) => {
     if (e.target.matches(".input-nota")) {
         guardarCelda(e.target);
@@ -1026,9 +1065,13 @@ contenedorMaterias.addEventListener("click", (e) => {
     } else if (e.target.matches(".btn-borrar-col")) {
         eliminarColumna(e.target.dataset.materia, e.target.dataset.tipo, Number(e.target.dataset.numero));
     } else if (e.target.matches(".btn-companeros")) {
-        const nombres = e.target.dataset.nombres;
-        const cantidad = e.target.dataset.cantidad;
-        alert(`${cantidad} estudiante(s) del nivel ya tienen nota en esta casilla:\n\n${nombres}\n\nPuedes preguntarles o buscar la nota con el profesor(a).`);
+        mostrarOrdenCompaneros(
+            e.target.dataset.materia,
+            e.target.dataset.tipo,
+            Number(e.target.dataset.numero),
+            e.target.dataset.nombres,
+            e.target.dataset.cantidad
+        );
     } else if (e.target.matches(".btn-tema-oficial")) {
         alert(`📌 Tema de esta nota:\n\n${e.target.dataset.tema}`);
     } else if (e.target.matches(".btn-tema")) {
