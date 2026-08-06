@@ -162,6 +162,19 @@ function poblarSelectMateria() {
         .filter((a) => a.salon === salon)
         .map((a) => a.materia);
 
+    // Si el/la docente solo tiene UNA materia asignada en este salón, no
+    // tiene sentido hacerla elegir: la seleccionamos sola y directamente
+    // disparamos la carga del salón (como si hubiera dado clic en
+    // "Cargar salón"). Si hay varias, se deja el comportamiento normal
+    // de elegir manualmente.
+    if (materias.length === 1) {
+        selectMateriaNota.innerHTML =
+            `<option value="${escapeHtml(materias[0])}" selected>${escapeHtml(materias[0])}</option>`;
+        selectMateriaNota.disabled = false;
+        btnCargarSalon.click();
+        return;
+    }
+
     selectMateriaNota.innerHTML =
         `<option value="">Seleccione una materia</option>` +
         materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
