@@ -67,10 +67,6 @@ let nombreProfesor = "";
 let misAsignaciones = []; // [{materia, salon}, ...] -- solo lo que este profesor da
 let bloqueoActual = false; // ¿la materia/salón cargada está bloqueada para estudiantes?
 
-// El acceso a este panel se decide igual que en consejero.js:
-// por pertenecer a la tabla correspondiente (profesor_materias),
-// no por el campo "rol" de la tabla "usuarios". Así una cuenta
-// puede ser profesor(a) sin dejar de ser también admin/consejero(a).
 async function verificarSesion() {
     const { data: { user }, error: errUser } = await supabase.auth.getUser();
 
@@ -347,7 +343,7 @@ function renderTabla() {
             const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
             const valor = crudo === "" ? "" : formatearNotaFinal(String(crudo));
             return `
-                <td>
+                <td class="celda-nota">
                     <input type="text" inputmode="decimal" class="form-control form-control-sm input-nota-grupo"
                         data-col="${colIndex}" data-correo="${sinCuenta ? "" : escapeHtml(est.correo)}"
                         data-estudiante-id="${sinCuenta ? escapeHtml(est.id) : ""}" data-nota-id="${n ? n.id : ""}"
@@ -751,9 +747,6 @@ function construirReporteHtml() {
     const trimestre = selectTrimestreNota.value;
     const fechaHoyTexto = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
 
-    // Clonamos la tabla actual tal cual está en pantalla (con sus promedios
-    // ya calculados), pero sin los botones de eliminar columna ni los
-    // inputs editables — solo texto, para que se vea limpio al exportar.
     const tablaOriginal = document.querySelector("#bloqueTablaNotas table");
     const tablaClon = tablaOriginal.cloneNode(true);
 
@@ -778,8 +771,6 @@ function construirReporteHtml() {
         th.style.fontSize = "11px";
         input.closest("th").replaceWith(th);
     });
-    // Notas malas también en la columna de promedio final (ya la marca table-danger,
-    // reforzamos el color por si el exportador no respeta las clases de Bootstrap).
     tablaClon.querySelectorAll(".celda-prom-final").forEach((td) => {
         const val = parseFloat(td.textContent);
         if (!isNaN(val) && val < PROMEDIO_MINIMO_APROBAR) {
