@@ -54,8 +54,19 @@ function claveCasilla(tipo, numero) {
     return `${tipo}-${numero}`;
 }
 
+const ETIQUETAS_TIPO = { apreciacion: "Aprec.", ejercicio: "Ejer.", examen: "Exam." };
+const ORDEN_TIPO = { apreciacion: 0, ejercicio: 1, examen: 2 };
+
 function etiquetaCasilla(tipo, numero) {
-    return `${tipo === "apreciacion" ? "Aprec." : "Ejer."} ${numero}`;
+    return `${ETIQUETAS_TIPO[tipo] || tipo} ${numero}`;
+}
+
+function ordenarCasillas(lista) {
+    lista.sort((a, b) => {
+        const oa = ORDEN_TIPO[a.tipo] ?? 99;
+        const ob = ORDEN_TIPO[b.tipo] ?? 99;
+        return oa !== ob ? oa - ob : a.numero - b.numero;
+    });
 }
 
 // =========================================================
@@ -131,6 +142,7 @@ const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
 const checkBloqueoEstudiantes = document.getElementById("checkBloqueoEstudiantes");
 const checkSoloColumnaActual = document.getElementById("checkSoloColumnaActual");
 const checkMostrarPromedios = document.getElementById("checkMostrarPromedios");
+const checkSoloResumen = document.getElementById("checkSoloResumen");
 const btnElegirColumnas = document.getElementById("btnElegirColumnas");
 const panelElegirColumnas = document.getElementById("panelElegirColumnas");
 const listaChecksColumnas = document.getElementById("listaChecksColumnas");
@@ -277,33 +289,44 @@ function recalcularPromedios() {
         const inputsFila = tr.querySelectorAll(".input-nota-grupo");
         if (inputsFila.length === 0) return;
 
-        const apr = [], eje = [];
+        const apr = [], eje = [], exa = [];
         inputsFila.forEach((input) => {
             const v = input.value.trim();
             if (v === "") return;
             const num = parseFloat(v);
             if (isNaN(num)) return;
-            (input.dataset.tipo === "apreciacion" ? apr : eje).push(num);
+            if (input.dataset.tipo === "apreciacion") apr.push(num);
+            else if (input.dataset.tipo === "examen") exa.push(num);
+            else eje.push(num);
         });
 
         const promApr = apr.length ? apr.reduce((a, b) => a + b, 0) / apr.length : null;
         const promEje = eje.length ? eje.reduce((a, b) => a + b, 0) / eje.length : null;
-        let promFinal = null;
-        if (promApr !== null && promEje !== null) promFinal = (promApr + promEje) / 2;
-        else if (promApr !== null) promFinal = promApr;
-        else if (promEje !== null) promFinal = promEje;
+        const promExa = exa.length ? exa.reduce((a, b) => a + b, 0) / exa.length : null;
+
+        // Promedio final = promedio de las categorías que sí tengan datos
+        // (Apreciación, Ejercicio, Examen), cada una con el mismo peso.
+        const presentes = [promApr, promEje, promExa].filter((v) => v !== null);
+        const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
 
         const cApr = tr.querySelector(".celda-prom-apr");
         const cEje = tr.querySelector(".celda-prom-eje");
+        const cExa = tr.querySelector(".celda-prom-examen");
         const cFinal = tr.querySelector(".celda-prom-final");
-        if (cApr) cApr.textContent = promApr !== null ? promApr.toFixed(1) : "–";
-        if (cEje) cEje.textContent = promEje !== null ? promEje.toFixed(1) : "–";
-        if (cFinal) {
-            cFinal.textContent = promFinal !== null ? promFinal.toFixed(1) : "–";
-            const enRiesgo = promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR;
-            tr.classList.toggle("table-danger", enRiesgo);
-            cFinal.classList.toggle("text-danger", enRiesgo);
-        }
+
+        const pintar = (celda, valor) => {
+            if (!celda) return;
+            celda.textContent = valor !== null ? valor.toFixed(1) : "–";
+            const enRiesgo = valor !== null && valor < PROMEDIO_MINIMO_APROBAR;
+            celda.classList.toggle("text-danger", enRiesgo);
+        };
+        pintar(cApr, promApr);
+        pintar(cEje, promEje);
+        pintar(cExa, promExa);
+        pintar(cFinal, promFinal);
+
+        const enRiesgoFinal = promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR;
+        tr.classList.toggle("table-danger", enRiesgoFinal);
     });
 }
 
@@ -368,6 +391,10 @@ checkMostrarPromedios?.addEventListener("change", () => {
     if (grupoActual.length > 0) renderTabla();
 });
 
+checkSoloResumen?.addEventListener("change", () => {
+    if (grupoActual.length > 0) renderTabla();
+});
+
 function renderTabla() {
     if (grupoActual.length === 0) {
         cabeceraNotasGrupo.innerHTML = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
@@ -384,7 +411,7 @@ function renderTabla() {
     // para escribir desde el primer momento.
     if (!casillasTabla.some((c) => claveCasilla(c.tipo, c.numero) === claveSel)) {
         casillasTabla.push({ tipo: selectTipoNota.value, numero: parseInt(inputNumeroNota.value, 10) });
-        casillasTabla.sort((a, b) => a.tipo !== b.tipo ? (a.tipo === "apreciacion" ? -1 : 1) : a.numero - b.numero);
+        ordenarCasillas(casillasTabla);
     }
 
     // Según el modo elegido, decidimos qué columnas de nota mostrar:
@@ -400,7 +427,11 @@ function renderTabla() {
         columnasVisibles = casillasTabla;
     }
 
-    const mostrarProm = !!checkMostrarPromedios?.checked;
+    // "Ver solo el resumen" oculta TODAS las casillas de nota y obliga a
+    // mostrar los promedios, sin importar el modo de columnas elegido.
+    const soloResumen = !!checkSoloResumen?.checked;
+    if (soloResumen) columnasVisibles = [];
+    const mostrarProm = soloResumen || !!checkMostrarPromedios?.checked;
 
     renderizarListaChecksColumnas();
 
@@ -416,6 +447,7 @@ function renderTabla() {
     if (mostrarProm) {
         htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Aprec.</th>`;
         htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Ejer.</th>`;
+        htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Examen</th>`;
         htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
     }
     cabeceraNotasGrupo.innerHTML = htmlCabecera;
@@ -430,7 +462,7 @@ function renderTabla() {
                     value="${escapeHtml(tema)}" placeholder="Ej: Proyecto 2" style="font-size:11px; font-weight:normal;">
             </th>`;
     });
-    if (mostrarProm) htmlTemas += `<th></th><th></th><th></th>`;
+    if (mostrarProm) htmlTemas += `<th></th><th></th><th></th><th></th>`;
     cabeceraTemasGrupo.innerHTML = htmlTemas;
 
     tablaNotasGrupo.innerHTML = grupoActual.map((est, i) => {
@@ -460,6 +492,7 @@ function renderTabla() {
                 ${mostrarProm ? `
                 <td class="celda-prom-apr text-center fw-bold">–</td>
                 <td class="celda-prom-eje text-center fw-bold">–</td>
+                <td class="celda-prom-examen text-center fw-bold">–</td>
                 <td class="celda-prom-final text-center fw-bold table-success bg-opacity-25">–</td>` : ""}
             </tr>`;
     }).join("");
@@ -586,7 +619,8 @@ btnCargarSalon?.addEventListener("click", async () => {
     casillasTabla = [...casillasEncontradas].map((c) => {
         const sep = c.lastIndexOf("-");
         return { tipo: c.slice(0, sep), numero: parseInt(c.slice(sep + 1), 10) };
-    }).sort((a, b) => a.tipo !== b.tipo ? (a.tipo === "apreciacion" ? -1 : 1) : a.numero - b.numero);
+    });
+    ordenarCasillas(casillasTabla);
 
     const { data: filaAsignacion } = await supabase
         .from("profesor_materias")
@@ -667,7 +701,7 @@ async function guardarNotas(esAutomatico = false) {
                 tipo: item.tipo,
                 numero: item.numero,
                 tema: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || null,
-                actividad: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || `${item.tipo === "apreciacion" ? "Apreciación" : "Ejercicio"} ${item.numero}`,
+                actividad: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || `${ETIQUETAS_TIPO[item.tipo] || item.tipo} ${item.numero}`,
                 fecha: hoy,
                 nota: item.nota,
                 observacion: `Agregada por el/la docente (${correoProfesor})`,
@@ -869,6 +903,7 @@ function construirTablaReporteCompleta() {
     });
     htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">Prom. Aprec.</th>`;
     htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">Prom. Ejer.</th>`;
+    htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">Prom. Examen</th>`;
     htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">Prom. Final</th>`;
     trCabecera.innerHTML = htmlCabecera;
     thead.appendChild(trCabecera);
@@ -879,7 +914,7 @@ function construirTablaReporteCompleta() {
         const tema = obtenerTemaCasilla(c.tipo, c.numero);
         htmlTemas += `<th style="background:#2f6f62; color:#e3efec; font-weight:normal; font-size:11px; padding:4px;">${escapeHtml(tema)}</th>`;
     });
-    htmlTemas += `<th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th>`;
+    htmlTemas += `<th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th>`;
     trTemas.innerHTML = htmlTemas;
     thead.appendChild(trTemas);
 
@@ -890,7 +925,7 @@ function construirTablaReporteCompleta() {
     grupoActual.forEach((est, i) => {
         const sinCuenta = !est.correo;
         const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
-        const apr = [], eje = [];
+        const apr = [], eje = [], exa = [];
 
         let htmlCeldas = "";
         casillasTabla.forEach((c) => {
@@ -899,7 +934,11 @@ function construirTablaReporteCompleta() {
             const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
             const valorStr = crudo === "" ? "" : formatearNotaFinal(String(crudo));
             const valorNum = valorStr === "" ? null : parseFloat(valorStr);
-            if (valorNum !== null) (c.tipo === "apreciacion" ? apr : eje).push(valorNum);
+            if (valorNum !== null) {
+                if (c.tipo === "apreciacion") apr.push(valorNum);
+                else if (c.tipo === "examen") exa.push(valorNum);
+                else eje.push(valorNum);
+            }
 
             const bajo = valorNum !== null && valorNum < PROMEDIO_MINIMO_APROBAR;
             htmlCeldas += `<td style="text-align:center; padding:6px; ${bajo ? "color:#c0392b; font-weight:bold;" : ""}">${valorStr === "" ? "–" : valorStr}</td>`;
@@ -907,10 +946,9 @@ function construirTablaReporteCompleta() {
 
         const promApr = apr.length ? apr.reduce((a, b) => a + b, 0) / apr.length : null;
         const promEje = eje.length ? eje.reduce((a, b) => a + b, 0) / eje.length : null;
-        let promFinal = null;
-        if (promApr !== null && promEje !== null) promFinal = (promApr + promEje) / 2;
-        else if (promApr !== null) promFinal = promApr;
-        else if (promEje !== null) promFinal = promEje;
+        const promExa = exa.length ? exa.reduce((a, b) => a + b, 0) / exa.length : null;
+        const presentes = [promApr, promEje, promExa].filter((v) => v !== null);
+        const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
 
         const celdaProm = (val) => {
             if (val === null) return `<td style="text-align:center; padding:6px;">–</td>`;
@@ -924,7 +962,7 @@ function construirTablaReporteCompleta() {
             `<td style="text-align:center; padding:6px;">${i + 1}</td>` +
             `<td style="text-align:left; padding:6px;">${escapeHtml(est.nombre)}${sinCuenta ? " (Sin cuenta)" : ""}</td>` +
             htmlCeldas +
-            celdaProm(promApr) + celdaProm(promEje) + celdaProm(promFinal);
+            celdaProm(promApr) + celdaProm(promEje) + celdaProm(promExa) + celdaProm(promFinal);
         tbody.appendChild(tr);
     });
 
