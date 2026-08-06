@@ -22,23 +22,57 @@
     <!-- Bootstrap: necesario para las clases usadas en la tabla de notas (form-control, badge, table-danger, etc.) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
+    <!-- Tipografía propia: Baloo 2 para títulos (cálida, redondeada, con
+         aire escolar) + Inter para datos y texto de la tabla (legible en
+         tamaños chicos). Reemplaza el Arial genérico de antes. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Necesarias para exportar el reporte de notas a PDF y JPG -->
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background: #f5f7fa;
+        /* Candado general: nada en la página (ni siquiera el contenedor
+           que se arma fuera de pantalla para exportar PDF/JPG) puede
+           hacer que el ancho total se salga del celular. */
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
         }
 
-        h1 { color: #1f4e79; }
-        h2 { color: #1f4e79; font-size: 1.2rem; margin-top: 30px; }
+        /* ============ Paleta propia (verde pizarra + dorado) ============
+           En vez del azul marino genérico de Bootstrap: un verde pizarra
+           profundo como color principal (evoca el salón de clases, sin
+           ser negro-azulado plano) y un dorado cálido como color de
+           acción, sobre un fondo crema tipo cuaderno. */
+        :root {
+            --color-fondo: #faf6ee;
+            --color-panel: #ffffff;
+            --color-primario: #2f6f62;
+            --color-primario-oscuro: #234f45;
+            --color-primario-claro: #e3efec;
+            --color-acento: #cf8b2c;
+            --color-acento-oscuro: #a86f1f;
+            --color-texto: #2c2620;
+        }
+
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            padding: 20px;
+            background: var(--color-fondo);
+            color: var(--color-texto);
+        }
+
+        h1, h2 {
+            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
+        }
+        h1 { color: var(--color-primario); font-weight: 700; }
+        h2 { color: var(--color-primario); font-size: 1.2rem; margin-top: 30px; font-weight: 600; }
 
         table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-        th { background: #1f4e79; color: white; }
+        th, td { border: 1px solid #ddd4c4; padding: 8px; text-align: center; }
+        th { background: var(--color-primario); color: white; font-family: 'Inter', Arial, sans-serif; }
 
         .resumen, .trimestre-panel, .panel-blanco {
             background: white;
@@ -55,7 +89,7 @@
             flex-wrap: wrap;
         }
 
-        .trimestre-panel label { font-weight: bold; color: #1f4e79; }
+        .trimestre-panel label { font-weight: bold; color: var(--color-primario); }
 
         #selectTrimestre {
             padding: 8px 12px;
@@ -67,7 +101,7 @@
 
         #btnGuardarTrimestre {
             padding: 8px 16px;
-            background: #1f4e79;
+            background: var(--color-acento);
             color: white;
             border: none;
             border-radius: 5px;
@@ -75,8 +109,8 @@
             font-size: 14px;
         }
 
-        #btnGuardarTrimestre:hover { background: #163a5c; }
-        #estadoTrimestre { font-size: 13px; color: #198754; }
+        #btnGuardarTrimestre:hover { background: var(--color-acento-oscuro); }
+        #estadoTrimestre { font-size: 13px; color: #1f5c3d; }
 
         .form-notas-fila {
             display: flex;
@@ -86,7 +120,7 @@
         }
 
         .form-notas-fila > div { display: flex; flex-direction: column; gap: 4px; }
-        .form-notas-fila label { font-size: 13px; font-weight: bold; color: #1f4e79; }
+        .form-notas-fila label { font-size: 13px; font-weight: bold; color: var(--color-primario); }
         .form-notas-fila select, .form-notas-fila input {
             padding: 8px;
             border: 1px solid #ccc;
@@ -96,7 +130,7 @@
 
         #btnCargarSalon, #btnGuardarNotasGrupo {
             padding: 8px 16px;
-            background: #198754;
+            background: var(--color-acento);
             color: white;
             border: none;
             border-radius: 5px;
@@ -105,7 +139,7 @@
             height: 38px;
         }
 
-        #btnGuardarNotasGrupo { background: #1f4e79; margin-top: 15px; }
+        #btnGuardarNotasGrupo { background: var(--color-primario); margin-top: 15px; }
 
         /* Paleta pastel: fondos suaves con letra oscura, y las casillas
            de nota siempre en blanco para que se lean bien encima. */
@@ -118,11 +152,17 @@
             color: #6b5100 !important;
         }
         .table-success, td.table-success {
-            background-color: #dff2e6 !important;
-            color: #1f5c3d !important;
+            background-color: var(--color-primario-claro) !important;
+            color: var(--color-primario-oscuro) !important;
         }
         .text-danger { color: #c0575a !important; }
         .badge.bg-warning { background-color: #fdf3d6 !important; color: #6b5100 !important; }
+
+        /* Columna actualmente seleccionada en el formulario de arriba:
+           antes era el azul genérico de Bootstrap (table-primary), ahora
+           usa el dorado de acento para que combine con el resto. */
+        .table-primary, th.table-primary { background-color: #f7e6c4 !important; }
+        .text-primary { color: var(--color-acento-oscuro) !important; }
 
         .input-nota-grupo, .input-tema-columna {
             background-color: #fff !important;
@@ -131,7 +171,7 @@
 
         #tablaScroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         #tablaScroll table { border-collapse: separate; border-spacing: 0; }
-        #tablaScroll th, #tablaScroll td { border: 1px solid #ccc; }
+        #tablaScroll th, #tablaScroll td { border: 1px solid #ddd4c4; }
 
         /* Columnas fijas: # y Estudiante quedan pegadas a la izquierda
            mientras el resto de la tabla se desliza por debajo. */
@@ -150,9 +190,14 @@
             white-space: normal;
             box-shadow: 2px 0 4px rgba(0, 0, 0, .12);
         }
-        thead .col-fija { background: #1f4e79; color: #fff; z-index: 2; }
+        thead .col-fija { background: var(--color-primario); color: #fff; z-index: 2; }
         tr.table-warning td.col-fija { background-color: #fdf3d6; }
         tr.table-danger td.col-fija { background-color: #fbe2e2; }
+
+        /* Bootstrap pinta ".text-muted" en gris oscuro, que sobre el verde
+           del encabezado casi no se ve. Lo aclaramos solo dentro de la tabla. */
+        #tablaScroll thead .text-muted { color: #cfe3dd !important; }
+        #tablaScroll thead .btn-eliminar-columna { color: #ffb199 !important; }
 
         /* Celular: menos relleno alrededor y campos del formulario a todo
            el ancho, para que no quede tanto espacio vacío. */
