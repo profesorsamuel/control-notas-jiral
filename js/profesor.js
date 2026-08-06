@@ -852,48 +852,98 @@ btnGuardarTrimestre?.addEventListener("click", async () => {
 // EXPORTAR REPORTE (PDF y JPG) — membrete, notas malas en rojo, firma
 // =========================================================
 
+// Construye una tabla completa (TODAS las columnas de nota + los 3
+// promedios) directamente desde los datos en memoria, sin importar si
+// en pantalla el docente tiene activado "solo la casilla actual" o
+// tiene ocultos los promedios. El reporte en PDF/JPG siempre debe verse
+// completo, como un informe formal.
+function construirTablaReporteCompleta() {
+    const tabla = document.createElement("table");
+
+    const thead = document.createElement("thead");
+
+    const trCabecera = document.createElement("tr");
+    let htmlCabecera = `<th style="background:#2f6f62; color:#fff; padding:6px;">#</th><th style="background:#2f6f62; color:#fff; padding:6px;">Estudiante</th>`;
+    casillasTabla.forEach((c) => {
+        htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">${etiquetaCasilla(c.tipo, c.numero)}</th>`;
+    });
+    htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">Prom. Aprec.</th>`;
+    htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">Prom. Ejer.</th>`;
+    htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">Prom. Final</th>`;
+    trCabecera.innerHTML = htmlCabecera;
+    thead.appendChild(trCabecera);
+
+    const trTemas = document.createElement("tr");
+    let htmlTemas = `<th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th>`;
+    casillasTabla.forEach((c) => {
+        const tema = obtenerTemaCasilla(c.tipo, c.numero);
+        htmlTemas += `<th style="background:#2f6f62; color:#e3efec; font-weight:normal; font-size:11px; padding:4px;">${escapeHtml(tema)}</th>`;
+    });
+    htmlTemas += `<th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th>`;
+    trTemas.innerHTML = htmlTemas;
+    thead.appendChild(trTemas);
+
+    tabla.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    grupoActual.forEach((est, i) => {
+        const sinCuenta = !est.correo;
+        const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
+        const apr = [], eje = [];
+
+        let htmlCeldas = "";
+        casillasTabla.forEach((c) => {
+            const claveCas = claveCasilla(c.tipo, c.numero);
+            const n = historial[claveCas];
+            const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
+            const valorStr = crudo === "" ? "" : formatearNotaFinal(String(crudo));
+            const valorNum = valorStr === "" ? null : parseFloat(valorStr);
+            if (valorNum !== null) (c.tipo === "apreciacion" ? apr : eje).push(valorNum);
+
+            const bajo = valorNum !== null && valorNum < PROMEDIO_MINIMO_APROBAR;
+            htmlCeldas += `<td style="text-align:center; padding:6px; ${bajo ? "color:#c0392b; font-weight:bold;" : ""}">${valorStr === "" ? "–" : valorStr}</td>`;
+        });
+
+        const promApr = apr.length ? apr.reduce((a, b) => a + b, 0) / apr.length : null;
+        const promEje = eje.length ? eje.reduce((a, b) => a + b, 0) / eje.length : null;
+        let promFinal = null;
+        if (promApr !== null && promEje !== null) promFinal = (promApr + promEje) / 2;
+        else if (promApr !== null) promFinal = promApr;
+        else if (promEje !== null) promFinal = promEje;
+
+        const celdaProm = (val) => {
+            if (val === null) return `<td style="text-align:center; padding:6px;">–</td>`;
+            const bajo = val < PROMEDIO_MINIMO_APROBAR;
+            return `<td style="text-align:center; padding:6px; font-weight:bold; ${bajo ? "color:#c0392b;" : ""}">${val.toFixed(1)}</td>`;
+        };
+
+        const tr = document.createElement("tr");
+        if (sinCuenta) tr.style.backgroundColor = "#fdf3d6";
+        tr.innerHTML =
+            `<td style="text-align:center; padding:6px;">${i + 1}</td>` +
+            `<td style="text-align:left; padding:6px;">${escapeHtml(est.nombre)}${sinCuenta ? " (Sin cuenta)" : ""}</td>` +
+            htmlCeldas +
+            celdaProm(promApr) + celdaProm(promEje) + celdaProm(promFinal);
+        tbody.appendChild(tr);
+    });
+
+    tabla.appendChild(tbody);
+
+    tabla.querySelectorAll("th, td").forEach((cell) => {
+        cell.style.border = "1px solid #ccc";
+    });
+
+    return tabla;
+}
+
 function construirReporteHtml() {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
     const trimestre = selectTrimestreNota.value;
     const fechaHoyTexto = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
 
-    // Clonamos la tabla actual tal cual está en pantalla (con sus promedios
-    // ya calculados), pero sin los botones de eliminar columna ni los
-    // inputs editables — solo texto, para que se vea limpio al exportar.
-    const tablaOriginal = document.querySelector("#bloqueTablaNotas table");
-    const tablaClon = tablaOriginal.cloneNode(true);
-
-    tablaClon.querySelectorAll(".btn-eliminar-columna").forEach((b) => b.remove());
-    tablaClon.querySelectorAll("input.input-nota-grupo").forEach((input) => {
-        const valor = input.value.trim();
-        const numero = valor === "" ? null : parseFloat(valor);
-        const td = document.createElement("td");
-        td.textContent = valor === "" ? "–" : valor;
-        td.style.textAlign = "center";
-        td.style.padding = "6px";
-        if (numero !== null && numero < PROMEDIO_MINIMO_APROBAR) {
-            td.style.color = "#c0392b";
-            td.style.fontWeight = "bold";
-        }
-        input.closest("td").replaceWith(td);
-    });
-    tablaClon.querySelectorAll("input.input-tema-columna").forEach((input) => {
-        const th = document.createElement("th");
-        th.textContent = input.value.trim();
-        th.style.fontWeight = "normal";
-        th.style.fontSize = "11px";
-        input.closest("th").replaceWith(th);
-    });
-    // Notas malas también en la columna de promedio final (ya la marca table-danger,
-    // reforzamos el color por si el exportador no respeta las clases de Bootstrap).
-    tablaClon.querySelectorAll(".celda-prom-final").forEach((td) => {
-        const val = parseFloat(td.textContent);
-        if (!isNaN(val) && val < PROMEDIO_MINIMO_APROBAR) {
-            td.style.color = "#c0392b";
-            td.style.fontWeight = "bold";
-        }
-    });
+    const tablaReporte = construirTablaReporteCompleta();
 
     const contenedor = document.createElement("div");
     contenedor.style.cssText = "background:#fff; padding:24px; width:1000px; font-family:Arial, sans-serif; color:#222;";
@@ -920,12 +970,9 @@ function construirReporteHtml() {
             </div>
         </div>
     `;
-    contenedor.querySelector("#tablaReporteContenedor").appendChild(tablaClon);
-    tablaClon.style.width = "100%";
-    tablaClon.style.borderCollapse = "collapse";
-    tablaClon.querySelectorAll("th, td").forEach((cell) => {
-        cell.style.border = "1px solid #ccc";
-    });
+    contenedor.querySelector("#tablaReporteContenedor").appendChild(tablaReporte);
+    tablaReporte.style.width = "100%";
+    tablaReporte.style.borderCollapse = "collapse";
 
     return contenedor;
 }
