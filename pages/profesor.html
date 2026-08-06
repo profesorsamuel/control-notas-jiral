@@ -321,42 +321,21 @@
     </div>
 
     <div id="bloqueTablaNotas" class="panel-blanco" style="display:none;">
-        <div class="mb-2 small form-check">
-            <input type="checkbox" class="form-check-input" id="checkSoloColumnaActual" checked>
-            <label class="form-check-label" for="checkSoloColumnaActual">
-                🎯 Mostrar solo la casilla que estoy editando (recomendado en celular, evita
-                escribir la nota en la columna equivocada)
-            </label>
-        </div>
-        <div class="mb-2 small form-check">
-            <input type="checkbox" class="form-check-input" id="checkMostrarPromedios">
-            <label class="form-check-label" for="checkMostrarPromedios">
-                📊 Mostrar columnas de promedio (Prom. Aprec. / Prom. Ejer. / Prom. Examen / Prom. Final)
-            </label>
-        </div>
-        <div class="mb-2 small form-check">
-            <input type="checkbox" class="form-check-input" id="checkSoloResumen">
-            <label class="form-check-label" for="checkSoloResumen">
-                👁️ Ver solo el resumen de promedios (oculta todas las casillas de nota, útil
-                para ver rápido quién va reprobando; los promedios en riesgo salen en rojo)
-            </label>
-        </div>
         <div class="mb-2 small">
-            <button type="button" id="btnElegirColumnas" class="btn btn-link btn-sm p-0" style="text-decoration:none;">
-                🧩 Elegir columnas específicas para ver varias a la vez ▾
-            </button>
-            <div id="panelElegirColumnas" style="display:none; margin-top:8px; padding:10px; background:#f7f5ef; border-radius:6px;">
-                <div style="margin-bottom:6px;">
-                    <button type="button" id="btnColumnasSeleccionarTodas" class="btn btn-link btn-sm p-0 me-3" style="text-decoration:none;">Seleccionar todas</button>
-                    <button type="button" id="btnColumnasSeleccionarNinguna" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Ninguna</button>
-                </div>
-                <div id="listaChecksColumnas" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
-                <p style="font-size:11px; color:#888; margin:8px 0 0;">
-                    Marca aquí las casillas específicas que quieras ver juntas (por ejemplo, solo
-                    Ejer. 4 y Ejer. 6). Esto reemplaza la opción de "solo la casilla actual" mientras
-                    la estés usando.
-                </p>
+            <div style="font-weight:bold; color:var(--color-primario); margin-bottom:6px;">
+                🧩 Elegir columnas para ver (marca las que quieras, incluidos los promedios):
             </div>
+            <div style="margin-bottom:6px;">
+                <button type="button" id="btnColumnasSeleccionarTodas" class="btn btn-link btn-sm p-0 me-3" style="text-decoration:none;">Seleccionar todas</button>
+                <button type="button" id="btnColumnasSeleccionarNinguna" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Ninguna</button>
+            </div>
+            <div id="listaChecksColumnas" style="display:flex; flex-wrap:wrap; gap:10px; padding:10px; background:#f7f5ef; border-radius:6px;"></div>
+            <p style="font-size:11px; color:#888; margin:8px 0 0;">
+                Los promedios se calculan solos a partir de las casillas de nota; no se
+                escriben directamente ahí. Para meter una nota de Examen, elige "Examen" en
+                Tipo arriba, pon un número de casilla, y aparecerá aquí como una columna
+                más para marcar y escribir.
+            </p>
         </div>
         <div class="mb-2 small" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <label for="rangoAnchoCasilla" style="font-weight:bold; color:var(--color-primario);">↔️ Ancho de las casillas:</label>
