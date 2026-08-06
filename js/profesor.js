@@ -879,5 +879,4 @@ btnExportarJpg?.addEventListener("click", async () => {
     pintarCambiarPanel("profesor", "oscuro-sobre-claro");
     poblarSelectSalon();
     cargarTrimestreActivo();
-    cargarHistorialNotas();
 })();
