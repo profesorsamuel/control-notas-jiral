@@ -107,7 +107,67 @@
 
         #btnGuardarNotasGrupo { background: #1f4e79; margin-top: 15px; }
 
-        #tablaScroll { overflow-x: auto; }
+        /* Paleta pastel: fondos suaves con letra oscura, y las casillas
+           de nota siempre en blanco para que se lean bien encima. */
+        .table-danger, tr.table-danger > td, tr.table-danger > th {
+            background-color: #fbe2e2 !important;
+            color: #7a2e2e !important;
+        }
+        .table-warning, tr.table-warning > td, tr.table-warning > th {
+            background-color: #fdf3d6 !important;
+            color: #6b5100 !important;
+        }
+        .table-success, td.table-success {
+            background-color: #dff2e6 !important;
+            color: #1f5c3d !important;
+        }
+        .text-danger { color: #c0575a !important; }
+        .badge.bg-warning { background-color: #fdf3d6 !important; color: #6b5100 !important; }
+
+        .input-nota-grupo, .input-tema-columna {
+            background-color: #fff !important;
+            color: #222 !important;
+        }
+
+        #tablaScroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        #tablaScroll table { border-collapse: separate; border-spacing: 0; }
+        #tablaScroll th, #tablaScroll td { border: 1px solid #ccc; }
+
+        /* Columnas fijas: # y Estudiante quedan pegadas a la izquierda
+           mientras el resto de la tabla se desliza por debajo. */
+        .col-fija {
+            position: sticky;
+            background: #fff;
+            z-index: 1;
+        }
+        .col-fija-num { left: 0; width: 34px; min-width: 34px; }
+        .col-fija-nombre {
+            left: 34px;
+            width: 120px;
+            min-width: 120px;
+            max-width: 120px;
+            text-align: left;
+            white-space: normal;
+            box-shadow: 2px 0 4px rgba(0, 0, 0, .12);
+        }
+        thead .col-fija { background: #1f4e79; color: #fff; z-index: 2; }
+        tr.table-warning td.col-fija { background-color: #fdf3d6; }
+        tr.table-danger td.col-fija { background-color: #fbe2e2; }
+
+        /* Celular: menos relleno alrededor y campos del formulario a todo
+           el ancho, para que no quede tanto espacio vacío. */
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .resumen, .trimestre-panel, .panel-blanco { padding: 12px; }
+            h1 { font-size: 1.25rem; }
+            .form-notas-fila { flex-direction: column; align-items: stretch; gap: 10px; }
+            .form-notas-fila > div { width: 100%; }
+            .form-notas-fila select, .form-notas-fila input { width: 100%; box-sizing: border-box; }
+            #btnCargarSalon { width: 100%; }
+            #buscarCorreo { width: 100%; box-sizing: border-box; }
+            .trimestre-panel { flex-direction: column; align-items: stretch; }
+            #selectTrimestre, #btnGuardarTrimestre { width: 100%; box-sizing: border-box; }
+        }
 
         #buscarCorreo {
             width: 350px;

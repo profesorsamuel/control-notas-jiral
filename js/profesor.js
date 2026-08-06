@@ -16,6 +16,40 @@ function escapeHtml(str) {
 
 const PROMEDIO_MINIMO_APROBAR = 3.0;
 
+// Mientras el/la docente escribe: solo deja pasar dígitos y un único punto
+// decimal, y limita a 1 dígito entero + 1 decimal (así nunca se puede
+// llegar a escribir algo como "33").
+function sanitizarEntradaNota(valor) {
+    let v = valor.replace(",", ".").replace(/[^0-9.]/g, "");
+
+    const partes = v.split(".");
+    if (partes.length > 2) v = partes[0] + "." + partes.slice(1).join("");
+
+    let [entero, decimal] = v.split(".");
+    entero = (entero || "").slice(0, 1);
+
+    if (decimal !== undefined) {
+        decimal = decimal.slice(0, 1);
+        return `${entero}.${decimal}`;
+    }
+    return entero;
+}
+
+// Al salir de la casilla: convierte "3" en "3.0", ".6" en "0.6", y
+// limita cualquier valor al rango 0–5.
+function formatearNotaFinal(valor) {
+    const texto = (valor ?? "").trim();
+    if (texto === "" || texto === ".") return "";
+
+    let num = parseFloat(texto);
+    if (isNaN(num)) return "";
+
+    if (num < 0) num = 0;
+    if (num > 5) num = 5;
+
+    return num.toFixed(1);
+}
+
 function claveCasilla(tipo, numero) {
     return `${tipo}-${numero}`;
 }
@@ -255,7 +289,7 @@ function recalcularPromedios() {
 
 function renderTabla() {
     if (grupoActual.length === 0) {
-        cabeceraNotasGrupo.innerHTML = `<th style="width:45px;">#</th><th>Estudiante</th>`;
+        cabeceraNotasGrupo.innerHTML = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
         cabeceraTemasGrupo.innerHTML = "";
         tablaNotasGrupo.innerHTML = `<tr><td colspan="2" class="text-center text-muted py-3">Este salón aún no tiene estudiantes cargados.</td></tr>`;
         return;
@@ -263,7 +297,7 @@ function renderTabla() {
 
     const claveSel = claveCasilla(selectTipoNota.value, parseInt(inputNumeroNota.value, 10));
 
-    let htmlCabecera = `<th style="width:45px;">#</th><th>Estudiante</th>`;
+    let htmlCabecera = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
     casillasTabla.forEach((c) => {
         const sel = claveCasilla(c.tipo, c.numero) === claveSel;
         htmlCabecera += `
@@ -277,7 +311,7 @@ function renderTabla() {
     htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
     cabeceraNotasGrupo.innerHTML = htmlCabecera;
 
-    let htmlTemas = `<th></th><th class="small text-muted fw-normal">Tema de cada casilla:</th>`;
+    let htmlTemas = `<th class="col-fija col-fija-num"></th><th class="col-fija col-fija-nombre small text-muted fw-normal">Tema de cada casilla:</th>`;
     casillasTabla.forEach((c) => {
         const tema = obtenerTemaCasilla(c.tipo, c.numero);
         htmlTemas += `
@@ -300,7 +334,7 @@ function renderTabla() {
             const valor = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
             return `
                 <td>
-                    <input type="number" step="0.1" min="0" max="5" class="form-control form-control-sm input-nota-grupo"
+                    <input type="text" inputmode="decimal" class="form-control form-control-sm input-nota-grupo"
                         data-col="${colIndex}" data-correo="${sinCuenta ? "" : escapeHtml(est.correo)}"
                         data-estudiante-id="${sinCuenta ? escapeHtml(est.id) : ""}" data-nota-id="${n ? n.id : ""}"
                         data-tipo="${c.tipo}" data-numero="${c.numero}" data-ultimo-valor-guardado="${valor}"
@@ -310,8 +344,8 @@ function renderTabla() {
 
         return `
             <tr class="${sinCuenta ? "table-warning" : ""}">
-                <td>${i + 1}</td>
-                <td>${escapeHtml(est.nombre)}${sinCuenta ? ' <span class="badge bg-warning text-dark">Sin cuenta</span>' : ""}</td>
+                <td class="col-fija col-fija-num">${i + 1}</td>
+                <td class="col-fija col-fija-nombre">${escapeHtml(est.nombre)}${sinCuenta ? ' <span class="badge bg-warning text-dark">Sin cuenta</span>' : ""}</td>
                 ${columnas}
                 <td class="celda-prom-apr text-center fw-bold">–</td>
                 <td class="celda-prom-eje text-center fw-bold">–</td>
@@ -340,13 +374,27 @@ function renderTabla() {
         (porColumna[input.dataset.col] ??= []).push(input);
     });
     todosInputs.forEach((input) => {
-        input.addEventListener("input", recalcularPromedios);
+        input.addEventListener("input", () => {
+            const alFinal = input.selectionEnd === input.value.length;
+            input.value = sanitizarEntradaNota(input.value);
+            if (alFinal) input.selectionStart = input.selectionEnd = input.value.length;
+            recalcularPromedios();
+        });
+
         input.addEventListener("keydown", (e) => {
-            if (e.key !== "Enter") return;
-            e.preventDefault();
             const lista = porColumna[input.dataset.col] || [];
-            const siguiente = lista[lista.indexOf(input) + 1];
-            if (siguiente) { siguiente.focus(); siguiente.select(); }
+
+            if (e.key === "Enter" || e.key === "ArrowDown") {
+                e.preventDefault();
+                const siguiente = lista[lista.indexOf(input) + 1];
+                if (siguiente) { siguiente.focus(); siguiente.select(); }
+                return;
+            }
+            if (e.key === "ArrowUp") {
+                e.preventDefault();
+                const anterior = lista[lista.indexOf(input) - 1];
+                if (anterior) { anterior.focus(); anterior.select(); }
+            }
         });
     });
 }
@@ -559,7 +607,11 @@ checkBloqueoEstudiantes?.addEventListener("change", async () => {
 // Auto-guardado real: cada celda se guarda sola al salir de ella (blur)
 // o al presionar Enter, sin necesidad de un botón "Guardar".
 tablaNotasGrupo?.addEventListener("blur", (e) => {
-    if (e.target.classList?.contains("input-nota-grupo")) guardarNotas(true);
+    if (e.target.classList?.contains("input-nota-grupo")) {
+        e.target.value = formatearNotaFinal(e.target.value);
+        recalcularPromedios();
+        guardarNotas(true);
+    }
 }, true);
 
 // Respaldo por si algo quedó sin guardar (ej. el profesor cerró la pestaña
