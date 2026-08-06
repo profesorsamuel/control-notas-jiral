@@ -1,11 +1,313 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=pages/inicio.html">
-    <title>C.E.B.G. El Jiral | Control de Notas</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Control de Notas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:      #F3F4F0;
+    --surface:    #FFFFFF;
+    --ink:        #16233D;
+    --ink-soft:   #5B6472;
+    --red-pen:    #D62839;
+    --red-pen-ink:#B01F2C;
+    --chalk:      #2E7D5B;
+    --chalk-ink:  #24634A;
+    --gold:       #E7A93F;
+    --gold-ink:   #A9791D;
+    --grid-line:  #E1E3DC;
+    --border:     #DEE1D8;
+    --radius: 18px;
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html{ -webkit-text-size-adjust: 100%; }
+
+  body{
+    margin:0;
+    min-height:100svh;
+    background:
+      linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0/100% 28px,
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0/28px 100%,
+      var(--paper);
+    background-attachment: fixed;
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1,h2,h3{ font-family: 'Space Grotesk', 'Inter', sans-serif; }
+
+  /* ---------------- Top bar ---------------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding: calc(18px + env(safe-area-inset-top)) 20px 18px;
+  }
+  .mark{
+    width:38px; height:38px;
+    border-radius:50%;
+    border: 2.5px solid var(--red-pen);
+    display:flex; align-items:center; justify-content:center;
+    color: var(--red-pen);
+    font-weight:700;
+    font-size: 14px;
+    flex: none;
+    background: var(--surface);
+  }
+  .topbar h1{ margin:0; font-size: 16px; font-weight:700; letter-spacing:.2px; }
+  .topbar .sub{ margin:0; font-size: 11.5px; color: var(--ink-soft); }
+
+  /* ---------------- Hero ---------------- */
+  main{
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 8px 20px 48px;
+  }
+
+  .hero{
+    padding: 18px 2px 30px;
+  }
+  .hero .eyebrow{
+    font-size: 11px;
+    font-weight:600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--red-pen);
+    margin: 0 0 10px;
+  }
+  .hero h2{
+    font-size: 26px;
+    line-height:1.2;
+    margin: 0 0 10px;
+  }
+  .hero p{
+    font-size: 14px;
+    color: var(--ink-soft);
+    margin:0;
+    line-height:1.5;
+    max-width: 40ch;
+  }
+
+  /* ---------------- Option cards ---------------- */
+  .options{
+    display:flex;
+    flex-direction:column;
+    gap: 14px;
+  }
+
+  .opt{
+    position:relative;
+    display:block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 20px 20px 18px;
+    text-decoration:none;
+    color: var(--ink);
+    overflow:hidden;
+  }
+  .opt::before{
+    content:"";
+    position:absolute;
+    left:0; top:0; bottom:0;
+    width:4px;
+  }
+  .opt.red::before{ background: var(--red-pen); }
+  .opt.chalk::before{ background: var(--chalk); }
+  .opt.gold::before{ background: var(--gold); }
+
+  .opt-head{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .opt-ico{
+    width:44px; height:44px;
+    border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px;
+    flex:none;
+  }
+  .opt.red .opt-ico{ background: rgba(214,40,57,0.1); color: var(--red-pen); }
+  .opt.chalk .opt-ico{ background: rgba(46,125,91,0.1); color: var(--chalk); }
+  .opt.gold .opt-ico{ background: rgba(231,169,63,0.16); color: var(--gold-ink); }
+
+  .opt-title{
+    font-family:'Space Grotesk',sans-serif;
+    font-size: 15.5px;
+    font-weight:700;
+    margin: 0 0 2px;
+  }
+  .opt-desc{
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin:0;
+    line-height:1.4;
+  }
+  .opt-arrow{
+    margin-left:auto;
+    color: var(--ink-soft);
+    font-size: 16px;
+    flex:none;
+  }
+
+  /* Expandable role picker inside "Miembro nuevo" */
+  .roles{
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .22s ease;
+  }
+  .roles-inner{ overflow:hidden; }
+  .opt.expanded .roles{ grid-template-rows: 1fr; }
+  .roles-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    padding-top:16px;
+    margin-top:16px;
+    border-top: 1px dashed var(--border);
+  }
+  .role-link{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--paper);
+    border: 1.5px solid var(--border);
+    text-decoration:none;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight:600;
+  }
+  .role-link:hover{ border-color: var(--chalk); }
+  .role-link span.tag{
+    font-family:'JetBrains Mono',monospace;
+    font-size: 10.5px;
+    font-weight:600;
+    color: var(--chalk-ink);
+  }
+
+  .toggle-btn{
+    all:unset;
+    display:block;
+    width:100%;
+    cursor:pointer;
+  }
+
+  .hint-strip{
+    margin-top: 26px;
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    line-height:1.5;
+  }
+  .hint-strip .dot{ color: var(--gold-ink); flex:none; }
+
+  @media (min-width: 640px){
+    main{ padding-top: 24px; }
+    .hero h2{ font-size: 30px; }
+  }
+</style>
 </head>
 <body>
-    <p>Redirigiendo... si no pasa automáticamente, <a href="pages/inicio.html">haz clic aquí</a>.</p>
+
+  <header class="topbar">
+    <div class="mark">CN</div>
+    <div>
+      <h1>Control de Notas</h1>
+      <p class="sub">Consulta y administración académica</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Bienvenido(a)</p>
+      <h2>¿Qué quieres hacer?</h2>
+      <p>Elige una opción para continuar. Estudiantes, profesores y consejeros(as) entran desde aquí.</p>
+    </section>
+
+    <div class="options">
+
+      <!-- MIS NOTAS -->
+      <a class="opt red" href="pages/login.html">
+        <div class="opt-head">
+          <div class="opt-ico">▤</div>
+          <div>
+            <p class="opt-title">Mis notas</p>
+            <p class="opt-desc">Inicia sesión para consultar tus calificaciones.</p>
+          </div>
+          <div class="opt-arrow">→</div>
+        </div>
+      </a>
+
+      <!-- MIEMBRO NUEVO (expandible por rol) -->
+      <div class="opt chalk" id="opt-miembro">
+        <button class="toggle-btn" id="btn-miembro" aria-expanded="false" aria-controls="roles-miembro">
+          <div class="opt-head">
+            <div class="opt-ico">☺</div>
+            <div>
+              <p class="opt-title">Miembro nuevo</p>
+              <p class="opt-desc">Crea tu cuenta como estudiante, profesor(a) o consejero(a).</p>
+            </div>
+            <div class="opt-arrow" id="miembro-arrow">↓</div>
+          </div>
+        </button>
+
+        <div class="roles" id="roles-miembro">
+          <div class="roles-inner">
+            <div class="roles-list">
+              <a class="role-link" href="pages/registro.html?tipo=estudiante">
+                Estudiante <span class="tag">registro.html</span>
+              </a>
+              <a class="role-link" href="pages/registro.html?tipo=profesor">
+                Profesor(a) <span class="tag">registro.html</span>
+              </a>
+              <a class="role-link" href="pages/registro.html?tipo=consejero">
+                Consejero(a) <span class="tag">registro.html</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AGREGAR NOTAS (acceso de profesor) -->
+      <a class="opt gold" href="pages/login.html">
+        <div class="opt-head">
+          <div class="opt-ico">✎</div>
+          <div>
+            <p class="opt-title">Agregar notas</p>
+            <p class="opt-desc">¿Eres profesor(a)? Inicia sesión para registrar calificaciones.</p>
+          </div>
+          <div class="opt-arrow">→</div>
+        </div>
+      </a>
+
+    </div>
+
+    <p class="hint-strip">
+      <span class="dot">●</span>
+      Si ya tienes cuenta, usa siempre "Mis notas" o "Agregar notas" para entrar. "Miembro nuevo" es solo para la primera vez.
+    </p>
+  </main>
+
+<script>
+  const btn = document.getElementById('btn-miembro');
+  const card = document.getElementById('opt-miembro');
+  const arrow = document.getElementById('miembro-arrow');
+
+  btn.addEventListener('click', () => {
+    const expanded = card.classList.toggle('expanded');
+    btn.setAttribute('aria-expanded', String(expanded));
+    arrow.textContent = expanded ? '↑' : '↓';
+  });
+</script>
 </body>
 </html>
