@@ -33,19 +33,11 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
     <style>
-        /* Candado general: nada en la página (ni siquiera el contenedor
-           que se arma fuera de pantalla para exportar PDF/JPG) puede
-           hacer que el ancho total se salga del celular. */
         html, body {
             max-width: 100%;
             overflow-x: hidden;
         }
 
-        /* ============ Paleta propia (verde pizarra + dorado) ============
-           En vez del azul marino genérico de Bootstrap: un verde pizarra
-           profundo como color principal (evoca el salón de clases, sin
-           ser negro-azulado plano) y un dorado cálido como color de
-           acción, sobre un fondo crema tipo cuaderno. */
         :root {
             --color-fondo: #faf6ee;
             --color-panel: #ffffff;
@@ -141,8 +133,6 @@
 
         #btnGuardarNotasGrupo { background: var(--color-primario); margin-top: 15px; }
 
-        /* Paleta pastel: fondos suaves con letra oscura, y las casillas
-           de nota siempre en blanco para que se lean bien encima. */
         .table-danger, tr.table-danger > td, tr.table-danger > th {
             background-color: #fbe2e2 !important;
             color: #7a2e2e !important;
@@ -158,9 +148,6 @@
         .text-danger { color: #c0575a !important; }
         .badge.bg-warning { background-color: #fdf3d6 !important; color: #6b5100 !important; }
 
-        /* Columna actualmente seleccionada en el formulario de arriba:
-           antes era el azul genérico de Bootstrap (table-primary), ahora
-           usa el dorado de acento para que combine con el resto. */
         .table-primary, th.table-primary { background-color: #f7e6c4 !important; }
         .text-primary { color: var(--color-acento-oscuro) !important; }
 
@@ -169,10 +156,6 @@
             color: #222 !important;
         }
 
-        /* Ancho mínimo fijo para que un valor como "3.5" siempre quepa
-           completo dentro de la casilla, incluso en pantallas angostas
-           de celular (antes se podía recortar o quedar dentro de un
-           campo demasiado angosto que requería scroll para leerse). */
         td.celda-nota {
             width: 68px;
             min-width: 68px;
@@ -190,8 +173,6 @@
         #tablaScroll table { border-collapse: separate; border-spacing: 0; }
         #tablaScroll th, #tablaScroll td { border: 1px solid #ddd4c4; }
 
-        /* Columnas fijas: # y Estudiante quedan pegadas a la izquierda
-           mientras el resto de la tabla se desliza por debajo. */
         .col-fija {
             position: sticky;
             background: #fff;
@@ -211,13 +192,9 @@
         tr.table-warning td.col-fija { background-color: #fdf3d6; }
         tr.table-danger td.col-fija { background-color: #fbe2e2; }
 
-        /* Bootstrap pinta ".text-muted" en gris oscuro, que sobre el verde
-           del encabezado casi no se ve. Lo aclaramos solo dentro de la tabla. */
         #tablaScroll thead .text-muted { color: #cfe3dd !important; }
         #tablaScroll thead .btn-eliminar-columna { color: #ffb199 !important; }
 
-        /* Celular: menos relleno alrededor y campos del formulario a todo
-           el ancho, para que no quede tanto espacio vacío. */
         @media (max-width: 600px) {
             body { padding: 10px; }
             .resumen, .trimestre-panel, .panel-blanco { padding: 12px; }
@@ -249,7 +226,6 @@
         <span id="navCambiarPanel"></span>
     </div>
 
-    <!-- Selector de trimestre activo (configuración global del sistema) -->
     <div class="trimestre-panel">
         <label for="selectTrimestre">📅 Trimestre activo:</label>
         <select id="selectTrimestre">
@@ -261,7 +237,6 @@
         <span id="estadoTrimestre"></span>
     </div>
 
-    <!-- ================= REGISTRAR / EDITAR NOTAS ================= -->
     <h2>📝 Registrar notas</h2>
 
     <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc3545;">
