@@ -1452,6 +1452,85 @@ document.getElementById("btnPdf")?.addEventListener("click", async () => {
 // INICIAR TODO
 // =====================================================
 
+// =====================================================
+// PREGUNTAS DE SEGURIDAD OBLIGATORIAS (si aún no las tiene)
+// =====================================================
+
+async function verificarPreguntasSeguridadObligatorias() {
+    // Si es el administrador revisando el boletín de otro estudiante
+    // (?correo=... en la URL), no se le fuerza a él a responder las
+    // preguntas de seguridad del estudiante.
+    if (usuarioActual?.esAdminSimulado) return;
+
+    const { data: tiene, error } = await supabase.rpc(
+        "tiene_preguntas_seguridad",
+        { p_correo: usuarioActual.email }
+    );
+
+    if (error) {
+        // Si falla la verificación (ej. problema de red), no se bloquea
+        // al estudiante para que igual pueda usar el sistema.
+        console.error("❌ Error al verificar preguntas de seguridad:", error);
+        return;
+    }
+
+    if (tiene) return;
+
+    const overlay = document.getElementById("overlayPreguntas");
+    const form = document.getElementById("formPreguntasObligatorias");
+    const mensaje = document.getElementById("mensajePreguntasObligatorias");
+    const btn = document.getElementById("btnGuardarPreguntasObligatorias");
+
+    if (!overlay || !form) return;
+
+    overlay.style.display = "flex";
+    document.body.style.overflow = "hidden";
+
+    await new Promise((resolve) => {
+        form.addEventListener("submit", async function manejarSubmit(e) {
+            e.preventDefault();
+
+            const r1 = document.getElementById("opRespuesta1").value.trim();
+            const r2 = document.getElementById("opRespuesta2").value.trim();
+            const r3 = document.getElementById("opRespuesta3").value.trim();
+
+            if (!r1 || !r2 || !r3) {
+                mensaje.textContent = "⚠️ Completa las 3 respuestas.";
+                mensaje.className = "mensaje-preguntas visible";
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = "Guardando...";
+
+            const { data: ok, error: errGuardar } = await supabase.rpc(
+                "guardar_preguntas_seguridad",
+                {
+                    p_correo: usuarioActual.email,
+                    p_respuesta1: r1,
+                    p_respuesta2: r2,
+                    p_respuesta3: r3
+                }
+            );
+
+            btn.disabled = false;
+            btn.textContent = "💾 Guardar y continuar";
+
+            if (errGuardar || !ok) {
+                console.error("❌ Error al guardar preguntas de seguridad:", errGuardar);
+                mensaje.textContent = "❌ No se pudo guardar, intenta de nuevo.";
+                mensaje.className = "mensaje-preguntas visible";
+                return;
+            }
+
+            form.removeEventListener("submit", manejarSubmit);
+            overlay.style.display = "none";
+            document.body.style.overflow = "";
+            resolve();
+        });
+    });
+}
+
 async function inicializarPagina() {
     const user = await mostrarUsuario();
     if (!user) return;
@@ -1463,6 +1542,8 @@ async function inicializarPagina() {
 
     trimestreSeleccionado = trimestreActivo;
     if (filtroTrimestre) filtroTrimestre.value = trimestreActivo;
+
+    await verificarPreguntasSeguridadObligatorias();
 
     await cargarTodo(trimestreSeleccionado);
 }

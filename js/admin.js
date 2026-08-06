@@ -1180,7 +1180,107 @@ document.addEventListener("DOMContentLoaded", async () => {
     btnRecargarUsuarios.addEventListener("click", cargarUsuarios);
     btnRecargarNotas.addEventListener("click", cargarNotas);
 
-    cargarUsuarios();
-    cargarNotas();
+    // =================================================
+    // 7) PREGUNTAS DE SEGURIDAD DE UN ESTUDIANTE
+    // =================================================
+
+    const pregSalon = document.getElementById("pregSalon");
+    const pregEstudiante = document.getElementById("pregEstudiante");
+    const formPregSeguridadAdmin = document.getElementById("formPregSeguridadAdmin");
+    const btnGuardarPregSeguridad = document.getElementById("btnGuardarPregSeguridad");
+    const mensajePregSeguridad = document.getElementById("mensajePregSeguridad");
+
+    function mostrarMensajePreg(texto, tipo) {
+        mensajePregSeguridad.textContent = texto;
+        mensajePregSeguridad.className = `alert alert-${tipo}`;
+    }
+
+    if (pregSalon) {
+        pregSalon.addEventListener("change", async () => {
+            const salon = pregSalon.value;
+
+            pregEstudiante.innerHTML = `<option value="">Cargando...</option>`;
+            pregEstudiante.disabled = true;
+            btnGuardarPregSeguridad.disabled = true;
+            mensajePregSeguridad.className = "alert d-none";
+
+            if (!salon) {
+                pregEstudiante.innerHTML = `<option value="">Seleccione primero un salón</option>`;
+                return;
+            }
+
+            const { data: estudiantesSalon, error } = await supabase
+                .from("estudiantes")
+                .select("correo, nombre, es_prueba")
+                .eq("salon", salon)
+                .order("nombre", { ascending: true });
+
+            if (error) {
+                console.error("❌ Error al cargar estudiantes:", error);
+                pregEstudiante.innerHTML = `<option value="">Error al cargar</option>`;
+                return;
+            }
+
+            const lista = (estudiantesSalon || []).filter((e) => !e.es_prueba && e.correo);
+
+            if (lista.length === 0) {
+                pregEstudiante.innerHTML = `<option value="">No hay estudiantes en este salón</option>`;
+                return;
+            }
+
+            pregEstudiante.innerHTML =
+                `<option value="">Seleccione...</option>` +
+                lista.map((e) => `<option value="${e.correo}">${escapeHtmlAdmin(e.nombre || e.correo)}</option>`).join("");
+
+            pregEstudiante.disabled = false;
+        });
+    }
+
+    if (pregEstudiante) {
+        pregEstudiante.addEventListener("change", () => {
+            btnGuardarPregSeguridad.disabled = !pregEstudiante.value;
+            mensajePregSeguridad.className = "alert d-none";
+        });
+    }
+
+    if (formPregSeguridadAdmin) {
+        formPregSeguridadAdmin.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const correo = pregEstudiante.value;
+            if (!correo) return;
+
+            const r1 = document.getElementById("pregRespuesta1").value.trim();
+            const r2 = document.getElementById("pregRespuesta2").value.trim();
+            const r3 = document.getElementById("pregRespuesta3").value.trim();
+
+            if (!r1 || !r2 || !r3) {
+                mostrarMensajePreg("⚠️ Completa las 3 respuestas.", "warning");
+                return;
+            }
+
+            btnGuardarPregSeguridad.disabled = true;
+            btnGuardarPregSeguridad.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Guardando...`;
+
+            const { data: ok, error } = await supabase.rpc("guardar_preguntas_seguridad", {
+                p_correo: correo,
+                p_respuesta1: r1,
+                p_respuesta2: r2,
+                p_respuesta3: r3
+            });
+
+            btnGuardarPregSeguridad.disabled = false;
+            btnGuardarPregSeguridad.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i> Guardar respuestas`;
+
+            if (error || !ok) {
+                console.error("❌ Error al guardar preguntas de seguridad:", error);
+                mostrarMensajePreg("❌ No se pudieron guardar las respuestas.", "danger");
+                return;
+            }
+
+            mostrarMensajePreg("✅ Respuestas guardadas. El estudiante ya puede recuperar su contraseña con estas preguntas.", "success");
+            formPregSeguridadAdmin.reset();
+        });
+    }
 
 });

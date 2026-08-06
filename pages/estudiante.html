@@ -473,7 +473,8 @@
             .fila-botones-materia,
             .btn-companeros,
             .btn-borrar-col,
-            #toast {
+            #toast,
+            #overlayPreguntas {
                 display: none !important;
             }
 
@@ -587,6 +588,105 @@
                 display: block;
             }
         }
+        /* ============================================
+           OVERLAY OBLIGATORIO: PREGUNTAS DE SEGURIDAD
+           ============================================ */
+
+        .overlay-preguntas {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.78);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .tarjeta-preguntas {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 26px 24px;
+            max-width: 440px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, .3);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .tarjeta-preguntas h2 {
+            margin: 0 0 10px;
+            color: #1f4e79;
+            font-size: 1.2rem;
+        }
+
+        .tarjeta-preguntas p {
+            color: #475569;
+            font-size: .88rem;
+            margin: 0 0 18px;
+            line-height: 1.45;
+        }
+
+        .campo-pregunta {
+            margin-bottom: 14px;
+        }
+
+        .campo-pregunta label {
+            display: block;
+            font-weight: bold;
+            color: #334155;
+            font-size: .85rem;
+            margin-bottom: 5px;
+        }
+
+        .campo-pregunta input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            font-size: .95rem;
+        }
+
+        .campo-pregunta input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, .15);
+        }
+
+        .mensaje-preguntas {
+            display: none;
+            padding: 9px 12px;
+            border-radius: 7px;
+            font-size: .85rem;
+            margin-bottom: 12px;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .mensaje-preguntas.visible {
+            display: block;
+        }
+
+        #btnGuardarPreguntasObligatorias {
+            width: 100%;
+            padding: 11px;
+            border: none;
+            border-radius: 7px;
+            background: #1f4e79;
+            color: #fff;
+            font-weight: bold;
+            font-size: .95rem;
+            cursor: pointer;
+        }
+
+        #btnGuardarPreguntasObligatorias:hover {
+            background: #163a5c;
+        }
+
+        #btnGuardarPreguntasObligatorias:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 
@@ -642,6 +742,35 @@
     <div id="materias"></div>
 
     <div id="toast"></div>
+
+    <!-- Overlay obligatorio: configurar preguntas de seguridad -->
+    <div id="overlayPreguntas" class="overlay-preguntas" style="display:none;">
+        <div class="tarjeta-preguntas">
+            <h2>🔒 Configura tus preguntas de seguridad</h2>
+            <p>
+                Esto es obligatorio y solo lo vas a hacer una vez.
+                Si algún día olvidas tu contraseña, vas a poder recuperarla
+                respondiendo estas 3 preguntas — así que respóndelas con
+                algo que vayas a recordar.
+            </p>
+            <form id="formPreguntasObligatorias">
+                <div class="campo-pregunta">
+                    <label for="opRespuesta1">📚 ¿Cuál es tu materia favorita?</label>
+                    <input type="text" id="opRespuesta1" required>
+                </div>
+                <div class="campo-pregunta">
+                    <label for="opRespuesta2">🔬 ¿Cuál es tu científico(a) favorito(a)?</label>
+                    <input type="text" id="opRespuesta2" required>
+                </div>
+                <div class="campo-pregunta">
+                    <label for="opRespuesta3">🌍 ¿Cuál es tu país favorito?</label>
+                    <input type="text" id="opRespuesta3" required>
+                </div>
+                <div id="mensajePreguntasObligatorias" class="mensaje-preguntas"></div>
+                <button type="submit" id="btnGuardarPreguntasObligatorias">💾 Guardar y continuar</button>
+            </form>
+        </div>
+    </div>
 
     <!-- Librería jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

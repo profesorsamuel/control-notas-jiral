@@ -208,25 +208,66 @@
                     <h5 class="modal-title">Recuperar contraseña</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
-                <form id="formOlvidoPassword">
+
+                <!-- PASO 1: pedir cédula (estudiante) o correo (consejero/profesor) -->
+                <form id="formOlvidoPaso1">
                     <div class="modal-body">
                         <p class="text-muted">
-                            Escribe el correo de tu cuenta (consejero/profesor) y te enviaremos
-                            un enlace para restablecer tu contraseña.
+                            Si sos <strong>estudiante</strong>, escribí tu cédula.
+                            Si sos <strong>consejero(a) o profesor(a)</strong>, escribí tu correo.
                         </p>
                         <div class="mb-3">
-                            <label for="correoRecuperar" class="form-label">Correo electrónico</label>
-                            <input type="email" id="correoRecuperar" class="form-control" required>
+                            <label for="identificadorRecuperar" class="form-label">Cédula o correo</label>
+                            <input type="text" id="identificadorRecuperar" class="form-control" required>
                         </div>
-                        <div id="mensajeOlvidoPassword" class="alert d-none" role="alert"></div>
+                        <div id="mensajeOlvidoPaso1" class="alert d-none" role="alert"></div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" id="btnEnviarRecuperar" class="btn btn-primary">
-                            Enviar enlace
-                        </button>
+                        <button type="submit" id="btnContinuarRecuperar" class="btn btn-primary">Continuar</button>
                     </div>
                 </form>
+
+                <!-- PASO 2 (solo estudiantes): preguntas de seguridad -->
+                <form id="formOlvidoPreguntas" class="d-none">
+                    <div class="modal-body">
+                        <p class="text-muted">Responde tus 3 preguntas de seguridad.</p>
+
+                        <div class="mb-3">
+                            <label class="form-label">📚 ¿Cuál es tu materia favorita?</label>
+                            <input type="text" id="respuesta1" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">🔬 ¿Cuál es tu científico(a) favorito(a)?</label>
+                            <input type="text" id="respuesta2" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">🌍 ¿Cuál es tu país favorito?</label>
+                            <input type="text" id="respuesta3" class="form-control" required>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-3">
+                            <label for="nuevaPasswordPreguntas" class="form-label">Nueva contraseña</label>
+                            <input type="password" id="nuevaPasswordPreguntas" class="form-control" minlength="6" required autocomplete="new-password">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="confirmarPasswordPreguntas" class="form-label">Confirmar contraseña</label>
+                            <input type="password" id="confirmarPasswordPreguntas" class="form-control" minlength="6" required autocomplete="new-password">
+                        </div>
+
+                        <div id="mensajeOlvidoPreguntas" class="alert d-none" role="alert"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" id="btnCambiarPasswordPreguntas" class="btn btn-primary">Cambiar contraseña</button>
+                    </div>
+                </form>
+
             </div>
         </div>
     </div>

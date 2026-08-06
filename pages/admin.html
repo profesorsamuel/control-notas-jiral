@@ -242,6 +242,72 @@
             </div>
         </section>
 
+        <!-- ===================== PREGUNTAS DE SEGURIDAD ===================== -->
+        <section class="card shadow border-warning border-2 mb-4">
+            <div class="card-header bg-warning">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-key me-2" aria-hidden="true"></i>
+                    Preguntas de seguridad de un estudiante
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Usa esto cuando un estudiante te diga en persona las respuestas a sus
+                    3 preguntas de seguridad (por ejemplo, si nunca las configuró y necesita
+                    poder recuperar su contraseña más adelante). Las respuestas quedan
+                    guardadas de forma cifrada, ni siquiera vos las podés volver a leer.
+                </p>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-6 col-md-3">
+                        <label for="pregSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-warning me-1"></i> Salón
+                        </label>
+                        <select id="pregSalon" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="8A">8°A</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="pregEstudiante" class="form-label fw-semibold">
+                            <i class="fa-solid fa-user-graduate text-warning me-1"></i> Estudiante
+                        </label>
+                        <select id="pregEstudiante" class="form-select" disabled>
+                            <option value="">Seleccione primero un salón</option>
+                        </select>
+                    </div>
+                </div>
+
+                <form id="formPregSeguridadAdmin">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">📚 ¿Cuál es tu materia favorita?</label>
+                        <input type="text" id="pregRespuesta1" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">🔬 ¿Cuál es tu científico(a) favorito(a)?</label>
+                        <input type="text" id="pregRespuesta2" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">🌍 ¿Cuál es tu país favorito?</label>
+                        <input type="text" id="pregRespuesta3" class="form-control" required>
+                    </div>
+
+                    <div id="mensajePregSeguridad" class="alert d-none" role="alert"></div>
+
+                    <button type="submit" id="btnGuardarPregSeguridad" class="btn btn-warning" disabled>
+                        <i class="fa-solid fa-floppy-disk me-1"></i>
+                        Guardar respuestas
+                    </button>
+                </form>
+
+            </div>
+        </section>
+
         <!-- ===================== USUARIOS ===================== -->
         <section class="card shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">

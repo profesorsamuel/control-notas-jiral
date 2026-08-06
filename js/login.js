@@ -239,61 +239,221 @@ document.addEventListener("DOMContentLoaded", () => {
     // =================================================
     // RECUPERAR CONTRASEÑA (¿Olvidaste tu contraseña?)
     // =================================================
+    //
+    // Dos caminos posibles, según lo que la persona escriba
+    // en el Paso 1:
+    //   - Si escribe un CORREO (contiene "@"): se asume que es
+    //     consejero(a)/profesor(a) y se manda el enlace de
+    //     Supabase por correo (como ya funcionaba antes).
+    //   - Si escribe una CÉDULA (sin "@"): se asume estudiante,
+    //     se le muestran sus 3 preguntas de seguridad y, si las
+    //     responde bien, puede escribir una contraseña nueva ahí
+    //     mismo (sin necesitar correo real).
 
     const linkOlvido = document.getElementById("linkOlvidoPassword");
     const modalEl = document.getElementById("modalOlvidoPassword");
-    const formOlvido = document.getElementById("formOlvidoPassword");
-    const mensajeOlvido = document.getElementById("mensajeOlvidoPassword");
-    const btnEnviarRecuperar = document.getElementById("btnEnviarRecuperar");
+
+    const formPaso1 = document.getElementById("formOlvidoPaso1");
+    const inputIdentificador = document.getElementById("identificadorRecuperar");
+    const mensajePaso1 = document.getElementById("mensajeOlvidoPaso1");
+    const btnContinuarRecuperar = document.getElementById("btnContinuarRecuperar");
+
+    const formPreguntas = document.getElementById("formOlvidoPreguntas");
+    const mensajePreguntas = document.getElementById("mensajeOlvidoPreguntas");
+    const btnCambiarPasswordPreguntas = document.getElementById("btnCambiarPasswordPreguntas");
 
     let modalOlvido = null;
+    let correoParaPreguntas = null; // se guarda entre el paso 1 y el paso 2
+
+    function mostrarMensaje(elemento, texto, tipo) {
+        elemento.textContent = texto;
+        elemento.className = `alert alert-${tipo}`;
+    }
+
+    function volverAlPaso1() {
+        formPreguntas.classList.add("d-none");
+        formPaso1.classList.remove("d-none");
+        formPreguntas.reset();
+        mensajePreguntas.className = "alert d-none";
+    }
 
     if (linkOlvido && modalEl) {
 
         linkOlvido.addEventListener("click", (e) => {
             e.preventDefault();
 
-            mensajeOlvido.className = "alert d-none";
-            formOlvido.reset();
+            correoParaPreguntas = null;
+            mensajePaso1.className = "alert d-none";
+            mensajePreguntas.className = "alert d-none";
+            formPaso1.reset();
+            formPreguntas.reset();
+            formPreguntas.classList.add("d-none");
+            formPaso1.classList.remove("d-none");
 
             modalOlvido = new bootstrap.Modal(modalEl);
             modalOlvido.show();
         });
     }
 
-    if (formOlvido) {
+    if (formPaso1) {
 
-        formOlvido.addEventListener("submit", async (e) => {
+        formPaso1.addEventListener("submit", async (e) => {
 
             e.preventDefault();
 
-            const correo = document.getElementById("correoRecuperar").value.trim().toLowerCase();
+            const valor = inputIdentificador.value.trim();
+            if (!valor) return;
 
-            if (!correo) return;
+            const esCorreo = valor.includes("@");
 
-            btnEnviarRecuperar.disabled = true;
-            btnEnviarRecuperar.textContent = "Enviando...";
+            btnContinuarRecuperar.disabled = true;
+            btnContinuarRecuperar.textContent = "Un momento...";
 
-            // IMPORTANTE: esta URL debe estar agregada en Supabase,
-            // en Authentication > URL Configuration > Redirect URLs.
-            const redirectTo = `${window.location.origin}/pages/reset-password.html`;
+            if (esCorreo) {
 
-            const { error } = await supabase.auth.resetPasswordForEmail(correo, {
-                redirectTo
-            });
+                // ----- CAMINO CONSEJERO/PROFESOR: enlace por correo -----
+                const redirectTo = `${window.location.origin}/pages/reset-password.html`;
 
-            btnEnviarRecuperar.disabled = false;
-            btnEnviarRecuperar.textContent = "Enviar enlace";
+                const { error } = await supabase.auth.resetPasswordForEmail(
+                    valor.toLowerCase(),
+                    { redirectTo }
+                );
 
-            if (error) {
-                console.error("❌ Error al enviar el correo de recuperación:", error);
-                mensajeOlvido.textContent = "❌ " + error.message;
-                mensajeOlvido.className = "alert alert-danger";
+                btnContinuarRecuperar.disabled = false;
+                btnContinuarRecuperar.textContent = "Continuar";
+
+                if (error) {
+                    console.error("❌ Error al enviar el correo de recuperación:", error);
+                    mostrarMensaje(mensajePaso1, "❌ " + error.message, "danger");
+                    return;
+                }
+
+                mostrarMensaje(
+                    mensajePaso1,
+                    "✅ Si el correo existe, se envió un enlace para restablecer la contraseña. Revisa tu bandeja de entrada (y spam).",
+                    "success"
+                );
+
                 return;
             }
 
-            mensajeOlvido.textContent = "✅ Si el correo existe, se envió un enlace para restablecer la contraseña. Revisa tu bandeja de entrada (y spam).";
-            mensajeOlvido.className = "alert alert-success";
+            // ----- CAMINO ESTUDIANTE: cédula + preguntas de seguridad -----
+
+            const { data: correoEncontrado, error: errCorreo } =
+                await supabase.rpc("obtener_correo_login", { p_cedula: valor });
+
+            if (errCorreo || !correoEncontrado) {
+                btnContinuarRecuperar.disabled = false;
+                btnContinuarRecuperar.textContent = "Continuar";
+                mostrarMensaje(mensajePaso1, "❌ No encontramos ninguna cuenta con esa cédula.", "danger");
+                return;
+            }
+
+            const { data: tienePreguntas, error: errTiene } =
+                await supabase.rpc("tiene_preguntas_seguridad", { p_correo: correoEncontrado });
+
+            btnContinuarRecuperar.disabled = false;
+            btnContinuarRecuperar.textContent = "Continuar";
+
+            if (errTiene) {
+                console.error("❌ Error al verificar preguntas de seguridad:", errTiene);
+                mostrarMensaje(mensajePaso1, "❌ Ocurrió un error, intenta de nuevo.", "danger");
+                return;
+            }
+
+            if (!tienePreguntas) {
+                mostrarMensaje(
+                    mensajePaso1,
+                    "⚠️ Tu cuenta todavía no tiene preguntas de seguridad configuradas. Pídele al profesor(a) o al administrador que te las configure.",
+                    "warning"
+                );
+                return;
+            }
+
+            // Todo listo: se pasa al paso 2 (preguntas + nueva contraseña)
+            correoParaPreguntas = correoEncontrado;
+            mensajePaso1.className = "alert d-none";
+            formPaso1.classList.add("d-none");
+            formPreguntas.classList.remove("d-none");
+        });
+    }
+
+    if (formPreguntas) {
+
+        formPreguntas.addEventListener("submit", async (e) => {
+
+            e.preventDefault();
+
+            if (!correoParaPreguntas) {
+                volverAlPaso1();
+                return;
+            }
+
+            const respuesta1 = document.getElementById("respuesta1").value.trim();
+            const respuesta2 = document.getElementById("respuesta2").value.trim();
+            const respuesta3 = document.getElementById("respuesta3").value.trim();
+            const nuevaPassword = document.getElementById("nuevaPasswordPreguntas").value;
+            const confirmarPassword = document.getElementById("confirmarPasswordPreguntas").value;
+
+            if (nuevaPassword.length < 6) {
+                mostrarMensaje(mensajePreguntas, "⚠️ La contraseña debe tener al menos 6 caracteres.", "warning");
+                return;
+            }
+
+            if (nuevaPassword !== confirmarPassword) {
+                mostrarMensaje(mensajePreguntas, "⚠️ Las contraseñas no coinciden.", "warning");
+                return;
+            }
+
+            btnCambiarPasswordPreguntas.disabled = true;
+            btnCambiarPasswordPreguntas.textContent = "Verificando...";
+
+            const { data: resultado, error } = await supabase.rpc(
+                "restablecer_contrasena_con_preguntas",
+                {
+                    p_correo: correoParaPreguntas,
+                    p_respuesta1: respuesta1,
+                    p_respuesta2: respuesta2,
+                    p_respuesta3: respuesta3,
+                    p_nueva_contrasena: nuevaPassword
+                }
+            );
+
+            btnCambiarPasswordPreguntas.disabled = false;
+            btnCambiarPasswordPreguntas.textContent = "Cambiar contraseña";
+
+            if (error) {
+                console.error("❌ Error al restablecer la contraseña:", error);
+                mostrarMensaje(mensajePreguntas, "❌ Ocurrió un error, intenta de nuevo.", "danger");
+                return;
+            }
+
+            switch (resultado) {
+                case "ok":
+                    mostrarMensaje(mensajePreguntas, "✅ Contraseña actualizada. Ya puedes iniciar sesión con tu nueva contraseña.", "success");
+                    formPreguntas.reset();
+                    setTimeout(() => {
+                        if (modalOlvido) modalOlvido.hide();
+                    }, 2000);
+                    break;
+                case "incorrecto":
+                    mostrarMensaje(mensajePreguntas, "❌ Alguna de las respuestas no es correcta. Intenta de nuevo.", "danger");
+                    break;
+                case "bloqueado":
+                    mostrarMensaje(mensajePreguntas, "🔒 Demasiados intentos fallidos. Espera 15 minutos e intenta de nuevo, o pide ayuda al administrador.", "danger");
+                    break;
+                case "no_configurado":
+                    mostrarMensaje(mensajePreguntas, "⚠️ Tu cuenta no tiene preguntas de seguridad configuradas.", "warning");
+                    break;
+                case "usuario_no_encontrado":
+                    mostrarMensaje(mensajePreguntas, "❌ No se encontró la cuenta. Contacta al administrador.", "danger");
+                    break;
+                case "password_corta":
+                    mostrarMensaje(mensajePreguntas, "⚠️ La contraseña debe tener al menos 6 caracteres.", "warning");
+                    break;
+                default:
+                    mostrarMensaje(mensajePreguntas, "❌ Ocurrió un error inesperado.", "danger");
+            }
         });
     }
 
