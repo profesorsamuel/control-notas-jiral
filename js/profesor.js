@@ -67,6 +67,10 @@ let nombreProfesor = "";
 let misAsignaciones = []; // [{materia, salon}, ...] -- solo lo que este profesor da
 let bloqueoActual = false; // ¿la materia/salón cargada está bloqueada para estudiantes?
 
+// El acceso a este panel se decide igual que en consejero.js:
+// por pertenecer a la tabla correspondiente (profesor_materias),
+// no por el campo "rol" de la tabla "usuarios". Así una cuenta
+// puede ser profesor(a) sin dejar de ser también admin/consejero(a).
 async function verificarSesion() {
     const { data: { user }, error: errUser } = await supabase.auth.getUser();
 
@@ -747,6 +751,9 @@ function construirReporteHtml() {
     const trimestre = selectTrimestreNota.value;
     const fechaHoyTexto = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
 
+    // Clonamos la tabla actual tal cual está en pantalla (con sus promedios
+    // ya calculados), pero sin los botones de eliminar columna ni los
+    // inputs editables — solo texto, para que se vea limpio al exportar.
     const tablaOriginal = document.querySelector("#bloqueTablaNotas table");
     const tablaClon = tablaOriginal.cloneNode(true);
 
@@ -771,6 +778,8 @@ function construirReporteHtml() {
         th.style.fontSize = "11px";
         input.closest("th").replaceWith(th);
     });
+    // Notas malas también en la columna de promedio final (ya la marca table-danger,
+    // reforzamos el color por si el exportador no respeta las clases de Bootstrap).
     tablaClon.querySelectorAll(".celda-prom-final").forEach((td) => {
         const val = parseFloat(td.textContent);
         if (!isNaN(val) && val < PROMEDIO_MINIMO_APROBAR) {
@@ -876,6 +885,34 @@ btnExportarJpg?.addEventListener("click", async () => {
 // INICIO
 // =========================================================
 
+// =========================================================
+// 7) CONTROL DE ANCHO DE LAS CASILLAS DE NOTA (ajuste manual)
+// =========================================================
+
+const rangoAnchoCasilla = document.getElementById("rangoAnchoCasilla");
+const valorAnchoCasilla = document.getElementById("valorAnchoCasilla");
+const CLAVE_ANCHO_CASILLA = "controlNotas_anchoCasilla";
+
+function aplicarAnchoCasilla(px) {
+    document.documentElement.style.setProperty("--ancho-celda-nota", `${px}px`);
+    if (valorAnchoCasilla) valorAnchoCasilla.textContent = `${px}px`;
+}
+
+function iniciarControlAnchoCasilla() {
+    if (!rangoAnchoCasilla) return;
+
+    const guardado = localStorage.getItem(CLAVE_ANCHO_CASILLA);
+    const inicial = guardado ? parseInt(guardado, 10) : 68;
+    rangoAnchoCasilla.value = inicial;
+    aplicarAnchoCasilla(inicial);
+
+    rangoAnchoCasilla.addEventListener("input", () => {
+        const px = parseInt(rangoAnchoCasilla.value, 10);
+        aplicarAnchoCasilla(px);
+        localStorage.setItem(CLAVE_ANCHO_CASILLA, String(px));
+    });
+}
+
 (async function init() {
     const ok = await verificarSesion();
     if (!ok) return;
@@ -883,4 +920,5 @@ btnExportarJpg?.addEventListener("click", async () => {
     pintarCambiarPanel("profesor", "oscuro-sobre-claro");
     poblarSelectSalon();
     cargarTrimestreActivo();
+    iniciarControlAnchoCasilla();
 })();
