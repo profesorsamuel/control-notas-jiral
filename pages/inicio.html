@@ -87,6 +87,36 @@
         .aviso-prueba .fa-flask {
             color: #ca8a04;
         }
+
+        .tarjeta-consulta {
+            border-radius: 16px;
+            border: 2px solid #bbf7d0;
+            background: #f0fdf4;
+        }
+
+        .tarjeta-consulta h5 {
+            color: #15803d;
+        }
+
+        .campo-cedula-wrap {
+            position: relative;
+        }
+
+        .campo-cedula-wrap input {
+            padding-right: 42px;
+        }
+
+        .btn-ojo-cedula {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #64748b;
+        }
     </style>
 </head>
 
@@ -107,6 +137,37 @@
                 el estudiante como sus padres o acudientes puedan darle seguimiento
                 durante el trimestre.
             </p>
+        </div>
+
+        <!-- VER MIS NOTAS (por cédula, sin contraseña) -->
+        <div class="card shadow-sm tarjeta-consulta p-4 mb-4">
+            <h5 class="mb-2">
+                <i class="fa-solid fa-file-lines me-2" aria-hidden="true"></i>
+                Ver mis notas
+            </h5>
+            <p class="text-muted small mb-3">
+                Escribe tu cédula para ver y descargar tus notas de todas las materias.
+            </p>
+            <form id="formVerNotas" class="row g-2 align-items-start">
+                <div class="col-sm-8 campo-cedula-wrap">
+                    <input
+                        type="password"
+                        id="cedulaInicio"
+                        class="form-control"
+                        placeholder="8-123-4567"
+                        autocomplete="off"
+                        required
+                    >
+                    <button type="button" class="btn-ojo-cedula" id="btnOjoInicio" title="Mostrar/ocultar cédula">
+                        👁️
+                    </button>
+                </div>
+                <div class="col-sm-4">
+                    <button type="submit" class="btn btn-success w-100">
+                        Ver mis notas
+                    </button>
+                </div>
+            </form>
         </div>
 
         <!-- ¿QUIÉN ERES? -->
@@ -173,6 +234,25 @@
         </div>
 
     </main>
+
+    <script>
+        const cedulaInicio = document.getElementById("cedulaInicio");
+        const btnOjoInicio = document.getElementById("btnOjoInicio");
+        const formVerNotas = document.getElementById("formVerNotas");
+
+        btnOjoInicio.addEventListener("click", () => {
+            const oculto = cedulaInicio.type === "password";
+            cedulaInicio.type = oculto ? "text" : "password";
+            btnOjoInicio.textContent = oculto ? "🙈" : "👁️";
+        });
+
+        formVerNotas.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const cedula = cedulaInicio.value.trim();
+            if (!cedula) return;
+            window.location.href = `consulta.html?cedula=${encodeURIComponent(cedula)}`;
+        });
+    </script>
 
 </body>
 
