@@ -30,8 +30,27 @@
         <a href="profesores.html"><i class="fa-solid fa-address-book"></i> Ver directorio completo de profesores</a>
     </p>
 
+    <!-- CARGA RÁPIDA DE HORARIO COMPLETO (SAMUEL ORTEGA Y OTROS) -->
+    <div class="panel-blanco border-start border-4 border-primary">
+        <h2 class="h5" style="color:#1f4e79;"><i class="fa-solid fa-bolt text-warning me-1"></i> Cargar Horario Masivo</h2>
+        <p class="small text-muted">Carga automáticamente las 24 horas semanales de un docente de forma rápida.</p>
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label small fw-bold">Correo del profesor en el sistema</label>
+                <input type="email" id="inputCorreoMasivo" class="form-control" placeholder="ejemplo@jiral.edu.pa">
+            </div>
+            <div class="col-md-4">
+                <button type="button" id="btnCargarHorarioSamuel" class="btn btn-success w-100">
+                    <i class="fa-solid fa-calendar-check me-1"></i> Cargar Horario de Samuel Ortega
+                </button>
+            </div>
+        </div>
+        <div id="estadoMasivo" class="small mt-2"></div>
+    </div>
+
+    <!-- FORMULARIO INDIVIDUAL EXISTENTE -->
     <div class="panel-blanco">
-        <h2 class="h5" style="color:#1f4e79;">Agregar asignación</h2>
+        <h2 class="h5" style="color:#1f4e79;">Agregar asignación manual</h2>
         <form id="formAsignacion">
 
             <div class="row g-2">
@@ -102,7 +121,7 @@
                     <label class="form-check-label" for="mat-religion">Religión, Moral y Valores</label>
                 </div>
             </div>
-            <input type="text" id="inputOtraMateria" class="form-control mb-3" placeholder="¿Otra materia que no está en la lista? Escríbela aquí (separa con coma si son varias)">
+            <input type="text" id="inputOtraMateria" class="form-control mb-3" placeholder="¿Otra materia que no está en la lista? Escríbela aquí">
 
             <div class="row g-2 mb-3">
                 <div class="col-md-4">
@@ -121,14 +140,6 @@
                     <input type="time" id="inputHoraAsignacion" class="form-control">
                 </div>
             </div>
-            <p class="small text-muted" style="margin-top:-8px;">
-                El día y la hora que elijas aquí se guardan para todas las materias y salones
-                que marques en este envío. Este dato se usa para armar el horario del día en
-                el módulo de Asistencia.
-                Si una materia se repite varias veces por semana (o dos veces el mismo día),
-                envía el formulario una vez por cada día/hora — cada envío agrega un bloque
-                nuevo, no reemplaza los anteriores.
-            </p>
 
             <label class="subtitulo-campo">Salones donde da clase (puedes marcar varios)</label>
             <div class="grupo-checks mb-3" id="grupoSalones">
