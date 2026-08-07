@@ -145,12 +145,7 @@ async function cargarEstudiantes() {
             <td>${i + 1}</td>
             <td class="col-nombre">${escapeHtml(est.nombre)}</td>
             <td>
-                <select class="select-estado">
-                    <option value="presente" selected>✅ Presente</option>
-                    <option value="ausente">❌ Ausente</option>
-                    <option value="tardanza">⏰ Tardanza</option>
-                    <option value="justificado">📄 Justificado</option>
-                </select>
+                <button type="button" class="btn-estado estado-presente" data-estado="presente">🟢 Presente</button>
             </td>
             <td>
                 <input type="text" class="input-observacion" placeholder="Opcional">
@@ -158,7 +153,37 @@ async function cargarEstudiantes() {
         </tr>
     `).join("");
 
+    activarBotonesEstado();
     estadoLista.textContent = `${estudiantesSalon.length} estudiante(s) cargado(s).`;
+}
+
+// =========================================================
+// 5) BOTÓN DE ESTADO: UN TOQUE/CLIC = SIGUIENTE ESTADO
+// =========================================================
+// Ciclo fijo: Presente -> Ausente -> Tardanza -> Presente -> ...
+// "click" funciona igual con mouse y con pantalla táctil (un tap
+// dispara "click"), así que no hace falta manejar touch por separado.
+// No usa <select> ni abre ningún popup/confirm.
+
+const CICLO_ESTADOS = {
+    presente: { siguiente: "ausente", clase: "estado-ausente", texto: "🔴 Ausente" },
+    ausente: { siguiente: "tardanza", clase: "estado-tardanza", texto: "🟡 Tardanza" },
+    tardanza: { siguiente: "presente", clase: "estado-presente", texto: "🟢 Presente" },
+};
+
+function activarBotonesEstado() {
+    cuerpoTablaEstudiantes.querySelectorAll(".btn-estado").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const actual = btn.dataset.estado;
+            const paso = CICLO_ESTADOS[actual];
+            if (!paso) return;
+
+            btn.classList.remove("estado-presente", "estado-ausente", "estado-tardanza");
+            btn.classList.add(paso.clase);
+            btn.textContent = paso.texto;
+            btn.dataset.estado = paso.siguiente;
+        });
+    });
 }
 
 // =========================================================
