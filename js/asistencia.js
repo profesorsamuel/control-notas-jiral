@@ -199,6 +199,82 @@ async function cargarHorarioProfesorCompleto() {
     return { franjas: franjasCache, bloques: horarioProfesorCache };
 }
 
+// =========================================================
+// 3.0) EXCEPCIONES DE HORARIO (suspensiones/cambios de un día puntual)
+// =========================================================
+// Las administra el admin en excepciones_horario.html. Aquí solo se
+// LEEN y se usan para filtrar "Clases de hoy". No tocan el horario
+// base (ni horario_profesor ni profesor_materias): son un aviso
+// puntual para una fecha específica.
+
+let excepcionesHoyCache = null;
+
+async function cargarExcepcionesDeHoy() {
+    if (excepcionesHoyCache) return excepcionesHoyCache;
+
+    const { data, error } = await supabase
+        .from("excepciones_horario")
+        .select("alcance, correo_profesor, salon, tipo, franja_id, motivo")
+        .eq("fecha", obtenerFechaHoyISO());
+
+    if (error) {
+        console.error("❌ Error al cargar excepciones de horario:", error);
+        excepcionesHoyCache = [];
+        return excepcionesHoyCache;
+    }
+
+    excepcionesHoyCache = data || [];
+    return excepcionesHoyCache;
+}
+
+function excepcionAplicaAClase(exc, clase) {
+    if (exc.alcance === "escuela") return true;
+    if (exc.alcance === "profesor") return exc.correo_profesor === correoProfesor;
+    if (exc.alcance === "salon") return exc.salon === clase.salon;
+    return false;
+}
+
+// Devuelve el motivo si la clase queda suspendida por alguna excepción
+// de hoy, o null si no aplica ninguna. "franjasPorId" es opcional
+// (solo disponible cuando la clase viene de horario_profesor, no del
+// respaldo profesor_materias); sin eso solo se puede aplicar
+// "dia_completo" con precisión.
+function motivoSiSuspendida(clase, excepciones, franjasPorId) {
+    for (const exc of excepciones) {
+        if (!excepcionAplicaAClase(exc, clase)) continue;
+
+        if (exc.tipo === "dia_completo") return exc.motivo;
+
+        if (!franjasPorId) continue; // sin info de franja no podemos afinar más
+
+        if (exc.tipo === "franja_especifica" && clase.franjaId === exc.franja_id) return exc.motivo;
+
+        if (exc.tipo === "desde_franja") {
+            const franjaExc = franjasPorId[exc.franja_id];
+            if (franjaExc && clase.orden >= franjaExc.orden) return exc.motivo;
+        }
+    }
+    return null;
+}
+
+function pintarBannerExcepciones(motivosUnicos) {
+    let banner = document.getElementById("bannerExcepcionesHoy");
+    if (motivosUnicos.length === 0) {
+        banner?.remove();
+        return;
+    }
+
+    if (!banner) {
+        banner = document.createElement("div");
+        banner.id = "bannerExcepcionesHoy";
+        banner.style.cssText = "margin: 0 0 14px; padding: 12px 16px; border-radius: 8px; background:#fdeee0; border:1px solid #f5a623; color:#8a4b00;";
+        const listaClasesHoy = document.getElementById("listaClasesHoy");
+        listaClasesHoy?.parentElement?.insertBefore(banner, listaClasesHoy);
+    }
+
+    banner.innerHTML = `🔔 <strong>Aviso de hoy:</strong> ${motivosUnicos.map(escapeHtml).join(" · ")}`;
+}
+
 async function cargarClasesDeHoy() {
     const listaClasesHoy = document.getElementById("listaClasesHoy");
     const avisoSinHorarioHoy = document.getElementById("avisoSinHorarioHoy");
@@ -207,17 +283,19 @@ async function cargarClasesDeHoy() {
 
     const hoy = diaDeHoyNormalizado();
     const { franjas, bloques } = await cargarHorarioProfesorCompleto();
+    const excepciones = await cargarExcepcionesDeHoy();
 
     let clasesHoy = [];
+    let franjasPorId = null;
 
     if (bloques.length > 0) {
         // --- Fuente nueva: horario_profesor ---
-        const franjasPorId = {};
+        franjasPorId = {};
         franjas.forEach((f) => { franjasPorId[f.id] = f; });
 
         clasesHoy = bloques
             .filter((b) => b.dia === hoy && b.tipo === "clase" && b.materia && b.salon)
-            .map((b) => ({ materia: b.materia, salon: b.salon, hora: franjasPorId[b.franja_id]?.hora_inicio || "", orden: franjasPorId[b.franja_id]?.orden ?? 99 }))
+            .map((b) => ({ materia: b.materia, salon: b.salon, hora: franjasPorId[b.franja_id]?.hora_inicio || "", orden: franjasPorId[b.franja_id]?.orden ?? 99, franjaId: b.franja_id }))
             .sort((a, b) => a.orden - b.orden);
     } else {
         // --- Respaldo: profesor_materias (sistema viejo) ---
@@ -226,12 +304,29 @@ async function cargarClasesDeHoy() {
             .sort((a, b) => (a.hora || "").localeCompare(b.hora || ""));
     }
 
+    // Filtrar por excepciones de hoy y recolectar los motivos para el aviso.
+    const motivosAplicados = new Set();
+    if (excepciones.length > 0) {
+        clasesHoy = clasesHoy.filter((clase) => {
+            const motivo = motivoSiSuspendida(clase, excepciones, franjasPorId);
+            if (motivo) {
+                motivosAplicados.add(motivo);
+                return false;
+            }
+            return true;
+        });
+    }
+    pintarBannerExcepciones([...motivosAplicados]);
+
     if (clasesHoy.length === 0) {
+        listaClasesHoy.innerHTML = "";
         if (avisoSinHorarioHoy) avisoSinHorarioHoy.style.display = "block";
         if (estadoCargaAsistencia) estadoCargaAsistencia.textContent = "";
         asegurarPanelHorarioSemanal();
         return;
     }
+
+    if (avisoSinHorarioHoy) avisoSinHorarioHoy.style.display = "none";
 
     listaClasesHoy.innerHTML = clasesHoy.map((clase) => {
         const url = `asistencia.html?materia=${encodeURIComponent(clase.materia)}&salon=${encodeURIComponent(clase.salon)}`;
