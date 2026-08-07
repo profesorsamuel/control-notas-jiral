@@ -9,7 +9,6 @@ function escapeHtml(str) {
         .replace(/'/g, "&#39;");
 }
 
-// --- Verificar que quien entra es admin ---
 async function verificarAdmin() {
     const { data: { user }, error: errUser } = await supabase.auth.getUser();
     if (errUser || !user) { window.location.href = "login.html"; return false; }
@@ -38,7 +37,6 @@ const checkWhatsapp = document.getElementById("checkWhatsapp");
 const selectDiaAsignacion = document.getElementById("selectDiaAsignacion");
 const inputHoraAsignacion = document.getElementById("inputHoraAsignacion");
 
-// Formatea "09:00" (o "09:00:00" que devuelve Supabase) a "9:00 AM"
 function formatearHora12(horaTexto) {
     if (!horaTexto) return "";
     const [h, m] = horaTexto.split(":");
@@ -47,14 +45,12 @@ function formatearHora12(horaTexto) {
     return fecha.toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" });
 }
 
-// Guarda el correo ORIGINAL cuando estamos editando un profesor existente,
-// para poder actualizar sus filas viejas si el correo cambia.
 let correoOriginalEnEdicion = null;
 
 function limpiarModoEdicion() {
     correoOriginalEnEdicion = null;
     formAsignacion.reset();
-    selectDiaAsignacion.value = "";
+    if (selectDiaAsignacion) selectDiaAsignacion.value = "";
     const aviso = document.getElementById("avisoEdicion");
     if (aviso) aviso.remove();
 }
@@ -65,7 +61,6 @@ function entrarModoEdicion(prof) {
     inputNombre.value = prof.nombre;
     if (prof.telefono) inputTelefono.value = prof.telefono;
 
-    // Marcar materias y salones que ya tiene (útil para corregir, no obligatorio)
     document.querySelectorAll(".check-materia").forEach((c) => (c.checked = false));
     document.querySelectorAll(".check-salon").forEach((c) => (c.checked = false));
 
@@ -76,7 +71,7 @@ function entrarModoEdicion(prof) {
         aviso.className = "small ms-2 text-primary mt-2";
         formAsignacion.appendChild(aviso);
     }
-    aviso.innerHTML = `✎ Editando a <strong>${escapeHtml(prof.nombre)}</strong>. Corrige los datos y marca materia(s)/salón(es) para agregar, o solo corrige el nombre/correo/teléfono y guarda. <a href="#" id="cancelarEdicion">Cancelar edición</a>`;
+    aviso.innerHTML = `✎ Editando a <strong>${escapeHtml(prof.nombre)}</strong>. <a href="#" id="cancelarEdicion">Cancelar edición</a>`;
 
     document.getElementById("cancelarEdicion")?.addEventListener("click", (e) => {
         e.preventDefault();
@@ -87,6 +82,7 @@ function entrarModoEdicion(prof) {
 }
 
 async function cargarListado() {
+    if (!listadoProfesores) return;
     listadoProfesores.innerHTML = "Cargando...";
 
     const { data, error } = await supabase
@@ -99,7 +95,6 @@ async function cargarListado() {
         return;
     }
 
-    // También traemos teléfono/whatsapp desde "profesores" para poder editarlos
     const { data: dataProfesores } = await supabase
         .from("profesores")
         .select("correo_profesor, telefono, whatsapp_activo");
@@ -112,7 +107,6 @@ async function cargarListado() {
         return;
     }
 
-    // Agrupar por profesor -> materia -> [salones]
     const porProfesor = {};
     data.forEach((fila) => {
         const clave = fila.correo_profesor;
@@ -158,7 +152,6 @@ async function cargarListado() {
         `;
     }).join("");
 
-    // Eliminar una sola combinación materia+salón
     listadoProfesores.querySelectorAll(".btn-eliminar-asignacion").forEach((btn) => {
         btn.addEventListener("click", async () => {
             if (!confirm("¿Quitar esta asignación?")) return;
@@ -168,7 +161,6 @@ async function cargarListado() {
         });
     });
 
-    // Editar profesor (rellena el formulario de arriba)
     listadoProfesores.querySelectorAll(".btn-editar-profesor").forEach((btn) => {
         btn.addEventListener("click", () => {
             const correo = btn.closest(".tarjeta-profesor").dataset.correo;
@@ -177,26 +169,14 @@ async function cargarListado() {
         });
     });
 
-    // Eliminar profesor completo (todas sus materias/salones + su ficha)
     listadoProfesores.querySelectorAll(".btn-eliminar-profesor").forEach((btn) => {
         btn.addEventListener("click", async () => {
             const correo = btn.closest(".tarjeta-profesor").dataset.correo;
             const prof = porProfesor[correo];
-            if (!confirm(`¿Eliminar por completo a "${prof.nombre}" (${correo}) y todas sus asignaciones? Esta acción no se puede deshacer.`)) return;
+            if (!confirm(`¿Eliminar por completo a "${prof.nombre}" (${correo})?`)) return;
 
-            const { error: errDelMaterias } = await supabase
-                .from("profesor_materias")
-                .delete()
-                .eq("correo_profesor", correo);
-
-            if (errDelMaterias) { alert("Error al eliminar sus asignaciones: " + errDelMaterias.message); return; }
-
-            const { error: errDelProfesor } = await supabase
-                .from("profesores")
-                .delete()
-                .eq("correo_profesor", correo);
-
-            if (errDelProfesor) { alert("Error al eliminar su ficha: " + errDelProfesor.message); return; }
+            await supabase.from("profesor_materias").delete().eq("correo_profesor", correo);
+            await supabase.from("profesores").delete().eq("correo_profesor", correo);
 
             if (correoOriginalEnEdicion === correo) limpiarModoEdicion();
             cargarListado();
@@ -212,88 +192,33 @@ formAsignacion?.addEventListener("submit", async (e) => {
     const telefono = inputTelefono.value.trim();
     const whatsapp_activo = checkWhatsapp.checked;
 
-    // --- Materias marcadas + "otra materia" escrita a mano ---
     const materiasMarcadas = Array.from(document.querySelectorAll(".check-materia:checked")).map((c) => c.value);
-    const otraMateria = document.getElementById("inputOtraMateria").value.trim();
+    const otraMateria = document.getElementById("inputOtraMateria")?.value.trim();
     if (otraMateria) {
         otraMateria.split(",").map((m) => m.trim()).filter(Boolean).forEach((m) => materiasMarcadas.push(m));
     }
 
-    // --- Salones marcados ---
     const salonesMarcados = Array.from(document.querySelectorAll(".check-salon:checked")).map((c) => c.value);
-
-    // --- Día y hora (se aplican a todas las combinaciones de este envío) ---
-    const diaSeleccionado = selectDiaAsignacion.value;
-    const horaSeleccionada = inputHoraAsignacion.value; // "HH:MM" o ""
+    const diaSeleccionado = selectDiaAsignacion ? selectDiaAsignacion.value : "";
+    const horaSeleccionada = inputHoraAsignacion ? inputHoraAsignacion.value : "";
 
     const editando = !!correoOriginalEnEdicion;
     const soloCorrigiendoDatos = editando && materiasMarcadas.length === 0 && salonesMarcados.length === 0;
 
     if (!soloCorrigiendoDatos) {
-        if (materiasMarcadas.length === 0) {
-            estadoAsignacion.textContent = "⚠️ Marca al menos una materia.";
-            estadoAsignacion.className = "small ms-2 text-warning";
-            return;
-        }
-        if (salonesMarcados.length === 0) {
-            estadoAsignacion.textContent = "⚠️ Marca al menos un salón.";
-            estadoAsignacion.className = "small ms-2 text-warning";
-            return;
-        }
-        if (!diaSeleccionado) {
-            estadoAsignacion.textContent = "⚠️ Selecciona el día de clase.";
-            estadoAsignacion.className = "small ms-2 text-warning";
-            return;
-        }
-        if (!horaSeleccionada) {
-            estadoAsignacion.textContent = "⚠️ Selecciona la hora de clase.";
-            estadoAsignacion.className = "small ms-2 text-warning";
-            return;
-        }
+        if (materiasMarcadas.length === 0) { estadoAsignacion.textContent = "⚠️ Marca al menos una materia."; return; }
+        if (salonesMarcados.length === 0) { estadoAsignacion.textContent = "⚠️ Marca al menos un salón."; return; }
+        if (!diaSeleccionado) { estadoAsignacion.textContent = "⚠️ Selecciona el día de clase."; return; }
+        if (!horaSeleccionada) { estadoAsignacion.textContent = "⚠️ Selecciona la hora de clase."; return; }
     }
 
     estadoAsignacion.textContent = "Guardando...";
-    estadoAsignacion.className = "small ms-2 text-primary";
 
-    // Si estamos editando y el correo cambió, primero migramos las filas viejas
-    // al correo nuevo (para no crear un profesor duplicado).
-    if (editando && correoOriginalEnEdicion !== correo_profesor) {
-        const { error: errMigrarMaterias } = await supabase
-            .from("profesor_materias")
-            .update({ correo_profesor, nombre_profesor })
-            .eq("correo_profesor", correoOriginalEnEdicion);
+    await supabase.from("profesores").upsert(
+        [{ correo_profesor, nombre_profesor, telefono, whatsapp_activo, actualizado_en: new Date().toISOString() }],
+        { onConflict: "correo_profesor" }
+    );
 
-        if (errMigrarMaterias) {
-            estadoAsignacion.textContent = `❌ Error al migrar sus asignaciones: ${errMigrarMaterias.message}`;
-            estadoAsignacion.className = "small ms-2 text-danger";
-            return;
-        }
-
-        // Borramos la ficha vieja (se creará/actualizará la nueva en el upsert de abajo)
-        await supabase.from("profesores").delete().eq("correo_profesor", correoOriginalEnEdicion);
-    } else if (editando) {
-        // Mismo correo: aseguramos que el nombre quede sincronizado en sus filas existentes
-        await supabase
-            .from("profesor_materias")
-            .update({ nombre_profesor })
-            .eq("correo_profesor", correo_profesor);
-    }
-
-    // 1) Guardar/actualizar el profesor en el directorio (nombre, teléfono, whatsapp)
-    const { error: errProfesor } = await supabase
-        .from("profesores")
-        .upsert(
-            [{ correo_profesor, nombre_profesor, telefono, whatsapp_activo, actualizado_en: new Date().toISOString() }],
-            { onConflict: "correo_profesor" }
-        );
-
-    if (errProfesor) {
-        estadoAsignacion.textContent = `❌ Error al guardar el profesor: ${errProfesor.message}`;
-        estadoAsignacion.className = "small ms-2 text-danger";
-        return;
-    }
-
-    // 2) Crear una fila por cada combinación materia x salón (si se marcó alguna)
     if (materiasMarcadas.length > 0 && salonesMarcados.length > 0) {
         const filasAInsertar = [];
         materiasMarcadas.forEach((materia) => {
@@ -309,29 +234,90 @@ formAsignacion?.addEventListener("submit", async (e) => {
             });
         });
 
-        // La combinación única ahora es correo+materia+salon+dia+hora (no solo
-        // materia+salon), porque una misma materia en un mismo salón puede
-        // repetirse varias veces por semana en días y horas distintas, e
-        // incluso dos veces el mismo día (clase doble). Así cada bloque de
-        // horario queda como su propia fila, sin sobrescribir a los demás.
-        const { error: errMaterias } = await supabase
-            .from("profesor_materias")
-            .upsert(filasAInsertar, { onConflict: "correo_profesor,materia,salon,dia,hora" });
-
-        if (errMaterias) {
-            estadoAsignacion.textContent = `❌ Error al guardar las asignaciones: ${errMaterias.message}`;
-            estadoAsignacion.className = "small ms-2 text-danger";
-            return;
-        }
+        await supabase.from("profesor_materias").upsert(filasAInsertar, { onConflict: "correo_profesor,materia,salon,dia,hora" });
     }
 
-    estadoAsignacion.textContent = soloCorrigiendoDatos
-        ? "✅ Datos del profesor actualizados."
-        : `✅ Guardado: ${materiasMarcadas.length} materia(s) x ${salonesMarcados.length} salón(es).`;
-    estadoAsignacion.className = "small ms-2 text-success";
-
+    estadoAsignacion.textContent = "✅ Guardado exitosamente.";
     limpiarModoEdicion();
     cargarListado();
+});
+
+// BOTÓN PARA CARGAR EL HORARIO MASIVO DE SAMUEL ORTEGA
+document.getElementById("btnCargarHorarioSamuel")?.addEventListener("click", async () => {
+    const correoMasivo = document.getElementById("inputCorreoMasivo")?.value.trim().toLowerCase();
+    const estadoMasivo = document.getElementById("estadoMasivo");
+
+    if (!correoMasivo) {
+        alert("Escribe primero el correo del profesor Samuel Ortega.");
+        return;
+    }
+
+    if (!confirm(`¿Cargar todo el horario de la imagen para el correo ${correoMasivo}?`)) return;
+
+    estadoMasivo.textContent = "Cargando horario completo...";
+    estadoMasivo.className = "small text-primary";
+
+    const nombre_profesor = "Samuel Ortega";
+
+    await supabase.from("profesores").upsert(
+        [{ correo_profesor: correoMasivo, nombre_profesor, actualizado_en: new Date().toISOString() }],
+        { onConflict: "correo_profesor" }
+    );
+
+    const horarioSamuel = [
+        // Lunes
+        { materia: "Formación Ciudadana", salon: "9C", dia: "Lunes", hora: "12:20" },
+        { materia: "Ciencias Naturales", salon: "9C", dia: "Lunes", hora: "12:55" },
+        { materia: "Ciencias Naturales", salon: "8A", dia: "Lunes", hora: "14:05" },
+        { materia: "Ciencias Naturales", salon: "9B", dia: "Lunes", hora: "15:35" },
+        // Martes
+        { materia: "Ciencias Naturales", salon: "9C", dia: "Martes", hora: "12:20" },
+        { materia: "Ciencias Naturales", salon: "8A", dia: "Martes", hora: "13:30" },
+        { materia: "Ciencias Naturales", salon: "8A", dia: "Martes", hora: "14:05" },
+        { materia: "Ciencias Naturales", salon: "9A", dia: "Martes", hora: "15:35" },
+        { materia: "Ciencias Naturales", salon: "9A", dia: "Martes", hora: "16:10" },
+        // Miércoles
+        { materia: "Ciencias Naturales", salon: "9C", dia: "Miércoles", hora: "12:20" },
+        { materia: "Ciencias Naturales", salon: "9C", dia: "Miércoles", hora: "12:55" },
+        { materia: "Ciencias Naturales", salon: "9B", dia: "Miércoles", hora: "14:05" },
+        { materia: "Ciencias Naturales", salon: "8A", dia: "Miércoles", hora: "15:00" },
+        { materia: "Ciencias Naturales", salon: "9A", dia: "Miércoles", hora: "16:45" },
+        // Jueves
+        { materia: "Ciencias Naturales", salon: "9A", dia: "Jueves", hora: "12:20" },
+        { materia: "Informática", salon: "8A", dia: "Jueves", hora: "13:30" },
+        { materia: "Informática", salon: "8A", dia: "Jueves", hora: "14:05" },
+        { materia: "Ciencias Naturales", salon: "9B", dia: "Jueves", hora: "16:10" },
+        { materia: "Ciencias Naturales", salon: "9B", dia: "Jueves", hora: "16:45" },
+        // Viernes
+        { materia: "Ciencias Naturales", salon: "9A", dia: "Viernes", hora: "12:55" },
+        { materia: "Informática", salon: "8B", dia: "Viernes", hora: "13:30" },
+        { materia: "Informática", salon: "8B", dia: "Viernes", hora: "14:05" },
+        { materia: "Ciencias Naturales", salon: "9B", dia: "Viernes", hora: "15:35" },
+        { materia: "Ciencias Naturales", salon: "8A", dia: "Viernes", hora: "16:10" },
+        { materia: "Ciencias Naturales", salon: "9C", dia: "Viernes", hora: "16:45" }
+    ];
+
+    const filasAInsertar = horarioSamuel.map(b => ({
+        correo_profesor: correoMasivo,
+        nombre_profesor,
+        materia: b.materia,
+        salon: b.salon,
+        dia: b.dia,
+        hora: b.hora
+    }));
+
+    const { error } = await supabase
+        .from("profesor_materias")
+        .upsert(filasAInsertar, { onConflict: "correo_profesor,materia,salon,dia,hora" });
+
+    if (error) {
+        estadoMasivo.textContent = "❌ Error: " + error.message;
+        estadoMasivo.className = "small text-danger";
+    } else {
+        estadoMasivo.textContent = "✅ ¡Horario completo de Samuel Ortega cargado con éxito!";
+        estadoMasivo.className = "small text-success";
+        cargarListado();
+    }
 });
 
 (async function init() {
