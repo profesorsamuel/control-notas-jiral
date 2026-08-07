@@ -94,6 +94,77 @@
             </div>
         </div>
 
+        <!-- CONTROL DE CONSULTAS DE NOTAS -->
+        <div class="card mt-4 shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <div>
+                        <h4 class="mb-1">
+                            <i class="fa-solid fa-magnifying-glass-chart me-1 text-primary"></i>
+                            Control de consultas de notas
+                        </h4>
+                        <p class="text-muted small mb-0">
+                            Quién ha revisado sus notas desde "Ver mis notas" con su cédula, y si descargó el PDF.
+                        </p>
+                    </div>
+
+                    <button type="button" id="btnVerConsultas" class="btn btn-primary btn-sm">
+                        <i class="fa-solid fa-chart-simple me-1"></i>
+                        Ver estadísticas
+                    </button>
+                </div>
+
+                <div id="bloqueConsultas" style="display:none;">
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2 text-center bg-light">
+                                <div class="fw-bold fs-5" id="statTotalConsultas">0</div>
+                                <div class="small text-muted">Consultas totales</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2 text-center bg-light">
+                                <div class="fw-bold fs-5" id="statEstudiantesDistintos">0</div>
+                                <div class="small text-muted">Estudiantes distintos</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2 text-center bg-light">
+                                <div class="fw-bold fs-5" id="statConPdf">0</div>
+                                <div class="small text-muted">Descargaron PDF</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2 text-center bg-light">
+                                <div class="fw-bold fs-5" id="statSinConsultar">0</div>
+                                <div class="small text-muted">Nunca han revisado</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Estudiante</th>
+                                    <th class="text-center">¿Encontrado?</th>
+                                    <th class="text-center">¿Descargó PDF?</th>
+                                    <th>Fecha y hora</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaConsultas">
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
         <!-- RESUMEN POR ESTUDIANTE -->
         <div class="card mt-4 shadow">
             <div class="card-body">
