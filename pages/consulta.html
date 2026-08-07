@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Ver mis Notas - C.E.B.G. El Jiral</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="../img/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../img/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../img/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../img/apple-touch-icon.png">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            background: #f1f5f9;
+            padding: 20px;
+        }
+
+        .contenedor {
+            max-width: 950px;
+            margin: 0 auto;
+        }
+
+        .encabezado {
+            text-align: center;
+            margin-bottom: 22px;
+        }
+
+        .encabezado h1 {
+            color: #1e3a8a;
+            margin: 10px 0 4px;
+            font-size: 1.7rem;
+        }
+
+        .encabezado p {
+            color: #64748b;
+            margin: 0;
+        }
+
+        .tarjeta-busqueda {
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,.08);
+            margin-bottom: 22px;
+        }
+
+        .fila-busqueda {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .fila-busqueda .campo-cedula {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+        .fila-busqueda input[type="text"],
+        .fila-busqueda input[type="password"] {
+            width: 100%;
+            padding: 12px 40px 12px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .btn-ojo {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #64748b;
+        }
+
+        button.btn-buscar {
+            padding: 12px 22px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button.btn-buscar:hover { background: #1d4ed8; }
+        button.btn-buscar:disabled { background: #94a3b8; cursor: not-allowed; }
+
+        .mensaje {
+            margin-top: 14px;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .error { display: block; background: #fee2e2; color: #991b1b; }
+        .info { display: block; background: #dbeafe; color: #1e40af; }
+
+        #resultado { display: none; }
+
+        .resumen-estudiante {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 18px 22px;
+            box-shadow: 0 2px 10px rgba(0,0,0,.06);
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .resumen-estudiante h2 {
+            margin: 0 0 3px;
+            color: #1f4e79;
+            font-size: 1.25rem;
+        }
+
+        .resumen-estudiante p { margin: 0; color: #64748b; }
+
+        .acciones {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .acciones button {
+            padding: 9px 14px;
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #btnPdf { background: #198754; }
+        #btnPdf:hover { background: #146c43; }
+
+        select#filtroTrimestre {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+        }
+
+        .materia-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 16px 18px 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        .materia-card h3 {
+            margin: 0 0 10px;
+            color: #1f4e79;
+            font-size: 1.05rem;
+        }
+
+        table.tabla-notas {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            font-size: .88rem;
+        }
+
+        table.tabla-notas th,
+        table.tabla-notas td {
+            border: 1px solid #cbd5e1;
+            padding: 8px 6px;
+        }
+
+        table.tabla-notas thead {
+            background: #1e293b;
+            color: #fff;
+        }
+
+        table.tabla-notas td.promedio {
+            font-weight: 700;
+            background: #f1f5f9;
+        }
+
+        .volver {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .volver:hover { text-decoration: underline; }
+
+        @media (max-width: 600px) {
+            .fila-busqueda { flex-direction: column; }
+            button.btn-buscar { width: 100%; }
+            .resumen-estudiante { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="contenedor">
+
+        <div class="encabezado">
+            <h1>🎓 C.E.B.G. EL JIRAL</h1>
+            <p>Consulta de notas por cédula</p>
+        </div>
+
+        <div class="tarjeta-busqueda">
+            <label for="cedula" style="display:block; font-weight:bold; margin-bottom:8px; color:#334155;">
+                Escribe tu cédula
+            </label>
+            <div class="fila-busqueda">
+                <div class="campo-cedula">
+                    <input type="password" id="cedula" placeholder="8-123-4567" autocomplete="off">
+                    <button type="button" class="btn-ojo" id="btnOjo" title="Mostrar/ocultar cédula">👁️</button>
+                </div>
+                <button type="button" class="btn-buscar" id="btnBuscar">Ver mis notas</button>
+            </div>
+            <div id="mensaje" class="mensaje" role="alert"></div>
+        </div>
+
+        <div id="resultado">
+
+            <div class="resumen-estudiante">
+                <div>
+                    <h2 id="nombreEstudiante">-</h2>
+                    <p id="salonEstudiante"></p>
+                </div>
+                <div class="acciones">
+                    <select id="filtroTrimestre">
+                        <option value="Trimestre 1">Trimestre 1</option>
+                        <option value="Trimestre 2">Trimestre 2</option>
+                        <option value="Trimestre 3">Trimestre 3</option>
+                        <option value="todos">Todos los trimestres</option>
+                    </select>
+                    <button type="button" id="btnPdf">📄 Descargar PDF</button>
+                </div>
+            </div>
+
+            <div id="materias"></div>
+
+        </div>
+
+        <a href="inicio.html" class="volver">← Volver al inicio</a>
+
+    </div>
+
+    <!-- Librería jsPDF (para el botón de descarga) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <script type="module" src="../js/consulta.js"></script>
+
+</body>
+</html>
