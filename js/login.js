@@ -160,17 +160,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
             } else {
 
-                // 2) No fue una cédula conocida: se revisa si es el
-                // usuario de un consejero(a) ya registrado (ej. "JUANA2026").
-                const { data: consejeroPorUsuario } = await supabase
-                    .from("consejeros")
-                    .select("correo")
-                    .eq("usuario", valorIngresado.toUpperCase())
+                // 2) No fue una cédula de estudiante conocida: se revisa
+                // si es la cédula de un profesor(a) ya registrado(a).
+                const { data: profesorPorCedula } = await supabase
+                    .from("profesores")
+                    .select("correo_profesor")
+                    .eq("cedula", valorIngresado)
                     .maybeSingle();
 
-                correo = consejeroPorUsuario?.correo
-                    ? consejeroPorUsuario.correo
-                    : usuarioAEmail(valorIngresado); // respaldo por si acaso
+                if (profesorPorCedula?.correo_profesor) {
+
+                    correo = profesorPorCedula.correo_profesor;
+
+                } else {
+
+                    // 3) Tampoco: se revisa si es el usuario de un
+                    // consejero(a) ya registrado (ej. "JUANA2026").
+                    const { data: consejeroPorUsuario } = await supabase
+                        .from("consejeros")
+                        .select("correo")
+                        .eq("usuario", valorIngresado.toUpperCase())
+                        .maybeSingle();
+
+                    correo = consejeroPorUsuario?.correo
+                        ? consejeroPorUsuario.correo
+                        : usuarioAEmail(valorIngresado); // respaldo por si acaso
+                }
             }
         }
 
