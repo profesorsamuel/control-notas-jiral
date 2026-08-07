@@ -54,6 +54,109 @@
 
         <div id="mensajeAdmin" class="alert d-none" role="alert"></div>
 
+        <!-- ===================== GESTIONAR ESTUDIANTES ===================== -->
+        <section class="card shadow border-success border-2 mb-4">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-user-pen me-2" aria-hidden="true"></i>
+                    Gestionar estudiantes (nombre y cédula)
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Revisa y corrige el nombre o la cédula de cualquier estudiante, o agrega
+                    estudiantes nuevos. Los cambios se guardan solos al salir de cada casilla.
+                </p>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-8 col-md-4">
+                        <label for="estFiltroSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-success me-1"></i> Salón
+                        </label>
+                        <select id="estFiltroSalon" class="form-select">
+                            <option value="">Todos los salones</option>
+                            <option value="8A">8°A</option>
+                            <option value="8B">8°B</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <button type="button" id="btnCargarEstudiantes" class="btn btn-success w-100">
+                            <i class="fa-solid fa-magnifying-glass me-1"></i> Cargar
+                        </button>
+                    </div>
+                    <div class="col-12 col-md-6 text-md-end">
+                        <span id="estadoGuardadoEstudiantes" class="small text-muted"></span>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width:220px;">Nombre</th>
+                                <th style="min-width:150px;">Cédula</th>
+                                <th style="min-width:110px;">Salón</th>
+                                <th style="min-width:120px;">Estado</th>
+                                <th style="width:60px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaEstudiantesAdmin">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">
+                                    Elegí un salón (o "Todos") y tocá "Cargar".
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <hr>
+
+                <h3 class="h6 mb-3">
+                    <i class="fa-solid fa-user-plus text-success me-1"></i>
+                    Agregar estudiante nuevo
+                </h3>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label for="nuevoEstNombre" class="form-label fw-semibold">Nombre completo</label>
+                        <input type="text" id="nuevoEstNombre" class="form-control" placeholder="Ej: Pérez, Juan">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label for="nuevoEstCedula" class="form-label fw-semibold">Cédula</label>
+                        <input type="text" id="nuevoEstCedula" class="form-control" placeholder="8-123-4567">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label for="nuevoEstSalon" class="form-label fw-semibold">Salón</label>
+                        <select id="nuevoEstSalon" class="form-select">
+                            <option value="8A">8°A</option>
+                            <option value="8B">8°B</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                            <option value="__otro__">Otro salón...</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-2" id="bloqueOtroSalon" style="display:none;">
+                        <label for="nuevoEstSalonOtro" class="form-label fw-semibold">¿Cuál salón?</label>
+                        <input type="text" id="nuevoEstSalonOtro" class="form-control" placeholder="Ej: 7A">
+                    </div>
+                    <div class="col-12 col-md-1">
+                        <button type="button" id="btnAgregarEstudiante" class="btn btn-success w-100">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="mensajeEstudiantesAdmin" class="alert d-none mt-3 mb-0" role="alert"></div>
+
+            </div>
+        </section>
+
         <!-- ===================== AGREGAR NOTAS POR SECCIÓN ===================== -->
         <section class="card shadow border-primary border-2 mb-4">
             <div class="card-header bg-primary text-white">
