@@ -7,9 +7,7 @@
 <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
-
 <h1>Historial de asistencias</h1>
-
 <!-- =========================================================
      FILTROS
 ========================================================= -->
@@ -40,9 +38,7 @@
         <button type="button" id="btnLimpiarFiltros" class="btn-tomar-asistencia">Limpiar filtros</button>
     </div>
 </div>
-
 <p id="estadoHistorial"></p>
-
 <!-- =========================================================
      TABLA DE RESULTADOS
 ========================================================= -->
@@ -58,7 +54,6 @@
     </thead>
     <tbody id="cuerpoTablaHistorial"></tbody>
 </table>
-
 <!-- =========================================================
      DETALLE DE UNA ASISTENCIA (oculto hasta hacer clic en "Ver detalle")
 ========================================================= -->
@@ -70,7 +65,6 @@
         <strong>Salón:</strong> <span id="detalleSalon"></span> —
         <strong>Profesor:</strong> <span id="detalleProfesor"></span>
     </p>
-
     <table>
         <thead>
             <tr>
@@ -82,7 +76,6 @@
         </thead>
         <tbody id="cuerpoTablaDetalle"></tbody>
     </table>
-
     <div style="position:relative; display:inline-block;">
         <button type="button" id="btnExportar" class="btn-tomar-asistencia">⬇️ Exportar</button>
         <div id="opcionesExportar" style="display:none; position:absolute; top:100%; left:0; z-index:10;">
@@ -91,10 +84,8 @@
             <button type="button" id="btnExportarCSV" class="btn-tomar-asistencia">CSV</button>
         </div>
     </div>
-
     <button type="button" id="btnCerrarDetalle" class="btn-tomar-asistencia">Cerrar detalle</button>
 </div>
-
-<script type="module" src="historial-asistencia.js"></script>
+<script type="module" src="../js/historial-asistencia.js"></script>
 </body>
 </html>
