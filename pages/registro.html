@@ -353,23 +353,90 @@
 
                     <div class="grupo">
 
-                        <label for="correoProfesor">
-                            Correo del profesor(a)
+                        <label for="nombreProfesor">
+                            Profesor(a)
+                        </label>
+
+                        <!--
+                            Se llena dinámicamente consultando la tabla
+                            "profesores", mostrando solo a quienes todavía
+                            NO tienen cuenta creada (registrado = false).
+                        -->
+                        <select id="nombreProfesor" name="nombreProfesor" disabled>
+                            <option value="">Cargando...</option>
+                        </select>
+
+                        <div class="nota">
+                            Si no encuentras tu nombre, pídele al administrador que te agregue.
+                        </div>
+
+                    </div>
+
+                    <div class="grupo">
+
+                        <label for="cedulaProfesor">
+                            Cédula
+                        </label>
+
+                        <input
+                            type="text"
+                            id="cedulaProfesor"
+                            name="cedulaProfesor"
+                            placeholder="8-123-4567"
+                            autocomplete="off"
+                        >
+
+                        <div class="nota">
+                            Se usará para iniciar sesión (en vez de correo electrónico).
+                        </div>
+
+                    </div>
+
+                    <div class="grupo">
+
+                        <label for="telefonoProfesor">
+                            Teléfono (opcional)
+                        </label>
+
+                        <input
+                            type="tel"
+                            id="telefonoProfesor"
+                            name="telefonoProfesor"
+                            placeholder="6000-0000"
+                            autocomplete="off"
+                        >
+
+                    </div>
+
+                    <div class="grupo">
+
+                        <label for="correoMeducaProfesor">
+                            Correo Meduca (opcional)
                         </label>
 
                         <input
                             type="email"
-                            id="correoProfesor"
-                            name="correoProfesor"
-                            placeholder="profesor@correo.com"
-                            autocomplete="username"
+                            id="correoMeducaProfesor"
+                            name="correoMeducaProfesor"
+                            placeholder="nombre@meduca.gob.pa"
+                            autocomplete="off"
                         >
 
-                        <div class="nota" id="notaCorreoProfesor">
-                            Debe ser el mismo correo que el administrador ya agregó en
-                            "Asignaciones de profesores". Si todavía no te ha agregado,
-                            pídeselo antes de registrarte.
-                        </div>
+                    </div>
+
+                    <div class="grupo">
+
+                        <label for="correoPersonalProfesor">
+                            Correo personal (opcional)
+                        </label>
+
+                        <input
+                            type="email"
+                            id="correoPersonalProfesor"
+                            name="correoPersonalProfesor"
+                            placeholder="nombre@correo.com"
+                            autocomplete="off"
+                        >
 
                     </div>
 
