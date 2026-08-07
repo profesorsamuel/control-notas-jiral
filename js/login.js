@@ -65,6 +65,45 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
+    // =================================================
+    // LLEGA DESDE "Ver mis notas" (?cedula=...)
+    // =================================================
+    //
+    // Si el enlace ya trae la cédula (por ejemplo desde
+    // consulta.html), se rellena y se bloquea ese campo, se
+    // pone el foco directo en la contraseña, y arriba se
+    // muestra el nombre del estudiante en vez del texto fijo
+    // "C.E.B.G. El Jiral".
+    (async () => {
+        const parametrosUrl = new URLSearchParams(window.location.search);
+        const cedulaDesdeEnlace = parametrosUrl.get("cedula");
+        if (!cedulaDesdeEnlace) return;
+
+        const correoInput = document.getElementById("correo");
+        const passwordInput = document.getElementById("password");
+        const tituloInstitucion = document.getElementById("tituloInstitucion");
+
+        if (correoInput) {
+            correoInput.value = cedulaDesdeEnlace;
+            correoInput.readOnly = true;
+        }
+
+        if (passwordInput) {
+            passwordInput.focus();
+        }
+
+        try {
+            const { data, error } = await supabase.rpc("obtener_estudiante_por_cedula", { p_cedula: cedulaDesdeEnlace });
+            const encontrado = Array.isArray(data) ? data[0] : data;
+
+            if (!error && encontrado?.nombre && tituloInstitucion) {
+                tituloInstitucion.textContent = encontrado.nombre;
+            }
+        } catch (err) {
+            console.warn("⚠️ No se pudo obtener el nombre del estudiante para el saludo:", err);
+        }
+    })();
+
     loginForm.addEventListener("submit", async (event) => {
 
         event.preventDefault();
@@ -216,7 +255,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 console.log("👨‍🎓 Acceso como estudiante");
 
-                window.location.href = "estudiante.html";
+                const parametrosUrl = new URLSearchParams(window.location.search);
+                const siguientePagina = parametrosUrl.get("next");
+                const destinosPermitidos = ["estudiante.html", "datos.html"];
+
+                window.location.href = destinosPermitidos.includes(siguientePagina)
+                    ? siguientePagina
+                    : "estudiante.html";
             }
 
         } catch (error) {
