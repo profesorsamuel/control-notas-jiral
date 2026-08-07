@@ -240,6 +240,44 @@
             line-height: 1.4;
         }
 
+        .tarjeta-registro-rapido {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 16px 18px;
+        }
+
+        .btn-registro-rapido,
+        .btn-datos-rapido {
+            display: inline-block;
+            padding: 9px 16px;
+            border-radius: 7px;
+            font-weight: bold;
+            font-size: 14px;
+            text-decoration: none;
+            margin-right: 10px;
+            margin-top: 4px;
+        }
+
+        .btn-registro-rapido {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .btn-registro-rapido:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-datos-rapido {
+            background: #ffffff;
+            color: #2563eb;
+            border: 1px solid #93c5fd;
+        }
+
+        .btn-datos-rapido:hover {
+            background: #eff6ff;
+        }
+
         .volver {
             display: block;
             text-align: center;
@@ -297,6 +335,22 @@
                         <option value="todos">Todos los trimestres</option>
                     </select>
                     <button type="button" id="btnPdf">📄 Descargar PDF</button>
+                </div>
+            </div>
+
+            <div id="bloqueNoRegistrado" style="display:none; margin-bottom:18px;">
+                <div class="tarjeta-registro-rapido">
+                    <p class="mb-2" style="margin:0 0 10px; color:#334155;">
+                        Este estudiante todavía no tiene una cuenta para registrar sus propias notas.
+                    </p>
+                    <div class="acciones">
+                        <a id="btnRegistrarNotas" href="#" class="btn-registro-rapido">
+                            📝 Registrar mis notas
+                        </a>
+                        <a id="btnDatosEstudiante" href="datos.html" class="btn-datos-rapido">
+                            📋 Datos del estudiante
+                        </a>
+                    </div>
                 </div>
             </div>
 
