@@ -69,6 +69,8 @@ const salonEstudianteEl = document.getElementById("salonEstudiante");
 const filtroTrimestre = document.getElementById("filtroTrimestre");
 const contenedorMaterias = document.getElementById("materias");
 const btnPdf = document.getElementById("btnPdf");
+const bloqueNoRegistrado = document.getElementById("bloqueNoRegistrado");
+const btnRegistrarNotas = document.getElementById("btnRegistrarNotas");
 
 // =====================================================
 // ESTADO
@@ -210,6 +212,13 @@ async function buscar() {
 
     nombreEstudianteEl.textContent = estudiante.nombre || "Estudiante";
     salonEstudianteEl.textContent = estudiante.salon ? `Salón: ${estudiante.salon}` : "";
+
+    if (estudiante.registrado) {
+        bloqueNoRegistrado.style.display = "none";
+    } else {
+        bloqueNoRegistrado.style.display = "block";
+        btnRegistrarNotas.href = `registro.html?tipo=estudiante&cedula=${encodeURIComponent(cedula)}`;
+    }
 
     resultado.style.display = "block";
     render();
