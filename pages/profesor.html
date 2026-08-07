@@ -269,7 +269,42 @@
     </div>
 
     <!-- ================= REGISTRAR / EDITAR NOTAS ================= -->
-    <h2>📝 Registrar notas</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <h2 style="margin:30px 0 0;">📝 Registrar notas</h2>
+        <button type="button" id="btnAbrirPapelera" class="btn btn-outline-secondary btn-sm" style="height:34px;">
+            🗑️ Papelera
+        </button>
+    </div>
+
+    <div id="bloquePapelera" class="panel-blanco" style="display:none;">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+            <div>
+                <h5 class="mb-1" style="color:var(--color-primario);">🗑️ Casillas eliminadas</h5>
+                <p class="text-muted small mb-0">
+                    Nada se borra de verdad: aquí puedes recuperar una casilla (y sus notas)
+                    que hayas eliminado por error, sin límite de tiempo.
+                </p>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Salón</th>
+                        <th>Materia</th>
+                        <th>Trimestre</th>
+                        <th>Casilla</th>
+                        <th>Notas afectadas</th>
+                        <th>Eliminada el</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="tablaPapelera">
+                    <tr><td colspan="7" class="text-center text-muted py-3">Cargando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc3545;">
         Todavía no tienes materias ni salones asignados. Pídele al administrador que te
