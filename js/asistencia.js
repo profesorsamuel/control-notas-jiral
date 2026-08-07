@@ -149,13 +149,15 @@ function pintarClasesDeHoy() {
         </div>
     `).join("");
 
-    // Todavía no existe tabla de asistencia en Supabase, así que por ahora
-    // el botón solo avisa; la funcionalidad real se agrega en otra etapa.
+    // Al presionar el botón, se abre la nueva vista tomar-asistencia.html
+    // con la materia y el salón de esa tarjeta, para que cargue solo la
+    // lista de esa clase.
     listaClasesHoy.querySelectorAll(".btn-tomar-asistencia").forEach((btn) => {
         btn.addEventListener("click", () => {
             const materia = btn.dataset.materia;
             const salon = btn.dataset.salon;
-            alert(`Este módulo está en construcción. Próximamente podrás pasar asistencia de ${materia} - ${salon} aquí.`);
+            const url = `tomar-asistencia.html?materia=${encodeURIComponent(materia)}&salon=${encodeURIComponent(salon)}`;
+            window.location.href = url;
         });
     });
 }
