@@ -30,8 +30,6 @@ async function cargarDatos() {
 
     if (userError || !user) {
 
-        alert("Tu sesión expiró. Por favor, inicia sesión de nuevo.");
-
         window.location.href = "login.html";
 
         return;
@@ -85,8 +83,6 @@ form.addEventListener("submit", async (e) => {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-
-        alert("Tu sesión expiró. Por favor, inicia sesión de nuevo.");
 
         window.location.href = "login.html";
 
