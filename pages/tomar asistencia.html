@@ -82,8 +82,8 @@
         td.col-nombre { text-align: left; }
 
         /* Botón de estado: un solo toque/clic cicla entre Presente,
-           Ausente y Tardanza. Ancho fijo y suficientemente grande para
-           que sea fácil de tocar con el dedo en celular. */
+           Ausente, Tardanza y Permiso. Ancho fijo y suficientemente
+           grande para que sea fácil de tocar con el dedo en celular. */
         .btn-estado {
             border: none;
             border-radius: 20px;
@@ -101,16 +101,47 @@
         .btn-estado.estado-presente { background: #e3efec; color: #1f5c3d; }
         .btn-estado.estado-ausente { background: #fbe2e2; color: #7a2e2e; }
         .btn-estado.estado-tardanza { background: #fdf3d6; color: #6b5100; }
+        .btn-estado.estado-permiso { background: #dbe8f7; color: #1f4e79; }
         .btn-estado:active { transform: scale(0.96); }
 
-        input.input-observacion {
-            padding: 6px 8px;
+        /* Fila de detalle: aparece SOLO cuando el estado no es Presente.
+           Se oculta por completo (display:none) para Presente, así el
+           profesor no ve nada de más al pasar lista rápido. */
+        tr.fila-detalle { display: none; }
+        tr.fila-detalle.mostrar { display: table-row; }
+        tr.fila-detalle td {
+            background: #f7f5ef;
+            text-align: left;
+            padding: 12px;
+        }
+
+        .panel-detalle {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 420px;
+        }
+        .panel-detalle label {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--color-primario);
+            display: block;
+            margin-bottom: 4px;
+        }
+        .panel-detalle input[type="text"],
+        .panel-detalle textarea {
+            padding: 7px 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
             font-size: 13px;
             width: 100%;
-            min-width: 140px;
             box-sizing: border-box;
+            font-family: 'Inter', Arial, sans-serif;
+            resize: vertical;
+        }
+        .panel-detalle input[type="file"] {
+            font-size: 12px;
+            width: 100%;
         }
 
         #estadoLista { font-size: 14px; color: #888; }
@@ -132,7 +163,7 @@
             body { padding: 10px; }
             .panel-blanco { padding: 12px; }
             .btn-estado { min-width: 100px; padding: 10px 8px; }
-            input.input-observacion { min-width: 110px; }
+            .panel-detalle { max-width: 100%; }
         }
     </style>
 </head>
@@ -160,11 +191,10 @@
                         <th style="width:60px;">Número</th>
                         <th>Nombre</th>
                         <th style="width:150px;">Estado</th>
-                        <th style="width:180px;">Observación</th>
                     </tr>
                 </thead>
                 <tbody id="cuerpoTablaEstudiantes">
-                    <tr><td colspan="4">Cargando estudiantes...</td></tr>
+                    <tr><td colspan="3">Cargando estudiantes...</td></tr>
                 </tbody>
             </table>
         </div>
