@@ -729,6 +729,15 @@ async function cargarSalon() {
     if (cargaSalonEnCurso) return;
     cargaSalonEnCurso = true;
 
+    // Si hay un guardado automático en curso (el docente acaba de salir
+    // de una casilla y de inmediato cambió salón/materia/trimestre),
+    // esperamos a que termine de escribirse en la base de datos antes
+    // de volver a leerla. Así esa nota nunca "desaparece" de la vista.
+    if (guardadoAutomaticoPendiente) {
+        if (estadoCargaSalon) estadoCargaSalon.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Terminando de guardar...`;
+        await guardadoAutomaticoPendiente;
+    }
+
     if (estadoCargaSalon) estadoCargaSalon.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
 
     const { data: estudiantesSalon, error: errEst } = await supabase
@@ -1048,12 +1057,21 @@ checkBloqueoEstudiantes?.addEventListener("change", async () => {
 });
 
 // Auto-guardado real: cada celda se guarda sola al salir de ella (blur)
-// o al presionar Enter, sin necesidad de un botón "Guardar".
+// o al presionar Enter, sin necesidad de un botón "Guardar". Guardamos
+// la promesa en curso para que, si el docente cambia de salón/materia/
+// trimestre justo después de escribir, la recarga espere a que ese
+// guardado termine antes de leer la base de datos otra vez (si no,
+// podría leer "de más rápido" y mostrar la nota como si no se hubiera
+// guardado, aunque en realidad sí se guardó un instante después).
+let guardadoAutomaticoPendiente = null;
+
 tablaNotasGrupo?.addEventListener("blur", (e) => {
     if (e.target.classList?.contains("input-nota-grupo")) {
         e.target.value = formatearNotaFinal(e.target.value);
         recalcularPromedios();
-        guardarNotas(true);
+        guardadoAutomaticoPendiente = guardarNotas(true).finally(() => {
+            guardadoAutomaticoPendiente = null;
+        });
     }
 }, true);
 
