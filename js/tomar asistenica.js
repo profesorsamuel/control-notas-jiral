@@ -140,18 +140,36 @@ async function cargarEstudiantes() {
         return;
     }
 
-    cuerpoTablaEstudiantes.innerHTML = estudiantesSalon.map((est, i) => `
+    cuerpoTablaEstudiantes.innerHTML = estudiantesSalon.map((est, i) => {
+        const idDetalle = `detalle-${est.id}`;
+        return `
         <tr>
             <td>${i + 1}</td>
             <td class="col-nombre">${escapeHtml(est.nombre)}</td>
             <td>
-                <button type="button" class="btn-estado estado-presente" data-estado="presente">🟢 Presente</button>
-            </td>
-            <td>
-                <input type="text" class="input-observacion" placeholder="Opcional">
+                <button type="button" class="btn-estado estado-presente" data-estado="presente" data-detalle="${idDetalle}">🟢 Presente</button>
             </td>
         </tr>
-    `).join("");
+        <tr class="fila-detalle" id="${idDetalle}">
+            <td colspan="3">
+                <div class="panel-detalle">
+                    <div>
+                        <label>Observación</label>
+                        <input type="text" class="input-observacion" placeholder="Ej: llegó 15 min tarde">
+                    </div>
+                    <div>
+                        <label>Justificación</label>
+                        <textarea class="input-justificacion" rows="2" placeholder="Motivo de la ausencia/tardanza/permiso"></textarea>
+                    </div>
+                    <div>
+                        <label>Adjuntar archivo</label>
+                        <input type="file" class="input-adjunto">
+                    </div>
+                </div>
+            </td>
+        </tr>
+    `;
+    }).join("");
 
     activarBotonesEstado();
     estadoLista.textContent = `${estudiantesSalon.length} estudiante(s) cargado(s).`;
@@ -160,15 +178,20 @@ async function cargarEstudiantes() {
 // =========================================================
 // 5) BOTÓN DE ESTADO: UN TOQUE/CLIC = SIGUIENTE ESTADO
 // =========================================================
-// Ciclo fijo: Presente -> Ausente -> Tardanza -> Presente -> ...
+// Ciclo fijo: Presente -> Ausente -> Tardanza -> Permiso -> Presente -> ...
 // "click" funciona igual con mouse y con pantalla táctil (un tap
 // dispara "click"), así que no hace falta manejar touch por separado.
 // No usa <select> ni abre ningún popup/confirm.
+//
+// Cuando el estado queda en Ausente, Tardanza o Permiso, se muestra
+// automáticamente el panel de Observación/Justificación/Adjuntar
+// archivo debajo de ese estudiante. En Presente ese panel queda oculto.
 
 const CICLO_ESTADOS = {
     presente: { siguiente: "ausente", clase: "estado-ausente", texto: "🔴 Ausente" },
     ausente: { siguiente: "tardanza", clase: "estado-tardanza", texto: "🟡 Tardanza" },
-    tardanza: { siguiente: "presente", clase: "estado-presente", texto: "🟢 Presente" },
+    tardanza: { siguiente: "permiso", clase: "estado-permiso", texto: "🔵 Permiso" },
+    permiso: { siguiente: "presente", clase: "estado-presente", texto: "🟢 Presente" },
 };
 
 function activarBotonesEstado() {
@@ -178,10 +201,15 @@ function activarBotonesEstado() {
             const paso = CICLO_ESTADOS[actual];
             if (!paso) return;
 
-            btn.classList.remove("estado-presente", "estado-ausente", "estado-tardanza");
+            btn.classList.remove("estado-presente", "estado-ausente", "estado-tardanza", "estado-permiso");
             btn.classList.add(paso.clase);
             btn.textContent = paso.texto;
             btn.dataset.estado = paso.siguiente;
+
+            const filaDetalle = document.getElementById(btn.dataset.detalle);
+            if (filaDetalle) {
+                filaDetalle.classList.toggle("mostrar", paso.siguiente !== "presente");
+            }
         });
     });
 }
