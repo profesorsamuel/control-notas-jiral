@@ -14,6 +14,25 @@ function escapeHtml(str) {
         .replace(/'/g, "&#39;");
 }
 
+// Nombres de día en español, en el mismo formato que se guarda en
+// profesor_materias.dia ('Lunes'...'Viernes'), armados manualmente
+// (sin depender del locale del navegador) para que siempre calcen
+// exactamente con los valores permitidos por la base de datos.
+const DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+function obtenerDiaHoy() {
+    return DIAS_SEMANA[new Date().getDay()];
+}
+
+// "09:00:00" (formato que devuelve Supabase para columnas time) -> "9:00 AM"
+function formatearHora12(horaTexto) {
+    if (!horaTexto) return "";
+    const [h, m] = horaTexto.split(":");
+    const fecha = new Date();
+    fecha.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+    return fecha.toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" });
+}
+
 // =========================================================
 // 1) VERIFICAR SESIÓN Y QUE SEA PROFESOR
 // =========================================================
@@ -22,7 +41,7 @@ function escapeHtml(str) {
 
 let correoProfesor = "";
 let nombreProfesor = "";
-let misAsignaciones = []; // [{materia, salon}, ...] -- solo lo que este profesor da
+let misAsignaciones = []; // [{materia, salon, dia, hora}, ...] -- solo lo que este profesor da
 
 async function verificarSesion() {
     const { data: { user }, error: errUser } = await supabase.auth.getUser();
@@ -34,9 +53,12 @@ async function verificarSesion() {
 
     correoProfesor = (user.email || "").trim().toLowerCase();
 
+    // Mismo query que usa profesor.js para "profesor_materias", solo que
+    // ahora también pedimos dia y hora (las columnas nuevas) para poder
+    // armar el horario del día.
     const { data: materias, error: errMaterias } = await supabase
         .from("profesor_materias")
-        .select("materia, salon")
+        .select("materia, salon, dia, hora")
         .eq("correo_profesor", correoProfesor);
 
     if (errMaterias) {
@@ -71,10 +93,8 @@ async function verificarSesion() {
 const fechaActual = document.getElementById("fechaActual");
 const nombreProfesorTexto = document.getElementById("nombreProfesorTexto");
 const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
-const selectSalonAsistencia = document.getElementById("selectSalonAsistencia");
-const selectMateriaAsistencia = document.getElementById("selectMateriaAsistencia");
-const btnAbrirAsistencia = document.getElementById("btnAbrirAsistencia");
-const estadoCargaAsistencia = document.getElementById("estadoCargaAsistencia");
+const avisoSinHorarioHoy = document.getElementById("avisoSinHorarioHoy");
+const listaClasesHoy = document.getElementById("listaClasesHoy");
 
 // =========================================================
 // 3) FECHA Y PROFESOR
@@ -92,83 +112,53 @@ function pintarFechaYProfesor() {
 }
 
 // =========================================================
-// 4) SELECTORES DE SALÓN / MATERIA
+// 4) HORARIO DEL DÍA (tarjetas)
 // =========================================================
-// Misma lógica de poblarSelectSalon / poblarSelectMateria de profesor.js.
+// Filtra, sobre los datos que YA trajo verificarSesion(), únicamente las
+// asignaciones cuyo "dia" coincide con el día de hoy, y las ordena por hora.
 
-function poblarSelectSalon() {
-    const salones = [...new Set(misAsignaciones.map((a) => a.salon))].sort();
-
-    if (salones.length === 0) {
-        selectSalonAsistencia.innerHTML = `<option value="">No tienes salones asignados</option>`;
-        selectSalonAsistencia.disabled = true;
+function pintarClasesDeHoy() {
+    if (misAsignaciones.length === 0) {
         avisoSinAsignaciones.style.display = "block";
+        listaClasesHoy.innerHTML = "";
         return;
     }
 
-    avisoSinAsignaciones.style.display = "none";
-    selectSalonAsistencia.innerHTML =
-        `<option value="">Seleccione un salón</option>` +
-        salones.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
-    selectSalonAsistencia.disabled = false;
+    const diaHoy = obtenerDiaHoy();
+
+    const clasesHoy = misAsignaciones
+        .filter((a) => a.dia === diaHoy && a.hora)
+        .sort((a, b) => (a.hora || "").localeCompare(b.hora || ""));
+
+    if (clasesHoy.length === 0) {
+        avisoSinHorarioHoy.style.display = "block";
+        listaClasesHoy.innerHTML = "";
+        return;
+    }
+
+    avisoSinHorarioHoy.style.display = "none";
+
+    listaClasesHoy.innerHTML = clasesHoy.map((c) => `
+        <div class="tarjeta-clase">
+            <span class="hora-clase">🕒 ${escapeHtml(formatearHora12(c.hora))}</span>
+            <span class="materia-clase">${escapeHtml(c.salon)} ${escapeHtml(c.materia)}</span>
+            <span class="salon-clase">Salón: ${escapeHtml(c.salon)}</span>
+            <button type="button" class="btn-tomar-asistencia" data-materia="${escapeHtml(c.materia)}" data-salon="${escapeHtml(c.salon)}">
+                📋 Tomar asistencia
+            </button>
+        </div>
+    `).join("");
+
+    // Todavía no existe tabla de asistencia en Supabase, así que por ahora
+    // el botón solo avisa; la funcionalidad real se agrega en otra etapa.
+    listaClasesHoy.querySelectorAll(".btn-tomar-asistencia").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const materia = btn.dataset.materia;
+            const salon = btn.dataset.salon;
+            alert(`Este módulo está en construcción. Próximamente podrás pasar asistencia de ${materia} - ${salon} aquí.`);
+        });
+    });
 }
-
-function poblarSelectMateria() {
-    const salon = selectSalonAsistencia.value;
-
-    if (!salon) {
-        selectMateriaAsistencia.innerHTML = `<option value="">Seleccione primero un salón</option>`;
-        selectMateriaAsistencia.disabled = true;
-        actualizarEstadoBoton();
-        return;
-    }
-
-    const materias = misAsignaciones
-        .filter((a) => a.salon === salon)
-        .map((a) => a.materia);
-
-    if (materias.length === 1) {
-        selectMateriaAsistencia.innerHTML =
-            `<option value="${escapeHtml(materias[0])}" selected>${escapeHtml(materias[0])}</option>`;
-        selectMateriaAsistencia.disabled = false;
-        actualizarEstadoBoton();
-        return;
-    }
-
-    selectMateriaAsistencia.innerHTML =
-        `<option value="">Seleccione una materia</option>` +
-        materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
-    selectMateriaAsistencia.disabled = false;
-    actualizarEstadoBoton();
-}
-
-function actualizarEstadoBoton() {
-    const listo = !!selectSalonAsistencia.value && !!selectMateriaAsistencia.value;
-    btnAbrirAsistencia.disabled = !listo;
-}
-
-selectSalonAsistencia?.addEventListener("change", poblarSelectMateria);
-selectMateriaAsistencia?.addEventListener("change", actualizarEstadoBoton);
-
-// =========================================================
-// 5) BOTÓN "ABRIR ASISTENCIA"
-// =========================================================
-// Todavía no existe tabla de asistencia en Supabase, así que por
-// ahora solo se muestra un mensaje. La funcionalidad real se
-// agregará en una siguiente etapa.
-
-btnAbrirAsistencia?.addEventListener("click", () => {
-    const salon = selectSalonAsistencia.value;
-    const materia = selectMateriaAsistencia.value;
-
-    if (!salon || !materia) {
-        estadoCargaAsistencia.textContent = "Selecciona un salón y una materia primero.";
-        return;
-    }
-
-    estadoCargaAsistencia.textContent =
-        `Este módulo está en construcción. Próximamente podrás pasar asistencia de ${materia} - ${salon} aquí.`;
-});
 
 // =========================================================
 // INICIO
@@ -180,5 +170,5 @@ btnAbrirAsistencia?.addEventListener("click", () => {
 
     pintarCambiarPanel("profesor", "oscuro-sobre-claro");
     pintarFechaYProfesor();
-    poblarSelectSalon();
+    pintarClasesDeHoy();
 })();
