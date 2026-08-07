@@ -128,6 +128,10 @@ function pintarEncabezado() {
 //       .eq("salon", salon)
 //       .order("nombre", { ascending: true });
 
+// Caché en memoria del listado de estudiantes ya cargado. Lo usan las
+// alertas de ausencias/tardanzas y el export a PDF/Excel.
+let estudiantesCache = [];
+
 async function cargarEstudiantes() {
     estadoLista.textContent = "Cargando...";
 
@@ -149,8 +153,17 @@ async function cargarEstudiantes() {
         return;
     }
 
+    estudiantesCache = estudiantesSalon;
+
+    const colspanDetalle = 3 + columnasDinamicas.length;
+
     cuerpoTablaEstudiantes.innerHTML = estudiantesSalon.map((est, i) => {
         const idDetalle = `detalle-${est.id}`;
+        const celdasExtra = columnasDinamicas.map((col) => `
+            <td>
+                <input type="text" class="input-columna-extra" data-columna-id="${col.id}" data-estudiante-id="${est.id}">
+            </td>
+        `).join("");
         return `
         <tr>
             <td>${i + 1}</td>
@@ -158,9 +171,10 @@ async function cargarEstudiantes() {
             <td>
                 <button type="button" class="btn-estado estado-presente" data-estado="presente" data-detalle="${idDetalle}">🟢 Presente</button>
             </td>
+            ${celdasExtra}
         </tr>
         <tr class="fila-detalle" id="${idDetalle}">
-            <td colspan="3">
+            <td colspan="${colspanDetalle}">
                 <div class="panel-detalle">
                     <div>
                         <label>Observación</label>
@@ -181,7 +195,12 @@ async function cargarEstudiantes() {
     }).join("");
 
     activarBotonesEstado();
+    pintarEncabezadosColumnasDinamicas();
+    await precargarValoresGuardadosHoy();
     estadoLista.textContent = `${estudiantesSalon.length} estudiante(s) cargado(s).`;
+
+    // No bloquea el pintado de la tabla: las alertas se calculan aparte.
+    detectarAlertas();
 }
 
 // =========================================================
@@ -202,6 +221,16 @@ const CICLO_ESTADOS = {
     ausente: { siguiente: "tardanza", clase: "estado-tardanza", texto: "🟡 Tardanza" },
     tardanza: { siguiente: "permiso", clase: "estado-permiso", texto: "🔵 Permiso" },
     permiso: { siguiente: "presente", clase: "estado-presente", texto: "🟢 Presente" },
+};
+
+// Igual que CICLO_ESTADOS pero para "pintar" un estado directamente
+// (usado al copiar el día anterior o precargar lo ya guardado hoy),
+// sin pasar por el ciclo de un clic.
+const ESTADOS_INFO = {
+    presente: { clase: "estado-presente", texto: "🟢 Presente" },
+    ausente: { clase: "estado-ausente", texto: "🔴 Ausente" },
+    tardanza: { clase: "estado-tardanza", texto: "🟡 Tardanza" },
+    permiso: { clase: "estado-permiso", texto: "🔵 Permiso" },
 };
 
 function activarBotonesEstado() {
@@ -280,6 +309,8 @@ async function guardarAsistencia() {
     if (estadoGuardado) estadoGuardado.textContent = "Guardando asistencia...";
 
     try {
+        const inputNotas = document.getElementById("notasProfesor");
+
         // 1) Cabecera: 1 fila por materia+salon+fecha.
         const { data: cabecera, error: errCabecera } = await supabase
             .from("asistencias")
@@ -289,6 +320,7 @@ async function guardarAsistencia() {
                     materia: materiaSeleccionada,
                     salon: salonSeleccionado,
                     fecha: obtenerFechaHoyISO(),
+                    notas_profesor: inputNotas?.value?.trim() || null,
                 },
                 { onConflict: "materia,salon,fecha" }
             )
@@ -314,12 +346,21 @@ async function guardarAsistencia() {
 
             const adjuntoUrl = await subirAdjuntoSiHay(inputAdjunto, estudianteId);
 
+            // Valores de las columnas dinámicas para este estudiante.
+            const valoresExtra = {};
+            cuerpoTablaEstudiantes
+                .querySelectorAll(`.input-columna-extra[data-estudiante-id="${estudianteId}"]`)
+                .forEach((inputExtra) => {
+                    valoresExtra[inputExtra.dataset.columnaId] = inputExtra.value?.trim() || "";
+                });
+
             const fila = {
                 asistencia_id: asistenciaId,
                 estudiante_id: estudianteId,
                 estado: btn.dataset.estado,
                 observacion: inputObservacion?.value?.trim() || null,
                 justificacion: inputJustificacion?.value?.trim() || null,
+                valores_extra: valoresExtra,
             };
             // Solo se envía adjunto_url si hay uno nuevo, para no borrar
             // uno que ya existiera de un guardado anterior.
@@ -337,6 +378,9 @@ async function guardarAsistencia() {
         if (estadoGuardado) {
             estadoGuardado.textContent = `✅ Asistencia guardada (${detalles.length} estudiante(s)).`;
         }
+
+        // Las ausencias/tardanzas de hoy recién se guardaron: recalcular alertas.
+        detectarAlertas();
     } catch (error) {
         console.error("❌ Error al guardar asistencia:", error);
         if (estadoGuardado) estadoGuardado.textContent = "❌ Error al guardar. Intenta de nuevo.";
@@ -347,6 +391,462 @@ async function guardarAsistencia() {
             btnGuardar.textContent = "💾 Guardar asistencia";
         }
     }
+}
+
+// =========================================================
+// 7) NOTAS DEL PROFESOR
+// =========================================================
+// Una nota general de texto libre por materia+salon+fecha, guardada
+// junto con la cabecera en "asistencias.notas_profesor".
+// Requiere la columna agregada en 02_funciones_adicionales.sql.
+
+function asegurarControlesNotas() {
+    if (document.getElementById("notasProfesor")) return;
+
+    const contenedor = document.getElementById("panelTabla") || document.body;
+
+    const envoltorio = document.createElement("div");
+    envoltorio.style.marginTop = "16px";
+    envoltorio.innerHTML = `
+        <label for="notasProfesor" style="display:block; font-weight:600; margin-bottom:4px;">
+            📝 Notas del profesor (para esta clase de hoy)
+        </label>
+        <textarea id="notasProfesor" rows="3" style="width:100%;"
+            placeholder="Ej: repasar tarea la próxima clase, avisar a coordinación sobre..."></textarea>
+    `;
+    contenedor.appendChild(envoltorio);
+}
+
+// =========================================================
+// 8) COPIAR ASISTENCIA DEL DÍA ANTERIOR
+// =========================================================
+// Busca la última clase guardada de esta materia/salón ANTES de hoy y
+// copia sus estados/observaciones/justificaciones/columnas dinámicas
+// a la tabla actual. No guarda nada todavía: el profesor revisa y
+// corrige antes de presionar "Guardar asistencia".
+
+async function copiarAsistenciaDiaAnterior() {
+    const estadoCopiado = document.getElementById("estadoCopiado");
+    if (estadoCopiado) estadoCopiado.textContent = "Buscando la clase anterior...";
+
+    try {
+        const { data: cabeceraAnterior, error: errCabecera } = await supabase
+            .from("asistencias")
+            .select("id, fecha")
+            .eq("materia", materiaSeleccionada)
+            .eq("salon", salonSeleccionado)
+            .lt("fecha", obtenerFechaHoyISO())
+            .order("fecha", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (errCabecera) throw errCabecera;
+
+        if (!cabeceraAnterior) {
+            if (estadoCopiado) estadoCopiado.textContent = "No hay ninguna clase anterior guardada para copiar.";
+            return;
+        }
+
+        const { data: detalleAnterior, error: errDetalle } = await supabase
+            .from("asistencia_detalle")
+            .select("estudiante_id, estado, observacion, justificacion, valores_extra")
+            .eq("asistencia_id", cabeceraAnterior.id);
+
+        if (errDetalle) throw errDetalle;
+
+        (detalleAnterior || []).forEach((fila) => {
+            const idDetalle = `detalle-${fila.estudiante_id}`;
+            const btn = cuerpoTablaEstudiantes.querySelector(`.btn-estado[data-detalle="${idDetalle}"]`);
+            const filaDetalle = document.getElementById(idDetalle);
+            if (!btn || !fila.estado || !ESTADOS_INFO[fila.estado]) return;
+
+            const info = ESTADOS_INFO[fila.estado];
+            btn.classList.remove("estado-presente", "estado-ausente", "estado-tardanza", "estado-permiso");
+            btn.classList.add(info.clase);
+            btn.textContent = info.texto;
+            btn.dataset.estado = fila.estado;
+
+            if (filaDetalle) {
+                filaDetalle.classList.toggle("mostrar", fila.estado !== "presente");
+                const inputObservacion = filaDetalle.querySelector(".input-observacion");
+                const inputJustificacion = filaDetalle.querySelector(".input-justificacion");
+                if (inputObservacion) inputObservacion.value = fila.observacion || "";
+                if (inputJustificacion) inputJustificacion.value = fila.justificacion || "";
+            }
+
+            if (fila.valores_extra && typeof fila.valores_extra === "object") {
+                Object.entries(fila.valores_extra).forEach(([columnaId, valor]) => {
+                    const inputExtra = cuerpoTablaEstudiantes.querySelector(
+                        `.input-columna-extra[data-columna-id="${columnaId}"][data-estudiante-id="${fila.estudiante_id}"]`
+                    );
+                    if (inputExtra) inputExtra.value = valor ?? "";
+                });
+            }
+        });
+
+        if (estadoCopiado) {
+            estadoCopiado.textContent = `✅ Copiado desde la clase del ${cabeceraAnterior.fecha}. Revisa y presiona "Guardar asistencia".`;
+        }
+    } catch (error) {
+        console.error("❌ Error al copiar asistencia anterior:", error);
+        if (estadoCopiado) estadoCopiado.textContent = "❌ No se pudo copiar la clase anterior.";
+        alert("Ocurrió un error al copiar la asistencia del día anterior.");
+    }
+}
+
+function asegurarBotonCopiar() {
+    if (document.getElementById("btnCopiarAyer")) return;
+
+    const contenedor = document.getElementById("panelTabla") || document.body;
+
+    const envoltorio = document.createElement("div");
+    envoltorio.style.margin = "16px 0";
+    envoltorio.innerHTML = `
+        <button type="button" id="btnCopiarAyer" class="btn-tomar-asistencia">
+            📋 Copiar asistencia del día anterior
+        </button>
+        <span id="estadoCopiado" style="margin-left:10px;"></span>
+    `;
+    contenedor.appendChild(envoltorio);
+
+    document.getElementById("btnCopiarAyer").addEventListener("click", copiarAsistenciaDiaAnterior);
+}
+
+// =========================================================
+// 9) ALERTAS: MÁS DE 5 AUSENCIAS / MÁS DE 3 TARDANZAS
+// =========================================================
+// Cuenta, para TODO el historial de esta materia/salón, cuántas veces
+// cada estudiante quedó "ausente" o "tardanza" y muestra un aviso con
+// los que superan el límite. Los límites se pueden ajustar aquí abajo.
+
+const LIMITE_AUSENCIAS = 5;
+const LIMITE_TARDANZAS = 3;
+
+async function detectarAlertas() {
+    const contenedorAlertas = document.getElementById("alertasAsistencia");
+    if (!contenedorAlertas) return;
+
+    contenedorAlertas.innerHTML = "";
+    contenedorAlertas.style.display = "none";
+
+    // Se apoya en la relación asistencia_detalle.asistencia_id -> asistencias.id
+    // (definida en 01_crear_tablas_asistencia.sql) para filtrar por
+    // materia/salon sin tener que consultar todas las cabeceras aparte.
+    const { data: historico, error } = await supabase
+        .from("asistencia_detalle")
+        .select("estudiante_id, estado, asistencias!inner(materia, salon)")
+        .eq("asistencias.materia", materiaSeleccionada)
+        .eq("asistencias.salon", salonSeleccionado);
+
+    if (error) {
+        console.error("❌ Error al calcular alertas de asistencia:", error);
+        return;
+    }
+
+    const conteos = {}; // estudiante_id -> { ausente: n, tardanza: n }
+    (historico || []).forEach((fila) => {
+        if (fila.estado !== "ausente" && fila.estado !== "tardanza") return;
+        if (!conteos[fila.estudiante_id]) conteos[fila.estudiante_id] = { ausente: 0, tardanza: 0 };
+        conteos[fila.estudiante_id][fila.estado] += 1;
+    });
+
+    const nombrePorId = Object.fromEntries(estudiantesCache.map((e) => [e.id, e.nombre]));
+
+    const alertas = [];
+    Object.entries(conteos).forEach(([estudianteId, c]) => {
+        const nombre = nombrePorId[estudianteId] || estudianteId;
+        if (c.ausente > LIMITE_AUSENCIAS) {
+            alertas.push(`🔴 ${escapeHtml(nombre)}: ${c.ausente} ausencias`);
+        }
+        if (c.tardanza > LIMITE_TARDANZAS) {
+            alertas.push(`🟡 ${escapeHtml(nombre)}: ${c.tardanza} tardanzas`);
+        }
+    });
+
+    if (alertas.length === 0) return;
+
+    contenedorAlertas.style.display = "block";
+    contenedorAlertas.innerHTML = `
+        <strong>⚠️ Estudiantes que requieren atención:</strong>
+        <ul style="margin:8px 0 0 20px;">
+            ${alertas.map((a) => `<li>${a}</li>`).join("")}
+        </ul>
+    `;
+}
+
+function asegurarContenedorAlertas() {
+    if (document.getElementById("alertasAsistencia")) return;
+
+    const contenedor = document.getElementById("panelTabla") || document.body;
+
+    const caja = document.createElement("div");
+    caja.id = "alertasAsistencia";
+    caja.style.cssText = "display:none; margin:16px 0; padding:12px; border:1px solid #ffc107; background:#fff8e1; border-radius:6px;";
+    contenedor.insertBefore(caja, contenedor.firstChild);
+}
+
+// =========================================================
+// 10) COLUMNAS DINÁMICAS
+// =========================================================
+// El profesor puede agregar/quitar columnas propias (ej. "Uniforme",
+// "Trajo materiales"). Se guardan en "asistencia_columnas" (definición)
+// y sus valores por estudiante/día van dentro de
+// "asistencia_detalle.valores_extra" (jsonb). Ver 02_funciones_adicionales.sql.
+
+let columnasDinamicas = []; // [{ id, nombre }]
+
+async function cargarColumnasDinamicas() {
+    const { data, error } = await supabase
+        .from("asistencia_columnas")
+        .select("id, nombre")
+        .eq("materia", materiaSeleccionada)
+        .eq("salon", salonSeleccionado)
+        .order("creado_en", { ascending: true });
+
+    if (error) {
+        console.error("❌ Error al cargar columnas dinámicas:", error);
+        columnasDinamicas = [];
+        return;
+    }
+
+    columnasDinamicas = data || [];
+}
+
+// Agrega/actualiza los <th> de las columnas dinámicas en el <thead> de
+// la misma tabla donde vive cuerpoTablaEstudiantes, y les pone un
+// botón "✕" para eliminarlas.
+function pintarEncabezadosColumnasDinamicas() {
+    const tabla = cuerpoTablaEstudiantes.closest("table");
+    const filaEncabezado = tabla?.querySelector("thead tr");
+    if (!filaEncabezado) {
+        console.warn("⚠️ No se encontró <thead><tr> en la tabla; no se pueden pintar las columnas dinámicas.");
+        return;
+    }
+
+    filaEncabezado.querySelectorAll(".th-columna-extra").forEach((th) => th.remove());
+
+    columnasDinamicas.forEach((col) => {
+        const th = document.createElement("th");
+        th.className = "th-columna-extra";
+        th.innerHTML = `
+            ${escapeHtml(col.nombre)}
+            <button type="button" class="btn-eliminar-columna" data-columna-id="${col.id}" title="Eliminar columna" style="margin-left:6px;">✕</button>
+        `;
+        filaEncabezado.appendChild(th);
+    });
+
+    filaEncabezado.querySelectorAll(".btn-eliminar-columna").forEach((btn) => {
+        btn.addEventListener("click", () => eliminarColumnaDinamica(btn.dataset.columnaId));
+    });
+}
+
+async function agregarColumnaDinamica() {
+    const nombre = (prompt("Nombre de la nueva columna (ej: Uniforme, Tarea, Participación):") || "").trim();
+    if (!nombre) return;
+
+    const { error } = await supabase
+        .from("asistencia_columnas")
+        .insert({ materia: materiaSeleccionada, salon: salonSeleccionado, nombre });
+
+    if (error) {
+        console.error("❌ Error al agregar columna dinámica:", error);
+        alert("No se pudo agregar la columna (¿ya existe una con ese nombre?).");
+        return;
+    }
+
+    await cargarColumnasDinamicas();
+    await cargarEstudiantes(); // repinta la tabla completa con la nueva columna
+}
+
+async function eliminarColumnaDinamica(columnaId) {
+    if (!confirm("¿Eliminar esta columna? Se perderán los valores guardados en ella.")) return;
+
+    const { error } = await supabase
+        .from("asistencia_columnas")
+        .delete()
+        .eq("id", columnaId);
+
+    if (error) {
+        console.error("❌ Error al eliminar columna dinámica:", error);
+        alert("No se pudo eliminar la columna.");
+        return;
+    }
+
+    await cargarColumnasDinamicas();
+    await cargarEstudiantes();
+}
+
+function asegurarBotonAgregarColumna() {
+    if (document.getElementById("btnAgregarColumna")) return;
+
+    const contenedor = document.getElementById("panelTabla") || document.body;
+
+    const envoltorio = document.createElement("div");
+    envoltorio.style.margin = "16px 0";
+    envoltorio.innerHTML = `
+        <button type="button" id="btnAgregarColumna" class="btn-tomar-asistencia">
+            ➕ Agregar columna
+        </button>
+    `;
+    contenedor.appendChild(envoltorio);
+
+    document.getElementById("btnAgregarColumna").addEventListener("click", agregarColumnaDinamica);
+}
+
+// =========================================================
+// 11) EXPORTAR A PDF Y EXCEL
+// =========================================================
+// Exporta lo que está actualmente pintado en la tabla (estados,
+// observación/justificación, columnas dinámicas). Las librerías se
+// cargan bajo demanda desde CDN, así no hace falta instalarlas.
+
+function recolectarFilasParaExportar() {
+    const botonesEstado = cuerpoTablaEstudiantes.querySelectorAll(".btn-estado");
+    const encabezadosExtra = columnasDinamicas.map((c) => c.nombre);
+
+    const filas = [];
+    botonesEstado.forEach((btn) => {
+        const idDetalle = btn.dataset.detalle;
+        const estudianteId = idDetalle.replace("detalle-", "");
+        const estudiante = estudiantesCache.find((e) => e.id === estudianteId);
+        const filaDetalle = document.getElementById(idDetalle);
+
+        const observacion = filaDetalle?.querySelector(".input-observacion")?.value?.trim() || "";
+        const justificacion = filaDetalle?.querySelector(".input-justificacion")?.value?.trim() || "";
+
+        const valoresExtra = columnasDinamicas.map((col) => {
+            const inputExtra = cuerpoTablaEstudiantes.querySelector(
+                `.input-columna-extra[data-columna-id="${col.id}"][data-estudiante-id="${estudianteId}"]`
+            );
+            return inputExtra?.value?.trim() || "";
+        });
+
+        filas.push([
+            estudiante?.nombre || estudianteId,
+            btn.dataset.estado,
+            observacion,
+            justificacion,
+            ...valoresExtra,
+        ]);
+    });
+
+    const encabezados = ["Estudiante", "Estado", "Observación", "Justificación", ...encabezadosExtra];
+    return { encabezados, filas };
+}
+
+async function exportarPDF() {
+    try {
+        const { jsPDF } = await import("https://esm.sh/jspdf@2.5.1");
+        await import("https://esm.sh/jspdf-autotable@3.8.2");
+
+        const { encabezados, filas } = recolectarFilasParaExportar();
+        const doc = new jsPDF();
+
+        doc.setFontSize(14);
+        doc.text(`Asistencia — ${materiaSeleccionada} / ${salonSeleccionado}`, 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${obtenerFechaHoyISO()}   Profesor: ${nombreProfesor}`, 14, 22);
+
+        doc.autoTable({
+            head: [encabezados],
+            body: filas,
+            startY: 28,
+            styles: { fontSize: 8 },
+        });
+
+        doc.save(`asistencia_${materiaSeleccionada}_${salonSeleccionado}_${obtenerFechaHoyISO()}.pdf`);
+    } catch (error) {
+        console.error("❌ Error al exportar PDF:", error);
+        alert("No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo.");
+    }
+}
+
+async function exportarExcel() {
+    try {
+        const XLSX = await import("https://esm.sh/xlsx@0.18.5");
+
+        const { encabezados, filas } = recolectarFilasParaExportar();
+        const hoja = XLSX.utils.aoa_to_sheet([encabezados, ...filas]);
+        const libro = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(libro, hoja, "Asistencia");
+
+        XLSX.writeFile(libro, `asistencia_${materiaSeleccionada}_${salonSeleccionado}_${obtenerFechaHoyISO()}.xlsx`);
+    } catch (error) {
+        console.error("❌ Error al exportar Excel:", error);
+        alert("No se pudo generar el Excel. Revisa tu conexión e intenta de nuevo.");
+    }
+}
+
+function asegurarBotonesExportar() {
+    if (document.getElementById("btnExportarPDF")) return;
+
+    const contenedor = document.getElementById("panelTabla") || document.body;
+
+    const envoltorio = document.createElement("div");
+    envoltorio.style.margin = "16px 0";
+    envoltorio.innerHTML = `
+        <button type="button" id="btnExportarPDF" class="btn-tomar-asistencia">📄 Exportar PDF</button>
+        <button type="button" id="btnExportarExcel" class="btn-tomar-asistencia" style="margin-left:8px;">📊 Exportar Excel</button>
+    `;
+    contenedor.appendChild(envoltorio);
+
+    document.getElementById("btnExportarPDF").addEventListener("click", exportarPDF);
+    document.getElementById("btnExportarExcel").addEventListener("click", exportarExcel);
+}
+
+// Precarga en la tabla lo que ya se hubiera guardado HOY (notas,
+// estados, columnas dinámicas), por si el profesor recarga la página.
+async function precargarValoresGuardadosHoy() {
+    const { data: cabeceraHoy } = await supabase
+        .from("asistencias")
+        .select("id, notas_profesor")
+        .eq("materia", materiaSeleccionada)
+        .eq("salon", salonSeleccionado)
+        .eq("fecha", obtenerFechaHoyISO())
+        .maybeSingle();
+
+    if (!cabeceraHoy) return;
+
+    const inputNotas = document.getElementById("notasProfesor");
+    if (inputNotas && cabeceraHoy.notas_profesor) inputNotas.value = cabeceraHoy.notas_profesor;
+
+    const { data: detalleHoy, error } = await supabase
+        .from("asistencia_detalle")
+        .select("estudiante_id, estado, observacion, justificacion, valores_extra")
+        .eq("asistencia_id", cabeceraHoy.id);
+
+    if (error || !detalleHoy) return;
+
+    detalleHoy.forEach((fila) => {
+        const idDetalle = `detalle-${fila.estudiante_id}`;
+        const filaDetalle = document.getElementById(idDetalle);
+        const btn = cuerpoTablaEstudiantes.querySelector(`.btn-estado[data-detalle="${idDetalle}"]`);
+
+        if (btn && fila.estado && ESTADOS_INFO[fila.estado]) {
+            const info = ESTADOS_INFO[fila.estado];
+            btn.classList.remove("estado-presente", "estado-ausente", "estado-tardanza", "estado-permiso");
+            btn.classList.add(info.clase);
+            btn.textContent = info.texto;
+            btn.dataset.estado = fila.estado;
+        }
+
+        if (filaDetalle) {
+            filaDetalle.classList.toggle("mostrar", fila.estado !== "presente");
+            const inputObservacion = filaDetalle.querySelector(".input-observacion");
+            const inputJustificacion = filaDetalle.querySelector(".input-justificacion");
+            if (inputObservacion && fila.observacion) inputObservacion.value = fila.observacion;
+            if (inputJustificacion && fila.justificacion) inputJustificacion.value = fila.justificacion;
+        }
+
+        if (fila.valores_extra && typeof fila.valores_extra === "object") {
+            Object.entries(fila.valores_extra).forEach(([columnaId, valor]) => {
+                const inputExtra = cuerpoTablaEstudiantes.querySelector(
+                    `.input-columna-extra[data-columna-id="${columnaId}"][data-estudiante-id="${fila.estudiante_id}"]`
+                );
+                if (inputExtra) inputExtra.value = valor ?? "";
+            });
+        }
+    });
 }
 
 // Si tomar-asistencia.html todavía no tiene el botón de guardar, lo
@@ -378,6 +878,14 @@ function asegurarBotonGuardar() {
     if (!ok) return;
 
     pintarEncabezado();
+
+    asegurarContenedorAlertas();
+    asegurarControlesNotas();
+    asegurarBotonCopiar();
+    asegurarBotonAgregarColumna();
+    asegurarBotonesExportar();
+
+    await cargarColumnasDinamicas(); // deben existir antes de pintar la tabla
     await cargarEstudiantes();
 
     asegurarBotonGuardar();
