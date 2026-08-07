@@ -73,6 +73,7 @@ const bloqueNoRegistrado = document.getElementById("bloqueNoRegistrado");
 const btnRegistrarNotas = document.getElementById("btnRegistrarNotas");
 const bloqueRegistrado = document.getElementById("bloqueRegistrado");
 const btnDatosEstudianteRegistrado = document.getElementById("btnDatosEstudianteRegistrado");
+const btnEditarNotas = document.getElementById("btnEditarNotas");
 
 // =====================================================
 // ESTADO
@@ -218,6 +219,8 @@ async function buscar() {
     if (estudiante.registrado) {
         bloqueNoRegistrado.style.display = "none";
         bloqueRegistrado.style.display = "block";
+        btnEditarNotas.href = `login.html?cedula=${encodeURIComponent(cedula)}`;
+        btnDatosEstudianteRegistrado.href = `login.html?cedula=${encodeURIComponent(cedula)}&next=datos.html`;
         btnDatosEstudianteRegistrado.style.display = estudiante.datos_completos ? "none" : "inline-block";
     } else {
         bloqueRegistrado.style.display = "none";
