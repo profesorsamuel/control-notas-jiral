@@ -130,6 +130,8 @@ const selectSalonNota = document.getElementById("selectSalonNota");
 const selectMateriaNota = document.getElementById("selectMateriaNota");
 const selectTipoNota = document.getElementById("selectTipoNota");
 const inputNumeroNota = document.getElementById("inputNumeroNota");
+const btnMasColumna = document.getElementById("btnMasColumna");
+const btnMenosColumna = document.getElementById("btnMenosColumna");
 const selectTrimestreNota = document.getElementById("selectTrimestreNota");
 const estadoCargaSalon = document.getElementById("estadoCargaSalon");
 const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
@@ -228,6 +230,36 @@ function claveEstudiante(est) {
     return est.correo ? `correo:${est.correo}` : `id:${est.id}`;
 }
 
+// Cuántos estudiantes ya tienen una nota guardada (no vacía) en esta
+// casilla. Se usa para reforzar la confirmación antes de eliminarla.
+function contarNotasEnCasilla(tipo, numero) {
+    const clave = claveCasilla(tipo, numero);
+    let total = 0;
+    for (const claveEst in historiaPorEstudiante) {
+        const nota = historiaPorEstudiante[claveEst][clave];
+        if (nota && nota.nota !== null && nota.nota !== undefined && nota.nota !== "") total++;
+    }
+    return total;
+}
+
+// Confirmación antes de mandar una casilla a la papelera. Si la casilla
+// ya tiene más de 10 notas guardadas, se pide una segunda confirmación
+// explícita, para que no se borre por accidente una columna con mucho
+// trabajo ya cargado.
+function confirmarEliminarColumna(tipo, numero) {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const etiqueta = etiquetaCasilla(tipo, numero);
+
+    if (!confirm(`¿Enviar la casilla "${etiqueta}" (${materia} - ${salon}) a la papelera?\n\nLas notas no se pierden: quedan guardadas en la papelera y puedes restaurarlas cuando quieras.`)) return false;
+
+    const cantidadNotas = contarNotasEnCasilla(tipo, numero);
+    if (cantidadNotas > 10) {
+        return confirm(`⚠️ La casilla "${etiqueta}" ya tiene ${cantidadNotas} notas registradas.\n\n¿Estás seguro/a de que deseas eliminarla?`);
+    }
+    return true;
+}
+
 function obtenerTemaCasilla(tipo, numero) {
     const clave = claveCasilla(tipo, numero);
     if (temasCasillasBD[clave]) return temasCasillasBD[clave];
@@ -279,13 +311,15 @@ async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
     estadoGuardadoNotas.className = "small text-success";
 }
 
-async function eliminarColumnaCasilla(tipo, numero) {
+// Hace el borrado suave de la casilla sin pedir confirmación. Separada
+// de eliminarColumnaCasilla() para que quien la llame (el botón 🗑️ de
+// la tabla, o el botón "−" de arriba) pueda controlar el orden exacto
+// entre "confirmar" y "actualizar el resto de la UI" (ver btnMenosColumna).
+async function eliminarColumnaCasillaInterno(tipo, numero) {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
     const trimestre = selectTrimestreNota.value;
     const etiqueta = etiquetaCasilla(tipo, numero);
-
-    if (!confirm(`¿Enviar la casilla "${etiqueta}" (${materia} - ${salon}) a la papelera?\n\nLas notas no se pierden: quedan guardadas en la papelera y puedes restaurarlas cuando quieras.`)) return;
 
     const ahora = new Date().toISOString();
 
@@ -303,6 +337,12 @@ async function eliminarColumnaCasilla(tipo, numero) {
     estadoGuardadoNotas.textContent = `🗑️ Casilla ${etiqueta} movida a la papelera.`;
     estadoGuardadoNotas.className = "small text-success";
     cargarSalon();
+}
+
+async function eliminarColumnaCasilla(tipo, numero) {
+    if (!confirmarEliminarColumna(tipo, numero)) return;
+
+    await eliminarColumnaCasillaInterno(tipo, numero);
 }
 
 // =========================================================
@@ -771,6 +811,41 @@ selectTipoNota?.addEventListener("change", () => {
 });
 inputNumeroNota?.addEventListener("input", () => {
     if (grupoActual.length > 0) renderTabla();
+});
+
+// Último número de casilla ya existente para un tipo dado (0 si el tipo
+// todavía no tiene ninguna columna). Se usa para que "+" y "−" siempre
+// operen sobre la última columna del Tipo seleccionado.
+function obtenerUltimoNumeroTipo(tipo) {
+    const numeros = casillasTabla.filter((c) => c.tipo === tipo).map((c) => c.numero);
+    return numeros.length ? Math.max(...numeros) : 0;
+}
+
+// "+": agrega una nueva columna al final (número = último + 1) para el
+// Tipo seleccionado. No hay nada que confirmar: solo prepara la casilla
+// para que el/la docente empiece a escribir notas en ella.
+btnMasColumna?.addEventListener("click", () => {
+    const tipo = selectTipoNota.value;
+    inputNumeroNota.value = obtenerUltimoNumeroTipo(tipo) + 1;
+    if (grupoActual.length > 0) renderTabla();
+});
+
+// "−": quita la última columna del Tipo seleccionado (la envía a la
+// papelera, igual que el 🗑️ de la cabecera). Importante: si el/la
+// docente cancela el diálogo de confirmación, el número de la casilla
+// NO debe bajar. Por eso primero se confirma, y solo si confirma se
+// baja el número (antes de borrar, para que la UI ya quede consistente
+// mientras la llamada a Supabase termina).
+btnMenosColumna?.addEventListener("click", async () => {
+    const tipo = selectTipoNota.value;
+    const ultimo = obtenerUltimoNumeroTipo(tipo);
+
+    if (ultimo < 1) return; // este tipo todavía no tiene columnas para quitar
+
+    if (!confirmarEliminarColumna(tipo, ultimo)) return;
+
+    inputNumeroNota.value = Math.max(1, ultimo - 1);
+    await eliminarColumnaCasillaInterno(tipo, ultimo);
 });
 
 let cargaSalonEnCurso = false;
