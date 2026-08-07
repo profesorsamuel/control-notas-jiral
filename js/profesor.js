@@ -131,7 +131,7 @@ const selectMateriaNota = document.getElementById("selectMateriaNota");
 const selectTipoNota = document.getElementById("selectTipoNota");
 const inputNumeroNota = document.getElementById("inputNumeroNota");
 const selectTrimestreNota = document.getElementById("selectTrimestreNota");
-const btnCargarSalon = document.getElementById("btnCargarSalon");
+const estadoCargaSalon = document.getElementById("estadoCargaSalon");
 const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
 const cabeceraNotasGrupo = document.getElementById("cabeceraNotasGrupo");
 const cabeceraTemasGrupo = document.getElementById("cabeceraTemasGrupo");
@@ -185,7 +185,7 @@ function poblarSelectMateria() {
         selectMateriaNota.innerHTML =
             `<option value="${escapeHtml(materias[0])}" selected>${escapeHtml(materias[0])}</option>`;
         selectMateriaNota.disabled = false;
-        btnCargarSalon.click();
+        cargarSalon();
         return;
     }
 
@@ -196,6 +196,19 @@ function poblarSelectMateria() {
 }
 
 selectSalonNota?.addEventListener("change", poblarSelectMateria);
+
+// Si hay varias materias en el salón elegido, el/la docente las elige a
+// mano; en cuanto elige una, cargamos el salón solos (ya no hace falta
+// un botón "Cargar salón").
+selectMateriaNota?.addEventListener("change", () => {
+    if (selectSalonNota.value && selectMateriaNota.value) cargarSalon();
+});
+
+// Cambiar el trimestre (con salón y materia ya elegidos) también debe
+// recargar solo, porque cambia qué notas se muestran.
+selectTrimestreNota?.addEventListener("change", () => {
+    if (selectSalonNota.value && selectMateriaNota.value) cargarSalon();
+});
 
 // =========================================================
 // 3) TABLA DE ESTUDIANTES CON NOTAS EDITABLES (misma lógica del admin)
@@ -284,7 +297,7 @@ async function eliminarColumnaCasilla(tipo, numero) {
 
     estadoGuardadoNotas.textContent = `🗑️ Casilla ${etiqueta} movida a la papelera.`;
     estadoGuardadoNotas.className = "small text-success";
-    btnCargarSalon.click();
+    cargarSalon();
 }
 
 // =========================================================
@@ -415,7 +428,7 @@ async function restaurarCasilla(tipo, numero) {
     }
 
     await cargarPapelera();
-    btnCargarSalon.click();
+    cargarSalon();
 }
 
 btnPapelera?.addEventListener("click", () => {
@@ -697,22 +710,26 @@ inputNumeroNota?.addEventListener("input", () => {
     if (grupoActual.length > 0) renderTabla();
 });
 
-btnCargarSalon?.addEventListener("click", async () => {
+let cargaSalonEnCurso = false;
+
+async function cargarSalon() {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
     const tipo = selectTipoNota.value;
     const numero = parseInt(inputNumeroNota.value, 10);
     const trimestre = selectTrimestreNota.value;
 
-    if (!salon) return alert("Selecciona un salón.");
-    if (!materia) return alert("Selecciona una materia.");
+    if (!salon || !materia) return;
 
     const esMia = misAsignaciones.some((a) => a.salon === salon && a.materia === materia);
     if (!esMia) return alert("Esa materia/salón no está asignada a tu cuenta.");
 
-    const textoOriginal = btnCargarSalon.innerHTML;
-    btnCargarSalon.disabled = true;
-    btnCargarSalon.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
+    // Evita que dos cargas se pisen si el docente cambia varios
+    // selectores muy rápido seguido (ej. salón y luego materia).
+    if (cargaSalonEnCurso) return;
+    cargaSalonEnCurso = true;
+
+    if (estadoCargaSalon) estadoCargaSalon.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
 
     const { data: estudiantesSalon, error: errEst } = await supabase
         .from("estudiantes")
@@ -722,8 +739,8 @@ btnCargarSalon?.addEventListener("click", async () => {
 
     if (errEst) {
         alert("Error al cargar estudiantes: " + errEst.message);
-        btnCargarSalon.disabled = false;
-        btnCargarSalon.innerHTML = textoOriginal;
+        if (estadoCargaSalon) estadoCargaSalon.textContent = "";
+        cargaSalonEnCurso = false;
         return;
     }
 
@@ -784,9 +801,12 @@ btnCargarSalon?.addEventListener("click", async () => {
         cargarPapelera();
     }
 
-    btnCargarSalon.disabled = false;
-    btnCargarSalon.innerHTML = textoOriginal;
-});
+    if (estadoCargaSalon) {
+        const hora = new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+        estadoCargaSalon.textContent = `✅ Cargado a las ${hora}`;
+    }
+    cargaSalonEnCurso = false;
+}
 
 // =========================================================
 // 4) GUARDAR NOTAS
@@ -909,7 +929,7 @@ async function guardarNotas(esAutomatico = false) {
         estadoGuardadoNotas.className = "small text-danger";
     }
 
-    if (!esAutomatico) btnCargarSalon.click();
+    if (!esAutomatico) cargarSalon();
 }
 
 // =========================================================
