@@ -74,6 +74,7 @@
             align-items: baseline;
             margin-bottom: 10px;
             font-size: 15px;
+            flex-wrap: wrap;
         }
         .dato-fila strong { color: var(--color-primario); min-width: 110px; }
 
@@ -146,11 +147,96 @@
 
         #estadoCargaAsistencia { font-size: 13px; color: #888; }
 
+        /* ============ Vista de detalle: tabla de estudiantes ============ */
+        a.volver {
+            color: var(--color-primario);
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        a.volver:hover { text-decoration: underline; }
+
+        #panelTabla table { width: 100%; border-collapse: collapse; background: white; }
+        #panelTabla th, #panelTabla td {
+            border: 1px solid #ddd4c4;
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        #panelTabla th { background: var(--color-primario); color: white; font-size: 13px; }
+        #panelTabla td.col-nombre { text-align: left; }
+
+        /* Botón de estado: un solo toque/clic cicla entre Presente,
+           Ausente, Tardanza y Permiso. */
+        .btn-estado {
+            border: none;
+            border-radius: 20px;
+            padding: 8px 14px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            min-width: 120px;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+        }
+        .btn-estado.estado-presente { background: #e3efec; color: #1f5c3d; }
+        .btn-estado.estado-ausente { background: #fbe2e2; color: #7a2e2e; }
+        .btn-estado.estado-tardanza { background: #fdf3d6; color: #6b5100; }
+        .btn-estado.estado-permiso { background: #dbe8f7; color: #1f4e79; }
+        .btn-estado:active { transform: scale(0.96); }
+
+        /* Fila de detalle: aparece SOLO cuando el estado no es Presente. */
+        tr.fila-detalle { display: none; }
+        tr.fila-detalle.mostrar { display: table-row; }
+        tr.fila-detalle td {
+            background: #f7f5ef;
+            text-align: left;
+            padding: 12px;
+        }
+
+        .panel-detalle {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 420px;
+        }
+        .panel-detalle label {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--color-primario);
+            display: block;
+            margin-bottom: 4px;
+        }
+        .panel-detalle input[type="text"],
+        .panel-detalle textarea {
+            padding: 7px 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 13px;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: 'Inter', Arial, sans-serif;
+            resize: vertical;
+        }
+        .panel-detalle input[type="file"] {
+            font-size: 12px;
+            width: 100%;
+        }
+
+        #estadoLista { font-size: 14px; color: #888; }
+
         @media (max-width: 600px) {
             body { padding: 10px; }
             .panel-blanco { padding: 12px; }
             h1 { font-size: 1.25rem; }
             .tarjetas-horario { grid-template-columns: 1fr; }
+            .btn-estado { min-width: 100px; padding: 10px 8px; }
+            .panel-detalle { max-width: 100%; }
         }
     </style>
 </head>
@@ -167,18 +253,69 @@
         <div class="dato-fila"><strong>👨‍🏫 Profesor:</strong> <span id="nombreProfesorTexto">Cargando...</span></div>
     </div>
 
-    <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc3545;">
-        Todavía no tienes materias ni salones asignados. Pídele al administrador que te
-        agregue en la pantalla de "Asignaciones de profesores".
+    <!-- ============ VISTA 1: Clases de hoy (sin ?materia= en la URL) ============ -->
+    <div id="vistaDashboard">
+
+        <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc3545;">
+            Todavía no tienes materias ni salones asignados. Pídele al administrador que te
+            agregue en la pantalla de "Asignaciones de profesores".
+        </div>
+
+        <div id="avisoSinHorarioHoy" class="panel-blanco" style="display:none; color:#6b5100; background:#fdf3d6;">
+            No tienes clases con día y hora registrados para hoy. Pídele al administrador que
+            te asigne el día y la hora en "Asignaciones de profesores".
+        </div>
+
+        <h2>🗓️ Clases de hoy</h2>
+        <div id="listaClasesHoy" class="tarjetas-horario"></div>
+        <div id="estadoCargaAsistencia"></div>
     </div>
 
-    <div id="avisoSinHorarioHoy" class="panel-blanco" style="display:none; color:#6b5100; background:#fdf3d6;">
-        No tienes clases con día y hora registrados para hoy. Pídele al administrador que
-        te asigne el día y la hora en "Asignaciones de profesores".
+    <!-- ============ VISTA 2: Tomar asistencia (con ?materia=...&salon=... en la URL) ============ -->
+    <div id="vistaDetalle" style="display:none;">
+
+        <a href="asistencia.html" class="volver">&larr; Volver a Clases de hoy</a>
+
+        <div class="panel-blanco">
+            <div class="dato-fila"><strong>📘 Materia:</strong> <span id="materiaTexto">Cargando...</span></div>
+            <div class="dato-fila"><strong>🏫 Salón:</strong> <span id="salonTexto">Cargando...</span></div>
+        </div>
+
+        <div id="avisoSinAcceso" class="panel-blanco" style="display:none; color:#dc3545;"></div>
+
+        <div id="panelTabla" class="panel-blanco">
+            <div class="table-responsive">
+                <table id="tablaEstudiantes">
+                    <thead>
+                        <tr>
+                            <th style="width:60px;">Número</th>
+                            <th>Nombre</th>
+                            <th style="width:150px;">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTablaEstudiantes">
+                        <tr><td colspan="3">Cargando estudiantes...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <span id="estadoLista"></span>
+        </div>
     </div>
 
-    <h2>🗓️ Clases de hoy</h2>
-    <div id="listaClasesHoy" class="tarjetas-horario"></div>
+    <script>
+        // Alterna entre la vista de "Clases de hoy" y la de "Tomar asistencia"
+        // según si la URL trae ?materia= y &salon=. Se ejecuta antes de cargar
+        // asistencia.js para que no haya parpadeo mostrando ambas vistas.
+        (function alternarVista() {
+            const parametros = new URLSearchParams(window.location.search);
+            const tieneMateriaYSalon = Boolean(
+                (parametros.get("materia") || "").trim() && (parametros.get("salon") || "").trim()
+            );
+
+            document.getElementById("vistaDashboard").style.display = tieneMateriaYSalon ? "none" : "";
+            document.getElementById("vistaDetalle").style.display = tieneMateriaYSalon ? "" : "none";
+        })();
+    </script>
 
     <script type="module" src="../js/asistencia.js"></script>
 
