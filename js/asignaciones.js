@@ -35,6 +35,17 @@ const inputCorreo = document.getElementById("inputCorreoProfesor");
 const inputNombre = document.getElementById("inputNombreProfesor");
 const inputTelefono = document.getElementById("inputTelefonoProfesor");
 const checkWhatsapp = document.getElementById("checkWhatsapp");
+const selectDiaAsignacion = document.getElementById("selectDiaAsignacion");
+const inputHoraAsignacion = document.getElementById("inputHoraAsignacion");
+
+// Formatea "09:00" (o "09:00:00" que devuelve Supabase) a "9:00 AM"
+function formatearHora12(horaTexto) {
+    if (!horaTexto) return "";
+    const [h, m] = horaTexto.split(":");
+    const fecha = new Date();
+    fecha.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+    return fecha.toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" });
+}
 
 // Guarda el correo ORIGINAL cuando estamos editando un profesor existente,
 // para poder actualizar sus filas viejas si el correo cambia.
@@ -43,6 +54,7 @@ let correoOriginalEnEdicion = null;
 function limpiarModoEdicion() {
     correoOriginalEnEdicion = null;
     formAsignacion.reset();
+    selectDiaAsignacion.value = "";
     const aviso = document.getElementById("avisoEdicion");
     if (aviso) aviso.remove();
 }
@@ -79,7 +91,7 @@ async function cargarListado() {
 
     const { data, error } = await supabase
         .from("profesor_materias")
-        .select("id, correo_profesor, nombre_profesor, materia, salon")
+        .select("id, correo_profesor, nombre_profesor, materia, salon, dia, hora")
         .order("nombre_profesor", { ascending: true });
 
     if (error) {
@@ -113,7 +125,7 @@ async function cargarListado() {
             };
         }
         if (!porProfesor[clave].materias[fila.materia]) porProfesor[clave].materias[fila.materia] = [];
-        porProfesor[clave].materias[fila.materia].push({ salon: fila.salon, id: fila.id });
+        porProfesor[clave].materias[fila.materia].push({ salon: fila.salon, id: fila.id, dia: fila.dia, hora: fila.hora });
     });
 
     listadoProfesores.innerHTML = Object.values(porProfesor).map((prof) => {
@@ -121,7 +133,10 @@ async function cargarListado() {
             <div class="fila-materia">
                 <div>
                     <strong>${escapeHtml(materia)}:</strong>
-                    ${salones.map((s) => escapeHtml(s.salon)).join(", ")}
+                    ${salones.map((s) => {
+                        const horario = s.dia ? ` <span class="text-muted">(${escapeHtml(s.dia)}${s.hora ? " · " + escapeHtml(formatearHora12(s.hora)) : ""})</span>` : "";
+                        return `${escapeHtml(s.salon)}${horario}`;
+                    }).join(", ")}
                 </div>
                 <div>
                     ${salones.map((s) => `<button class="btn btn-sm btn-outline-danger btn-eliminar-asignacion" data-id="${s.id}" title="Quitar ${escapeHtml(s.salon)}">✕ ${escapeHtml(s.salon)}</button>`).join(" ")}
@@ -207,6 +222,10 @@ formAsignacion?.addEventListener("submit", async (e) => {
     // --- Salones marcados ---
     const salonesMarcados = Array.from(document.querySelectorAll(".check-salon:checked")).map((c) => c.value);
 
+    // --- Día y hora (se aplican a todas las combinaciones de este envío) ---
+    const diaSeleccionado = selectDiaAsignacion.value;
+    const horaSeleccionada = inputHoraAsignacion.value; // "HH:MM" o ""
+
     const editando = !!correoOriginalEnEdicion;
     const soloCorrigiendoDatos = editando && materiasMarcadas.length === 0 && salonesMarcados.length === 0;
 
@@ -218,6 +237,16 @@ formAsignacion?.addEventListener("submit", async (e) => {
         }
         if (salonesMarcados.length === 0) {
             estadoAsignacion.textContent = "⚠️ Marca al menos un salón.";
+            estadoAsignacion.className = "small ms-2 text-warning";
+            return;
+        }
+        if (!diaSeleccionado) {
+            estadoAsignacion.textContent = "⚠️ Selecciona el día de clase.";
+            estadoAsignacion.className = "small ms-2 text-warning";
+            return;
+        }
+        if (!horaSeleccionada) {
+            estadoAsignacion.textContent = "⚠️ Selecciona la hora de clase.";
             estadoAsignacion.className = "small ms-2 text-warning";
             return;
         }
@@ -269,13 +298,23 @@ formAsignacion?.addEventListener("submit", async (e) => {
         const filasAInsertar = [];
         materiasMarcadas.forEach((materia) => {
             salonesMarcados.forEach((salon) => {
-                filasAInsertar.push({ correo_profesor, nombre_profesor, materia, salon });
+                filasAInsertar.push({
+                    correo_profesor,
+                    nombre_profesor,
+                    materia,
+                    salon,
+                    dia: diaSeleccionado || null,
+                    hora: horaSeleccionada || null,
+                });
             });
         });
 
+        // ignoreDuplicates ya NO se usa: si la combinación correo+materia+salon
+        // ya existía, ahora se ACTUALIZA (para poder refrescar su día/hora),
+        // en vez de ignorarse como antes.
         const { error: errMaterias } = await supabase
             .from("profesor_materias")
-            .upsert(filasAInsertar, { onConflict: "correo_profesor,materia,salon", ignoreDuplicates: true });
+            .upsert(filasAInsertar, { onConflict: "correo_profesor,materia,salon" });
 
         if (errMaterias) {
             estadoAsignacion.textContent = `❌ Error al guardar las asignaciones: ${errMaterias.message}`;
