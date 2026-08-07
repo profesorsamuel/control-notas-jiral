@@ -13,7 +13,7 @@ const btnRegistrar = document.getElementById("btnRegistrar");
 const nombreSelect = document.getElementById("nombre");
 const nombreConsejeroSelect = document.getElementById("nombreConsejero");
 const correoConsejeroInput = document.getElementById("correoConsejero");
-const correoProfesorInput = document.getElementById("correoProfesor");
+const nombreProfesorSelect = document.getElementById("nombreProfesor");
 
 // Se guarda tal cual viene en el HTML (8°A, 9°A, 9°B, 9°C) para poder
 // restaurarla cuando el tipo de registro sea "Estudiante", ya que a
@@ -45,7 +45,12 @@ function actualizarCampos() {
     document.getElementById("cedula").required = !esConsejero && !esProfesor;
     nombreConsejeroSelect.required = esConsejero;
     correoConsejeroInput.required = esConsejero;
-    correoProfesorInput.required = esProfesor;
+    nombreProfesorSelect.required = esProfesor;
+    document.getElementById("cedulaProfesor").required = esProfesor;
+
+    if (esProfesor) {
+        cargarProfesoresDisponibles();
+    }
 
     if (esProfesor) {
 
@@ -420,6 +425,51 @@ nombreConsejeroSelect.addEventListener("change", () => {
     correoConsejeroInput.value = usuarioSeleccionado;
 });
 
+// =====================================================
+// CARGAR LA LISTA DE PROFESORES(AS) DISPONIBLES
+// =====================================================
+//
+// Igual que con consejero(a): se consulta la tabla "profesores" y
+// se muestran SOLO quienes todavía NO tienen cuenta creada
+// (columna "registrado" = false). Cada opción guarda en
+// data-correo el correo_profesor "pendiente.xxx@notasjiral.local"
+// que el administrador puso al agregar a esa persona a la lista;
+// ese valor se usa después para saber qué fila actualizar al
+// completar el registro (ver registrarProfesor).
+
+async function cargarProfesoresDisponibles() {
+
+    nombreProfesorSelect.innerHTML = `<option value="">Cargando...</option>`;
+    nombreProfesorSelect.disabled = true;
+
+    const { data: profesoresTodos, error } = await supabase
+        .from("profesores")
+        .select("correo_profesor, nombre_profesor, registrado")
+        .order("nombre_profesor", { ascending: true });
+
+    if (error) {
+        console.error("❌ Error al cargar la lista de profesores(as):", error);
+        nombreProfesorSelect.innerHTML = `<option value="">No se pudo cargar. Recarga la página.</option>`;
+        return;
+    }
+
+    const disponibles = (profesoresTodos || []).filter((p) => !p.registrado);
+
+    if (disponibles.length === 0) {
+        nombreProfesorSelect.innerHTML = `<option value="">No hay profesores(as) pendientes. Contacta al administrador.</option>`;
+        return;
+    }
+
+    const opciones = disponibles.map((p) => {
+        const nombreEscapado = String(p.nombre_profesor).replace(/"/g, "&quot;");
+        const correoEscapado = String(p.correo_profesor).replace(/"/g, "&quot;");
+        return `<option value="${nombreEscapado}" data-correo="${correoEscapado}">${p.nombre_profesor}</option>`;
+    }).join("");
+
+    nombreProfesorSelect.innerHTML = `<option value="">Seleccione su nombre</option>${opciones}`;
+    nombreProfesorSelect.disabled = false;
+}
+
 salonInput.addEventListener("change", () => {
     if (tipoRegistro.value === "consejero") {
         cargarConsejerosDisponibles();
@@ -715,61 +765,61 @@ async function registrarConsejero(salon, password) {
 // REGISTRO DE PROFESOR(A)
 // =====================================================
 //
-// A diferencia del consejero(a) (que usa un "usuario" inventado),
-// el profesor(a) usa su correo REAL desde el inicio (así ya lo
-// espera login.js). Por seguridad, solo puede registrarse si ese
-// correo YA fue agregado antes por el administrador en la pantalla
-// de "Asignaciones de profesores" (tabla "profesores"). Así nadie
-// puede crearse una cuenta de profesor(a) por su cuenta.
+// El profesor(a) elige su nombre de la lista (agregada antes por
+// el administrador en la tabla "profesores") y completa su cédula,
+// que es lo que va a usar para iniciar sesión (igual que hace un
+// estudiante). El teléfono y los correos (Meduca/personal) son
+// solo datos de contacto, no se usan para iniciar sesión.
 async function registrarProfesor(password) {
-    const correo = correoProfesorInput.value.trim().toLowerCase();
+    const nombre = nombreProfesorSelect.value;
+    const correoPendiente = nombreProfesorSelect.selectedOptions?.[0]?.dataset?.correo || "";
+    const cedula = document.getElementById("cedulaProfesor").value.trim();
+    const telefono = document.getElementById("telefonoProfesor").value.trim();
+    const correoMeduca = document.getElementById("correoMeducaProfesor").value.trim().toLowerCase();
+    const correoPersonal = document.getElementById("correoPersonalProfesor").value.trim().toLowerCase();
 
-    if (!correo) {
+    if (!nombre || !correoPendiente) {
         btnRegistrar.disabled = false;
-        mostrarMensaje("Por favor, escribe tu correo.", "error");
+        mostrarMensaje("Por favor, seleccione su nombre de la lista.", "error");
+        return;
+    }
+
+    if (!cedula) {
+        btnRegistrar.disabled = false;
+        mostrarMensaje("Por favor, ingrese su cédula.", "error");
         return;
     }
 
     // -------------------------------------------------
-    // VERIFICAR QUE EL ADMINISTRADOR YA LO HAYA AGREGADO
+    // ÚLTIMA VERIFICACIÓN ANTES DE REGISTRAR
     // -------------------------------------------------
-    const { data: profesorFila, error: errBusqueda } = await supabase
+    const { data: chequeo, error: errChequeo } = await supabase
         .from("profesores")
-        .select("nombre_profesor, registrado")
-        .eq("correo_profesor", correo)
+        .select("registrado, nombre_profesor")
+        .eq("correo_profesor", correoPendiente)
         .maybeSingle();
 
-    if (errBusqueda) {
+    if (!errChequeo && chequeo?.registrado) {
         btnRegistrar.disabled = false;
-        mostrarMensaje("❌ Ocurrió un error al verificar tu correo. Intenta de nuevo.", "error");
-        console.error("Error al verificar profesor:", errBusqueda);
+        mostrarMensaje(
+            `⚠️ ${chequeo.nombre_profesor || "Esta persona"} ya tiene una cuenta registrada. Si eres tú, inicia sesión en vez de registrarte de nuevo.`,
+            "error"
+        );
+        await cargarProfesoresDisponibles();
         return;
     }
 
-    if (!profesorFila) {
-        btnRegistrar.disabled = false;
-        mostrarMensaje(
-            "⚠️ Tu correo todavía no ha sido agregado por el administrador. Pídele que te agregue primero en 'Asignaciones de profesores' antes de registrarte.",
-            "error"
-        );
-        return;
-    }
-
-    if (profesorFila.registrado) {
-        btnRegistrar.disabled = false;
-        mostrarMensaje(
-            `⚠️ ${profesorFila.nombre_profesor || "Esta cuenta"} ya tiene una cuenta registrada. Si eres tú, inicia sesión en vez de registrarte de nuevo.`,
-            "error"
-        );
-        return;
-    }
+    // La cédula se convierte a un correo interno único para poder usar
+    // Supabase Auth (igual que se hace con la cédula del estudiante).
+    const emailInterno = cedulaAEmail(cedula);
 
     const { error } = await supabase.auth.signUp({
-        email: correo,
+        email: emailInterno,
         password,
         options: {
             data: {
-                nombre: profesorFila.nombre_profesor,
+                nombre,
+                cedula,
                 rol: "profesor"
             }
         }
@@ -779,25 +829,37 @@ async function registrarProfesor(password) {
         btnRegistrar.disabled = false;
 
         if (error.message.includes("already registered")) {
-            mostrarMensaje("Este correo ya está registrado. Intenta iniciar sesión.", "error");
+            mostrarMensaje("Esta cédula ya está registrada. Intenta iniciar sesión.", "error");
         } else {
             mostrarMensaje(error.message, "error");
         }
         return;
     }
 
-    // Marca esa fila como ya registrada
+    // Actualiza la fila que ya existía (agregada por el administrador),
+    // reemplazando el correo temporal "pendiente.xxx@..." por el correo
+    // interno real generado a partir de la cédula, y guardando los
+    // demás datos de contacto.
     const { error: errorTabla } = await supabase
         .from("profesores")
-        .update({ registrado: true, actualizado_en: new Date().toISOString() })
-        .eq("correo_profesor", correo);
+        .update({
+            correo_profesor: emailInterno,
+            nombre_profesor: nombre,
+            cedula,
+            telefono: telefono || null,
+            correo_meduca: correoMeduca || null,
+            correo_personal: correoPersonal || null,
+            registrado: true,
+            actualizado_en: new Date().toISOString()
+        })
+        .eq("correo_profesor", correoPendiente);
 
     if (errorTabla) {
-        console.error("Error al marcar al profesor como registrado:", errorTabla);
+        console.error("Error al actualizar datos del profesor(a):", errorTabla);
     }
 
     btnRegistrar.disabled = false;
-    mostrarMensaje("✅ Profesor(a) registrado(a) correctamente. Ya puedes iniciar sesión.", "exito");
+    mostrarMensaje("✅ Profesor(a) registrado(a) correctamente. Ya puedes iniciar sesión con tu cédula.", "exito");
     form.reset();
     actualizarCampos();
 }
