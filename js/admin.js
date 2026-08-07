@@ -52,6 +52,210 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     // =================================================
+    // 2.5) GESTIONAR ESTUDIANTES (nombre, cédula, salón)
+    // =================================================
+
+    const estFiltroSalon = document.getElementById("estFiltroSalon");
+    const btnCargarEstudiantes = document.getElementById("btnCargarEstudiantes");
+    const tablaEstudiantesAdmin = document.getElementById("tablaEstudiantesAdmin");
+    const estadoGuardadoEstudiantes = document.getElementById("estadoGuardadoEstudiantes");
+    const nuevoEstNombre = document.getElementById("nuevoEstNombre");
+    const nuevoEstCedula = document.getElementById("nuevoEstCedula");
+    const nuevoEstSalon = document.getElementById("nuevoEstSalon");
+    const nuevoEstSalonOtro = document.getElementById("nuevoEstSalonOtro");
+    const bloqueOtroSalon = document.getElementById("bloqueOtroSalon");
+    const btnAgregarEstudiante = document.getElementById("btnAgregarEstudiante");
+    const mensajeEstudiantesAdmin = document.getElementById("mensajeEstudiantesAdmin");
+
+    function mostrarMensajeEstudiantes(texto, tipo = "danger") {
+        mensajeEstudiantesAdmin.textContent = texto;
+        mensajeEstudiantesAdmin.className = `alert alert-${tipo} mt-3 mb-0`;
+    }
+
+    function ocultarMensajeEstudiantes() {
+        mensajeEstudiantesAdmin.className = "alert d-none mt-3 mb-0";
+    }
+
+    function avisoGuardado(texto, esError = false) {
+        estadoGuardadoEstudiantes.textContent = texto;
+        estadoGuardadoEstudiantes.className = `small ${esError ? "text-danger" : "text-success"}`;
+        setTimeout(() => {
+            estadoGuardadoEstudiantes.textContent = "";
+        }, 2000);
+    }
+
+    nuevoEstSalon.addEventListener("change", () => {
+        bloqueOtroSalon.style.display = nuevoEstSalon.value === "__otro__" ? "block" : "none";
+    });
+
+    function filaEstudianteHtml(est) {
+        const registrado = !!est.correo;
+        const chip = registrado
+            ? `<span class="badge bg-success">Registrado</span>`
+            : `<span class="badge bg-secondary">Sin registrar</span>`;
+
+        return `
+            <tr data-id="${est.id}">
+                <td>
+                    <input type="text" class="form-control form-control-sm campo-nombre" value="${escapeHtmlAdmin(est.nombre || "")}">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm campo-cedula" value="${escapeHtmlAdmin(est.cedula || "")}" placeholder="8-123-4567">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm campo-salon" value="${escapeHtmlAdmin(est.salon || "")}">
+                </td>
+                <td>${chip}</td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-borrar-estudiante" title="Eliminar estudiante">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+
+    // (usa la función escapeHtmlAdmin ya definida más abajo en este archivo)
+
+    async function cargarEstudiantesAdmin() {
+        tablaEstudiantesAdmin.innerHTML = `
+            <tr><td colspan="5" class="text-center text-muted py-3">Cargando...</td></tr>
+        `;
+
+        let consulta = supabase
+            .from("estudiantes")
+            .select("id, codigo, nombre, cedula, salon, correo, es_prueba")
+            .eq("es_prueba", false)
+            .order("salon", { ascending: true })
+            .order("nombre", { ascending: true });
+
+        if (estFiltroSalon.value) {
+            consulta = consulta.eq("salon", estFiltroSalon.value);
+        }
+
+        const { data, error } = await consulta;
+
+        if (error) {
+            console.error("❌ Error al cargar estudiantes:", error);
+            tablaEstudiantesAdmin.innerHTML = `
+                <tr><td colspan="5" class="text-center text-danger py-3">No se pudo cargar la lista.</td></tr>
+            `;
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            tablaEstudiantesAdmin.innerHTML = `
+                <tr><td colspan="5" class="text-center text-muted py-3">No hay estudiantes en este salón todavía.</td></tr>
+            `;
+            return;
+        }
+
+        tablaEstudiantesAdmin.innerHTML = data.map(filaEstudianteHtml).join("");
+
+        // Guardar nombre/cédula/salón al salir de la casilla (blur)
+        tablaEstudiantesAdmin.querySelectorAll("tr[data-id]").forEach((fila) => {
+            const id = fila.dataset.id;
+            const inputNombre = fila.querySelector(".campo-nombre");
+            const inputCedula = fila.querySelector(".campo-cedula");
+            const inputSalon = fila.querySelector(".campo-salon");
+            const btnBorrar = fila.querySelector(".btn-borrar-estudiante");
+
+            async function guardarCampo(campo, valor) {
+                const cambios = { [campo]: valor.trim() || null };
+                const { error: errGuardar } = await supabase
+                    .from("estudiantes")
+                    .update(cambios)
+                    .eq("id", id);
+
+                if (errGuardar) {
+                    console.error(`❌ Error al guardar ${campo}:`, errGuardar);
+                    avisoGuardado(
+                        errGuardar.code === "23505"
+                            ? "⚠️ Esa cédula ya está en uso por otro estudiante."
+                            : "❌ No se pudo guardar",
+                        true
+                    );
+                    return;
+                }
+                avisoGuardado("✅ Guardado");
+            }
+
+            inputNombre.addEventListener("blur", () => guardarCampo("nombre", inputNombre.value));
+            inputCedula.addEventListener("blur", () => guardarCampo("cedula", inputCedula.value));
+            inputSalon.addEventListener("blur", () => guardarCampo("salon", inputSalon.value));
+
+            btnBorrar.addEventListener("click", async () => {
+                const nombreActual = inputNombre.value || "este estudiante";
+                if (!confirm(`¿Eliminar a ${nombreActual}? Esto no borra sus notas, solo su ficha de estudiante.`)) return;
+
+                const { error: errBorrar } = await supabase
+                    .from("estudiantes")
+                    .delete()
+                    .eq("id", id);
+
+                if (errBorrar) {
+                    console.error("❌ Error al eliminar estudiante:", errBorrar);
+                    avisoGuardado("❌ No se pudo eliminar", true);
+                    return;
+                }
+
+                fila.remove();
+            });
+        });
+    }
+
+    btnCargarEstudiantes.addEventListener("click", cargarEstudiantesAdmin);
+
+    btnAgregarEstudiante.addEventListener("click", async () => {
+        ocultarMensajeEstudiantes();
+
+        const nombre = nuevoEstNombre.value.trim();
+        const cedula = nuevoEstCedula.value.trim();
+        const salon = nuevoEstSalon.value === "__otro__"
+            ? nuevoEstSalonOtro.value.trim()
+            : nuevoEstSalon.value;
+
+        if (!nombre || !salon) {
+            mostrarMensajeEstudiantes("Por favor completa al menos el nombre y el salón.", "warning");
+            return;
+        }
+
+        // Código interno único para vincular con notas antes del registro
+        const codigo = `EST-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        const { error } = await supabase
+            .from("estudiantes")
+            .insert([{
+                codigo,
+                nombre,
+                cedula: cedula || null,
+                salon,
+                es_prueba: false
+            }]);
+
+        if (error) {
+            console.error("❌ Error al agregar estudiante:", error);
+            mostrarMensajeEstudiantes(
+                error.code === "23505"
+                    ? "⚠️ Esa cédula ya está en uso por otro estudiante."
+                    : "❌ No se pudo agregar el estudiante.",
+                "danger"
+            );
+            return;
+        }
+
+        mostrarMensajeEstudiantes(`✅ ${nombre} fue agregado(a) a ${salon}.`, "success");
+        nuevoEstNombre.value = "";
+        nuevoEstCedula.value = "";
+        nuevoEstSalonOtro.value = "";
+
+        // Si el salón filtrado coincide (o está en "Todos"), refresca la tabla
+        if (!estFiltroSalon.value || estFiltroSalon.value === salon) {
+            await cargarEstudiantesAdmin();
+        }
+    });
+
+    // =================================================
     // 3) CARGAR USUARIOS REGISTRADOS
     // =================================================
 
