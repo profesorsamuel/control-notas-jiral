@@ -202,6 +202,152 @@ function cargarClasesDeHoy() {
     }).join("");
 
     if (estadoCargaAsistencia) estadoCargaAsistencia.textContent = `${clasesHoy.length} clase(s) hoy.`;
+
+    asegurarPanelHorarioSemanal();
+}
+
+// =========================================================
+// 3.2) HORARIO SEMANAL COMPLETO (solo lectura)
+// =========================================================
+// Se muestra debajo de "Clases de hoy". Combina lo que ya está en
+// profesor_materias (vía horario_profesor, importado desde
+// mi-horario.html) con los bloques libres del profesor (ej.
+// Consejería). Es de solo lectura acá; para editar, el profesor va a
+// mi-horario.html.
+
+const DIAS_ORDEN_HORARIO = ["lunes", "martes", "miercoles", "jueves", "viernes"];
+const NOMBRES_DIA_HORARIO = { lunes: "Lunes", martes: "Martes", miercoles: "Miércoles", jueves: "Jueves", viernes: "Viernes" };
+
+let horarioSemanalPintado = false;
+
+function inyectarEstilosHorarioSemanal() {
+    if (document.getElementById("estilosHorarioSemanal")) return;
+    const estilo = document.createElement("style");
+    estilo.id = "estilosHorarioSemanal";
+    estilo.textContent = `
+        #panelHorarioSemanal { margin-top: 18px; }
+        #panelHorarioSemanal table { width: 100%; border-collapse: collapse; min-width: 640px; }
+        #panelHorarioSemanal th {
+            background: #5a4fcf; color: #fff; padding: 8px 6px; font-size: .8rem; text-align: center;
+        }
+        #panelHorarioSemanal td {
+            border: 1px solid #eee; padding: 5px; vertical-align: middle; text-align: center;
+            font-size: .78rem; min-width: 100px; height: 46px;
+        }
+        #panelHorarioSemanal td.col-hora-hs { background: #f3f4fb; color: #444; font-weight: 600; white-space: nowrap; }
+        #panelHorarioSemanal tr.fila-recreo-hs td { background: #f5a623; color: #fff; font-weight: 700; }
+        #panelHorarioSemanal .bloque-hs { border-radius: 6px; padding: 4px; display: block; }
+        #panelHorarioSemanal .bloque-hs.tipo-clase-hs { background: #e8ecfb; color: #2f3ea3; }
+        #panelHorarioSemanal .bloque-hs.tipo-otro-hs { background: #fdeee0; color: #c0530a; }
+        #panelHorarioSemanal .contenedor-tabla-hs { overflow-x: auto; }
+    `;
+    document.head.appendChild(estilo);
+}
+
+function asegurarPanelHorarioSemanal() {
+    if (document.getElementById("panelHorarioSemanal")) return;
+
+    inyectarEstilosHorarioSemanal();
+
+    const contenedor = document.getElementById("listaClasesHoy")?.parentElement || document.body;
+
+    const envoltorio = document.createElement("div");
+    envoltorio.id = "panelHorarioSemanal";
+    envoltorio.innerHTML = `
+        <div style="text-align:center; margin: 14px 0 8px;">
+            <button type="button" id="btnToggleHorarioSemanal" class="btn-tomar-asistencia">📅 Ver horario completo de la semana</button>
+        </div>
+        <div id="contenidoHorarioSemanal" style="display:none;">
+            <div class="contenedor-tabla-hs">
+                <p class="text-center">Cargando tu horario...</p>
+            </div>
+            <p class="small text-center" style="margin-top:6px;">
+                ¿Falta algo o está mal? Corrígelo en <a href="mi-horario.html">Mi horario</a>.
+            </p>
+        </div>
+    `;
+    contenedor.appendChild(envoltorio);
+
+    const btnToggle = document.getElementById("btnToggleHorarioSemanal");
+    const contenido = document.getElementById("contenidoHorarioSemanal");
+
+    btnToggle.addEventListener("click", async () => {
+        const mostrando = contenido.style.display !== "none";
+        if (mostrando) {
+            contenido.style.display = "none";
+            btnToggle.textContent = "📅 Ver horario completo de la semana";
+            return;
+        }
+
+        contenido.style.display = "block";
+        btnToggle.textContent = "🔼 Ocultar horario de la semana";
+
+        if (!horarioSemanalPintado) {
+            await cargarYPintarHorarioSemanal();
+            horarioSemanalPintado = true;
+        }
+    });
+}
+
+async function cargarYPintarHorarioSemanal() {
+    const contenedorTabla = document.querySelector("#panelHorarioSemanal .contenedor-tabla-hs");
+    if (!contenedorTabla) return;
+
+    const [{ data: franjas, error: errFranjas }, { data: bloques, error: errBloques }] = await Promise.all([
+        supabase.from("franjas_horario").select("id, hora_inicio, hora_fin, orden, es_recreo, etiqueta").order("orden", { ascending: true }),
+        supabase.from("horario_profesor").select("dia, franja_id, texto, tipo").eq("correo_profesor", correoProfesor),
+    ]);
+
+    if (errFranjas || errBloques) {
+        contenedorTabla.innerHTML = `<p class="text-danger text-center">Error al cargar tu horario: ${escapeHtml((errFranjas || errBloques).message)}</p>`;
+        return;
+    }
+
+    if (!franjas || franjas.length === 0) {
+        contenedorTabla.innerHTML = `<p class="text-muted text-center">Todavía no hay franjas horarias configuradas.</p>`;
+        return;
+    }
+
+    const mapaBloques = {};
+    (bloques || []).forEach((b) => { mapaBloques[`${b.dia}-${b.franja_id}`] = b; });
+
+    if (!bloques || bloques.length === 0) {
+        contenedorTabla.innerHTML = `
+            <p class="text-muted text-center">
+                Todavía no tienes tu horario cargado.
+                <a href="mi-horario.html">Ve a "Mi horario" para armarlo</a> (puedes importar tus materias con un clic).
+            </p>`;
+        return;
+    }
+
+    const filasHtml = franjas.map((franja) => {
+        const horaTexto = `${formatearHora(franja.hora_inicio)} – ${formatearHora(franja.hora_fin)}`;
+
+        if (franja.es_recreo) {
+            return `<tr class="fila-recreo-hs"><td colspan="6">🍎 ${escapeHtml(franja.etiqueta || "RECREO")} 🍎</td></tr>`;
+        }
+
+        const celdas = DIAS_ORDEN_HORARIO.map((dia) => {
+            const b = mapaBloques[`${dia}-${franja.id}`];
+            if (!b) return `<td>—</td>`;
+            const claseTipo = b.tipo === "otro" ? "tipo-otro-hs" : "tipo-clase-hs";
+            return `<td><span class="bloque-hs ${claseTipo}">${escapeHtml(b.texto)}</span></td>`;
+        }).join("");
+
+        return `<tr><td class="col-hora-hs">${horaTexto}</td>${celdas}</tr>`;
+    }).join("");
+
+    contenedorTabla.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Hora</th>
+                    ${DIAS_ORDEN_HORARIO.map((d) => `<th>${NOMBRES_DIA_HORARIO[d]}</th>`).join("")}
+                </tr>
+            </thead>
+            <tbody>${filasHtml}</tbody>
+        </table>
+    `;
 }
 
 // =========================================================
