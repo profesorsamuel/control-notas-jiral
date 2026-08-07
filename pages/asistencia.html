@@ -11,31 +11,16 @@
     <link rel="icon" type="image/png" sizes="16x16" href="../img/profesor-favicon-16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="../img/profesor-apple-touch-icon.png">
 
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Asistencia | Control de Notas - C.E.B.G. El Jiral">
-    <meta property="og:description" content="Toma la asistencia de tus estudiantes por salón y materia.">
-    <meta property="og:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
-    <meta property="og:url" content="https://notasjiral.netlify.app/pages/asistencia.html">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
-
-    <!-- Bootstrap: mismas clases usadas en el resto del sistema -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Tipografía propia: Baloo 2 para títulos + Inter para texto,
-         igual que en el resto del sistema. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Candado general: nada en la página puede hacer que el ancho
-           total se salga del celular. */
         html, body {
             max-width: 100%;
             overflow-x: hidden;
         }
 
-        /* ============ Misma paleta que el resto del sistema ============ */
         :root {
             --color-fondo: #faf6ee;
             --color-panel: #ffffff;
@@ -78,24 +63,6 @@
         }
         .dato-fila strong { color: var(--color-primario); min-width: 110px; }
 
-        .form-notas-fila {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            align-items: flex-end;
-        }
-
-        .form-notas-fila > div { display: flex; flex-direction: column; gap: 4px; }
-        .form-notas-fila label { font-size: 13px; font-weight: bold; color: var(--color-primario); }
-        .form-notas-fila select, .form-notas-fila input {
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
-            min-width: 200px;
-        }
-
-        /* ============ Tarjetas de horario del día ============ */
         .tarjetas-horario {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -147,7 +114,6 @@
 
         #estadoCargaAsistencia { font-size: 13px; color: #888; }
 
-        /* ============ Vista de detalle: tabla de estudiantes ============ */
         a.volver {
             color: var(--color-primario);
             font-weight: 600;
@@ -168,8 +134,6 @@
         #panelTabla th { background: var(--color-primario); color: white; font-size: 13px; }
         #panelTabla td.col-nombre { text-align: left; }
 
-        /* Botón de estado: un solo toque/clic cicla entre Presente,
-           Ausente, Tardanza y Permiso. */
         .btn-estado {
             border: none;
             border-radius: 20px;
@@ -180,7 +144,6 @@
             width: 100%;
             min-width: 120px;
             white-space: nowrap;
-            -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
             user-select: none;
         }
@@ -188,9 +151,7 @@
         .btn-estado.estado-ausente { background: #fbe2e2; color: #7a2e2e; }
         .btn-estado.estado-tardanza { background: #fdf3d6; color: #6b5100; }
         .btn-estado.estado-permiso { background: #dbe8f7; color: #1f4e79; }
-        .btn-estado:active { transform: scale(0.96); }
 
-        /* Fila de detalle: aparece SOLO cuando el estado no es Presente. */
         tr.fila-detalle { display: none; }
         tr.fila-detalle.mostrar { display: table-row; }
         tr.fila-detalle td {
@@ -221,11 +182,6 @@
             width: 100%;
             box-sizing: border-box;
             font-family: 'Inter', Arial, sans-serif;
-            resize: vertical;
-        }
-        .panel-detalle input[type="file"] {
-            font-size: 12px;
-            width: 100%;
         }
 
         #estadoLista { font-size: 14px; color: #888; }
@@ -236,7 +192,6 @@
             h1 { font-size: 1.25rem; }
             .tarjetas-horario { grid-template-columns: 1fr; }
             .btn-estado { min-width: 100px; padding: 10px 8px; }
-            .panel-detalle { max-width: 100%; }
         }
     </style>
 </head>
@@ -253,17 +208,13 @@
         <div class="dato-fila"><strong>👨‍🏫 Profesor:</strong> <span id="nombreProfesorTexto">Cargando...</span></div>
     </div>
 
-    <!-- ============ VISTA 1: Clases de hoy (sin ?materia= en la URL) ============ -->
     <div id="vistaDashboard">
-
         <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc3545;">
-            Todavía no tienes materias ni salones asignados. Pídele al administrador que te
-            agregue en la pantalla de "Asignaciones de profesores".
+            Todavía no tienes materias ni salones asignados. Pídele al administrador que te agregue en Asignaciones.
         </div>
 
         <div id="avisoSinHorarioHoy" class="panel-blanco" style="display:none; color:#6b5100; background:#fdf3d6;">
-            No tienes clases con día y hora registrados para hoy. Pídele al administrador que
-            te asigne el día y la hora en "Asignaciones de profesores".
+            No tienes clases asignadas para el día de hoy.
         </div>
 
         <h2>🗓️ Clases de hoy</h2>
@@ -271,9 +222,7 @@
         <div id="estadoCargaAsistencia"></div>
     </div>
 
-    <!-- ============ VISTA 2: Tomar asistencia (con ?materia=...&salon=... en la URL) ============ -->
     <div id="vistaDetalle" style="display:none;">
-
         <a href="asistencia.html" class="volver">&larr; Volver a Clases de hoy</a>
 
         <div class="panel-blanco">
@@ -303,9 +252,6 @@
     </div>
 
     <script>
-        // Alterna entre la vista de "Clases de hoy" y la de "Tomar asistencia"
-        // según si la URL trae ?materia= y &salon=. Se ejecuta antes de cargar
-        // asistencia.js para que no haya parpadeo mostrando ambas vistas.
         (function alternarVista() {
             const parametros = new URLSearchParams(window.location.search);
             const tieneMateriaYSalon = Boolean(
