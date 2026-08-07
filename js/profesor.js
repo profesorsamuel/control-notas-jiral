@@ -130,8 +130,12 @@ const selectSalonNota = document.getElementById("selectSalonNota");
 const selectMateriaNota = document.getElementById("selectMateriaNota");
 const selectTipoNota = document.getElementById("selectTipoNota");
 const inputNumeroNota = document.getElementById("inputNumeroNota");
-const selectTrimestreNota = document.getElementById("selectTrimestreNota");
-const btnCargarSalon = document.getElementById("btnCargarSalon");
+const estadoCargaAuto = document.getElementById("estadoCargaAuto");
+// El trimestre para registrar/consultar notas ahora se toma directo del
+// selector de "Trimestre activo" de arriba (ya no hay uno aparte en este
+// formulario ni un botón "Cargar salón": la tabla se carga sola en cuanto
+// se elige la materia).
+const selectTrimestre = document.getElementById("selectTrimestre");
 const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
 const cabeceraNotasGrupo = document.getElementById("cabeceraNotasGrupo");
 const cabeceraTemasGrupo = document.getElementById("cabeceraTemasGrupo");
@@ -178,14 +182,14 @@ function poblarSelectMateria() {
 
     // Si el/la docente solo tiene UNA materia asignada en este salón, no
     // tiene sentido hacerla elegir: la seleccionamos sola y directamente
-    // disparamos la carga del salón (como si hubiera dado clic en
-    // "Cargar salón"). Si hay varias, se deja el comportamiento normal
-    // de elegir manualmente.
+    // disparamos la carga del salón. Si hay varias, se elige manualmente
+    // y, en cuanto se elige, también se carga sola (ver el listener de
+    // "change" de selectMateriaNota más abajo).
     if (materias.length === 1) {
         selectMateriaNota.innerHTML =
             `<option value="${escapeHtml(materias[0])}" selected>${escapeHtml(materias[0])}</option>`;
         selectMateriaNota.disabled = false;
-        btnCargarSalon.click();
+        cargarSalonYNotas();
         return;
     }
 
@@ -193,9 +197,20 @@ function poblarSelectMateria() {
         `<option value="">Seleccione una materia</option>` +
         materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
     selectMateriaNota.disabled = false;
+
+    // Al cambiar de salón, ocultamos la tabla anterior hasta que se
+    // elija (o se auto-elija) la materia correspondiente a este salón.
+    bloqueTablaNotas.style.display = "none";
 }
 
 selectSalonNota?.addEventListener("change", poblarSelectMateria);
+
+// En cuanto el/la docente elige la materia (cuando hay varias en el
+// salón), se carga el salón automáticamente: ya no hace falta un botón
+// aparte para eso.
+selectMateriaNota?.addEventListener("change", () => {
+    if (selectMateriaNota.value) cargarSalonYNotas();
+});
 
 // =========================================================
 // 3) TABLA DE ESTUDIANTES CON NOTAS EDITABLES (misma lógica del admin)
@@ -224,7 +239,7 @@ function obtenerTemaCasilla(tipo, numero) {
 async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
-    const trimestre = selectTrimestreNota.value;
+    const trimestre = selectTrimestre.value;
     const valorGuardar = nuevoTema || null;
 
     const { error } = await supabase
@@ -264,7 +279,7 @@ async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
 async function eliminarColumnaCasilla(tipo, numero) {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
-    const trimestre = selectTrimestreNota.value;
+    const trimestre = selectTrimestre.value;
     const etiqueta = etiquetaCasilla(tipo, numero);
 
     if (!confirm(`¿Eliminar permanentemente la casilla "${etiqueta}" (${materia} - ${salon}) y todas las notas en ella?`)) return;
@@ -276,7 +291,7 @@ async function eliminarColumnaCasilla(tipo, numero) {
 
     estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} eliminada.`;
     estadoGuardadoNotas.className = "small text-success";
-    btnCargarSalon.click();
+    cargarSalonYNotas();
 }
 
 function recalcularPromedios() {
@@ -552,22 +567,23 @@ inputNumeroNota?.addEventListener("input", () => {
     if (grupoActual.length > 0) renderTabla();
 });
 
-btnCargarSalon?.addEventListener("click", async () => {
+// Carga el salón/materia seleccionados: trae los estudiantes, sus notas
+// y temas, y dibuja la tabla. Antes esto pasaba al presionar el botón
+// "Cargar salón"; ahora se llama solo en cuanto hay un salón y una
+// materia elegidos (o al guardar una nota, borrar una columna, etc.).
+async function cargarSalonYNotas() {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
     const tipo = selectTipoNota.value;
     const numero = parseInt(inputNumeroNota.value, 10);
-    const trimestre = selectTrimestreNota.value;
+    const trimestre = selectTrimestre.value;
 
-    if (!salon) return alert("Selecciona un salón.");
-    if (!materia) return alert("Selecciona una materia.");
+    if (!salon || !materia) return;
 
     const esMia = misAsignaciones.some((a) => a.salon === salon && a.materia === materia);
     if (!esMia) return alert("Esa materia/salón no está asignada a tu cuenta.");
 
-    const textoOriginal = btnCargarSalon.innerHTML;
-    btnCargarSalon.disabled = true;
-    btnCargarSalon.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
+    if (estadoCargaAuto) estadoCargaAuto.textContent = "⏳ Cargando salón...";
 
     const { data: estudiantesSalon, error: errEst } = await supabase
         .from("estudiantes")
@@ -577,8 +593,7 @@ btnCargarSalon?.addEventListener("click", async () => {
 
     if (errEst) {
         alert("Error al cargar estudiantes: " + errEst.message);
-        btnCargarSalon.disabled = false;
-        btnCargarSalon.innerHTML = textoOriginal;
+        if (estadoCargaAuto) estadoCargaAuto.textContent = "";
         return;
     }
 
@@ -632,9 +647,8 @@ btnCargarSalon?.addEventListener("click", async () => {
     renderTabla();
     bloqueTablaNotas.style.display = "block";
 
-    btnCargarSalon.disabled = false;
-    btnCargarSalon.innerHTML = textoOriginal;
-});
+    if (estadoCargaAuto) estadoCargaAuto.textContent = "";
+}
 
 // =========================================================
 // 4) GUARDAR NOTAS
@@ -662,7 +676,7 @@ function actualizarHistorialEnMemoria(item, temaPorCasilla, idInsertado) {
 
 async function guardarNotas(esAutomatico = false) {
     const materia = selectMateriaNota.value;
-    const trimestre = selectTrimestreNota.value;
+    const trimestre = selectTrimestre.value;
     const hoy = new Date().toISOString().slice(0, 10);
 
     const inputsTema = Array.from(tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna"));
@@ -755,7 +769,7 @@ async function guardarNotas(esAutomatico = false) {
         estadoGuardadoNotas.className = "small text-danger";
     }
 
-    if (!esAutomatico) btnCargarSalon.click();
+    if (!esAutomatico) cargarSalonYNotas();
 }
 
 checkBloqueoEstudiantes?.addEventListener("change", async () => {
@@ -874,7 +888,6 @@ function renderizarTablaHistorial(notas) {
 // 6) TRIMESTRE ACTIVO (funcionalidad que ya existía)
 // =========================================================
 
-const selectTrimestre = document.getElementById("selectTrimestre");
 const btnGuardarTrimestre = document.getElementById("btnGuardarTrimestre");
 const estadoTrimestre = document.getElementById("estadoTrimestre");
 
@@ -883,7 +896,10 @@ async function cargarTrimestreActivo() {
     if (error) { console.error(error); return; }
     if (data) {
         selectTrimestre.value = data.trimestre_activo;
-        if (selectTrimestreNota) selectTrimestreNota.value = data.trimestre_activo;
+        // Si ya hay un salón/materia cargados en pantalla, los volvemos a
+        // cargar con el trimestre correcto (por si el trimestre activo
+        // cambió mientras el/la docente tenía la página abierta).
+        if (selectSalonNota.value && selectMateriaNota.value) cargarSalonYNotas();
     }
 }
 
@@ -902,6 +918,9 @@ btnGuardarTrimestre?.addEventListener("click", async () => {
     } else {
         estadoTrimestre.style.color = "#198754";
         estadoTrimestre.textContent = "✅ Guardado";
+        // Si había un salón/materia cargados, los recargamos para que la
+        // tabla muestre las notas del trimestre recién activado.
+        if (selectSalonNota.value && selectMateriaNota.value) cargarSalonYNotas();
     }
     setTimeout(() => { estadoTrimestre.textContent = ""; }, 2000);
 });
@@ -1002,7 +1021,7 @@ function construirTablaReporteCompleta() {
 function construirReporteHtml() {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
-    const trimestre = selectTrimestreNota.value;
+    const trimestre = selectTrimestre.value;
     const fechaHoyTexto = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
 
     const tablaReporte = construirTablaReporteCompleta();
