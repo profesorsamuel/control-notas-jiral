@@ -133,7 +133,7 @@ function pintarEncabezado() {
 let estudiantesCache = [];
 
 async function cargarEstudiantes() {
-    estadoLista.textContent = "Cargando...";
+    if (estadoLista) estadoLista.textContent = "Cargando...";
 
     const { data: estudiantesSalon, error: errEst } = await supabase
         .from("estudiantes")
@@ -143,13 +143,13 @@ async function cargarEstudiantes() {
 
     if (errEst) {
         cuerpoTablaEstudiantes.innerHTML = `<tr><td colspan="4" style="color:#dc3545;">Error al cargar estudiantes: ${escapeHtml(errEst.message)}</td></tr>`;
-        estadoLista.textContent = "";
+        if (estadoLista) estadoLista.textContent = "";
         return;
     }
 
     if (!estudiantesSalon || estudiantesSalon.length === 0) {
         cuerpoTablaEstudiantes.innerHTML = `<tr><td colspan="4">No hay estudiantes registrados en este salón.</td></tr>`;
-        estadoLista.textContent = "";
+        if (estadoLista) estadoLista.textContent = "";
         return;
     }
 
@@ -197,7 +197,7 @@ async function cargarEstudiantes() {
     activarBotonesEstado();
     pintarEncabezadosColumnasDinamicas();
     await precargarValoresGuardadosHoy();
-    estadoLista.textContent = `${estudiantesSalon.length} estudiante(s) cargado(s).`;
+    if (estadoLista) estadoLista.textContent = `${estudiantesSalon.length} estudiante(s) cargado(s).`;
 
     // No bloquea el pintado de la tabla: las alertas se calculan aparte.
     detectarAlertas();
