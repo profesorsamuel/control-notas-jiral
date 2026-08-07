@@ -32,6 +32,14 @@ const salonSeleccionado = (parametros.get("salon") || "").trim();
 let correoProfesor = "";
 let nombreProfesor = "";
 
+// Caché en memoria de TODAS las filas de profesor_materias de este
+// profesor (incluye día/hora). La usa tanto el chequeo de acceso a
+// una materia/salón puntual como el dashboard de "Clases de hoy".
+let materiasProfesor = [];
+
+// true cuando la URL trae ?materia=...&salon=... (vista de detalle).
+const esVistaDetalle = Boolean(materiaSeleccionada && salonSeleccionado);
+
 async function verificarSesion() {
     const { data: { user }, error: errUser } = await supabase.auth.getUser();
 
@@ -44,7 +52,7 @@ async function verificarSesion() {
 
     const { data: materias, error: errMaterias } = await supabase
         .from("profesor_materias")
-        .select("materia, salon")
+        .select("materia, salon, dia, hora")
         .eq("correo_profesor", correoProfesor);
 
     if (errMaterias) {
@@ -54,28 +62,39 @@ async function verificarSesion() {
         return false;
     }
 
-    if (!materias || materias.length === 0) {
-        alert("⛔ Esta cuenta no tiene materias asignadas como docente. Contacta al administrador.");
-        window.location.href = "login.html";
+    materiasProfesor = materias || [];
+
+    if (materiasProfesor.length === 0) {
+        const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
+        if (avisoSinAsignaciones) {
+            avisoSinAsignaciones.style.display = "block";
+        } else {
+            alert("⛔ Esta cuenta no tiene materias asignadas como docente. Contacta al administrador.");
+        }
+        document.getElementById("panelTabla")?.remove();
+        document.getElementById("vistaDetalle")?.remove?.();
         return false;
     }
 
-    // Que la materia/salón de la URL realmente sea de este profesor
+    // La vista de detalle (tomar asistencia de UNA materia/salón) exige
+    // que esa combinación exista entre las materias de este profesor
     // (evita que alguien entre a la asistencia de otro salón cambiando la URL).
-    const tieneAcceso = materias.some(
-        (a) => a.materia === materiaSeleccionada && a.salon === salonSeleccionado
-    );
+    if (esVistaDetalle) {
+        const tieneAcceso = materiasProfesor.some(
+            (a) => a.materia === materiaSeleccionada && a.salon === salonSeleccionado
+        );
 
-    if (!materiaSeleccionada || !salonSeleccionado || !tieneAcceso) {
-        if (avisoSinAcceso) {
-            avisoSinAcceso.textContent = "⛔ No tienes acceso a esta materia/salón, o el enlace es inválido.";
-            avisoSinAcceso.style.display = "block";
-        } else {
-            console.error("❌ Falta el elemento #avisoSinAcceso en el HTML.");
-            alert("⛔ No tienes acceso a esta materia/salón, o el enlace es inválido.");
+        if (!tieneAcceso) {
+            if (avisoSinAcceso) {
+                avisoSinAcceso.textContent = "⛔ No tienes acceso a esta materia/salón, o el enlace es inválido.";
+                avisoSinAcceso.style.display = "block";
+            } else {
+                console.error("❌ Falta el elemento #avisoSinAcceso en el HTML.");
+                alert("⛔ No tienes acceso a esta materia/salón, o el enlace es inválido.");
+            }
+            document.getElementById("panelTabla")?.remove();
+            return false;
         }
-        document.getElementById("panelTabla")?.remove();
-        return false;
     }
 
     const { data: perfilProfesor } = await supabase
@@ -108,12 +127,81 @@ function pintarEncabezado() {
     });
     if (fechaActual) fechaActual.textContent = fechaHoyTexto;
     if (nombreProfesorTexto) nombreProfesorTexto.textContent = nombreProfesor;
-    if (materiaTexto) materiaTexto.textContent = materiaSeleccionada;
-    if (salonTexto) salonTexto.textContent = salonSeleccionado;
 
-    if (!fechaActual || !nombreProfesorTexto || !materiaTexto || !salonTexto) {
-        console.error("❌ Falta alguno de estos ids en el HTML: fechaActual, nombreProfesorTexto, materiaTexto, salonTexto.");
+    if (!fechaActual || !nombreProfesorTexto) {
+        console.error("❌ Falta alguno de estos ids en el HTML: fechaActual, nombreProfesorTexto.");
     }
+
+    if (esVistaDetalle) {
+        if (materiaTexto) materiaTexto.textContent = materiaSeleccionada;
+        if (salonTexto) salonTexto.textContent = salonSeleccionado;
+        if (!materiaTexto || !salonTexto) {
+            console.error("❌ Falta alguno de estos ids en el HTML: materiaTexto, salonTexto.");
+        }
+    }
+}
+
+// =========================================================
+// 3.1) DASHBOARD: "CLASES DE HOY"
+// =========================================================
+// Se ejecuta solo cuando NO hay ?materia=&salon= en la URL. Toma las
+// filas de profesor_materias de este profesor (ya cargadas en
+// materiasProfesor por verificarSesion) y muestra las que tienen
+// "dia" igual al día de hoy, ordenadas por "hora".
+
+const DIAS_SEMANA = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+
+function quitarAcentos(texto) {
+    return String(texto ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+function diaDeHoyNormalizado() {
+    return DIAS_SEMANA[new Date().getDay()];
+}
+
+function formatearHora(horaTexto) {
+    if (!horaTexto) return "";
+    // "hora" viene de una columna tipo TIME de Postgres: "07:30:00".
+    const [h, m] = horaTexto.split(":");
+    const horaNum = Number(h);
+    const sufijo = horaNum >= 12 ? "pm" : "am";
+    const hora12 = ((horaNum + 11) % 12) + 1;
+    return `${hora12}:${m} ${sufijo}`;
+}
+
+function cargarClasesDeHoy() {
+    const listaClasesHoy = document.getElementById("listaClasesHoy");
+    const avisoSinHorarioHoy = document.getElementById("avisoSinHorarioHoy");
+    const estadoCargaAsistencia = document.getElementById("estadoCargaAsistencia");
+    if (!listaClasesHoy) return;
+
+    const hoy = diaDeHoyNormalizado();
+
+    const clasesHoy = materiasProfesor
+        .filter((m) => quitarAcentos((m.dia || "").trim().toLowerCase()) === hoy)
+        .sort((a, b) => (a.hora || "").localeCompare(b.hora || ""));
+
+    if (clasesHoy.length === 0) {
+        if (avisoSinHorarioHoy) avisoSinHorarioHoy.style.display = "block";
+        if (estadoCargaAsistencia) estadoCargaAsistencia.textContent = "";
+        return;
+    }
+
+    listaClasesHoy.innerHTML = clasesHoy.map((clase) => {
+        const url = `asistencia.html?materia=${encodeURIComponent(clase.materia)}&salon=${encodeURIComponent(clase.salon)}`;
+        return `
+        <div class="tarjeta-clase">
+            ${clase.hora ? `<div class="hora-clase">🕐 ${escapeHtml(formatearHora(clase.hora))}</div>` : ""}
+            <div class="materia-clase">${escapeHtml(clase.materia)}</div>
+            <div class="salon-clase">Salón: ${escapeHtml(clase.salon)}</div>
+            <a href="${url}"><button type="button" class="btn-tomar-asistencia">✅ Tomar asistencia</button></a>
+        </div>
+        `;
+    }).join("");
+
+    if (estadoCargaAsistencia) estadoCargaAsistencia.textContent = `${clasesHoy.length} clase(s) hoy.`;
 }
 
 // =========================================================
@@ -878,6 +966,12 @@ function asegurarBotonGuardar() {
     if (!ok) return;
 
     pintarEncabezado();
+
+    if (!esVistaDetalle) {
+        // Dashboard: solo mostrar las clases de hoy, nada más.
+        cargarClasesDeHoy();
+        return;
+    }
 
     asegurarContenedorAlertas();
     asegurarControlesNotas();
