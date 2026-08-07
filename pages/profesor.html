@@ -128,7 +128,7 @@
             font-size: 14px;
         }
 
-        #btnCargarSalon, #btnGuardarNotasGrupo {
+        #btnGuardarNotasGrupo {
             padding: 8px 16px;
             background: var(--color-acento);
             color: white;
@@ -233,7 +233,6 @@
             .form-notas-fila { flex-direction: column; align-items: stretch; gap: 10px; }
             .form-notas-fila > div { width: 100%; }
             .form-notas-fila select, .form-notas-fila input { width: 100%; box-sizing: border-box; }
-            #btnCargarSalon { width: 100%; }
             #buscarCorreo { width: 100%; box-sizing: border-box; }
             .trimestre-panel { flex-direction: column; align-items: stretch; }
             #selectTrimestre, #btnGuardarTrimestre { width: 100%; box-sizing: border-box; }
@@ -323,7 +322,7 @@
                 </select>
             </div>
             <div>
-                <button type="button" id="btnCargarSalon">📋 Cargar salón</button>
+                <span id="estadoCargaSalon" class="small text-muted"></span>
             </div>
         </div>
         <div class="mt-3 form-check">
@@ -370,9 +369,10 @@
         <span id="estadoGuardadoNotas" class="small" style="margin-left:0;"></span>
         <p style="font-size:12px; color:#888; margin-top:8px;">
             ✅ Cada nota se guarda sola apenas sales de la casilla (no hace falta presionar nada).
-            Escribe la casilla arriba (tipo + número) que quieras usar y presiona "Cargar salón";
-            si ya existe se editará, si no, se crea al escribir la primera nota. Puedes escribir un
-            texto en "Tema de cada casilla" para describir de qué se trata esa nota.
+            Escribe la casilla arriba (tipo + número) que quieras usar; el salón se carga solo al
+            elegir salón, materia o trimestre. Si la casilla ya existe se editará, si no, se crea al
+            escribir la primera nota. Puedes escribir un texto en "Tema de cada casilla" para
+            describir de qué se trata esa nota.
         </p>
         <div class="mt-2">
             <button type="button" id="btnExportarPdf" class="btn btn-outline-primary btn-sm">📄 Descargar PDF</button>
