@@ -1,9 +1,4 @@
 import { supabase } from "./supabase.js";
-import { pintarCambiarPanel } from "./roles.js";
-
-// =========================================================
-// UTILIDADES
-// =========================================================
 
 function escapeHtml(str) {
     return String(str ?? "")
@@ -14,62 +9,49 @@ function escapeHtml(str) {
         .replace(/'/g, "&#39;");
 }
 
-const TEXTO_ESTADO = {
-    presente: "🟢 Presente",
-    ausente: "🔴 Ausente",
-    tardanza: "🟡 Tardanza",
-    permiso: "🔵 Permiso",
-};
-
-// Versión sin emoji, para PDF/Excel/CSV (las fuentes estándar de PDF no
-// dibujan emojis correctamente).
-const TEXTO_ESTADO_PLANO = {
-    presente: "Presente",
-    ausente: "Ausente",
-    tardanza: "Tardanza",
-    permiso: "Permiso",
-};
-
-// ⚠️ AJUSTA ESTOS DOS VALORES a los datos reales de tu colegio.
-const NOMBRE_COLEGIO = "Nombre del Colegio";
-const LOGO_URL = "logo-colegio.png"; // ruta o URL pública del logo (PNG/JPG)
-
-function formatearFechaLarga(fechaISO) {
-    // fechaISO viene como "2026-08-07" (columna date de Postgres)
-    const [y, m, d] = fechaISO.split("-").map(Number);
-    const fecha = new Date(y, m - 1, d);
-    return fecha.toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
-}
-
 // =========================================================
-// 1) VERIFICAR SESIÓN Y QUE SEA ADMINISTRADOR
+// SESIÓN Y MATERIAS/SALONES DEL PROFESOR
+// (combina profesor_materias + horario_profesor)
 // =========================================================
-// ⚠️ AJUSTA ESTO a como tu proyecto identifica administradores hoy
-// (por ejemplo una tabla "admins", o un campo "rol" en "usuarios").
-// Aquí solo se valida que haya sesión iniciada; el resto queda como
-// punto explícito para que lo conectes con tu lógica real de roles.
 
-let correoAdmin = "";
+let correoProfesor = "";
+let nombreProfesor = "";
+let misMateriasSalones = []; // [{materia, salon}, ...] sin duplicados
 
-async function verificarSesionAdmin() {
+async function verificarSesion() {
     const { data: { user }, error: errUser } = await supabase.auth.getUser();
+    if (errUser || !user) { window.location.href = "login.html"; return false; }
 
-    if (errUser || !user) {
+    correoProfesor = (user.email || "").trim().toLowerCase();
+
+    const [{ data: materias }, { data: bloques }, { data: perfilProfesor }] = await Promise.all([
+        supabase.from("profesor_materias").select("materia, salon").eq("correo_profesor", correoProfesor),
+        supabase.from("horario_profesor").select("materia, salon").eq("correo_profesor", correoProfesor).eq("tipo", "clase"),
+        supabase.from("profesores").select("nombre_profesor").eq("correo_profesor", correoProfesor).maybeSingle(),
+    ]);
+
+    nombreProfesor = perfilProfesor?.nombre_profesor || correoProfesor;
+
+    const combinadas = [...(materias || []), ...(bloques || [])].filter((m) => m.materia && m.salon);
+    const vistos = new Set();
+    misMateriasSalones = combinadas.filter((m) => {
+        const clave = `${m.materia}|${m.salon}`;
+        if (vistos.has(clave)) return false;
+        vistos.add(clave);
+        return true;
+    });
+
+    if (misMateriasSalones.length === 0) {
+        alert("⛔ Esta cuenta no tiene materias asignadas como docente. Contacta al administrador.");
         window.location.href = "login.html";
         return false;
     }
-
-    correoAdmin = (user.email || "").trim().toLowerCase();
-
-    // TODO: reemplazar por tu verificación real de rol admin, ej.:
-    // const { data: perfil } = await supabase.from("usuarios").select("rol").eq("correo", correoAdmin).maybeSingle();
-    // if (perfil?.rol !== "admin") { window.location.href = "login.html"; return false; }
 
     return true;
 }
 
 // =========================================================
-// 2) ELEMENTOS DE LA PÁGINA
+// ELEMENTOS
 // =========================================================
 
 const filtroFecha = document.getElementById("filtroFecha");
@@ -77,7 +59,6 @@ const filtroSalon = document.getElementById("filtroSalon");
 const filtroMateria = document.getElementById("filtroMateria");
 const filtroProfesor = document.getElementById("filtroProfesor");
 const btnLimpiarFiltros = document.getElementById("btnLimpiarFiltros");
-
 const estadoHistorial = document.getElementById("estadoHistorial");
 const cuerpoTablaHistorial = document.getElementById("cuerpoTablaHistorial");
 
@@ -87,453 +68,260 @@ const detalleMateria = document.getElementById("detalleMateria");
 const detalleSalon = document.getElementById("detalleSalon");
 const detalleProfesor = document.getElementById("detalleProfesor");
 const cuerpoTablaDetalle = document.getElementById("cuerpoTablaDetalle");
-const btnCerrarDetalle = document.getElementById("btnCerrarDetalle");
-
 const btnExportar = document.getElementById("btnExportar");
 const opcionesExportar = document.getElementById("opcionesExportar");
 const btnExportarPDF = document.getElementById("btnExportarPDF");
 const btnExportarExcel = document.getElementById("btnExportarExcel");
 const btnExportarCSV = document.getElementById("btnExportarCSV");
+const btnCerrarDetalle = document.getElementById("btnCerrarDetalle");
+
+// El filtro de "Profesor" no aplica aquí: el profesor solo ve lo suyo.
+const bloqueFiltroProfesor = filtroProfesor?.closest("div");
+if (bloqueFiltroProfesor) bloqueFiltroProfesor.style.display = "none";
 
 // =========================================================
-// 3) DATOS EN MEMORIA
+// POBLAR FILTROS DE SALÓN / MATERIA (solo lo que da este profesor)
 // =========================================================
 
-let todasAsistencias = [];       // filas de "asistencias" (cabeceras), sin filtrar
-let mapaNombresProfesor = {};    // correo_profesor -> nombre_profesor
+function poblarFiltros() {
+    const salones = [...new Set(misMateriasSalones.map((m) => m.salon))].sort();
+    filtroSalon.innerHTML = `<option value="">Todos los salones</option>` +
+        salones.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
 
-let asistenciaActual = null;     // cabecera de la asistencia con el detalle abierto
-let detalleActual = [];          // filas de asistencia_detalle de esa asistencia
+    const materias = [...new Set(misMateriasSalones.map((m) => m.materia))].sort();
+    filtroMateria.innerHTML = `<option value="">Todas las materias</option>` +
+        materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+}
 
 // =========================================================
-// 4) CARGA INICIAL
+// BUSCAR Y PINTAR LA LISTA
 // =========================================================
 
-async function cargarTodo() {
-    estadoHistorial.textContent = "Cargando historial...";
+let cabecerasCache = []; // resultado de la última búsqueda, para abrir detalle sin reconsultar
 
-    const [{ data: asistencias, error: errAsistencias }, { data: profesores, error: errProfesores }] =
-        await Promise.all([
-            supabase
-                .from("asistencias")
-                .select("id, correo_profesor, materia, salon, fecha")
-                .order("fecha", { ascending: false }),
-            supabase
-                .from("profesores")
-                .select("correo_profesor, nombre_profesor"),
-        ]);
+async function buscarHistorial() {
+    estadoHistorial.textContent = "Buscando...";
+    cuerpoTablaHistorial.innerHTML = "";
+    panelDetalle.style.display = "none";
 
-    if (errAsistencias) {
-        console.error("❌ Error al cargar historial:", errAsistencias);
-        estadoHistorial.textContent = "Error al cargar el historial.";
+    let consulta = supabase
+        .from("asistencias")
+        .select("id, fecha, materia, salon, notas_profesor")
+        .eq("correo_profesor", correoProfesor)
+        .order("fecha", { ascending: false })
+        .limit(100);
+
+    if (filtroFecha.value) consulta = consulta.eq("fecha", filtroFecha.value);
+    if (filtroSalon.value) consulta = consulta.eq("salon", filtroSalon.value);
+    if (filtroMateria.value) consulta = consulta.eq("materia", filtroMateria.value);
+
+    const { data, error } = await consulta;
+
+    if (error) {
+        estadoHistorial.textContent = "❌ Error al buscar: " + error.message;
         return;
     }
 
-    if (!errProfesores && profesores) {
-        mapaNombresProfesor = Object.fromEntries(
-            profesores.map((p) => [p.correo_profesor, p.nombre_profesor])
-        );
+    cabecerasCache = data || [];
+
+    if (cabecerasCache.length === 0) {
+        estadoHistorial.textContent = "No hay asistencias que coincidan con estos filtros.";
+        return;
     }
 
-    todasAsistencias = asistencias || [];
+    estadoHistorial.textContent = `${cabecerasCache.length} resultado(s).`;
 
-    construirOpcionesFiltros();
-    aplicarFiltros();
-}
+    cuerpoTablaHistorial.innerHTML = cabecerasCache.map((fila) => {
+        const fechaTexto = new Date(fila.fecha + "T00:00:00").toLocaleDateString("es-PA", { year: "numeric", month: "short", day: "numeric" });
+        return `
+        <tr>
+            <td>${escapeHtml(fechaTexto)}</td>
+            <td>${escapeHtml(fila.materia)}</td>
+            <td>${escapeHtml(fila.salon)}</td>
+            <td>${escapeHtml(nombreProfesor)}</td>
+            <td><button type="button" class="btn-tomar-asistencia btn-ver-detalle" data-id="${fila.id}">Ver detalle</button></td>
+        </tr>`;
+    }).join("");
 
-function nombreProfesorDe(correo) {
-    return mapaNombresProfesor[correo] || correo;
-}
-
-// =========================================================
-// 5) FILTROS
-// =========================================================
-
-function valoresUnicos(lista, campo) {
-    return [...new Set(lista.map((a) => a[campo]).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b, "es")
-    );
-}
-
-function construirOpcionesFiltros() {
-    const salones = valoresUnicos(todasAsistencias, "salon");
-    const materias = valoresUnicos(todasAsistencias, "materia");
-    const correosProfesor = valoresUnicos(todasAsistencias, "correo_profesor");
-
-    filtroSalon.innerHTML =
-        `<option value="">Todos los salones</option>` +
-        salones.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
-
-    filtroMateria.innerHTML =
-        `<option value="">Todas las materias</option>` +
-        materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
-
-    filtroProfesor.innerHTML =
-        `<option value="">Todos los profesores</option>` +
-        correosProfesor
-            .map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(nombreProfesorDe(c))}</option>`)
-            .join("");
-}
-
-function aplicarFiltros() {
-    const fecha = filtroFecha.value;       // "" o "2026-08-07"
-    const salon = filtroSalon.value;
-    const materia = filtroMateria.value;
-    const correoProfesor = filtroProfesor.value;
-
-    const filtradas = todasAsistencias.filter((a) => {
-        if (fecha && a.fecha !== fecha) return false;
-        if (salon && a.salon !== salon) return false;
-        if (materia && a.materia !== materia) return false;
-        if (correoProfesor && a.correo_profesor !== correoProfesor) return false;
-        return true;
+    cuerpoTablaHistorial.querySelectorAll(".btn-ver-detalle").forEach((btn) => {
+        btn.addEventListener("click", () => abrirDetalle(btn.dataset.id));
     });
-
-    renderTablaHistorial(filtradas);
 }
+
+filtroFecha.addEventListener("change", buscarHistorial);
+filtroSalon.addEventListener("change", buscarHistorial);
+filtroMateria.addEventListener("change", buscarHistorial);
 
 btnLimpiarFiltros.addEventListener("click", () => {
     filtroFecha.value = "";
     filtroSalon.value = "";
     filtroMateria.value = "";
-    filtroProfesor.value = "";
-    aplicarFiltros();
+    buscarHistorial();
 });
 
-[filtroFecha, filtroSalon, filtroMateria, filtroProfesor].forEach((el) =>
-    el.addEventListener("change", aplicarFiltros)
-);
-
 // =========================================================
-// 6) TABLA DE RESULTADOS
+// ABRIR EL DETALLE DE UNA ASISTENCIA
 // =========================================================
 
-function renderTablaHistorial(lista) {
-    if (lista.length === 0) {
-        cuerpoTablaHistorial.innerHTML = `<tr><td colspan="5">No hay asistencias con estos filtros.</td></tr>`;
-        estadoHistorial.textContent = "";
-        return;
-    }
+const ETIQUETAS_ESTADO = {
+    presente: "🟢 Presente",
+    ausente: "🔴 Ausente",
+    tardanza: "🟡 Tardanza",
+    permiso: "🔵 Permiso",
+};
 
-    cuerpoTablaHistorial.innerHTML = lista.map((a) => `
-        <tr>
-            <td>${escapeHtml(formatearFechaLarga(a.fecha))}</td>
-            <td>${escapeHtml(a.materia)}</td>
-            <td>${escapeHtml(a.salon)}</td>
-            <td>${escapeHtml(nombreProfesorDe(a.correo_profesor))}</td>
-            <td>
-                <button type="button" class="btn-tomar-asistencia btn-ver-detalle" data-id="${escapeHtml(a.id)}">
-                    👁️ Ver detalle
-                </button>
-            </td>
-        </tr>
-    `).join("");
+let detalleActualCache = { fila: null, estudiantes: [] }; // para exportar sin reconsultar
 
-    estadoHistorial.textContent = `${lista.length} registro(s).`;
-
-    cuerpoTablaHistorial.querySelectorAll(".btn-ver-detalle").forEach((btn) => {
-        btn.addEventListener("click", () => abrirDetalleAsistencia(btn.dataset.id));
-    });
-}
-
-// =========================================================
-// 7) DETALLE DE UNA ASISTENCIA (carga EXACTA de ese día)
-// =========================================================
-// Consulta filtrada estrictamente por asistencia_id, y el resultado
-// REEMPLAZA por completo el contenido anterior del panel (nunca se
-// agrega a lo que ya había), así que no hay riesgo de arrastrar datos
-// de una fecha anterior ni de duplicar filas.
-
-async function abrirDetalleAsistencia(asistenciaId) {
-    // Limpio primero cualquier detalle previo.
-    cuerpoTablaDetalle.innerHTML = `<tr><td colspan="4">Cargando...</td></tr>`;
-    panelDetalle.style.display = "block";
-
-    const cabecera = todasAsistencias.find((a) => a.id === asistenciaId);
-    if (cabecera) {
-        detalleFecha.textContent = formatearFechaLarga(cabecera.fecha);
-        detalleMateria.textContent = cabecera.materia;
-        detalleSalon.textContent = cabecera.salon;
-        detalleProfesor.textContent = nombreProfesorDe(cabecera.correo_profesor);
-    }
+async function abrirDetalle(asistenciaId) {
+    const fila = cabecerasCache.find((c) => c.id === asistenciaId);
+    if (!fila) return;
 
     const { data: detalle, error } = await supabase
         .from("asistencia_detalle")
-        .select("id, estado, observacion, justificacion, adjunto_url, estudiantes ( nombre, codigo )")
+        .select("estudiante_id, estado, observacion, justificacion, adjunto_url")
         .eq("asistencia_id", asistenciaId);
 
     if (error) {
-        console.error("❌ Error al cargar detalle de asistencia:", error);
-        cuerpoTablaDetalle.innerHTML = `<tr><td colspan="4" style="color:#dc3545;">Error al cargar el detalle.</td></tr>`;
+        alert("❌ Error al cargar el detalle: " + error.message);
         return;
     }
 
-    const filas = (detalle || []).sort((a, b) =>
-        (a.estudiantes?.nombre || "").localeCompare(b.estudiantes?.nombre || "", "es")
+    const idsEstudiantes = (detalle || []).map((d) => d.estudiante_id);
+    const { data: estudiantes } = await supabase
+        .from("estudiantes")
+        .select("id, nombre")
+        .in("id", idsEstudiantes.length > 0 ? idsEstudiantes : ["00000000-0000-0000-0000-000000000000"]);
+
+    const nombrePorId = Object.fromEntries((estudiantes || []).map((e) => [e.id, e.nombre]));
+
+    const filasOrdenadas = [...(detalle || [])].sort((a, b) =>
+        (nombrePorId[a.estudiante_id] || "").localeCompare(nombrePorId[b.estudiante_id] || "")
     );
 
-    // Se guardan para que exportarPDF/exportarExcel/exportarCSV trabajen
-    // exactamente sobre lo que está mostrado en pantalla.
-    asistenciaActual = cabecera || null;
-    detalleActual = filas;
+    detalleActualCache = { fila, filasOrdenadas, nombrePorId };
 
-    if (filas.length === 0) {
-        cuerpoTablaDetalle.innerHTML = `<tr><td colspan="4">No hay estudiantes registrados en esta asistencia.</td></tr>`;
-        return;
-    }
+    const fechaTexto = new Date(fila.fecha + "T00:00:00").toLocaleDateString("es-PA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    detalleFecha.textContent = fechaTexto;
+    detalleMateria.textContent = fila.materia;
+    detalleSalon.textContent = fila.salon;
+    detalleProfesor.textContent = nombreProfesor;
 
-    cuerpoTablaDetalle.innerHTML = filas.map((f) => `
+    cuerpoTablaDetalle.innerHTML = filasOrdenadas.map((d) => {
+        const obsJust = [d.observacion, d.justificacion].filter(Boolean).join(" — ");
+        return `
         <tr>
-            <td>${escapeHtml(f.estudiantes?.nombre || "—")}</td>
-            <td>${escapeHtml(TEXTO_ESTADO[f.estado] || f.estado)}</td>
-            <td>${escapeHtml(f.observacion || "")}${f.justificacion ? `<br><em>${escapeHtml(f.justificacion)}</em>` : ""}</td>
-            <td>${f.adjunto_url ? `<a href="${escapeHtml(f.adjunto_url)}" target="_blank" rel="noopener">Ver adjunto</a>` : "—"}</td>
-        </tr>
-    `).join("");
+            <td>${escapeHtml(nombrePorId[d.estudiante_id] || d.estudiante_id)}</td>
+            <td>${ETIQUETAS_ESTADO[d.estado] || escapeHtml(d.estado)}</td>
+            <td>${escapeHtml(obsJust || "—")}</td>
+            <td>${d.adjunto_url ? `<a href="${d.adjunto_url}" target="_blank" rel="noopener">Ver</a>` : "—"}</td>
+        </tr>`;
+    }).join("");
+
+    panelDetalle.style.display = "block";
+    panelDetalle.scrollIntoView({ behavior: "smooth" });
 }
 
 btnCerrarDetalle.addEventListener("click", () => {
     panelDetalle.style.display = "none";
-    cuerpoTablaDetalle.innerHTML = "";
     opcionesExportar.style.display = "none";
-    asistenciaActual = null;
-    detalleActual = [];
 });
 
 // =========================================================
-// 8) EXPORTAR (PDF / Excel / CSV)
+// EXPORTAR (PDF / Excel / CSV) — del detalle abierto actualmente
 // =========================================================
-// Exporta exactamente la asistencia abierta en el panel de detalle
-// (asistenciaActual + detalleActual). Las librerías se cargan solo
-// cuando el profesor realmente exporta (no en cada carga de página).
-
-function calcularResumen(filas) {
-    const resumen = { presente: 0, ausente: 0, tardanza: 0, permiso: 0, total: filas.length };
-    filas.forEach((f) => {
-        if (resumen[f.estado] !== undefined) resumen[f.estado]++;
-    });
-    return resumen;
-}
-
-function nombreBaseArchivo(extension) {
-    return `asistencia_${asistenciaActual.salon}_${asistenciaActual.materia}_${asistenciaActual.fecha}.${extension}`
-        .replace(/\s+/g, "_");
-}
-
-async function cargarImagenBase64(url) {
-    const respuesta = await fetch(url);
-    if (!respuesta.ok) throw new Error(`No se pudo cargar el logo (${respuesta.status})`);
-    const blob = await respuesta.blob();
-    return await new Promise((resolve, reject) => {
-        const lector = new FileReader();
-        lector.onload = () => resolve(lector.result);
-        lector.onerror = reject;
-        lector.readAsDataURL(blob);
-    });
-}
-
-async function exportarPDF() {
-    if (!asistenciaActual) return;
-
-    const { jsPDF } = await import("https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm");
-    const autoTable = (await import("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/+esm")).default;
-
-    const doc = new jsPDF({ unit: "pt", format: "letter" });
-    const margenIzq = 40;
-    let y = 40;
-
-    // Logo (si no se puede cargar, se sigue sin él para no bloquear el PDF)
-    try {
-        const logoBase64 = await cargarImagenBase64(LOGO_URL);
-        doc.addImage(logoBase64, "PNG", margenIzq, y, 55, 55);
-    } catch (e) {
-        console.warn("⚠️ No se pudo incluir el logo en el PDF:", e);
-    }
-
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text(NOMBRE_COLEGIO, margenIzq + 70, y + 18);
-
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    doc.text("Reporte de asistencia", margenIzq + 70, y + 36);
-
-    y += 75;
-
-    doc.setFontSize(11);
-    const info = [
-        ["Profesor:", nombreProfesorDe(asistenciaActual.correo_profesor)],
-        ["Materia:", asistenciaActual.materia],
-        ["Fecha:", formatearFechaLarga(asistenciaActual.fecha)],
-        ["Salón:", asistenciaActual.salon],
-    ];
-    info.forEach(([etiqueta, valor]) => {
-        doc.setFont("helvetica", "bold");
-        doc.text(etiqueta, margenIzq, y);
-        doc.setFont("helvetica", "normal");
-        doc.text(String(valor), margenIzq + 70, y);
-        y += 16;
-    });
-
-    y += 8;
-
-    const resumen = calcularResumen(detalleActual);
-    doc.setFont("helvetica", "bold");
-    doc.text("Resumen", margenIzq, y);
-    y += 16;
-    doc.setFont("helvetica", "normal");
-    [
-        `Total estudiantes: ${resumen.total}`,
-        `Presentes: ${resumen.presente}`,
-        `Ausentes: ${resumen.ausente}`,
-        `Tardanzas: ${resumen.tardanza}`,
-        `Permisos: ${resumen.permiso}`,
-    ].forEach((linea) => {
-        doc.text(linea, margenIzq, y);
-        y += 14;
-    });
-
-    y += 10;
-    doc.setFont("helvetica", "bold");
-    doc.text("Lista completa", margenIzq, y);
-    y += 8;
-
-    autoTable(doc, {
-        startY: y,
-        margin: { left: margenIzq, right: margenIzq },
-        head: [["Estudiante", "Estado", "Observación / Justificación"]],
-        body: detalleActual.map((f) => [
-            f.estudiantes?.nombre || "—",
-            TEXTO_ESTADO_PLANO[f.estado] || f.estado,
-            [f.observacion, f.justificacion].filter(Boolean).join(" — ") || "—",
-        ]),
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [40, 40, 40] },
-    });
-
-    doc.save(nombreBaseArchivo("pdf"));
-}
-
-async function exportarExcel() {
-    if (!asistenciaActual) return;
-
-    const XLSX = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm");
-    const resumen = calcularResumen(detalleActual);
-
-    const filas = [
-        [NOMBRE_COLEGIO],
-        ["Reporte de asistencia"],
-        [],
-        ["Profesor", nombreProfesorDe(asistenciaActual.correo_profesor)],
-        ["Materia", asistenciaActual.materia],
-        ["Fecha", formatearFechaLarga(asistenciaActual.fecha)],
-        ["Salón", asistenciaActual.salon],
-        [],
-        ["Resumen"],
-        ["Total estudiantes", resumen.total],
-        ["Presentes", resumen.presente],
-        ["Ausentes", resumen.ausente],
-        ["Tardanzas", resumen.tardanza],
-        ["Permisos", resumen.permiso],
-        [],
-        ["Lista completa"],
-        ["Estudiante", "Estado", "Observación", "Justificación"],
-        ...detalleActual.map((f) => [
-            f.estudiantes?.nombre || "—",
-            TEXTO_ESTADO_PLANO[f.estado] || f.estado,
-            f.observacion || "",
-            f.justificacion || "",
-        ]),
-    ];
-
-    const hoja = XLSX.utils.aoa_to_sheet(filas);
-    hoja["!cols"] = [{ wch: 28 }, { wch: 14 }, { wch: 30 }, { wch: 30 }];
-
-    const libro = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(libro, hoja, "Asistencia");
-    XLSX.writeFile(libro, nombreBaseArchivo("xlsx"));
-}
-
-function exportarCSV() {
-    if (!asistenciaActual) return;
-
-    const resumen = calcularResumen(detalleActual);
-
-    const filas = [
-        [NOMBRE_COLEGIO],
-        ["Reporte de asistencia"],
-        [],
-        ["Profesor", nombreProfesorDe(asistenciaActual.correo_profesor)],
-        ["Materia", asistenciaActual.materia],
-        ["Fecha", formatearFechaLarga(asistenciaActual.fecha)],
-        ["Salón", asistenciaActual.salon],
-        [],
-        ["Resumen"],
-        ["Total estudiantes", resumen.total],
-        ["Presentes", resumen.presente],
-        ["Ausentes", resumen.ausente],
-        ["Tardanzas", resumen.tardanza],
-        ["Permisos", resumen.permiso],
-        [],
-        ["Lista completa"],
-        ["Estudiante", "Estado", "Observación", "Justificación"],
-        ...detalleActual.map((f) => [
-            f.estudiantes?.nombre || "—",
-            TEXTO_ESTADO_PLANO[f.estado] || f.estado,
-            f.observacion || "",
-            f.justificacion || "",
-        ]),
-    ];
-
-    const escaparCeldaCSV = (valor) => {
-        const texto = String(valor ?? "");
-        return /[",\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
-    };
-
-    const contenidoCSV = filas.map((fila) => fila.map(escaparCeldaCSV).join(",")).join("\n");
-
-    // BOM al inicio para que Excel abra bien los acentos en UTF-8.
-    const blob = new Blob(["\uFEFF" + contenidoCSV], { type: "text/csv;charset=utf-8;" });
-    const enlace = document.createElement("a");
-    enlace.href = URL.createObjectURL(blob);
-    enlace.download = nombreBaseArchivo("csv");
-    enlace.click();
-    URL.revokeObjectURL(enlace.href);
-}
 
 btnExportar.addEventListener("click", () => {
-    if (!asistenciaActual) return;
     opcionesExportar.style.display = opcionesExportar.style.display === "none" ? "block" : "none";
 });
 
-btnExportarPDF.addEventListener("click", async () => {
+function nombreArchivoBase() {
+    const { fila } = detalleActualCache;
+    return `asistencia_${fila.materia}_${fila.salon}_${fila.fecha}`.replace(/\s+/g, "_");
+}
+
+btnExportarCSV.addEventListener("click", () => {
+    const { filasOrdenadas, nombrePorId } = detalleActualCache;
+    if (!filasOrdenadas) return;
+
+    const encabezados = ["Estudiante", "Estado", "Observación", "Justificación"];
+    const filasCsv = filasOrdenadas.map((d) => [
+        nombrePorId[d.estudiante_id] || d.estudiante_id,
+        d.estado,
+        d.observacion || "",
+        d.justificacion || "",
+    ]);
+
+    const csv = [encabezados, ...filasCsv]
+        .map((fila) => fila.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(","))
+        .join("\n");
+
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const enlace = document.createElement("a");
+    enlace.href = URL.createObjectURL(blob);
+    enlace.download = `${nombreArchivoBase()}.csv`;
+    enlace.click();
+    URL.revokeObjectURL(enlace.href);
     opcionesExportar.style.display = "none";
+});
+
+btnExportarPDF.addEventListener("click", async () => {
+    const { fila, filasOrdenadas, nombrePorId } = detalleActualCache;
+    if (!filasOrdenadas) return;
+
     try {
-        await exportarPDF();
-    } catch (e) {
-        console.error("❌ Error al exportar PDF:", e);
-        alert("Ocurrió un error al generar el PDF.");
+        const { jsPDF } = await import("https://esm.sh/jspdf@2.5.1");
+        await import("https://esm.sh/jspdf-autotable@3.8.2");
+
+        const doc = new jsPDF();
+        doc.setFontSize(14);
+        doc.text(`Asistencia — ${fila.materia} / ${fila.salon}`, 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${fila.fecha}   Profesor: ${nombreProfesor}`, 14, 22);
+
+        doc.autoTable({
+            head: [["Estudiante", "Estado", "Observación", "Justificación"]],
+            body: filasOrdenadas.map((d) => [
+                nombrePorId[d.estudiante_id] || d.estudiante_id,
+                d.estado,
+                d.observacion || "",
+                d.justificacion || "",
+            ]),
+            startY: 28,
+            styles: { fontSize: 8 },
+        });
+
+        doc.save(`${nombreArchivoBase()}.pdf`);
+    } catch (error) {
+        console.error("❌ Error al exportar PDF:", error);
+        alert("No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo.");
     }
+    opcionesExportar.style.display = "none";
 });
 
 btnExportarExcel.addEventListener("click", async () => {
-    opcionesExportar.style.display = "none";
-    try {
-        await exportarExcel();
-    } catch (e) {
-        console.error("❌ Error al exportar Excel:", e);
-        alert("Ocurrió un error al generar el Excel.");
-    }
-});
+    const { filasOrdenadas, nombrePorId } = detalleActualCache;
+    if (!filasOrdenadas) return;
 
-btnExportarCSV.addEventListener("click", () => {
-    opcionesExportar.style.display = "none";
     try {
-        exportarCSV();
-    } catch (e) {
-        console.error("❌ Error al exportar CSV:", e);
-        alert("Ocurrió un error al generar el CSV.");
+        const XLSX = await import("https://esm.sh/xlsx@0.18.5");
+
+        const encabezados = ["Estudiante", "Estado", "Observación", "Justificación"];
+        const filas = filasOrdenadas.map((d) => [
+            nombrePorId[d.estudiante_id] || d.estudiante_id,
+            d.estado,
+            d.observacion || "",
+            d.justificacion || "",
+        ]);
+
+        const hoja = XLSX.utils.aoa_to_sheet([encabezados, ...filas]);
+        const libro = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(libro, hoja, "Asistencia");
+        XLSX.writeFile(libro, `${nombreArchivoBase()}.xlsx`);
+    } catch (error) {
+        console.error("❌ Error al exportar Excel:", error);
+        alert("No se pudo generar el Excel. Revisa tu conexión e intenta de nuevo.");
     }
+    opcionesExportar.style.display = "none";
 });
 
 // =========================================================
@@ -541,9 +329,16 @@ btnExportarCSV.addEventListener("click", () => {
 // =========================================================
 
 (async function init() {
-    const ok = await verificarSesionAdmin();
+    const ok = await verificarSesion();
     if (!ok) return;
 
-    pintarCambiarPanel("admin", "oscuro-sobre-claro");
-    await cargarTodo();
+    poblarFiltros();
+
+    // Si vienen desde un enlace con fecha/salon/materia en la URL, precargar.
+    const parametros = new URLSearchParams(window.location.search);
+    if (parametros.get("fecha")) filtroFecha.value = parametros.get("fecha");
+    if (parametros.get("salon")) filtroSalon.value = parametros.get("salon");
+    if (parametros.get("materia")) filtroMateria.value = parametros.get("materia");
+
+    await buscarHistorial();
 })();
