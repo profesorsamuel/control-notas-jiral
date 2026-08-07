@@ -186,6 +186,7 @@ function cargarClasesDeHoy() {
     if (clasesHoy.length === 0) {
         if (avisoSinHorarioHoy) avisoSinHorarioHoy.style.display = "block";
         if (estadoCargaAsistencia) estadoCargaAsistencia.textContent = "";
+        asegurarPanelHorarioSemanal();
         return;
     }
 
