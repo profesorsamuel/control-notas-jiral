@@ -170,41 +170,49 @@
             </form>
         </div>
 
-        <!-- ¿QUIÉN ERES? -->
+        <!-- ACCESO DOCENTE -->
         <p class="text-center fw-bold text-uppercase text-muted small mb-3">
-            Regístrate por primera vez
+            Acceso para docentes
         </p>
 
         <div class="row g-3 mb-4">
 
             <div class="col-md-6">
-                <a href="registro.html?tipo=consejero" class="card shadow tarjeta-opcion">
+                <a href="login.html?rol=profesor" class="card shadow tarjeta-opcion">
                     <div class="icono icono-consejero">
                         <i class="fa-solid fa-chalkboard-user" aria-hidden="true"></i>
                     </div>
-                    <h5 class="mb-1">Soy Consejero(a) / Docente</h5>
+                    <h5 class="mb-1">DOCENTE</h5>
                     <p class="text-muted small mb-2">
-                        Doy seguimiento a las notas de mi salón y genero los boletines.
+                        Ingresa con tu cédula y contraseña para meter notas de tus materias.
                     </p>
                     <span class="fw-bold text-primary">
-                        Registrarme como consejero(a) <i class="fa-solid fa-arrow-right ms-1"></i>
+                        Iniciar sesión <i class="fa-solid fa-arrow-right ms-1"></i>
                     </span>
                 </a>
             </div>
 
             <div class="col-md-6">
-                <a href="registro.html?tipo=estudiante" class="card shadow tarjeta-opcion">
+                <span
+                    class="card shadow tarjeta-opcion"
+                    style="opacity:.55; cursor:not-allowed; pointer-events:none;"
+                    title="Próximamente"
+                    aria-disabled="true"
+                >
                     <div class="icono icono-estudiante">
-                        <i class="fa-solid fa-user-graduate" aria-hidden="true"></i>
+                        <i class="fa-solid fa-list-check" aria-hidden="true"></i>
                     </div>
-                    <h5 class="mb-1">Soy Estudiante</h5>
+                    <h5 class="mb-1">
+                        DOCENTE
+                        <span class="badge bg-secondary align-middle" style="font-size:.6rem;">Próximamente</span>
+                    </h5>
                     <p class="text-muted small mb-2">
-                        Voy a registrar mis propias notas de cada materia.
+                        Elige tu nombre de una lista y entra directo a meter notas.
                     </p>
-                    <span class="fw-bold text-success">
-                        Registrarme como estudiante <i class="fa-solid fa-arrow-right ms-1"></i>
+                    <span class="fw-bold text-muted">
+                        Ver lista de docentes <i class="fa-solid fa-arrow-right ms-1"></i>
                     </span>
-                </a>
+                </span>
             </div>
 
         </div>
