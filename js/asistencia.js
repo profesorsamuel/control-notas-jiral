@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { obtenerRolesDeCuenta } from "./roles.js";
 
 // =========================================================
 // UTILIDADES
@@ -31,6 +32,7 @@ const salonSeleccionado = (parametros.get("salon") || "").trim();
 
 let correoProfesor = "";
 let nombreProfesor = "";
+let esAdmin = false;
 
 // Caché en memoria de TODAS las filas de profesor_materias de este
 // profesor (incluye día/hora). La usa tanto el chequeo de acceso a
@@ -103,6 +105,9 @@ async function verificarSesion() {
         .eq("correo_profesor", correoProfesor)
         .maybeSingle();
     nombreProfesor = perfilProfesor?.nombre_profesor || correoProfesor;
+
+    const { esAdmin: esAdminCuenta } = await obtenerRolesDeCuenta(user.id, correoProfesor);
+    esAdmin = esAdminCuenta;
 
     return true;
 }
@@ -390,11 +395,16 @@ function asegurarPanelHorarioSemanal() {
 
     const contenedor = document.getElementById("listaClasesHoy")?.parentElement || document.body;
 
+    const botonExcepcionHtml = esAdmin
+        ? `<a href="excepciones_horario.html?fecha=${obtenerFechaHoyISO()}"><button type="button" class="btn-tomar-asistencia" style="background:#c0530a;">📢 Avisar cambio de horario para hoy</button></a>`
+        : "";
+
     const envoltorio = document.createElement("div");
     envoltorio.id = "panelHorarioSemanal";
     envoltorio.innerHTML = `
-        <div style="text-align:center; margin: 14px 0 8px;">
+        <div style="text-align:center; margin: 14px 0 8px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
             <button type="button" id="btnToggleHorarioSemanal" class="btn-tomar-asistencia">📅 Ver horario completo de la semana</button>
+            ${botonExcepcionHtml}
         </div>
         <div id="contenidoHorarioSemanal" style="display:none;">
             <div class="contenedor-tabla-hs">
