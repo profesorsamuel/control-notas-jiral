@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tomar Asistencia</title>
+
+    <link rel="icon" type="image/x-icon" href="../img/profesor-favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../img/profesor-favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../img/profesor-favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../img/profesor-apple-touch-icon.png">
+
+    <!-- Bootstrap: mismas clases usadas en el resto del sistema (incluida
+         table-responsive, para que la tabla se vea bien en celular). -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Misma tipografía que el resto del sistema. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        /* ============ Misma paleta que el resto del sistema ============ */
+        :root {
+            --color-fondo: #faf6ee;
+            --color-panel: #ffffff;
+            --color-primario: #2f6f62;
+            --color-primario-oscuro: #234f45;
+            --color-primario-claro: #e3efec;
+            --color-acento: #cf8b2c;
+            --color-acento-oscuro: #a86f1f;
+            --color-texto: #2c2620;
+        }
+
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            padding: 20px;
+            background: var(--color-fondo);
+            color: var(--color-texto);
+        }
+
+        h1, h2 {
+            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
+        }
+        h1 { color: var(--color-primario); font-weight: 700; font-size: 1.4rem; }
+
+        .panel-blanco {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+        }
+
+        .dato-fila {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            margin-bottom: 6px;
+            font-size: 15px;
+            flex-wrap: wrap;
+        }
+        .dato-fila strong { color: var(--color-primario); min-width: 90px; }
+
+        a.volver {
+            color: var(--color-primario);
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        a.volver:hover { text-decoration: underline; }
+
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #ddd4c4; padding: 8px; text-align: center; vertical-align: middle; }
+        th { background: var(--color-primario); color: white; font-size: 13px; }
+
+        td.col-nombre { text-align: left; }
+
+        /* Botón de estado: un solo toque/clic cicla entre Presente,
+           Ausente y Tardanza. Ancho fijo y suficientemente grande para
+           que sea fácil de tocar con el dedo en celular. */
+        .btn-estado {
+            border: none;
+            border-radius: 20px;
+            padding: 8px 14px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            min-width: 120px;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+        }
+        .btn-estado.estado-presente { background: #e3efec; color: #1f5c3d; }
+        .btn-estado.estado-ausente { background: #fbe2e2; color: #7a2e2e; }
+        .btn-estado.estado-tardanza { background: #fdf3d6; color: #6b5100; }
+        .btn-estado:active { transform: scale(0.96); }
+
+        input.input-observacion {
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 13px;
+            width: 100%;
+            min-width: 140px;
+            box-sizing: border-box;
+        }
+
+        #estadoLista { font-size: 14px; color: #888; }
+
+        #btnGuardarAsistencia {
+            padding: 10px 20px;
+            background: var(--color-primario);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        #btnGuardarAsistencia:hover { background: var(--color-primario-oscuro); }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .panel-blanco { padding: 12px; }
+            .btn-estado { min-width: 100px; padding: 10px 8px; }
+            input.input-observacion { min-width: 110px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <p><a href="asistencia.html" class="volver">&larr; Volver a Asistencia</a></p>
+
+    <h1>📋 Tomar Asistencia</h1>
+
+    <div class="panel-blanco">
+        <div class="dato-fila"><strong>📅 Fecha:</strong> <span id="fechaActual">Cargando...</span></div>
+        <div class="dato-fila"><strong>👨‍🏫 Profesor:</strong> <span id="nombreProfesorTexto">Cargando...</span></div>
+        <div class="dato-fila"><strong>📘 Materia:</strong> <span id="materiaTexto">Cargando...</span></div>
+        <div class="dato-fila"><strong>🏫 Salón:</strong> <span id="salonTexto">Cargando...</span></div>
+    </div>
+
+    <div id="avisoSinAcceso" class="panel-blanco" style="display:none; color:#dc3545;"></div>
+
+    <div id="panelTabla" class="panel-blanco">
+        <div class="table-responsive">
+            <table id="tablaEstudiantes">
+                <thead>
+                    <tr>
+                        <th style="width:60px;">Número</th>
+                        <th>Nombre</th>
+                        <th style="width:150px;">Estado</th>
+                        <th style="width:180px;">Observación</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoTablaEstudiantes">
+                    <tr><td colspan="4">Cargando estudiantes...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <span id="estadoLista"></span>
+
+        <div>
+            <button type="button" id="btnGuardarAsistencia" disabled>💾 Guardar asistencia</button>
+            <p style="font-size:12px; color:#888; margin-top:8px;">
+                Este módulo todavía está en construcción: puedes marcar el estado y la
+                observación de cada estudiante, pero por ahora no se guardan en la base de
+                datos. Esa parte se agregará en una siguiente etapa.
+            </p>
+        </div>
+    </div>
+
+    <script type="module" src="../js/tomar-asistencia.js"></script>
+
+</body>
+
+</html>
