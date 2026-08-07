@@ -22,6 +22,39 @@ const MATERIAS_BASE = [
     "Religión, Moral y Valores"
 ];
 
+// Nota mínima para aprobar (igual que en el panel del estudiante)
+const NOTA_MINIMA_APROBAR = 3;
+
+// Frases de felicitación para materias que van bien (promedio >= 3).
+// Se elige una al azar cada vez que se genera el PDF, así que si se
+// imprime varias veces no siempre sale la misma frase.
+const FRASES_FELICITACION = [
+    "¡Excelente trabajo, sigue así!",
+    "¡Vas muy bien, felicidades!",
+    "¡Gran desempeño en esta materia!",
+    "¡Sigue esforzándote, vas por buen camino!",
+    "¡Felicidades por tu buen rendimiento!",
+    "¡Muy bien! Tu esfuerzo se nota.",
+    "¡Excelente, continúa con esa dedicación!",
+    "¡Buen trabajo, mantén ese ritmo!",
+    "¡Felicitaciones, tus notas lo reflejan!",
+    "¡Vas superando las expectativas, sigue así!",
+    "¡Tu dedicación está dando frutos!",
+    "¡Increíble desempeño, felicidades!",
+    "¡Sigue brillando en esta materia!",
+    "¡Un aplauso por tu esfuerzo constante!",
+    "¡Vas muy bien encaminado(a)!",
+    "¡Excelente progreso, no bajes el ritmo!",
+    "¡Tu constancia está dando resultados!",
+    "¡Felicidades, estás demostrando gran compromiso!",
+    "¡Sigue así, tu esfuerzo vale la pena!",
+    "¡Muy buen trabajo, continúa esforzándote!"
+];
+
+function fraseFelicitacionAleatoria() {
+    return FRASES_FELICITACION[Math.floor(Math.random() * FRASES_FELICITACION.length)];
+}
+
 // =====================================================
 // ELEMENTOS DEL DOM
 // =====================================================
@@ -44,6 +77,38 @@ const btnPdf = document.getElementById("btnPdf");
 let estudianteActual = null;   // { nombre, salon }
 let notasCrudas = [];          // todas las filas que devuelve la función
 let cedulaConsultada = "";
+let trimestreActivo = "Trimestre 1"; // se actualiza con el que haya puesto el administrador
+
+// =====================================================
+// TRIMESTRE ACTIVO (el que el administrador tiene configurado)
+// =====================================================
+// Así, cuando el estudiante/padre entra a ver las notas, por defecto
+// le aparece el trimestre que se está cursando en este momento,
+// no siempre "Trimestre 1".
+
+async function cargarTrimestreActivo() {
+    try {
+        const { data, error } = await supabase
+            .from("configuracion")
+            .select("trimestre_activo")
+            .limit(1)
+            .single();
+
+        if (!error && data?.trimestre_activo) {
+            trimestreActivo = data.trimestre_activo;
+        }
+    } catch (err) {
+        console.warn("⚠️ No se pudo obtener el trimestre activo, se usará Trimestre 1.", err);
+    }
+
+    // Preselecciona el trimestre activo en el filtro (si existe como opción)
+    const opcionExiste = Array.from(filtroTrimestre.options).some((o) => o.value === trimestreActivo);
+    if (opcionExiste) {
+        filtroTrimestre.value = trimestreActivo;
+    }
+}
+
+cargarTrimestreActivo();
 
 // =====================================================
 // MOSTRAR / OCULTAR CÉDULA
@@ -101,6 +166,9 @@ async function buscar() {
     btnBuscar.textContent = "Buscando...";
     ocultarMensaje();
     resultado.style.display = "none";
+
+    // Por si todavía no había terminado de cargar el trimestre activo
+    await cargarTrimestreActivo();
 
     const [{ data: est, error: errEst }, { data: notas, error: errNotas }] = await Promise.all([
         supabase.rpc("obtener_estudiante_por_cedula", { p_cedula: cedula }),
@@ -178,32 +246,49 @@ function materiasParaMostrar(porMateria) {
     return [...base, ...extras];
 }
 
-// =====================================================
-// RENDER
-// =====================================================
-
-function render() {
-    const trimestre = filtroTrimestre.value;
-    const filas = filasParaTrimestre(trimestre);
+// Reúne, para un conjunto de filas ya filtradas por trimestre, el
+// promedio de apreciación/ejercicio/final de cada materia con notas.
+// Se usa tanto para pintar la pantalla como para armar el PDF.
+function calcularResumenMaterias(filas) {
     const porMateria = agruparPorMateria(filas);
     const materias = materiasParaMostrar(porMateria);
-
-    let html = "";
+    const resumen = [];
 
     materias.forEach((materia) => {
         const datos = porMateria[materia] || { apreciacion: [], ejercicio: [] };
+        if (datos.apreciacion.length === 0 && datos.ejercicio.length === 0) return;
+
         const promApr = calcularPromedio(datos.apreciacion.map((x) => x.valor));
         const promEje = calcularPromedio(datos.ejercicio.map((x) => x.valor));
         const promFinal = promApr !== null && promEje !== null
             ? (promApr + promEje) / 2
             : (promApr ?? promEje);
 
-        if (datos.apreciacion.length === 0 && datos.ejercicio.length === 0) {
-            // No hay ninguna nota registrada todavía en esta materia: se omite
-            // para no llenar la pantalla de materias vacías.
-            return;
-        }
+        resumen.push({
+            materia,
+            datos,
+            promApr,
+            promEje,
+            promFinal,
+            fracaso: promFinal !== null && promFinal < NOTA_MINIMA_APROBAR
+        });
+    });
 
+    return resumen;
+}
+
+// =====================================================
+// RENDER (pantalla)
+// =====================================================
+
+function render() {
+    const trimestre = filtroTrimestre.value;
+    const filas = filasParaTrimestre(trimestre);
+    const resumen = calcularResumenMaterias(filas);
+
+    let html = "";
+
+    resumen.forEach(({ materia, datos, promApr, promEje, promFinal, fracaso }) => {
         const filasApr = datos.apreciacion
             .sort((a, b) => a.numero - b.numero)
             .map((n) => `<td>${n.valor.toFixed(1)}</td>`)
@@ -214,15 +299,19 @@ function render() {
             .map((n) => `<td>${n.valor.toFixed(1)}</td>`)
             .join("");
 
+        const claseAprFallo = promApr !== null && promApr < NOTA_MINIMA_APROBAR ? "promedio promedio-fracaso" : "promedio";
+        const claseEjeFallo = promEje !== null && promEje < NOTA_MINIMA_APROBAR ? "promedio promedio-fracaso" : "promedio";
+        const claseFinal = fracaso ? "promedio-final-linea fracaso" : "promedio-final-linea";
+        const claseTarjeta = fracaso ? "materia-card materia-fracaso" : "materia-card";
+
         html += `
-            <div class="materia-card">
-                <h3>${escapeHtml(materia)}</h3>
+            <div class="${claseTarjeta}">
+                <h3>${escapeHtml(materia)} ${fracaso ? `<span class="etiqueta-fracaso">EN RIESGO</span>` : ""}</h3>
                 <div style="overflow-x:auto;">
                     <table class="tabla-notas">
                         <thead>
                             <tr>
                                 <th>Tipo</th>
-                                ${datos.apreciacion.length || datos.ejercicio.length ? "" : ""}
                                 <th colspan="99" style="text-align:left; padding-left:10px;">Notas</th>
                                 <th>Promedio</th>
                             </tr>
@@ -231,19 +320,26 @@ function render() {
                             <tr>
                                 <td><strong>Apreciación</strong></td>
                                 ${filasApr || `<td>-</td>`}
-                                <td class="promedio">${promApr !== null ? promApr.toFixed(1) : "-"}</td>
+                                <td class="${claseAprFallo}">${promApr !== null ? promApr.toFixed(1) : "-"}</td>
                             </tr>
                             <tr>
                                 <td><strong>Ejercicio</strong></td>
                                 ${filasEje || `<td>-</td>`}
-                                <td class="promedio">${promEje !== null ? promEje.toFixed(1) : "-"}</td>
+                                <td class="${claseEjeFallo}">${promEje !== null ? promEje.toFixed(1) : "-"}</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                <p style="text-align:right; margin:10px 2px 0; font-weight:bold; color:#1f4e79;">
+                <p class="${claseFinal}">
                     Promedio final: ${promFinal !== null ? promFinal.toFixed(1) : "-"}
                 </p>
+                ${fracaso ? `
+                    <p class="aviso-fracaso-card">
+                        ⚠️ Esta materia está actualmente por debajo de la nota mínima para aprobar (${NOTA_MINIMA_APROBAR.toFixed(1)}).
+                        Recuerda que todavía pueden faltar notas de este trimestre y el examen final, así que este
+                        promedio puede cambiar.
+                    </p>
+                ` : ""}
             </div>
         `;
     });
@@ -284,36 +380,150 @@ btnPdf.addEventListener("click", () => {
     doc.text(`Trimestre: ${trimestre === "todos" ? "Todos" : trimestre}`, 20, 44);
 
     const filas = filasParaTrimestre(trimestre);
-    const porMateria = agruparPorMateria(filas);
-    const materias = materiasParaMostrar(porMateria);
+    const resumen = calcularResumenMaterias(filas);
 
-    const cuerpo = [];
-    materias.forEach((materia) => {
-        const datos = porMateria[materia] || { apreciacion: [], ejercicio: [] };
-        if (datos.apreciacion.length === 0 && datos.ejercicio.length === 0) return;
+    let y = 54;
 
-        const promApr = calcularPromedio(datos.apreciacion.map((x) => x.valor));
-        const promEje = calcularPromedio(datos.ejercicio.map((x) => x.valor));
-        const promFinal = promApr !== null && promEje !== null
-            ? (promApr + promEje) / 2
-            : (promApr ?? promEje);
+    // ---------------------------------------------------
+    // UNA TABLA POR MATERIA, CON TODAS LAS NOTAS INDIVIDUALES
+    // (igual que se ve en pantalla, no solo el promedio)
+    // ---------------------------------------------------
+    resumen.forEach((r) => {
+        if (y > 255) { doc.addPage(); y = 20; }
 
-        cuerpo.push([
-            materia,
-            promApr !== null ? promApr.toFixed(1) : "-",
-            promEje !== null ? promEje.toFixed(1) : "-",
-            promFinal !== null ? promFinal.toFixed(1) : "-"
-        ]);
+        const colorMateria = r.fracaso ? [180, 0, 0] : [31, 78, 121];
+
+        doc.setFontSize(11);
+        doc.setFont(undefined, "bold");
+        doc.setTextColor(...colorMateria);
+        doc.text(r.materia + (r.fracaso ? "  (EN FRACASO)" : ""), 20, y);
+        doc.setFont(undefined, "normal");
+        doc.setTextColor(0, 0, 0);
+        y += 4;
+
+        const notasApr = r.datos.apreciacion.slice().sort((a, b) => a.numero - b.numero).map((n) => n.valor.toFixed(1));
+        const notasEje = r.datos.ejercicio.slice().sort((a, b) => a.numero - b.numero).map((n) => n.valor.toFixed(1));
+        const maxCols = Math.max(notasApr.length, notasEje.length, 1);
+
+        const rellenar = (arr) => {
+            const copia = arr.slice();
+            while (copia.length < maxCols) copia.push("-");
+            return copia;
+        };
+
+        const encabezado = ["Tipo", ...Array.from({ length: maxCols }, (_, i) => `N°${i + 1}`), "Promedio"];
+        const filaApr = ["Apreciación", ...rellenar(notasApr), r.promApr !== null ? r.promApr.toFixed(1) : "-"];
+        const filaEje = ["Ejercicio", ...rellenar(notasEje), r.promEje !== null ? r.promEje.toFixed(1) : "-"];
+
+        doc.autoTable({
+            head: [encabezado],
+            body: [filaApr, filaEje],
+            startY: y,
+            styles: {
+                fontSize: 8,
+                halign: "center",
+                textColor: r.fracaso ? [180, 0, 0] : [30, 30, 30]
+            },
+            headStyles: {
+                fillColor: r.fracaso ? [180, 0, 0] : [31, 78, 121],
+                textColor: 255
+            },
+            columnStyles: { 0: { halign: "left", fontStyle: "bold" } },
+            margin: { left: 20, right: 20 }
+        });
+
+        y = doc.lastAutoTable.finalY + 6;
+
+        if (y > 270) { doc.addPage(); y = 20; }
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, "bold");
+        doc.setTextColor(...colorMateria);
+        doc.text(`Promedio final: ${r.promFinal !== null ? r.promFinal.toFixed(1) : "-"}`, 20, y);
+        doc.setFont(undefined, "normal");
+        y += 6;
+
+        if (r.fracaso) {
+            doc.setFontSize(8.5);
+            doc.setTextColor(180, 0, 0);
+            const texto = "Nota por debajo del mínimo para aprobar. Recuerda que todavía pueden faltar notas de este trimestre y el examen final.";
+            const lineas = doc.splitTextToSize(texto, 170);
+            doc.text(lineas, 20, y);
+            y += lineas.length * 4 + 5;
+        } else if (r.promFinal !== null) {
+            doc.setFontSize(8.5);
+            doc.setFont(undefined, "italic");
+            doc.setTextColor(21, 128, 61);
+            doc.text(fraseFelicitacionAleatoria(), 20, y);
+            doc.setFont(undefined, "normal");
+            y += 8;
+        } else {
+            y += 3;
+        }
+
+        doc.setTextColor(0, 0, 0);
     });
 
-    doc.autoTable({
-        head: [["Materia", "Prom. Apreciación", "Prom. Ejercicio", "Promedio Final"]],
-        body: cuerpo,
-        startY: 52,
-        styles: { fontSize: 9, halign: "center" },
-        headStyles: { fillColor: [31, 78, 121], textColor: 255 },
-        columnStyles: { 0: { halign: "left", fontStyle: "bold" } }
-    });
+    // ---------------------------------------------------
+    // PROMEDIO GENERAL Y ALERTA RESUMEN (si hay fracasos)
+    // ---------------------------------------------------
+    const materiasConPromedio = resumen.filter((r) => r.promFinal !== null);
+    const promedioGeneral = materiasConPromedio.length > 0
+        ? materiasConPromedio.reduce((a, r) => a + r.promFinal, 0) / materiasConPromedio.length
+        : null;
+
+    const materiasEnFracaso = resumen.filter((r) => r.fracaso);
+
+    if (y > 250) { doc.addPage(); y = 20; }
+
+    if (promedioGeneral !== null) {
+        const enFracasoGeneral = promedioGeneral < NOTA_MINIMA_APROBAR;
+        doc.setDrawColor(150, 150, 150);
+        doc.setLineWidth(0.3);
+        doc.line(20, y, 190, y);
+        y += 8;
+
+        doc.setFontSize(12);
+        doc.setFont(undefined, "bold");
+        if (enFracasoGeneral) doc.setTextColor(200, 0, 0);
+        doc.text(`Promedio General: ${promedioGeneral.toFixed(1)}${enFracasoGeneral ? "  (EN FRACASO)" : ""}`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, "normal");
+        doc.setFontSize(10);
+        y += 10;
+    }
+
+    if (materiasEnFracaso.length > 0) {
+        if (y > 240) { doc.addPage(); y = 25; }
+
+        doc.setDrawColor(200, 0, 0);
+        doc.setLineWidth(0.5);
+        doc.line(20, y, 190, y);
+        y += 8;
+
+        doc.setFont(undefined, "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(180, 0, 0);
+        doc.text("NOTA PARA EL ESTUDIANTE Y LOS PADRES / ACUDIENTES", 20, y);
+        y += 7;
+
+        doc.setFont(undefined, "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+
+        const materiasTexto = materiasEnFracaso.map((r) => r.materia).join(", ");
+        const textoAlerta =
+            `El promedio final actual está por debajo de la nota mínima para aprobar (${NOTA_MINIMA_APROBAR.toFixed(1)}) en: ` +
+            `${materiasTexto}. Recuerda que todavia pueden faltar notas por registrar de este trimestre, ademas del examen ` +
+            `final, por lo que este resultado puede cambiar. Se recomienda dar seguimiento con el consejero(a) o el/la ` +
+            `docente correspondiente.`;
+
+        const lineas = doc.splitTextToSize(textoAlerta, 170);
+        doc.text(lineas, 20, y);
+        y += lineas.length * 4.5 + 4;
+    }
+
+    doc.setTextColor(0, 0, 0);
 
     const nombreArchivo = (estudianteActual.nombre || "Boletin").replace(/[,\s]+/g, "_");
     doc.save(`Notas_${nombreArchivo}.pdf`);
