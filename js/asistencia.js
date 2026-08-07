@@ -147,7 +147,7 @@ function pintarEncabezado() {
 // Se ejecuta solo cuando NO hay ?materia=&salon= en la URL.
 //
 // Fuente principal: horario_profesor (el horario semanal que el
-// profesor arma en mi-horario.html). Si el profesor todavía no tiene
+// profesor arma en mi_horario.html). Si el profesor todavía no tiene
 // nada ahí, usamos como respaldo profesor_materias.dia/hora (el
 // sistema viejo), para no dejar a nadie sin su dashboard mientras se
 // pasan al horario nuevo.
@@ -255,9 +255,9 @@ async function cargarClasesDeHoy() {
 // =========================================================
 // Se muestra debajo de "Clases de hoy". Combina lo que ya está en
 // profesor_materias (vía horario_profesor, importado desde
-// mi-horario.html) con los bloques libres del profesor (ej.
+// mi_horario.html) con los bloques libres del profesor (ej.
 // Consejería). Es de solo lectura acá; para editar, el profesor va a
-// mi-horario.html.
+// mi_horario.html.
 
 const DIAS_ORDEN_HORARIO = ["lunes", "martes", "miercoles", "jueves", "viernes"];
 const NOMBRES_DIA_HORARIO = { lunes: "Lunes", martes: "Martes", miercoles: "Miércoles", jueves: "Jueves", viernes: "Viernes" };
@@ -306,7 +306,7 @@ function asegurarPanelHorarioSemanal() {
                 <p class="text-center">Cargando tu horario...</p>
             </div>
             <p class="small text-center" style="margin-top:6px;">
-                ¿Falta algo o está mal? Corrígelo en <a href="mi-horario.html">Mi horario</a>.
+                ¿Falta algo o está mal? Corrígelo en <a href="mi_horario.html">Mi horario</a>.
             </p>
         </div>
     `;
@@ -356,7 +356,7 @@ async function cargarYPintarHorarioSemanal() {
         contenedorTabla.innerHTML = `
             <p class="text-muted text-center">
                 Todavía no tienes tu horario cargado.
-                <a href="mi-horario.html">Ve a "Mi horario" para armarlo</a> (puedes importar tus materias con un clic).
+                <a href="mi_horario.html">Ve a "Mi horario" para armarlo</a> (puedes importar tus materias con un clic).
             </p>`;
         return;
     }
