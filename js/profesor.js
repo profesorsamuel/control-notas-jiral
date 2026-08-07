@@ -130,12 +130,8 @@ const selectSalonNota = document.getElementById("selectSalonNota");
 const selectMateriaNota = document.getElementById("selectMateriaNota");
 const selectTipoNota = document.getElementById("selectTipoNota");
 const inputNumeroNota = document.getElementById("inputNumeroNota");
-const estadoCargaAuto = document.getElementById("estadoCargaAuto");
-// El trimestre para registrar/consultar notas ahora se toma directo del
-// selector de "Trimestre activo" de arriba (ya no hay uno aparte en este
-// formulario ni un botón "Cargar salón": la tabla se carga sola en cuanto
-// se elige la materia).
-const selectTrimestre = document.getElementById("selectTrimestre");
+const selectTrimestreNota = document.getElementById("selectTrimestreNota");
+const btnCargarSalon = document.getElementById("btnCargarSalon");
 const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
 const cabeceraNotasGrupo = document.getElementById("cabeceraNotasGrupo");
 const cabeceraTemasGrupo = document.getElementById("cabeceraTemasGrupo");
@@ -149,9 +145,6 @@ const btnColumnasSeleccionarTodas = document.getElementById("btnColumnasSeleccio
 const btnColumnasSeleccionarNinguna = document.getElementById("btnColumnasSeleccionarNinguna");
 const btnExportarPdf = document.getElementById("btnExportarPdf");
 const btnExportarJpg = document.getElementById("btnExportarJpg");
-const btnAbrirPapelera = document.getElementById("btnAbrirPapelera");
-const bloquePapelera = document.getElementById("bloquePapelera");
-const tablaPapelera = document.getElementById("tablaPapelera");
 
 function poblarSelectSalon() {
     const salones = [...new Set(misAsignaciones.map((a) => a.salon))].sort();
@@ -185,14 +178,14 @@ function poblarSelectMateria() {
 
     // Si el/la docente solo tiene UNA materia asignada en este salón, no
     // tiene sentido hacerla elegir: la seleccionamos sola y directamente
-    // disparamos la carga del salón. Si hay varias, se elige manualmente
-    // y, en cuanto se elige, también se carga sola (ver el listener de
-    // "change" de selectMateriaNota más abajo).
+    // disparamos la carga del salón (como si hubiera dado clic en
+    // "Cargar salón"). Si hay varias, se deja el comportamiento normal
+    // de elegir manualmente.
     if (materias.length === 1) {
         selectMateriaNota.innerHTML =
             `<option value="${escapeHtml(materias[0])}" selected>${escapeHtml(materias[0])}</option>`;
         selectMateriaNota.disabled = false;
-        cargarSalonYNotas();
+        btnCargarSalon.click();
         return;
     }
 
@@ -200,20 +193,9 @@ function poblarSelectMateria() {
         `<option value="">Seleccione una materia</option>` +
         materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
     selectMateriaNota.disabled = false;
-
-    // Al cambiar de salón, ocultamos la tabla anterior hasta que se
-    // elija (o se auto-elija) la materia correspondiente a este salón.
-    bloqueTablaNotas.style.display = "none";
 }
 
 selectSalonNota?.addEventListener("change", poblarSelectMateria);
-
-// En cuanto el/la docente elige la materia (cuando hay varias en el
-// salón), se carga el salón automáticamente: ya no hace falta un botón
-// aparte para eso.
-selectMateriaNota?.addEventListener("change", () => {
-    if (selectMateriaNota.value) cargarSalonYNotas();
-});
 
 // =========================================================
 // 3) TABLA DE ESTUDIANTES CON NOTAS EDITABLES (misma lógica del admin)
@@ -242,7 +224,7 @@ function obtenerTemaCasilla(tipo, numero) {
 async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
-    const trimestre = selectTrimestre.value;
+    const trimestre = selectTrimestreNota.value;
     const valorGuardar = nuevoTema || null;
 
     const { error } = await supabase
@@ -282,140 +264,163 @@ async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
 async function eliminarColumnaCasilla(tipo, numero) {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
-    const trimestre = selectTrimestre.value;
+    const trimestre = selectTrimestreNota.value;
     const etiqueta = etiquetaCasilla(tipo, numero);
 
-    if (!confirm(`¿Eliminar la casilla "${etiqueta}" (${materia} - ${salon}) y todas las notas en ella?\n\nNo se pierde nada: puedes recuperarla luego desde "🗑️ Papelera".`)) return;
+    if (!confirm(`¿Enviar la casilla "${etiqueta}" (${materia} - ${salon}) a la papelera?\n\nLas notas no se pierden: quedan guardadas en la papelera y puedes restaurarlas cuando quieras.`)) return;
 
-    // No se borra de verdad: se marca con la fecha/hora de "eliminado"
-    // para poder restaurarla después desde la Papelera.
-    const marcaEliminado = new Date().toISOString();
+    const ahora = new Date().toISOString();
 
-    await supabase.from("notas").update({ eliminado_en: marcaEliminado })
+    // No se borra nada de verdad: se marca como eliminado (borrado
+    // suave), así queda disponible para restaurar desde la papelera.
+    await supabase.from("notas")
+        .update({ eliminado_en: ahora, eliminado_por: correoProfesor })
         .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
         .is("eliminado_en", null);
-    await supabase.from("temas_casillas").update({ eliminado_en: marcaEliminado })
+    await supabase.from("temas_casillas")
+        .update({ eliminado_en: ahora, eliminado_por: correoProfesor })
         .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
         .is("eliminado_en", null);
 
-    estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} eliminada (puedes recuperarla en "🗑️ Papelera").`;
+    estadoGuardadoNotas.textContent = `🗑️ Casilla ${etiqueta} movida a la papelera.`;
     estadoGuardadoNotas.className = "small text-success";
-    cargarSalonYNotas();
+    btnCargarSalon.click();
 }
 
 // =========================================================
-// 3.1) PAPELERA DE RECICLAJE (recuperar casillas/notas eliminadas)
+// 3.1) PAPELERA DE RECICLAJE (casillas eliminadas, restaurables)
 // =========================================================
+
+const btnPapelera = document.getElementById("btnPapelera");
+const panelPapelera = document.getElementById("panelPapelera");
+const listaPapelera = document.getElementById("listaPapelera");
+const estadoPapelera = document.getElementById("estadoPapelera");
+
+function formatearFechaPapelera(iso) {
+    if (!iso) return "";
+    try {
+        return new Date(iso).toLocaleString("es-PA", {
+            year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+        });
+    } catch {
+        return iso;
+    }
+}
 
 async function cargarPapelera() {
-    if (!tablaPapelera) return;
-    tablaPapelera.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">Cargando...</td></tr>`;
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
 
-    const materias = [...new Set(misAsignaciones.map((a) => a.materia))];
-    const salones = [...new Set(misAsignaciones.map((a) => a.salon))];
-
-    const { data: notasElim, error: errNotas } = await supabase
-        .from("notas")
-        .select("materia, trimestre, tipo, numero, eliminado_en")
-        .in("materia", materias)
-        .not("eliminado_en", "is", null)
-        .order("eliminado_en", { ascending: false });
-
-    const { data: temasElim, error: errTemas } = await supabase
-        .from("temas_casillas")
-        .select("salon, materia, trimestre, tipo, numero, eliminado_en")
-        .in("salon", salones)
-        .in("materia", materias)
-        .not("eliminado_en", "is", null)
-        .order("eliminado_en", { ascending: false });
-
-    if (errNotas || errTemas) {
-        tablaPapelera.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-3">No se pudo cargar la papelera.</td></tr>`;
+    if (!salon || !materia) {
+        listaPapelera.innerHTML = `<p class="small text-muted">Primero carga un salón y materia.</p>`;
         return;
     }
 
-    // Agrupamos por lote de eliminación (misma materia/trimestre/casilla
-    // y la misma fecha exacta de eliminación = se borraron juntas).
-    const mapa = new Map();
-    const clave = (x) => `${x.materia}|${x.trimestre}|${x.tipo}|${x.numero}|${x.eliminado_en}`;
+    listaPapelera.innerHTML = `<p class="small text-muted">Cargando papelera...</p>`;
 
-    (notasElim || []).forEach((n) => {
-        const k = clave(n);
-        if (!mapa.has(k)) mapa.set(k, { ...n, salon: null, cantidadNotas: 0 });
-        mapa.get(k).cantidadNotas++;
-    });
-    (temasElim || []).forEach((t) => {
-        const k = clave(t);
-        if (!mapa.has(k)) mapa.set(k, { ...t, cantidadNotas: 0 });
-        else mapa.get(k).salon = t.salon;
+    // Fuente 1: casillas eliminadas registradas en temas_casillas
+    // (siempre tienen salon, así que son la fuente más confiable).
+    const { data: temasEliminados } = await supabase
+        .from("temas_casillas")
+        .select("tipo, numero, tema, eliminado_en, eliminado_por")
+        .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre)
+        .not("eliminado_en", "is", null);
+
+    // Fuente 2: casillas eliminadas que solo existen en "notas" (por si
+    // nunca se les puso un "tema" y por eso no dejaron fila en
+    // temas_casillas). Se busca entre los estudiantes de este salón.
+    const correos = grupoActual.map((e) => e.correo).filter(Boolean);
+    const idsSinCuenta = grupoActual.filter((e) => !e.correo).map((e) => e.id);
+
+    const combinadas = new Map();
+    (temasEliminados || []).forEach((t) => {
+        combinadas.set(claveCasilla(t.tipo, t.numero), {
+            tipo: t.tipo, numero: t.numero, tema: t.tema || "",
+            eliminado_en: t.eliminado_en, eliminado_por: t.eliminado_por,
+        });
     });
 
-    const lista = [...mapa.values()].sort((a, b) => new Date(b.eliminado_en) - new Date(a.eliminado_en));
+    async function agregarDesdeNotas(filtroCol, valores) {
+        if (!valores.length) return;
+        const { data } = await supabase.from("notas")
+            .select("tipo, numero, tema, eliminado_en, eliminado_por")
+            .eq("materia", materia).eq("trimestre", trimestre)
+            .not("eliminado_en", "is", null)
+            .in(filtroCol, valores);
+        (data || []).forEach((n) => {
+            const clave = claveCasilla(n.tipo, n.numero);
+            if (!combinadas.has(clave)) {
+                combinadas.set(clave, {
+                    tipo: n.tipo, numero: n.numero, tema: n.tema || "",
+                    eliminado_en: n.eliminado_en, eliminado_por: n.eliminado_por,
+                });
+            }
+        });
+    }
+    await agregarDesdeNotas("correo", correos);
+    await agregarDesdeNotas("estudiante_id", idsSinCuenta);
+
+    const lista = [...combinadas.values()];
+    ordenarCasillas(lista);
 
     if (lista.length === 0) {
-        tablaPapelera.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">La papelera está vacía.</td></tr>`;
+        listaPapelera.innerHTML = `<p class="small text-muted">La papelera está vacía para este salón/materia/trimestre.</p>`;
         return;
     }
 
-    tablaPapelera.innerHTML = lista.map((item) => `
-        <tr>
-            <td>${escapeHtml(item.salon || "—")}</td>
-            <td>${escapeHtml(item.materia)}</td>
-            <td>${escapeHtml(item.trimestre)}</td>
-            <td>${escapeHtml(etiquetaCasilla(item.tipo, item.numero))}</td>
-            <td class="text-center">${item.cantidadNotas}</td>
-            <td>${new Date(item.eliminado_en).toLocaleString("es-PA")}</td>
-            <td class="text-end">
-                <button type="button" class="btn btn-success btn-sm btn-restaurar-papelera"
-                    data-salon="${escapeHtml(item.salon || "")}" data-materia="${escapeHtml(item.materia)}"
-                    data-trimestre="${escapeHtml(item.trimestre)}" data-tipo="${escapeHtml(item.tipo)}"
-                    data-numero="${item.numero}" data-eliminado-en="${escapeHtml(item.eliminado_en)}">
-                    ♻️ Restaurar
-                </button>
-            </td>
-        </tr>
-    `).join("");
+    listaPapelera.innerHTML = `
+        <table class="table table-sm">
+            <thead>
+                <tr><th>Casilla</th><th>Tema</th><th>Eliminada</th><th>Por</th><th></th></tr>
+            </thead>
+            <tbody>
+                ${lista.map((c) => `
+                    <tr>
+                        <td>${escapeHtml(etiquetaCasilla(c.tipo, c.numero))}</td>
+                        <td>${escapeHtml(c.tema || "—")}</td>
+                        <td class="small text-muted">${escapeHtml(formatearFechaPapelera(c.eliminado_en))}</td>
+                        <td class="small text-muted">${escapeHtml(c.eliminado_por || "—")}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-success btn-restaurar-casilla"
+                                data-tipo="${c.tipo}" data-numero="${c.numero}">♻️ Restaurar</button>
+                        </td>
+                    </tr>`).join("")}
+            </tbody>
+        </table>`;
 
-    tablaPapelera.querySelectorAll(".btn-restaurar-papelera").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-            btn.disabled = true;
-            btn.textContent = "Restaurando...";
-            await restaurarDePapelera({
-                salon: btn.dataset.salon || null,
-                materia: btn.dataset.materia,
-                trimestre: btn.dataset.trimestre,
-                tipo: btn.dataset.tipo,
-                numero: parseInt(btn.dataset.numero, 10),
-                eliminado_en: btn.dataset.eliminadoEn
-            });
-        });
+    listaPapelera.querySelectorAll(".btn-restaurar-casilla").forEach((btn) => {
+        btn.addEventListener("click", () => restaurarCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10)));
     });
 }
 
-async function restaurarDePapelera(item) {
-    await supabase.from("notas").update({ eliminado_en: null })
-        .eq("materia", item.materia).eq("trimestre", item.trimestre)
-        .eq("tipo", item.tipo).eq("numero", item.numero)
-        .eq("eliminado_en", item.eliminado_en);
+async function restaurarCasilla(tipo, numero) {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const etiqueta = etiquetaCasilla(tipo, numero);
 
-    if (item.salon) {
-        await supabase.from("temas_casillas").update({ eliminado_en: null })
-            .eq("salon", item.salon).eq("materia", item.materia).eq("trimestre", item.trimestre)
-            .eq("tipo", item.tipo).eq("numero", item.numero)
-            .eq("eliminado_en", item.eliminado_en);
+    await supabase.from("notas")
+        .update({ eliminado_en: null, eliminado_por: null })
+        .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+        .not("eliminado_en", "is", null);
+    await supabase.from("temas_casillas")
+        .update({ eliminado_en: null, eliminado_por: null })
+        .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+        .not("eliminado_en", "is", null);
+
+    if (estadoPapelera) {
+        estadoPapelera.textContent = `✅ Casilla "${etiqueta}" restaurada.`;
+        estadoPapelera.className = "small text-success";
     }
 
     await cargarPapelera();
-    // Si la casilla restaurada pertenece al salón/materia que está
-    // abierto ahora mismo, refrescamos la tabla para que se vea de una vez.
-    if (selectSalonNota.value === item.salon && selectMateriaNota.value === item.materia) {
-        cargarSalonYNotas();
-    }
+    btnCargarSalon.click();
 }
 
-btnAbrirPapelera?.addEventListener("click", () => {
-    const abrir = bloquePapelera.style.display === "none";
-    bloquePapelera.style.display = abrir ? "block" : "none";
+btnPapelera?.addEventListener("click", () => {
+    const abrir = panelPapelera.style.display === "none";
+    panelPapelera.style.display = abrir ? "block" : "none";
     if (abrir) cargarPapelera();
 });
 
@@ -692,23 +697,22 @@ inputNumeroNota?.addEventListener("input", () => {
     if (grupoActual.length > 0) renderTabla();
 });
 
-// Carga el salón/materia seleccionados: trae los estudiantes, sus notas
-// y temas, y dibuja la tabla. Antes esto pasaba al presionar el botón
-// "Cargar salón"; ahora se llama solo en cuanto hay un salón y una
-// materia elegidos (o al guardar una nota, borrar una columna, etc.).
-async function cargarSalonYNotas() {
+btnCargarSalon?.addEventListener("click", async () => {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
     const tipo = selectTipoNota.value;
     const numero = parseInt(inputNumeroNota.value, 10);
-    const trimestre = selectTrimestre.value;
+    const trimestre = selectTrimestreNota.value;
 
-    if (!salon || !materia) return;
+    if (!salon) return alert("Selecciona un salón.");
+    if (!materia) return alert("Selecciona una materia.");
 
     const esMia = misAsignaciones.some((a) => a.salon === salon && a.materia === materia);
     if (!esMia) return alert("Esa materia/salón no está asignada a tu cuenta.");
 
-    if (estadoCargaAuto) estadoCargaAuto.textContent = "⏳ Cargando salón...";
+    const textoOriginal = btnCargarSalon.innerHTML;
+    btnCargarSalon.disabled = true;
+    btnCargarSalon.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
 
     const { data: estudiantesSalon, error: errEst } = await supabase
         .from("estudiantes")
@@ -718,7 +722,8 @@ async function cargarSalonYNotas() {
 
     if (errEst) {
         alert("Error al cargar estudiantes: " + errEst.message);
-        if (estadoCargaAuto) estadoCargaAuto.textContent = "";
+        btnCargarSalon.disabled = false;
+        btnCargarSalon.innerHTML = textoOriginal;
         return;
     }
 
@@ -775,8 +780,13 @@ async function cargarSalonYNotas() {
     renderTabla();
     bloqueTablaNotas.style.display = "block";
 
-    if (estadoCargaAuto) estadoCargaAuto.textContent = "";
-}
+    if (panelPapelera && panelPapelera.style.display !== "none") {
+        cargarPapelera();
+    }
+
+    btnCargarSalon.disabled = false;
+    btnCargarSalon.innerHTML = textoOriginal;
+});
 
 // =========================================================
 // 4) GUARDAR NOTAS
@@ -804,7 +814,7 @@ function actualizarHistorialEnMemoria(item, temaPorCasilla, idInsertado) {
 
 async function guardarNotas(esAutomatico = false) {
     const materia = selectMateriaNota.value;
-    const trimestre = selectTrimestre.value;
+    const trimestre = selectTrimestreNota.value;
     const hoy = new Date().toISOString().slice(0, 10);
 
     const inputsTema = Array.from(tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna"));
@@ -897,7 +907,7 @@ async function guardarNotas(esAutomatico = false) {
         estadoGuardadoNotas.className = "small text-danger";
     }
 
-    if (!esAutomatico) cargarSalonYNotas();
+    if (!esAutomatico) btnCargarSalon.click();
 }
 
 checkBloqueoEstudiantes?.addEventListener("change", async () => {
@@ -964,6 +974,7 @@ async function cargarHistorialNotas() {
         .from("notas")
         .select("*")
         .in("materia", [...misMaterias])
+        .is("eliminado_en", null)
         .order("created_at", { ascending: false });
 
     if (error) {
@@ -1016,6 +1027,7 @@ function renderizarTablaHistorial(notas) {
 // 6) TRIMESTRE ACTIVO (funcionalidad que ya existía)
 // =========================================================
 
+const selectTrimestre = document.getElementById("selectTrimestre");
 const btnGuardarTrimestre = document.getElementById("btnGuardarTrimestre");
 const estadoTrimestre = document.getElementById("estadoTrimestre");
 
@@ -1024,10 +1036,7 @@ async function cargarTrimestreActivo() {
     if (error) { console.error(error); return; }
     if (data) {
         selectTrimestre.value = data.trimestre_activo;
-        // Si ya hay un salón/materia cargados en pantalla, los volvemos a
-        // cargar con el trimestre correcto (por si el trimestre activo
-        // cambió mientras el/la docente tenía la página abierta).
-        if (selectSalonNota.value && selectMateriaNota.value) cargarSalonYNotas();
+        if (selectTrimestreNota) selectTrimestreNota.value = data.trimestre_activo;
     }
 }
 
@@ -1046,9 +1055,6 @@ btnGuardarTrimestre?.addEventListener("click", async () => {
     } else {
         estadoTrimestre.style.color = "#198754";
         estadoTrimestre.textContent = "✅ Guardado";
-        // Si había un salón/materia cargados, los recargamos para que la
-        // tabla muestre las notas del trimestre recién activado.
-        if (selectSalonNota.value && selectMateriaNota.value) cargarSalonYNotas();
     }
     setTimeout(() => { estadoTrimestre.textContent = ""; }, 2000);
 });
@@ -1149,7 +1155,7 @@ function construirTablaReporteCompleta() {
 function construirReporteHtml() {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
-    const trimestre = selectTrimestre.value;
+    const trimestre = selectTrimestreNota.value;
     const fechaHoyTexto = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
 
     const tablaReporte = construirTablaReporteCompleta();
