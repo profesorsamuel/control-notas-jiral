@@ -144,10 +144,13 @@ function pintarEncabezado() {
 // =========================================================
 // 3.1) DASHBOARD: "CLASES DE HOY"
 // =========================================================
-// Se ejecuta solo cuando NO hay ?materia=&salon= en la URL. Toma las
-// filas de profesor_materias de este profesor (ya cargadas en
-// materiasProfesor por verificarSesion) y muestra las que tienen
-// "dia" igual al día de hoy, ordenadas por "hora".
+// Se ejecuta solo cuando NO hay ?materia=&salon= en la URL.
+//
+// Fuente principal: horario_profesor (el horario semanal que el
+// profesor arma en mi-horario.html). Si el profesor todavía no tiene
+// nada ahí, usamos como respaldo profesor_materias.dia/hora (el
+// sistema viejo), para no dejar a nadie sin su dashboard mientras se
+// pasan al horario nuevo.
 
 const DIAS_SEMANA = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
 
@@ -171,17 +174,57 @@ function formatearHora(horaTexto) {
     return `${hora12}:${m} ${sufijo}`;
 }
 
-function cargarClasesDeHoy() {
+// Caché en memoria compartida entre "Clases de hoy" y el panel del
+// horario semanal completo, para no repetir las mismas consultas.
+let franjasCache = null;          // [{id, hora_inicio, hora_fin, orden, es_recreo, etiqueta}]
+let horarioProfesorCache = null;  // [{dia, franja_id, texto, tipo, materia, salon}]
+
+async function cargarHorarioProfesorCompleto() {
+    if (franjasCache && horarioProfesorCache) {
+        return { franjas: franjasCache, bloques: horarioProfesorCache };
+    }
+
+    const [{ data: franjas, error: errFranjas }, { data: bloques, error: errBloques }] = await Promise.all([
+        supabase.from("franjas_horario").select("id, hora_inicio, hora_fin, orden, es_recreo, etiqueta").order("orden", { ascending: true }),
+        supabase.from("horario_profesor").select("dia, franja_id, texto, tipo, materia, salon").eq("correo_profesor", correoProfesor),
+    ]);
+
+    if (errFranjas || errBloques) {
+        console.error("❌ Error al cargar horario_profesor/franjas_horario:", errFranjas || errBloques);
+        return { franjas: [], bloques: [], error: errFranjas || errBloques };
+    }
+
+    franjasCache = franjas || [];
+    horarioProfesorCache = bloques || [];
+    return { franjas: franjasCache, bloques: horarioProfesorCache };
+}
+
+async function cargarClasesDeHoy() {
     const listaClasesHoy = document.getElementById("listaClasesHoy");
     const avisoSinHorarioHoy = document.getElementById("avisoSinHorarioHoy");
     const estadoCargaAsistencia = document.getElementById("estadoCargaAsistencia");
     if (!listaClasesHoy) return;
 
     const hoy = diaDeHoyNormalizado();
+    const { franjas, bloques } = await cargarHorarioProfesorCompleto();
 
-    const clasesHoy = materiasProfesor
-        .filter((m) => quitarAcentos((m.dia || "").trim().toLowerCase()) === hoy)
-        .sort((a, b) => (a.hora || "").localeCompare(b.hora || ""));
+    let clasesHoy = [];
+
+    if (bloques.length > 0) {
+        // --- Fuente nueva: horario_profesor ---
+        const franjasPorId = {};
+        franjas.forEach((f) => { franjasPorId[f.id] = f; });
+
+        clasesHoy = bloques
+            .filter((b) => b.dia === hoy && b.tipo === "clase" && b.materia && b.salon)
+            .map((b) => ({ materia: b.materia, salon: b.salon, hora: franjasPorId[b.franja_id]?.hora_inicio || "", orden: franjasPorId[b.franja_id]?.orden ?? 99 }))
+            .sort((a, b) => a.orden - b.orden);
+    } else {
+        // --- Respaldo: profesor_materias (sistema viejo) ---
+        clasesHoy = materiasProfesor
+            .filter((m) => quitarAcentos((m.dia || "").trim().toLowerCase()) === hoy)
+            .sort((a, b) => (a.hora || "").localeCompare(b.hora || ""));
+    }
 
     if (clasesHoy.length === 0) {
         if (avisoSinHorarioHoy) avisoSinHorarioHoy.style.display = "block";
@@ -294,13 +337,10 @@ async function cargarYPintarHorarioSemanal() {
     const contenedorTabla = document.querySelector("#panelHorarioSemanal .contenedor-tabla-hs");
     if (!contenedorTabla) return;
 
-    const [{ data: franjas, error: errFranjas }, { data: bloques, error: errBloques }] = await Promise.all([
-        supabase.from("franjas_horario").select("id, hora_inicio, hora_fin, orden, es_recreo, etiqueta").order("orden", { ascending: true }),
-        supabase.from("horario_profesor").select("dia, franja_id, texto, tipo").eq("correo_profesor", correoProfesor),
-    ]);
+    const { franjas, bloques, error } = await cargarHorarioProfesorCompleto();
 
-    if (errFranjas || errBloques) {
-        contenedorTabla.innerHTML = `<p class="text-danger text-center">Error al cargar tu horario: ${escapeHtml((errFranjas || errBloques).message)}</p>`;
+    if (error) {
+        contenedorTabla.innerHTML = `<p class="text-danger text-center">Error al cargar tu horario: ${escapeHtml(error.message)}</p>`;
         return;
     }
 
@@ -1116,7 +1156,7 @@ function asegurarBotonGuardar() {
 
     if (!esVistaDetalle) {
         // Dashboard: solo mostrar las clases de hoy, nada más.
-        cargarClasesDeHoy();
+        await cargarClasesDeHoy();
         return;
     }
 
