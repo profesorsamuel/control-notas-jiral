@@ -309,12 +309,14 @@ formAsignacion?.addEventListener("submit", async (e) => {
             });
         });
 
-        // ignoreDuplicates ya NO se usa: si la combinación correo+materia+salon
-        // ya existía, ahora se ACTUALIZA (para poder refrescar su día/hora),
-        // en vez de ignorarse como antes.
+        // La combinación única ahora es correo+materia+salon+dia+hora (no solo
+        // materia+salon), porque una misma materia en un mismo salón puede
+        // repetirse varias veces por semana en días y horas distintas, e
+        // incluso dos veces el mismo día (clase doble). Así cada bloque de
+        // horario queda como su propia fila, sin sobrescribir a los demás.
         const { error: errMaterias } = await supabase
             .from("profesor_materias")
-            .upsert(filasAInsertar, { onConflict: "correo_profesor,materia,salon" });
+            .upsert(filasAInsertar, { onConflict: "correo_profesor,materia,salon,dia,hora" });
 
         if (errMaterias) {
             estadoAsignacion.textContent = `❌ Error al guardar las asignaciones: ${errMaterias.message}`;
