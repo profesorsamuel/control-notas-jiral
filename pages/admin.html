@@ -54,7 +54,71 @@
 
         <div id="mensajeAdmin" class="alert d-none" role="alert"></div>
 
+        <!-- ===================== MENÚ PRINCIPAL (BOTONES) ===================== -->
+        <div id="menuAdminPrincipal" class="mb-4">
+            <h1 class="h4 mb-3 text-secondary">¿Qué querés hacer?</h1>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+                <div class="col">
+                    <button type="button" class="btn btn-outline-success w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-estudiantes">
+                        <i class="fa-solid fa-user-pen fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Gestionar estudiantes</span>
+                        <span class="small text-muted d-none d-md-block">Nombre y cédula</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-notas-seccion">
+                        <i class="fa-solid fa-clipboard-list fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Agregar notas</span>
+                        <span class="small text-muted d-none d-md-block">Por sección</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-info w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-vista-general">
+                        <i class="fa-solid fa-table-list fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Vista general</span>
+                        <span class="small text-muted d-none d-md-block">Todas las materias</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-secondary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-actividad">
+                        <i class="fa-solid fa-chart-line fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Actividad</span>
+                        <span class="small text-muted d-none d-md-block">Visitas a la plataforma</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-warning w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-preguntas">
+                        <i class="fa-solid fa-key fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Preguntas de seguridad</span>
+                        <span class="small text-muted d-none d-md-block">De un estudiante</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-usuarios">
+                        <i class="fa-solid fa-users fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Usuarios registrados</span>
+                        <span class="small text-muted d-none d-md-block">Ver todos</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-notas-todos">
+                        <i class="fa-solid fa-file-lines fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Notas de todos</span>
+                        <span class="small text-muted d-none d-md-block">Todos los estudiantes</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra "Volver al menú", visible solo dentro de una sección -->
+        <div id="volverMenuBar" class="d-none mb-3">
+            <button type="button" id="btnVolverMenu" class="btn btn-outline-secondary">
+                <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i> Volver al menú
+            </button>
+        </div>
+
         <!-- ===================== GESTIONAR ESTUDIANTES ===================== -->
+        <div id="panel-estudiantes" class="panel-seccion d-none">
         <section class="card shadow border-success border-2 mb-4">
             <div class="card-header bg-success text-white">
                 <h2 class="h5 mb-0">
@@ -156,8 +220,10 @@
 
             </div>
         </section>
+        </div>
 
         <!-- ===================== AGREGAR NOTAS POR SECCIÓN ===================== -->
+        <div id="panel-notas-seccion" class="panel-seccion d-none">
         <section class="card shadow border-primary border-2 mb-4">
             <div class="card-header bg-primary text-white">
                 <h2 class="h5 mb-0">
@@ -287,8 +353,10 @@
 
             </div>
         </section>
+        </div>
 
         <!-- ===================== VISTA GENERAL POR SALÓN ===================== -->
+        <div id="panel-vista-general" class="panel-seccion d-none">
         <section class="card shadow border-info border-2 mb-4">
             <div class="card-header bg-info text-white">
                 <h2 class="h5 mb-0">
@@ -349,8 +417,10 @@
 
             </div>
         </section>
+        </div>
 
         <!-- ===================== ACTIVIDAD DE ESTUDIANTES ===================== -->
+        <div id="panel-actividad" class="panel-seccion d-none">
         <section class="card shadow border-secondary border-2 mb-4">
             <div class="card-header bg-secondary text-white">
                 <h2 class="h5 mb-0">
@@ -411,8 +481,10 @@
 
             </div>
         </section>
+        </div>
 
         <!-- ===================== PREGUNTAS DE SEGURIDAD ===================== -->
+        <div id="panel-preguntas" class="panel-seccion d-none">
         <section class="card shadow border-warning border-2 mb-4">
             <div class="card-header bg-warning">
                 <h2 class="h5 mb-0">
@@ -479,8 +551,10 @@
 
             </div>
         </section>
+        </div>
 
         <!-- ===================== USUARIOS ===================== -->
+        <div id="panel-usuarios" class="panel-seccion d-none">
         <section class="card shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h2 class="h5 mb-0">
@@ -514,8 +588,10 @@
                 </div>
             </div>
         </section>
+        </div>
 
         <!-- ===================== NOTAS ===================== -->
+        <div id="panel-notas-todos" class="panel-seccion d-none">
         <section class="card shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h2 class="h5 mb-0">
@@ -541,6 +617,7 @@
                 </div>
             </div>
         </section>
+        </div>
 
     </main>
 
@@ -554,6 +631,41 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
     <script type="module" src="../js/admin.js"></script>
+
+    <!-- Navegación del menú principal (mostrar/ocultar secciones) -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const menu = document.getElementById("menuAdminPrincipal");
+            const volverBar = document.getElementById("volverMenuBar");
+            const btnVolver = document.getElementById("btnVolverMenu");
+            const paneles = document.querySelectorAll(".panel-seccion");
+            const botonesMenu = document.querySelectorAll(".panel-menu-btn");
+
+            function mostrarPanel(idPanel) {
+                paneles.forEach((p) => p.classList.add("d-none"));
+                const panel = document.getElementById(idPanel);
+                if (panel) panel.classList.remove("d-none");
+                menu.classList.add("d-none");
+                volverBar.classList.remove("d-none");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+
+            function mostrarMenu() {
+                paneles.forEach((p) => p.classList.add("d-none"));
+                menu.classList.remove("d-none");
+                volverBar.classList.add("d-none");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+
+            botonesMenu.forEach((btn) => {
+                btn.addEventListener("click", () => mostrarPanel(btn.dataset.panel));
+            });
+
+            if (btnVolver) {
+                btnVolver.addEventListener("click", mostrarMenu);
+            }
+        });
+    </script>
 
 </body>
 
