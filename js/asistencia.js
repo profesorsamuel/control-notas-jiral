@@ -52,10 +52,10 @@ async function verificarSesion() {
 
     correoProfesor = (user.email || "").trim().toLowerCase();
 
-    const { data: materias, error: errMaterias } = await supabase
-        .from("profesor_materias")
-        .select("materia, salon, dia, hora")
-        .eq("correo_profesor", correoProfesor);
+    const [{ data: materias, error: errMaterias }, { data: bloquesHorario, error: errBloques }] = await Promise.all([
+        supabase.from("profesor_materias").select("materia, salon, dia, hora").eq("correo_profesor", correoProfesor),
+        supabase.from("horario_profesor").select("materia, salon").eq("correo_profesor", correoProfesor).eq("tipo", "clase"),
+    ]);
 
     if (errMaterias) {
         console.error("❌ Error al verificar acceso de docente:", errMaterias);
@@ -66,7 +66,17 @@ async function verificarSesion() {
 
     materiasProfesor = materias || [];
 
-    if (materiasProfesor.length === 0) {
+    // El acceso a una materia/salón puntual puede venir de CUALQUIERA
+    // de las dos tablas: la vieja (profesor_materias) o la nueva
+    // (horario_profesor, armada por el profesor en mi_horario.html).
+    // No hace falta que un profesor tenga fila en ambas.
+    const materiasSalonesHorario = (bloquesHorario || [])
+        .filter((b) => b.materia && b.salon)
+        .map((b) => ({ materia: b.materia, salon: b.salon }));
+
+    const todasMisMateriasSalones = [...materiasProfesor, ...materiasSalonesHorario];
+
+    if (todasMisMateriasSalones.length === 0) {
         const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
         if (avisoSinAsignaciones) {
             avisoSinAsignaciones.style.display = "block";
@@ -82,7 +92,7 @@ async function verificarSesion() {
     // que esa combinación exista entre las materias de este profesor
     // (evita que alguien entre a la asistencia de otro salón cambiando la URL).
     if (esVistaDetalle) {
-        const tieneAcceso = materiasProfesor.some(
+        const tieneAcceso = todasMisMateriasSalones.some(
             (a) => a.materia === materiaSeleccionada && a.salon === salonSeleccionado
         );
 
