@@ -143,6 +143,11 @@ const checkBloqueoEstudiantes = document.getElementById("checkBloqueoEstudiantes
 const listaChecksColumnas = document.getElementById("listaChecksColumnas");
 const btnColumnasSeleccionarTodas = document.getElementById("btnColumnasSeleccionarTodas");
 const btnColumnasSeleccionarNinguna = document.getElementById("btnColumnasSeleccionarNinguna");
+const btnToggleFiltroEstudiantes = document.getElementById("btnToggleFiltroEstudiantes");
+const bloqueFiltroEstudiantes = document.getElementById("bloqueFiltroEstudiantes");
+const listaChecksEstudiantes = document.getElementById("listaChecksEstudiantes");
+const btnEstudiantesSeleccionarTodos = document.getElementById("btnEstudiantesSeleccionarTodos");
+const btnEstudiantesSeleccionarNinguno = document.getElementById("btnEstudiantesSeleccionarNinguno");
 const btnExportarPdf = document.getElementById("btnExportarPdf");
 const btnExportarJpg = document.getElementById("btnExportarJpg");
 
@@ -564,6 +569,57 @@ btnColumnasSeleccionarNinguna?.addEventListener("click", () => {
     renderTabla();
 });
 
+// =========================================================
+// 3.2) FILTRO DE ESTUDIANTES (elegir a quiénes ver en la tabla)
+// =========================================================
+// Empieza vacío: por defecto se ven TODOS los estudiantes, hasta que
+// el docente oculte a alguno a mano. Solo afecta lo que se ve en
+// pantalla; el PDF/JPG (construirTablaReporteCompleta) siempre sale
+// completo, con todos los estudiantes, como reporte formal.
+let estudiantesOcultos = new Set();
+
+function renderizarListaChecksEstudiantes() {
+    if (!listaChecksEstudiantes) return;
+
+    listaChecksEstudiantes.innerHTML = grupoActual.map((est) => {
+        const clave = claveEstudiante(est);
+        const marcado = !estudiantesOcultos.has(clave);
+        return `
+            <label class="form-check" style="display:flex; align-items:center; gap:4px; margin:0;">
+                <input type="checkbox" class="form-check-input check-estudiante-manual" data-clave="${escapeHtml(clave)}" ${marcado ? "checked" : ""} style="margin:0;">
+                <span class="small">${escapeHtml(est.nombre)}</span>
+            </label>`;
+    }).join("");
+
+    listaChecksEstudiantes.querySelectorAll(".check-estudiante-manual").forEach((chk) => {
+        chk.addEventListener("change", () => {
+            const clave = chk.dataset.clave;
+            if (chk.checked) estudiantesOcultos.delete(clave);
+            else estudiantesOcultos.add(clave);
+            renderTabla();
+        });
+    });
+}
+
+btnToggleFiltroEstudiantes?.addEventListener("click", () => {
+    const abrir = bloqueFiltroEstudiantes.style.display === "none";
+    bloqueFiltroEstudiantes.style.display = abrir ? "block" : "none";
+    btnToggleFiltroEstudiantes.textContent = abrir ? "Ocultar filtro" : "Mostrar filtro";
+    if (abrir) renderizarListaChecksEstudiantes();
+});
+
+btnEstudiantesSeleccionarTodos?.addEventListener("click", () => {
+    estudiantesOcultos.clear();
+    renderizarListaChecksEstudiantes();
+    renderTabla();
+});
+
+btnEstudiantesSeleccionarNinguno?.addEventListener("click", () => {
+    grupoActual.forEach((est) => estudiantesOcultos.add(claveEstudiante(est)));
+    renderizarListaChecksEstudiantes();
+    renderTabla();
+});
+
 function renderTabla() {
     if (grupoActual.length === 0) {
         cabeceraNotasGrupo.innerHTML = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
@@ -592,6 +648,9 @@ function renderTabla() {
     const mostrarPromFinal = !columnasOcultas.has(CLAVE_PROM_FINAL);
 
     renderizarListaChecksColumnas();
+    if (bloqueFiltroEstudiantes && bloqueFiltroEstudiantes.style.display !== "none") {
+        renderizarListaChecksEstudiantes();
+    }
 
     let htmlCabecera = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
     columnasVisibles.forEach((c) => {
@@ -623,7 +682,11 @@ function renderTabla() {
     });
     cabeceraTemasGrupo.innerHTML = htmlTemas;
 
-    tablaNotasGrupo.innerHTML = grupoActual.map((est, i) => {
+    const estudiantesVisibles = grupoActual.filter((est) => !estudiantesOcultos.has(claveEstudiante(est)));
+
+    tablaNotasGrupo.innerHTML = estudiantesVisibles.length === 0
+        ? `<tr><td colspan="2" class="text-center text-muted py-3">No hay estudiantes seleccionados en el filtro de arriba.</td></tr>`
+        : estudiantesVisibles.map((est, i) => {
         const sinCuenta = !est.correo;
         const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
 
@@ -754,6 +817,7 @@ async function cargarSalon() {
     }
 
     grupoActual = (estudiantesSalon || []).filter((e) => !e.es_prueba);
+    estudiantesOcultos.clear();
 
     const correos = grupoActual.map((e) => e.correo).filter(Boolean);
     const idsSinCuenta = grupoActual.filter((e) => !e.correo).map((e) => e.id);
