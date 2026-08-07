@@ -35,7 +35,7 @@ export async function obtenerRolesDeCuenta(authUserId, correo) {
  * "paginaActual" es "admin" | "consejero" | "profesor", para no
  * mostrarse un enlace hacia la página en la que ya está.
  *
- * "Mi horario" (mi-horario.html) no es un panel más, es una
+ * "Mi horario" (mi_horario.html) no es un panel más, es una
  * herramienta del rol profesor, así que se muestra siempre que
  * esProfesor sea true, sin importar en qué página esté parado
  * (incluida profesor.html).
@@ -62,7 +62,7 @@ export async function pintarCambiarPanel(paginaActual, estilo = "claro-sobre-osc
         enlaces.push(`<a href="profesor.html" class="${claseBoton}"><i class="fa-solid fa-chalkboard me-1"></i>Docente</a>`);
     }
     if (esProfesor) {
-        enlaces.push(`<a href="mi-horario.html" class="${claseBoton}"><i class="fa-solid fa-calendar-days me-1"></i>Mi horario</a>`);
+        enlaces.push(`<a href="mi_horario.html" class="${claseBoton}"><i class="fa-solid fa-calendar-days me-1"></i>Mi horario</a>`);
     }
     contenedor.innerHTML = enlaces.join("");
 }
