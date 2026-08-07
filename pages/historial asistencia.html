@@ -1,1 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Historial de asistencias</title>
+<!-- Ajusta este link a tu hoja de estilos real del proyecto -->
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
 
+<h1>Historial de asistencias</h1>
+
+<!-- =========================================================
+     FILTROS
+========================================================= -->
+<div class="panel-detalle" id="panelFiltros">
+    <div>
+        <label for="filtroFecha">Fecha</label>
+        <input type="date" id="filtroFecha">
+    </div>
+    <div>
+        <label for="filtroSalon">Salón</label>
+        <select id="filtroSalon">
+            <option value="">Todos los salones</option>
+        </select>
+    </div>
+    <div>
+        <label for="filtroMateria">Materia</label>
+        <select id="filtroMateria">
+            <option value="">Todas las materias</option>
+        </select>
+    </div>
+    <div>
+        <label for="filtroProfesor">Profesor</label>
+        <select id="filtroProfesor">
+            <option value="">Todos los profesores</option>
+        </select>
+    </div>
+    <div>
+        <button type="button" id="btnLimpiarFiltros" class="btn-tomar-asistencia">Limpiar filtros</button>
+    </div>
+</div>
+
+<p id="estadoHistorial"></p>
+
+<!-- =========================================================
+     TABLA DE RESULTADOS
+========================================================= -->
+<table id="tablaHistorial">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Materia</th>
+            <th>Salón</th>
+            <th>Profesor</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody id="cuerpoTablaHistorial"></tbody>
+</table>
+
+<!-- =========================================================
+     DETALLE DE UNA ASISTENCIA (oculto hasta hacer clic en "Ver detalle")
+========================================================= -->
+<div id="panelDetalle" class="panel-detalle" style="display:none;">
+    <h2>Detalle</h2>
+    <p>
+        <strong>Fecha:</strong> <span id="detalleFecha"></span> —
+        <strong>Materia:</strong> <span id="detalleMateria"></span> —
+        <strong>Salón:</strong> <span id="detalleSalon"></span> —
+        <strong>Profesor:</strong> <span id="detalleProfesor"></span>
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Estudiante</th>
+                <th>Estado</th>
+                <th>Observación / Justificación</th>
+                <th>Adjunto</th>
+            </tr>
+        </thead>
+        <tbody id="cuerpoTablaDetalle"></tbody>
+    </table>
+
+    <button type="button" id="btnCerrarDetalle" class="btn-tomar-asistencia">Cerrar detalle</button>
+</div>
+
+<script type="module" src="historial-asistencia.js"></script>
+</body>
+</html>
