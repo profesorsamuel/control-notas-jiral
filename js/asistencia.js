@@ -67,8 +67,13 @@ async function verificarSesion() {
     );
 
     if (!materiaSeleccionada || !salonSeleccionado || !tieneAcceso) {
-        avisoSinAcceso.textContent = "⛔ No tienes acceso a esta materia/salón, o el enlace es inválido.";
-        avisoSinAcceso.style.display = "block";
+        if (avisoSinAcceso) {
+            avisoSinAcceso.textContent = "⛔ No tienes acceso a esta materia/salón, o el enlace es inválido.";
+            avisoSinAcceso.style.display = "block";
+        } else {
+            console.error("❌ Falta el elemento #avisoSinAcceso en el HTML.");
+            alert("⛔ No tienes acceso a esta materia/salón, o el enlace es inválido.");
+        }
         document.getElementById("panelTabla")?.remove();
         return false;
     }
@@ -101,10 +106,14 @@ function pintarEncabezado() {
         month: "long",
         day: "numeric"
     });
-    fechaActual.textContent = fechaHoyTexto;
-    nombreProfesorTexto.textContent = nombreProfesor;
-    materiaTexto.textContent = materiaSeleccionada;
-    salonTexto.textContent = salonSeleccionado;
+    if (fechaActual) fechaActual.textContent = fechaHoyTexto;
+    if (nombreProfesorTexto) nombreProfesorTexto.textContent = nombreProfesor;
+    if (materiaTexto) materiaTexto.textContent = materiaSeleccionada;
+    if (salonTexto) salonTexto.textContent = salonSeleccionado;
+
+    if (!fechaActual || !nombreProfesorTexto || !materiaTexto || !salonTexto) {
+        console.error("❌ Falta alguno de estos ids en el HTML: fechaActual, nombreProfesorTexto, materiaTexto, salonTexto.");
+    }
 }
 
 // =========================================================
