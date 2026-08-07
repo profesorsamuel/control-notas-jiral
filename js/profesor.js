@@ -867,6 +867,7 @@ async function guardarNotas(esAutomatico = false) {
                 exitosas++;
                 item.input.dataset.ultimoValorGuardado = String(item.nota);
                 actualizarHistorialEnMemoria(item, temaPorCasilla);
+                registrarCambioParaRespaldo(item);
             }
         } else {
             const { data: insertado, error } = await supabase.from("notas").insert([{
@@ -891,6 +892,7 @@ async function guardarNotas(esAutomatico = false) {
                 item.input.dataset.ultimoValorGuardado = String(item.nota);
                 if (insertado && insertado[0]) item.input.dataset.notaId = insertado[0].id;
                 actualizarHistorialEnMemoria(item, temaPorCasilla, insertado && insertado[0] ? insertado[0].id : null);
+                registrarCambioParaRespaldo(item);
             }
         }
         if (!esAutomatico) estadoGuardadoNotas.textContent = `Guardando ${i + 1} / ${aGuardar.length}...`;
@@ -908,6 +910,96 @@ async function guardarNotas(esAutomatico = false) {
     }
 
     if (!esAutomatico) btnCargarSalon.click();
+}
+
+// =========================================================
+// 4.1) RESPALDO AUTOMÁTICO POR CORREO (EmailJS)
+// =========================================================
+// Cada vez que se guarda una nota (automático o manual) se anota el
+// cambio en una lista pendiente y se reinicia un temporizador de 30
+// minutos. Si pasan 30 minutos sin que el/la docente guarde nada
+// nuevo, se manda un correo con la tabla completa de lo que cambió
+// desde el último respaldo. Es una segunda capa de seguridad,
+// independiente de la papelera: cubre el caso de un desastre mayor
+// en la base de datos, no solo un borrado accidental.
+
+const EMAILJS_SERVICE_ID = "service_avsesik";
+const EMAILJS_TEMPLATE_ID = "template_00nky6m";
+const EMAILJS_PUBLIC_KEY = "2PasfycZJSW6hDpqg";
+const MINUTOS_INACTIVIDAD_RESPALDO = 30;
+
+if (window.emailjs) {
+    window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+}
+
+let cambiosPendientesRespaldo = [];
+let temporizadorRespaldo = null;
+
+function nombreEstudiantePorItem(item) {
+    const est = grupoActual.find((e) =>
+        (item.correo && e.correo === item.correo) || (item.estudianteId && String(e.id) === String(item.estudianteId))
+    );
+    return est ? est.nombre : (item.correo || item.estudianteId || "—");
+}
+
+function registrarCambioParaRespaldo(item) {
+    cambiosPendientesRespaldo.push({
+        estudiante: nombreEstudiantePorItem(item),
+        casilla: etiquetaCasilla(item.tipo, item.numero),
+        nota: item.nota,
+        hora: new Date().toLocaleString("es-PA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+    });
+    reiniciarTemporizadorRespaldo();
+}
+
+function reiniciarTemporizadorRespaldo() {
+    if (temporizadorRespaldo) clearTimeout(temporizadorRespaldo);
+    temporizadorRespaldo = setTimeout(enviarRespaldoPorCorreo, MINUTOS_INACTIVIDAD_RESPALDO * 60 * 1000);
+}
+
+async function enviarRespaldoPorCorreo() {
+    if (!window.emailjs || cambiosPendientesRespaldo.length === 0) return;
+
+    const filas = cambiosPendientesRespaldo.map((c) =>
+        `<tr>` +
+        `<td style="padding:4px 8px;border:1px solid #ccc;">${escapeHtml(c.estudiante)}</td>` +
+        `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtml(c.casilla)}</td>` +
+        `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtml(String(c.nota))}</td>` +
+        `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtml(c.hora)}</td>` +
+        `</tr>`
+    ).join("");
+
+    const tablaHtml = `
+        <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;">
+            <thead>
+                <tr>
+                    <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Estudiante</th>
+                    <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Casilla</th>
+                    <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Nota</th>
+                    <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Hora</th>
+                </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+        </table>`;
+
+    const parametros = {
+        profesor: nombreProfesor,
+        materia: selectMateriaNota.value,
+        salon: selectSalonNota.value,
+        trimestre: selectTrimestreNota.value,
+        fecha: new Date().toLocaleString("es-PA"),
+        tabla_notas: tablaHtml,
+    };
+
+    try {
+        await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, parametros);
+        cambiosPendientesRespaldo = [];
+    } catch (err) {
+        console.error("❌ No se pudo enviar el respaldo automático por correo:", err);
+        // No se pierden los cambios acumulados: se reintenta en el
+        // siguiente ciclo de inactividad.
+        reiniciarTemporizadorRespaldo();
+    }
 }
 
 checkBloqueoEstudiantes?.addEventListener("change", async () => {
