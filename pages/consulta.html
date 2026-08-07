@@ -193,6 +193,53 @@
             background: #f1f5f9;
         }
 
+        table.tabla-notas td.promedio-fracaso {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .materia-fracaso {
+            border: 2px solid #fca5a5;
+        }
+
+        .materia-fracaso h3 {
+            color: #b91c1c;
+        }
+
+        .etiqueta-fracaso {
+            display: inline-block;
+            background: #dc2626;
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 999px;
+            vertical-align: middle;
+            margin-left: 6px;
+        }
+
+        .promedio-final-linea {
+            text-align: right;
+            margin: 10px 2px 0;
+            font-weight: bold;
+            color: #1f4e79;
+        }
+
+        .promedio-final-linea.fracaso {
+            color: #dc2626;
+        }
+
+        .aviso-fracaso-card {
+            margin: 10px 2px 0;
+            padding: 8px 10px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            color: #991b1b;
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+
         .volver {
             display: block;
             text-align: center;
@@ -227,7 +274,7 @@
             </label>
             <div class="fila-busqueda">
                 <div class="campo-cedula">
-                    <input type="password" id="cedula" placeholder="8-123-4567" autocomplete="off">
+                    <input type="password" id="cedula" placeholder="0-000-0000" autocomplete="off">
                     <button type="button" class="btn-ojo" id="btnOjo" title="Mostrar/ocultar cédula">👁️</button>
                 </div>
                 <button type="button" class="btn-buscar" id="btnBuscar">Ver mis notas</button>
