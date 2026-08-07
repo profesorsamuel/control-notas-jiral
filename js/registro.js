@@ -191,6 +191,14 @@ async function precargarDesdeConsulta() {
             `Hola, ${encontrado.nombre}. Ya tenemos tu nombre, salón y cédula. Solo elige la contraseña que vas a usar.`;
         avisoPrefillEstudiante.style.display = "block";
     }
+
+    // Reemplaza el encabezado fijo ("C.E.B.G. EL JIRAL / Consejería...")
+    // por el nombre del estudiante, igual que hace login.html cuando
+    // llega con la cédula ya identificada.
+    const tituloRegistroEl = document.getElementById("tituloRegistro");
+    const subtituloRegistroEl = document.getElementById("subtituloRegistro");
+    if (tituloRegistroEl) tituloRegistroEl.textContent = encontrado.nombre;
+    if (subtituloRegistroEl) subtituloRegistroEl.textContent = "Registro de estudiante";
 }
 
 precargarDesdeConsulta();
