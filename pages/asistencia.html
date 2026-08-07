@@ -94,8 +94,46 @@
             min-width: 200px;
         }
 
-        #btnAbrirAsistencia {
-            padding: 10px 20px;
+        /* ============ Tarjetas de horario del día ============ */
+        .tarjetas-horario {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 14px;
+        }
+
+        .tarjeta-clase {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+            border-left: 5px solid var(--color-primario);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .tarjeta-clase .hora-clase {
+            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
+            font-weight: 700;
+            color: var(--color-acento-oscuro);
+            font-size: 1.05rem;
+        }
+
+        .tarjeta-clase .materia-clase {
+            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
+            font-weight: 700;
+            color: var(--color-primario);
+            font-size: 1.1rem;
+        }
+
+        .tarjeta-clase .salon-clase {
+            font-size: 14px;
+            color: var(--color-texto);
+        }
+
+        .btn-tomar-asistencia {
+            margin-top: 8px;
+            padding: 8px 14px;
             background: var(--color-primario);
             color: white;
             border: none;
@@ -103,10 +141,8 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: bold;
-            margin-top: 20px;
         }
-        #btnAbrirAsistencia:hover { background: var(--color-primario-oscuro); }
-        #btnAbrirAsistencia:disabled { background: #b9c4c1; cursor: not-allowed; }
+        .btn-tomar-asistencia:hover { background: var(--color-primario-oscuro); }
 
         #estadoCargaAsistencia { font-size: 13px; color: #888; }
 
@@ -114,9 +150,7 @@
             body { padding: 10px; }
             .panel-blanco { padding: 12px; }
             h1 { font-size: 1.25rem; }
-            .form-notas-fila { flex-direction: column; align-items: stretch; gap: 10px; }
-            .form-notas-fila > div { width: 100%; }
-            .form-notas-fila select, .form-notas-fila input { width: 100%; box-sizing: border-box; }
+            .tarjetas-horario { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -138,21 +172,13 @@
         agregue en la pantalla de "Asignaciones de profesores".
     </div>
 
-    <div class="panel-blanco">
-        <div class="form-notas-fila">
-            <div>
-                <label for="selectSalonAsistencia">Salón</label>
-                <select id="selectSalonAsistencia"><option value="">Cargando...</option></select>
-            </div>
-            <div>
-                <label for="selectMateriaAsistencia">Materia</label>
-                <select id="selectMateriaAsistencia" disabled><option value="">Seleccione primero un salón</option></select>
-            </div>
-        </div>
-
-        <button type="button" id="btnAbrirAsistencia" disabled>📋 Abrir Asistencia</button>
-        <div><span id="estadoCargaAsistencia"></span></div>
+    <div id="avisoSinHorarioHoy" class="panel-blanco" style="display:none; color:#6b5100; background:#fdf3d6;">
+        No tienes clases con día y hora registrados para hoy. Pídele al administrador que
+        te asigne el día y la hora en "Asignaciones de profesores".
     </div>
+
+    <h2>🗓️ Clases de hoy</h2>
+    <div id="listaClasesHoy" class="tarjetas-horario"></div>
 
     <script type="module" src="../js/asistencia.js"></script>
 
