@@ -64,11 +64,11 @@
                     aria-hidden="true"
                 ></i>
 
-                <h1 class="h2 mt-3">
+                <h1 class="h2 mt-3" id="tituloLogin">
                     Iniciar sesión
                 </h1>
 
-                <p class="text-muted mb-1">
+                <p class="text-muted mb-1" id="subtituloLogin">
                     Sistema de Control de Notas
                 </p>
 
@@ -334,6 +334,30 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script type="module" src="../js/login.js"></script>
+
+    <!-- Personaliza el saludo cuando se llega desde el botón "DOCENTE" de la página de inicio -->
+    <script>
+        (function () {
+            const parametros = new URLSearchParams(window.location.search);
+            if (parametros.get("rol") !== "profesor") return;
+
+            const titulo = document.getElementById("tituloLogin");
+            const subtitulo = document.getElementById("subtituloLogin");
+            const labelCedula = document.querySelector('label[for="correo"]');
+            const inputCedula = document.getElementById("correo");
+            const linkOlvido = document.getElementById("linkOlvidoPassword");
+            const textoOlvido = document.querySelector("p.text-center.mt-3.mb-0");
+
+            if (titulo) titulo.textContent = "Bienvenido Profesor";
+            if (subtitulo) subtitulo.textContent = "Introduzca su cédula y contraseña";
+            if (labelCedula) labelCedula.textContent = "Cédula";
+            if (inputCedula) inputCedula.placeholder = "0-000-0000";
+            if (linkOlvido) {
+                linkOlvido.innerHTML =
+                    '<i class="fa-solid fa-key me-1" aria-hidden="true"></i> ¿Olvidaste tu cédula o contraseña?';
+            }
+        })();
+    </script>
 
 </body>
 
