@@ -204,6 +204,23 @@
                 </div>
 
                 <!--
+                    Se muestra cuando la persona llega desde "Ver mis notas"
+                    (consulta.html) con su cédula ya identificada: se le
+                    confirma su nombre y cédula, y solo le queda elegir
+                    contraseña (Paso 1 de "Registrar mis notas").
+                -->
+                <div class="grupo" id="avisoPrefillEstudiante" style="display:none;">
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 14px;">
+                        <p style="margin:0 0 4px; font-weight:bold; color:#1e3a8a;">
+                            Paso 1: Regístrate
+                        </p>
+                        <p style="margin:0; font-size:14px; color:#334155;" id="textoPrefillEstudiante">
+                            Ya tenemos tu nombre y tu cédula. Solo elige la contraseña que vas a usar.
+                        </p>
+                    </div>
+                </div>
+
+                <!--
                     Se muestra en vez del selector de arriba cuando la
                     persona llegó desde un link que ya indica su tipo
                     (ej. registro.html?tipo=consejero), para no
