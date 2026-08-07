@@ -252,6 +252,9 @@ async function cargarListado() {
     const ok = await verificarAdmin();
     if (!ok) return;
 
+    const fechaDesdeUrl = new URLSearchParams(window.location.search).get("fecha");
+    if (fechaDesdeUrl) inputFecha.value = fechaDesdeUrl;
+
     await cargarFranjasParaSelect();
     await cargarListado();
 })();
