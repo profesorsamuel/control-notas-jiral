@@ -114,6 +114,108 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // =====================================================
+    // CONTROL DE CONSULTAS DE NOTAS (quién ha revisado y si
+    // descargó el PDF, usando "Ver mis notas" con su cédula)
+    // =====================================================
+
+    const btnVerConsultas = document.getElementById("btnVerConsultas");
+    const bloqueConsultas = document.getElementById("bloqueConsultas");
+    const tablaConsultas = document.getElementById("tablaConsultas");
+    const statTotalConsultas = document.getElementById("statTotalConsultas");
+    const statEstudiantesDistintos = document.getElementById("statEstudiantesDistintos");
+    const statConPdf = document.getElementById("statConPdf");
+    const statSinConsultar = document.getElementById("statSinConsultar");
+
+    function formatearFecha(iso) {
+        if (!iso) return "-";
+        const d = new Date(iso);
+        return d.toLocaleString("es-PA", {
+            day: "2-digit", month: "2-digit", year: "numeric",
+            hour: "2-digit", minute: "2-digit"
+        });
+    }
+
+    let consultasYaCargadas = false;
+
+    async function cargarConsultas() {
+        tablaConsultas.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando...</td></tr>`;
+
+        const { data, error } = await supabase.rpc("obtener_consultas_por_salon", { p_salon: salonActual });
+
+        if (error) {
+            console.error("❌ Error al cargar consultas:", error);
+            tablaConsultas.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-3">No se pudo cargar la información.</td></tr>`;
+            return;
+        }
+
+        const consultas = data || [];
+
+        // -------- Estadísticas resumidas --------
+        const nombresQueConsultaron = new Set(
+            consultas.filter((c) => c.encontrado && c.nombre).map((c) => c.nombre)
+        );
+        const totalConPdf = consultas.filter((c) => c.pdf_descargado).length;
+
+        // Cuántos del salón NUNCA han consultado (comparando contra la
+        // lista de estudiantes ya cargada en resumenEstudiantes)
+        const nombresDelSalon = new Set(
+            (resumenEstudiantes || []).map((e) => (e.nombre || "").trim())
+        );
+        let sinConsultar = 0;
+        nombresDelSalon.forEach((n) => {
+            if (!nombresQueConsultaron.has(n)) sinConsultar++;
+        });
+
+        statTotalConsultas.textContent = consultas.length;
+        statEstudiantesDistintos.textContent = nombresQueConsultaron.size;
+        statConPdf.textContent = totalConPdf;
+        statSinConsultar.textContent = sinConsultar;
+
+        // -------- Tabla de consultas --------
+        if (consultas.length === 0) {
+            tablaConsultas.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Todavía no hay consultas registradas para este salón.</td></tr>`;
+            return;
+        }
+
+        tablaConsultas.innerHTML = consultas.map((c) => `
+            <tr>
+                <td>${escapeHtml(c.nombre || "(cédula no encontrada)")}</td>
+                <td class="text-center">
+                    ${c.encontrado
+                        ? `<span class="badge bg-success">Sí</span>`
+                        : `<span class="badge bg-secondary">No</span>`}
+                </td>
+                <td class="text-center">
+                    ${c.pdf_descargado
+                        ? `<span class="badge bg-primary">Sí</span>`
+                        : `<span class="badge bg-light text-muted border">No</span>`}
+                </td>
+                <td>${formatearFecha(c.creado_en)}</td>
+            </tr>
+        `).join("");
+    }
+
+    if (btnVerConsultas) {
+        btnVerConsultas.addEventListener("click", async () => {
+            const abierto = bloqueConsultas.style.display !== "none";
+
+            if (abierto) {
+                bloqueConsultas.style.display = "none";
+                btnVerConsultas.innerHTML = `<i class="fa-solid fa-chart-simple me-1"></i> Ver estadísticas`;
+                return;
+            }
+
+            bloqueConsultas.style.display = "block";
+            btnVerConsultas.innerHTML = `<i class="fa-solid fa-chevron-up me-1"></i> Ocultar estadísticas`;
+
+            if (!consultasYaCargadas) {
+                consultasYaCargadas = true;
+                await cargarConsultas();
+            }
+        });
+    }
+
+    // =====================================================
     // VARIABLES GLOBALES
     // =====================================================
 
