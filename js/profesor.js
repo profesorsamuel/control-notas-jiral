@@ -149,6 +149,9 @@ const btnColumnasSeleccionarTodas = document.getElementById("btnColumnasSeleccio
 const btnColumnasSeleccionarNinguna = document.getElementById("btnColumnasSeleccionarNinguna");
 const btnExportarPdf = document.getElementById("btnExportarPdf");
 const btnExportarJpg = document.getElementById("btnExportarJpg");
+const btnAbrirPapelera = document.getElementById("btnAbrirPapelera");
+const bloquePapelera = document.getElementById("bloquePapelera");
+const tablaPapelera = document.getElementById("tablaPapelera");
 
 function poblarSelectSalon() {
     const salones = [...new Set(misAsignaciones.map((a) => a.salon))].sort();
@@ -282,17 +285,139 @@ async function eliminarColumnaCasilla(tipo, numero) {
     const trimestre = selectTrimestre.value;
     const etiqueta = etiquetaCasilla(tipo, numero);
 
-    if (!confirm(`¿Eliminar permanentemente la casilla "${etiqueta}" (${materia} - ${salon}) y todas las notas en ella?`)) return;
+    if (!confirm(`¿Eliminar la casilla "${etiqueta}" (${materia} - ${salon}) y todas las notas en ella?\n\nNo se pierde nada: puedes recuperarla luego desde "🗑️ Papelera".`)) return;
 
-    await supabase.from("notas").delete()
-        .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero);
-    await supabase.from("temas_casillas").delete()
-        .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero);
+    // No se borra de verdad: se marca con la fecha/hora de "eliminado"
+    // para poder restaurarla después desde la Papelera.
+    const marcaEliminado = new Date().toISOString();
 
-    estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} eliminada.`;
+    await supabase.from("notas").update({ eliminado_en: marcaEliminado })
+        .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+        .is("eliminado_en", null);
+    await supabase.from("temas_casillas").update({ eliminado_en: marcaEliminado })
+        .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+        .is("eliminado_en", null);
+
+    estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} eliminada (puedes recuperarla en "🗑️ Papelera").`;
     estadoGuardadoNotas.className = "small text-success";
     cargarSalonYNotas();
 }
+
+// =========================================================
+// 3.1) PAPELERA DE RECICLAJE (recuperar casillas/notas eliminadas)
+// =========================================================
+
+async function cargarPapelera() {
+    if (!tablaPapelera) return;
+    tablaPapelera.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">Cargando...</td></tr>`;
+
+    const materias = [...new Set(misAsignaciones.map((a) => a.materia))];
+    const salones = [...new Set(misAsignaciones.map((a) => a.salon))];
+
+    const { data: notasElim, error: errNotas } = await supabase
+        .from("notas")
+        .select("materia, trimestre, tipo, numero, eliminado_en")
+        .in("materia", materias)
+        .not("eliminado_en", "is", null)
+        .order("eliminado_en", { ascending: false });
+
+    const { data: temasElim, error: errTemas } = await supabase
+        .from("temas_casillas")
+        .select("salon, materia, trimestre, tipo, numero, eliminado_en")
+        .in("salon", salones)
+        .in("materia", materias)
+        .not("eliminado_en", "is", null)
+        .order("eliminado_en", { ascending: false });
+
+    if (errNotas || errTemas) {
+        tablaPapelera.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-3">No se pudo cargar la papelera.</td></tr>`;
+        return;
+    }
+
+    // Agrupamos por lote de eliminación (misma materia/trimestre/casilla
+    // y la misma fecha exacta de eliminación = se borraron juntas).
+    const mapa = new Map();
+    const clave = (x) => `${x.materia}|${x.trimestre}|${x.tipo}|${x.numero}|${x.eliminado_en}`;
+
+    (notasElim || []).forEach((n) => {
+        const k = clave(n);
+        if (!mapa.has(k)) mapa.set(k, { ...n, salon: null, cantidadNotas: 0 });
+        mapa.get(k).cantidadNotas++;
+    });
+    (temasElim || []).forEach((t) => {
+        const k = clave(t);
+        if (!mapa.has(k)) mapa.set(k, { ...t, cantidadNotas: 0 });
+        else mapa.get(k).salon = t.salon;
+    });
+
+    const lista = [...mapa.values()].sort((a, b) => new Date(b.eliminado_en) - new Date(a.eliminado_en));
+
+    if (lista.length === 0) {
+        tablaPapelera.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">La papelera está vacía.</td></tr>`;
+        return;
+    }
+
+    tablaPapelera.innerHTML = lista.map((item) => `
+        <tr>
+            <td>${escapeHtml(item.salon || "—")}</td>
+            <td>${escapeHtml(item.materia)}</td>
+            <td>${escapeHtml(item.trimestre)}</td>
+            <td>${escapeHtml(etiquetaCasilla(item.tipo, item.numero))}</td>
+            <td class="text-center">${item.cantidadNotas}</td>
+            <td>${new Date(item.eliminado_en).toLocaleString("es-PA")}</td>
+            <td class="text-end">
+                <button type="button" class="btn btn-success btn-sm btn-restaurar-papelera"
+                    data-salon="${escapeHtml(item.salon || "")}" data-materia="${escapeHtml(item.materia)}"
+                    data-trimestre="${escapeHtml(item.trimestre)}" data-tipo="${escapeHtml(item.tipo)}"
+                    data-numero="${item.numero}" data-eliminado-en="${escapeHtml(item.eliminado_en)}">
+                    ♻️ Restaurar
+                </button>
+            </td>
+        </tr>
+    `).join("");
+
+    tablaPapelera.querySelectorAll(".btn-restaurar-papelera").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            btn.disabled = true;
+            btn.textContent = "Restaurando...";
+            await restaurarDePapelera({
+                salon: btn.dataset.salon || null,
+                materia: btn.dataset.materia,
+                trimestre: btn.dataset.trimestre,
+                tipo: btn.dataset.tipo,
+                numero: parseInt(btn.dataset.numero, 10),
+                eliminado_en: btn.dataset.eliminadoEn
+            });
+        });
+    });
+}
+
+async function restaurarDePapelera(item) {
+    await supabase.from("notas").update({ eliminado_en: null })
+        .eq("materia", item.materia).eq("trimestre", item.trimestre)
+        .eq("tipo", item.tipo).eq("numero", item.numero)
+        .eq("eliminado_en", item.eliminado_en);
+
+    if (item.salon) {
+        await supabase.from("temas_casillas").update({ eliminado_en: null })
+            .eq("salon", item.salon).eq("materia", item.materia).eq("trimestre", item.trimestre)
+            .eq("tipo", item.tipo).eq("numero", item.numero)
+            .eq("eliminado_en", item.eliminado_en);
+    }
+
+    await cargarPapelera();
+    // Si la casilla restaurada pertenece al salón/materia que está
+    // abierto ahora mismo, refrescamos la tabla para que se vea de una vez.
+    if (selectSalonNota.value === item.salon && selectMateriaNota.value === item.materia) {
+        cargarSalonYNotas();
+    }
+}
+
+btnAbrirPapelera?.addEventListener("click", () => {
+    const abrir = bloquePapelera.style.display === "none";
+    bloquePapelera.style.display = abrir ? "block" : "none";
+    if (abrir) cargarPapelera();
+});
 
 function recalcularPromedios() {
     // Los promedios se calculan usando TODAS las casillas que existen
@@ -612,18 +737,21 @@ async function cargarSalonYNotas() {
 
     if (correos.length > 0) {
         const { data } = await supabase.from("notas").select("id, correo, tipo, numero, nota, tema")
-            .eq("materia", materia).eq("trimestre", trimestre).in("correo", correos);
+            .eq("materia", materia).eq("trimestre", trimestre).in("correo", correos)
+            .is("eliminado_en", null);
         (data || []).forEach((n) => registrar(`correo:${n.correo}`, n));
     }
     if (idsSinCuenta.length > 0) {
         const { data } = await supabase.from("notas").select("id, estudiante_id, tipo, numero, nota, tema")
-            .eq("materia", materia).eq("trimestre", trimestre).in("estudiante_id", idsSinCuenta);
+            .eq("materia", materia).eq("trimestre", trimestre).in("estudiante_id", idsSinCuenta)
+            .is("eliminado_en", null);
         (data || []).forEach((n) => registrar(`id:${n.estudiante_id}`, n));
     }
 
     temasCasillasBD = {};
     const { data: temas } = await supabase.from("temas_casillas").select("tipo, numero, tema")
-        .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre);
+        .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre)
+        .is("eliminado_en", null);
     (temas || []).forEach((t) => {
         temasCasillasBD[claveCasilla(t.tipo, t.numero)] = t.tema || "";
         if (t.tema) casillasEncontradas.add(claveCasilla(t.tipo, t.numero));
