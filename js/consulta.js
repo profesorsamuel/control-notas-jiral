@@ -78,6 +78,7 @@ let estudianteActual = null;   // { nombre, salon }
 let notasCrudas = [];          // todas las filas que devuelve la función
 let cedulaConsultada = "";
 let trimestreActivo = "Trimestre 1"; // se actualiza con el que haya puesto el administrador
+let idConsultaActual = null;   // id del registro de estadísticas de esta búsqueda
 
 // =====================================================
 // TRIMESTRE ACTIVO (el que el administrador tiene configurado)
@@ -183,6 +184,18 @@ async function buscar() {
         mostrarMensaje("❌ Ocurrió un error al consultar. Intenta de nuevo.", "error");
         return;
     }
+
+    // Registra la búsqueda para las estadísticas (no bloquea la
+    // pantalla si falla, solo se anota en la consola).
+    idConsultaActual = null;
+    supabase.rpc("registrar_consulta_cedula", { p_cedula: cedula })
+        .then(({ data, error }) => {
+            if (error) {
+                console.warn("⚠️ No se pudo registrar la consulta para estadísticas:", error);
+                return;
+            }
+            idConsultaActual = data;
+        });
 
     const estudiante = Array.isArray(est) ? est[0] : est;
 
@@ -527,4 +540,12 @@ btnPdf.addEventListener("click", () => {
 
     const nombreArchivo = (estudianteActual.nombre || "Boletin").replace(/[,\s]+/g, "_");
     doc.save(`Notas_${nombreArchivo}.pdf`);
+
+    // Marca en las estadísticas que esta consulta terminó en descarga de PDF
+    if (idConsultaActual) {
+        supabase.rpc("marcar_pdf_descargado", { p_id: idConsultaActual })
+            .then(({ error }) => {
+                if (error) console.warn("⚠️ No se pudo marcar la descarga del PDF:", error);
+            });
+    }
 });
