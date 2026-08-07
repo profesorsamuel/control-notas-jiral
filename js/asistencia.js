@@ -1,5 +1,4 @@
 import { supabase } from "./supabase.js";
-import { pintarCambiarPanel } from "./roles.js";
 
 // =========================================================
 // UTILIDADES
@@ -14,34 +13,24 @@ function escapeHtml(str) {
         .replace(/'/g, "&#39;");
 }
 
-// Nombres de día en español, en el mismo formato que se guarda en
-// profesor_materias.dia ('Lunes'...'Viernes'), armados manualmente
-// (sin depender del locale del navegador) para que siempre calcen
-// exactamente con los valores permitidos por la base de datos.
-const DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+// =========================================================
+// 1) LEER MATERIA Y SALÓN DESDE LA URL
+// =========================================================
+// asistencia.js manda aquí con ?materia=...&salon=... al presionar
+// "Tomar asistencia" en la tarjeta de la clase correspondiente.
 
-function obtenerDiaHoy() {
-    return DIAS_SEMANA[new Date().getDay()];
-}
-
-// "09:00:00" (formato que devuelve Supabase para columnas time) -> "9:00 AM"
-function formatearHora12(horaTexto) {
-    if (!horaTexto) return "";
-    const [h, m] = horaTexto.split(":");
-    const fecha = new Date();
-    fecha.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
-    return fecha.toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" });
-}
+const parametros = new URLSearchParams(window.location.search);
+const materiaSeleccionada = (parametros.get("materia") || "").trim();
+const salonSeleccionado = (parametros.get("salon") || "").trim();
 
 // =========================================================
-// 1) VERIFICAR SESIÓN Y QUE SEA PROFESOR
+// 2) VERIFICAR SESIÓN Y QUE SEA PROFESOR DE ESE SALÓN/MATERIA
 // =========================================================
-// Misma lógica que en profesor.js: el acceso se decide por tener
-// filas en "profesor_materias", no por el campo "rol" de "usuarios".
+// Misma lógica que en profesor.js/asistencia.js: el acceso se decide
+// por tener filas en "profesor_materias".
 
 let correoProfesor = "";
 let nombreProfesor = "";
-let misAsignaciones = []; // [{materia, salon, dia, hora}, ...] -- solo lo que este profesor da
 
 async function verificarSesion() {
     const { data: { user }, error: errUser } = await supabase.auth.getUser();
@@ -53,12 +42,9 @@ async function verificarSesion() {
 
     correoProfesor = (user.email || "").trim().toLowerCase();
 
-    // Mismo query que usa profesor.js para "profesor_materias", solo que
-    // ahora también pedimos dia y hora (las columnas nuevas) para poder
-    // armar el horario del día.
     const { data: materias, error: errMaterias } = await supabase
         .from("profesor_materias")
-        .select("materia, salon, dia, hora")
+        .select("materia, salon")
         .eq("correo_profesor", correoProfesor);
 
     if (errMaterias) {
@@ -74,7 +60,18 @@ async function verificarSesion() {
         return false;
     }
 
-    misAsignaciones = materias;
+    // Que la materia/salón de la URL realmente sea de este profesor
+    // (evita que alguien entre a la asistencia de otro salón cambiando la URL).
+    const tieneAcceso = materias.some(
+        (a) => a.materia === materiaSeleccionada && a.salon === salonSeleccionado
+    );
+
+    if (!materiaSeleccionada || !salonSeleccionado || !tieneAcceso) {
+        avisoSinAcceso.textContent = "⛔ No tienes acceso a esta materia/salón, o el enlace es inválido.";
+        avisoSinAcceso.style.display = "block";
+        document.getElementById("panelTabla")?.remove();
+        return false;
+    }
 
     const { data: perfilProfesor } = await supabase
         .from("profesores")
@@ -87,21 +84,18 @@ async function verificarSesion() {
 }
 
 // =========================================================
-// 2) ELEMENTOS DE LA PÁGINA
+// 3) ELEMENTOS DE LA PÁGINA
 // =========================================================
 
 const fechaActual = document.getElementById("fechaActual");
 const nombreProfesorTexto = document.getElementById("nombreProfesorTexto");
-const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
-const avisoSinHorarioHoy = document.getElementById("avisoSinHorarioHoy");
-const listaClasesHoy = document.getElementById("listaClasesHoy");
+const materiaTexto = document.getElementById("materiaTexto");
+const salonTexto = document.getElementById("salonTexto");
+const avisoSinAcceso = document.getElementById("avisoSinAcceso");
+const cuerpoTablaEstudiantes = document.getElementById("cuerpoTablaEstudiantes");
+const estadoLista = document.getElementById("estadoLista");
 
-// =========================================================
-// 3) FECHA Y PROFESOR
-// =========================================================
-// Mismo formato de fecha usado en profesor.js (construirReporteHtml).
-
-function pintarFechaYProfesor() {
+function pintarEncabezado() {
     const fechaHoyTexto = new Date().toLocaleDateString("es-PA", {
         year: "numeric",
         month: "long",
@@ -109,57 +103,261 @@ function pintarFechaYProfesor() {
     });
     fechaActual.textContent = fechaHoyTexto;
     nombreProfesorTexto.textContent = nombreProfesor;
+    materiaTexto.textContent = materiaSeleccionada;
+    salonTexto.textContent = salonSeleccionado;
 }
 
 // =========================================================
-// 4) HORARIO DEL DÍA (tarjetas)
+// 4) CARGAR ESTUDIANTES DEL SALÓN
 // =========================================================
-// Filtra, sobre los datos que YA trajo verificarSesion(), únicamente las
-// asignaciones cuyo "dia" coincide con el día de hoy, y las ordena por hora.
+// EXACTAMENTE la misma consulta que usa profesor.js para traer el
+// listado de estudiantes de un salón (misma tabla, mismas columnas,
+// mismo eq y mismo order):
+//
+//   supabase.from("estudiantes")
+//       .select("id, codigo, nombre, correo, es_prueba")
+//       .eq("salon", salon)
+//       .order("nombre", { ascending: true });
 
-function pintarClasesDeHoy() {
-    if (misAsignaciones.length === 0) {
-        avisoSinAsignaciones.style.display = "block";
-        listaClasesHoy.innerHTML = "";
+async function cargarEstudiantes() {
+    estadoLista.textContent = "Cargando...";
+
+    const { data: estudiantesSalon, error: errEst } = await supabase
+        .from("estudiantes")
+        .select("id, codigo, nombre, correo, es_prueba")
+        .eq("salon", salonSeleccionado)
+        .order("nombre", { ascending: true });
+
+    if (errEst) {
+        cuerpoTablaEstudiantes.innerHTML = `<tr><td colspan="4" style="color:#dc3545;">Error al cargar estudiantes: ${escapeHtml(errEst.message)}</td></tr>`;
+        estadoLista.textContent = "";
         return;
     }
 
-    const diaHoy = obtenerDiaHoy();
-
-    const clasesHoy = misAsignaciones
-        .filter((a) => a.dia === diaHoy && a.hora)
-        .sort((a, b) => (a.hora || "").localeCompare(b.hora || ""));
-
-    if (clasesHoy.length === 0) {
-        avisoSinHorarioHoy.style.display = "block";
-        listaClasesHoy.innerHTML = "";
+    if (!estudiantesSalon || estudiantesSalon.length === 0) {
+        cuerpoTablaEstudiantes.innerHTML = `<tr><td colspan="4">No hay estudiantes registrados en este salón.</td></tr>`;
+        estadoLista.textContent = "";
         return;
     }
 
-    avisoSinHorarioHoy.style.display = "none";
+    cuerpoTablaEstudiantes.innerHTML = estudiantesSalon.map((est, i) => {
+        const idDetalle = `detalle-${est.id}`;
+        return `
+        <tr>
+            <td>${i + 1}</td>
+            <td class="col-nombre">${escapeHtml(est.nombre)}</td>
+            <td>
+                <button type="button" class="btn-estado estado-presente" data-estado="presente" data-detalle="${idDetalle}">🟢 Presente</button>
+            </td>
+        </tr>
+        <tr class="fila-detalle" id="${idDetalle}">
+            <td colspan="3">
+                <div class="panel-detalle">
+                    <div>
+                        <label>Observación</label>
+                        <input type="text" class="input-observacion" placeholder="Ej: llegó 15 min tarde">
+                    </div>
+                    <div>
+                        <label>Justificación</label>
+                        <textarea class="input-justificacion" rows="2" placeholder="Motivo de la ausencia/tardanza/permiso"></textarea>
+                    </div>
+                    <div>
+                        <label>Adjuntar archivo</label>
+                        <input type="file" class="input-adjunto">
+                    </div>
+                </div>
+            </td>
+        </tr>
+    `;
+    }).join("");
 
-    listaClasesHoy.innerHTML = clasesHoy.map((c) => `
-        <div class="tarjeta-clase">
-            <span class="hora-clase">🕒 ${escapeHtml(formatearHora12(c.hora))}</span>
-            <span class="materia-clase">${escapeHtml(c.salon)} ${escapeHtml(c.materia)}</span>
-            <span class="salon-clase">Salón: ${escapeHtml(c.salon)}</span>
-            <button type="button" class="btn-tomar-asistencia" data-materia="${escapeHtml(c.materia)}" data-salon="${escapeHtml(c.salon)}">
-                📋 Tomar asistencia
-            </button>
-        </div>
-    `).join("");
+    activarBotonesEstado();
+    estadoLista.textContent = `${estudiantesSalon.length} estudiante(s) cargado(s).`;
+}
 
-    // Al presionar el botón, se abre la nueva vista tomar-asistencia.html
-    // con la materia y el salón de esa tarjeta, para que cargue solo la
-    // lista de esa clase.
-    listaClasesHoy.querySelectorAll(".btn-tomar-asistencia").forEach((btn) => {
+// =========================================================
+// 5) BOTÓN DE ESTADO: UN TOQUE/CLIC = SIGUIENTE ESTADO
+// =========================================================
+// Ciclo fijo: Presente -> Ausente -> Tardanza -> Permiso -> Presente -> ...
+// "click" funciona igual con mouse y con pantalla táctil (un tap
+// dispara "click"), así que no hace falta manejar touch por separado.
+// No usa <select> ni abre ningún popup/confirm.
+//
+// Nota importante para el guardado: btn.dataset.estado SIEMPRE refleja
+// el estado que está VISIBLE en ese momento (no el siguiente), porque
+// se actualiza justo después de pintar el texto/clase nuevos. Por eso
+// guardarAsistencia() puede leerlo directamente.
+
+const CICLO_ESTADOS = {
+    presente: { siguiente: "ausente", clase: "estado-ausente", texto: "🔴 Ausente" },
+    ausente: { siguiente: "tardanza", clase: "estado-tardanza", texto: "🟡 Tardanza" },
+    tardanza: { siguiente: "permiso", clase: "estado-permiso", texto: "🔵 Permiso" },
+    permiso: { siguiente: "presente", clase: "estado-presente", texto: "🟢 Presente" },
+};
+
+function activarBotonesEstado() {
+    cuerpoTablaEstudiantes.querySelectorAll(".btn-estado").forEach((btn) => {
         btn.addEventListener("click", () => {
-            const materia = btn.dataset.materia;
-            const salon = btn.dataset.salon;
-            const url = `tomar-asistencia.html?materia=${encodeURIComponent(materia)}&salon=${encodeURIComponent(salon)}`;
-            window.location.href = url;
+            const actual = btn.dataset.estado;
+            const paso = CICLO_ESTADOS[actual];
+            if (!paso) return;
+
+            btn.classList.remove("estado-presente", "estado-ausente", "estado-tardanza", "estado-permiso");
+            btn.classList.add(paso.clase);
+            btn.textContent = paso.texto;
+            btn.dataset.estado = paso.siguiente;
+
+            const filaDetalle = document.getElementById(btn.dataset.detalle);
+            if (filaDetalle) {
+                filaDetalle.classList.toggle("mostrar", paso.siguiente !== "presente");
+            }
         });
     });
+}
+
+// =========================================================
+// 6) GUARDAR ASISTENCIA (cabecera + detalle + adjuntos)
+// =========================================================
+// Requiere las tablas "asistencias" y "asistencia_detalle"
+// (ver 01_crear_tablas_asistencia.sql).
+//
+// Usa upsert en ambas tablas: si el profesor ya tomó asistencia de esta
+// materia/salón HOY y vuelve a guardar, se ACTUALIZA en vez de duplicar.
+
+const BUCKET_ADJUNTOS = "asistencia-adjuntos"; // ⚠️ crear este bucket en Supabase Storage
+
+function obtenerFechaHoyISO() {
+    const hoy = new Date();
+    const y = hoy.getFullYear();
+    const m = String(hoy.getMonth() + 1).padStart(2, "0");
+    const d = String(hoy.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+}
+
+// Sube el adjunto (si el profesor eligió uno) y devuelve su URL pública.
+// Si no hay archivo nuevo, devuelve null (no se toca lo que hubiera antes).
+async function subirAdjuntoSiHay(inputArchivo, estudianteId) {
+    const archivo = inputArchivo?.files?.[0];
+    if (!archivo) return null;
+
+    const rutaArchivo = `${salonSeleccionado}/${obtenerFechaHoyISO()}/${estudianteId}-${Date.now()}-${archivo.name}`;
+
+    const { error: errSubida } = await supabase
+        .storage
+        .from(BUCKET_ADJUNTOS)
+        .upload(rutaArchivo, archivo, { upsert: true });
+
+    if (errSubida) {
+        console.error("❌ Error al subir adjunto:", errSubida);
+        return null;
+    }
+
+    const { data: urlPublica } = supabase
+        .storage
+        .from(BUCKET_ADJUNTOS)
+        .getPublicUrl(rutaArchivo);
+
+    return urlPublica?.publicUrl || null;
+}
+
+async function guardarAsistencia() {
+    const btnGuardar = document.getElementById("btnGuardarAsistencia");
+    const estadoGuardado = document.getElementById("estadoGuardado");
+
+    if (btnGuardar) {
+        btnGuardar.disabled = true;
+        btnGuardar.textContent = "Guardando...";
+    }
+    if (estadoGuardado) estadoGuardado.textContent = "Guardando asistencia...";
+
+    try {
+        // 1) Cabecera: 1 fila por materia+salon+fecha.
+        const { data: cabecera, error: errCabecera } = await supabase
+            .from("asistencias")
+            .upsert(
+                {
+                    correo_profesor: correoProfesor,
+                    materia: materiaSeleccionada,
+                    salon: salonSeleccionado,
+                    fecha: obtenerFechaHoyISO(),
+                },
+                { onConflict: "materia,salon,fecha" }
+            )
+            .select("id")
+            .single();
+
+        if (errCabecera) throw errCabecera;
+
+        const asistenciaId = cabecera.id;
+
+        // 2) Detalle: recorrer cada fila de estudiante ya pintada en la tabla.
+        const botonesEstado = cuerpoTablaEstudiantes.querySelectorAll(".btn-estado");
+        const detalles = [];
+
+        for (const btn of botonesEstado) {
+            const idDetalle = btn.dataset.detalle; // "detalle-<uuid>"
+            const estudianteId = idDetalle.replace("detalle-", "");
+            const filaDetalle = document.getElementById(idDetalle);
+
+            const inputObservacion = filaDetalle?.querySelector(".input-observacion");
+            const inputJustificacion = filaDetalle?.querySelector(".input-justificacion");
+            const inputAdjunto = filaDetalle?.querySelector(".input-adjunto");
+
+            const adjuntoUrl = await subirAdjuntoSiHay(inputAdjunto, estudianteId);
+
+            const fila = {
+                asistencia_id: asistenciaId,
+                estudiante_id: estudianteId,
+                estado: btn.dataset.estado,
+                observacion: inputObservacion?.value?.trim() || null,
+                justificacion: inputJustificacion?.value?.trim() || null,
+            };
+            // Solo se envía adjunto_url si hay uno nuevo, para no borrar
+            // uno que ya existiera de un guardado anterior.
+            if (adjuntoUrl) fila.adjunto_url = adjuntoUrl;
+
+            detalles.push(fila);
+        }
+
+        const { error: errDetalle } = await supabase
+            .from("asistencia_detalle")
+            .upsert(detalles, { onConflict: "asistencia_id,estudiante_id" });
+
+        if (errDetalle) throw errDetalle;
+
+        if (estadoGuardado) {
+            estadoGuardado.textContent = `✅ Asistencia guardada (${detalles.length} estudiante(s)).`;
+        }
+    } catch (error) {
+        console.error("❌ Error al guardar asistencia:", error);
+        if (estadoGuardado) estadoGuardado.textContent = "❌ Error al guardar. Intenta de nuevo.";
+        alert("Ocurrió un error al guardar la asistencia. Intenta de nuevo.");
+    } finally {
+        if (btnGuardar) {
+            btnGuardar.disabled = false;
+            btnGuardar.textContent = "💾 Guardar asistencia";
+        }
+    }
+}
+
+// Si tomar-asistencia.html todavía no tiene el botón de guardar, lo
+// agregamos aquí para que funcione sin tener que tocar el HTML.
+// Si ya tienes un botón con id="btnGuardarAsistencia" en tu HTML, esta
+// función no hace nada (no lo duplica).
+function asegurarBotonGuardar() {
+    if (document.getElementById("btnGuardarAsistencia")) return;
+
+    const contenedor = document.getElementById("panelTabla") || document.body;
+
+    const envoltorio = document.createElement("div");
+    envoltorio.style.marginTop = "16px";
+    envoltorio.innerHTML = `
+        <button type="button" id="btnGuardarAsistencia" class="btn-tomar-asistencia">
+            💾 Guardar asistencia
+        </button>
+        <span id="estadoGuardado" style="margin-left:10px;"></span>
+    `;
+    contenedor.appendChild(envoltorio);
 }
 
 // =========================================================
@@ -170,7 +368,9 @@ function pintarClasesDeHoy() {
     const ok = await verificarSesion();
     if (!ok) return;
 
-    pintarCambiarPanel("profesor", "oscuro-sobre-claro");
-    pintarFechaYProfesor();
-    pintarClasesDeHoy();
+    pintarEncabezado();
+    await cargarEstudiantes();
+
+    asegurarBotonGuardar();
+    document.getElementById("btnGuardarAsistencia").addEventListener("click", guardarAsistencia);
 })();
