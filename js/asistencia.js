@@ -414,6 +414,7 @@ function asegurarPanelHorarioSemanal() {
     envoltorio.innerHTML = `
         <div style="text-align:center; margin: 14px 0 8px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
             <button type="button" id="btnToggleHorarioSemanal" class="btn-tomar-asistencia">📅 Ver horario completo de la semana</button>
+            <a href="historial-asistencia.html"><button type="button" class="btn-tomar-asistencia" style="background:#2f3ea3;">🕘 Ver historial de asistencia</button></a>
             ${botonExcepcionHtml}
         </div>
         <div id="contenidoHorarioSemanal" style="display:none;">
@@ -585,12 +586,22 @@ async function cargarEstudiantes() {
     }).join("");
 
     activarBotonesEstado();
+    activarAutoguardadoCampos();
     pintarEncabezadosColumnasDinamicas();
     await precargarValoresGuardadosHoy();
     if (estadoLista) estadoLista.textContent = `${estudiantesSalon.length} estudiante(s) cargado(s).`;
 
     // No bloquea el pintado de la tabla: las alertas se calculan aparte.
     detectarAlertas();
+}
+
+function activarAutoguardadoCampos() {
+    cuerpoTablaEstudiantes.querySelectorAll(".input-observacion, .input-justificacion, .input-columna-extra").forEach((input) => {
+        input.addEventListener("input", programarGuardadoAutomatico);
+    });
+    cuerpoTablaEstudiantes.querySelectorAll(".input-adjunto").forEach((input) => {
+        input.addEventListener("change", programarGuardadoAutomatico);
+    });
 }
 
 // =========================================================
@@ -639,8 +650,33 @@ function activarBotonesEstado() {
             if (filaDetalle) {
                 filaDetalle.classList.toggle("mostrar", paso.siguiente !== "presente");
             }
+
+            programarGuardadoAutomatico();
         });
     });
+}
+
+// =========================================================
+// 5.1) GUARDADO AUTOMÁTICO
+// =========================================================
+// En vez de esperar a que el profesor le dé clic a "Guardar
+// asistencia", cualquier cambio (estado, observación, justificación,
+// columnas extra, notas del profesor) programa un guardado automático
+// unos segundos después. Si el profesor sigue haciendo cambios antes
+// de que se cumpla ese tiempo, el guardado se reprograma (no se
+// guarda a cada tecla, solo cuando hay una pausa).
+
+let temporizadorGuardadoAutomatico = null;
+const RETRASO_GUARDADO_AUTOMATICO_MS = 1200;
+
+function programarGuardadoAutomatico() {
+    const estadoGuardado = document.getElementById("estadoGuardado");
+    if (estadoGuardado) estadoGuardado.textContent = "✏️ Cambios sin guardar...";
+
+    if (temporizadorGuardadoAutomatico) clearTimeout(temporizadorGuardadoAutomatico);
+    temporizadorGuardadoAutomatico = setTimeout(() => {
+        guardarAsistencia({ silencioso: true });
+    }, RETRASO_GUARDADO_AUTOMATICO_MS);
 }
 
 // =========================================================
@@ -688,7 +724,7 @@ async function subirAdjuntoSiHay(inputArchivo, estudianteId) {
     return urlPublica?.publicUrl || null;
 }
 
-async function guardarAsistencia() {
+async function guardarAsistencia({ silencioso = false } = {}) {
     const btnGuardar = document.getElementById("btnGuardarAsistencia");
     const estadoGuardado = document.getElementById("estadoGuardado");
 
@@ -696,7 +732,7 @@ async function guardarAsistencia() {
         btnGuardar.disabled = true;
         btnGuardar.textContent = "Guardando...";
     }
-    if (estadoGuardado) estadoGuardado.textContent = "Guardando asistencia...";
+    if (estadoGuardado) estadoGuardado.textContent = silencioso ? "💾 Guardando automáticamente..." : "Guardando asistencia...";
 
     try {
         const inputNotas = document.getElementById("notasProfesor");
@@ -766,7 +802,9 @@ async function guardarAsistencia() {
         if (errDetalle) throw errDetalle;
 
         if (estadoGuardado) {
-            estadoGuardado.textContent = `✅ Asistencia guardada (${detalles.length} estudiante(s)).`;
+            estadoGuardado.textContent = silencioso
+                ? `✅ Guardado automáticamente (${detalles.length} estudiante(s)).`
+                : `✅ Asistencia guardada (${detalles.length} estudiante(s)).`;
         }
 
         // Las ausencias/tardanzas de hoy recién se guardaron: recalcular alertas.
@@ -774,7 +812,7 @@ async function guardarAsistencia() {
     } catch (error) {
         console.error("❌ Error al guardar asistencia:", error);
         if (estadoGuardado) estadoGuardado.textContent = "❌ Error al guardar. Intenta de nuevo.";
-        alert("Ocurrió un error al guardar la asistencia. Intenta de nuevo.");
+        if (!silencioso) alert("Ocurrió un error al guardar la asistencia. Intenta de nuevo.");
     } finally {
         if (btnGuardar) {
             btnGuardar.disabled = false;
@@ -805,6 +843,8 @@ function asegurarControlesNotas() {
             placeholder="Ej: repasar tarea la próxima clase, avisar a coordinación sobre..."></textarea>
     `;
     contenedor.appendChild(envoltorio);
+
+    document.getElementById("notasProfesor").addEventListener("input", programarGuardadoAutomatico);
 }
 
 // =========================================================
@@ -1255,6 +1295,9 @@ function asegurarBotonGuardar() {
             💾 Guardar asistencia
         </button>
         <span id="estadoGuardado" style="margin-left:10px;"></span>
+        <div class="small text-muted" style="margin-top:4px;">
+            Los cambios se guardan solos unos segundos después de marcarlos. Este botón es solo por si quieres forzarlo.
+        </div>
     `;
     contenedor.appendChild(envoltorio);
 }
