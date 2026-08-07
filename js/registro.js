@@ -137,6 +137,65 @@ preseleccionarTipoDesdeURL();
 actualizarCampos();
 
 // =====================================================
+// PRE-LLENADO "PASO 1": llega desde "Ver mis notas"
+// (consulta.html) con ?cedula=... ya identificada
+// =====================================================
+//
+// En vez de hacerle elegir su nombre de una lista larga, ya sabemos
+// exactamente quién es (por la cédula que escribió en consulta.html),
+// así que se le confirma su nombre/salón y solo falta la contraseña.
+
+const avisoPrefillEstudiante = document.getElementById("avisoPrefillEstudiante");
+const textoPrefillEstudiante = document.getElementById("textoPrefillEstudiante");
+
+async function precargarDesdeConsulta() {
+    const parametros = new URLSearchParams(window.location.search);
+    const cedulaParam = parametros.get("cedula");
+
+    if (!cedulaParam || tipoRegistro.value !== "estudiante") return;
+
+    const { data, error } = await supabase.rpc("buscar_estudiante_para_registro", { p_cedula: cedulaParam });
+    const encontrado = Array.isArray(data) ? data[0] : data;
+
+    if (error || !encontrado) {
+        mostrarMensaje("No se pudo identificar al estudiante. Por favor completa el formulario manualmente.", "error");
+        return;
+    }
+
+    if (encontrado.correo) {
+        mostrarMensaje("Esta cédula ya tiene una cuenta registrada. Si eres tú, inicia sesión en vez de registrarte de nuevo.", "error");
+        return;
+    }
+
+    // Bloquea el salón en el que ya sabemos que está
+    if (encontrado.salon) {
+        salonInput.innerHTML = salonesTodasOpcionesHTML;
+        salonInput.value = encontrado.salon;
+        salonInput.disabled = true;
+    }
+
+    // Reemplaza el select de nombre por una sola opción ya confirmada,
+    // con los mismos data-codigo / data-id que usa registrarEstudiante()
+    // para vincular las notas que el admin ya le haya puesto antes.
+    const nombreEscapado = String(encontrado.nombre || "").replace(/"/g, "&quot;");
+    nombreSelect.innerHTML = `<option value="${nombreEscapado}" data-codigo="${encontrado.codigo ?? ""}" data-id="${encontrado.id ?? ""}" selected>${encontrado.nombre}</option>`;
+    nombreSelect.disabled = true;
+
+    // Cédula ya confirmada, no hace falta volver a escribirla
+    const cedulaInput = document.getElementById("cedula");
+    cedulaInput.value = cedulaParam;
+    cedulaInput.readOnly = true;
+
+    if (avisoPrefillEstudiante) {
+        textoPrefillEstudiante.textContent =
+            `Hola, ${encontrado.nombre}. Ya tenemos tu nombre, salón y cédula. Solo elige la contraseña que vas a usar.`;
+        avisoPrefillEstudiante.style.display = "block";
+    }
+}
+
+precargarDesdeConsulta();
+
+// =====================================================
 // CARGAR LA LISTA DE ESTUDIANTES DISPONIBLES DEL SALÓN
 // =====================================================
 //
