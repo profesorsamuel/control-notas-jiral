@@ -1491,6 +1491,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const visitasSalon = document.getElementById("visitasSalon");
     const btnCargarVisitas = document.getElementById("btnCargarVisitas");
     const tablaVisitas = document.getElementById("tablaVisitas");
+    const thSalonVisitas = document.getElementById("thSalonVisitas");
 
     function formatearDuracion(segundosTotales) {
         const segundos = Math.max(0, Math.round(segundosTotales));
@@ -1503,37 +1504,44 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function cargarVisitas() {
         const salon = visitasSalon.value;
+        const mostrarColumnaSalon = !salon;
+        const colspanActual = mostrarColumnaSalon ? 7 : 6;
 
-        if (!salon) {
-            alert("Selecciona un salón.");
-            return;
+        if (thSalonVisitas) {
+            thSalonVisitas.style.display = mostrarColumnaSalon ? "" : "none";
         }
 
         const textoOriginal = btnCargarVisitas.innerHTML;
         btnCargarVisitas.disabled = true;
         btnCargarVisitas.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
 
-        tablaVisitas.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Cargando...</td></tr>`;
+        tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-center text-muted py-3">Cargando...</td></tr>`;
 
-        const { data: estudiantesSalon, error: errEst } = await supabase
+        let consultaEstudiantes = supabase
             .from("estudiantes")
-            .select("correo, nombre, es_prueba")
-            .eq("salon", salon)
+            .select("correo, nombre, es_prueba, salon")
             .order("nombre", { ascending: true });
+
+        if (salon) {
+            consultaEstudiantes = consultaEstudiantes.eq("salon", salon);
+        }
+
+        const { data: estudiantesSalon, error: errEst } = await consultaEstudiantes;
 
         btnCargarVisitas.disabled = false;
         btnCargarVisitas.innerHTML = textoOriginal;
 
         if (errEst) {
             console.error("❌ Error al cargar estudiantes:", errEst);
-            tablaVisitas.innerHTML = `<tr><td colspan="6" class="text-danger text-center py-3">Error al cargar estudiantes.</td></tr>`;
+            tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-danger text-center py-3">Error al cargar estudiantes.</td></tr>`;
             return;
         }
 
         const estudiantesReales = (estudiantesSalon || []).filter((e) => !e.es_prueba && e.correo);
 
         if (estudiantesReales.length === 0) {
-            tablaVisitas.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">No hay estudiantes en este salón.</td></tr>`;
+            const mensaje = salon ? "No hay estudiantes en este salón." : "No hay estudiantes registrados.";
+            tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-center text-muted py-3">${mensaje}</td></tr>`;
             return;
         }
 
@@ -1546,7 +1554,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (errVis) {
             console.error("❌ Error al cargar visitas:", errVis);
-            tablaVisitas.innerHTML = `<tr><td colspan="6" class="text-danger text-center py-3">Error al cargar las visitas.</td></tr>`;
+            tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-danger text-center py-3">Error al cargar las visitas.</td></tr>`;
             return;
         }
 
@@ -1581,11 +1589,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const filas = estudiantesReales.map((est) => {
             const r = resumenPorCorreo[est.correo];
+            const celdaSalon = mostrarColumnaSalon
+                ? `<td class="text-center">${escapeHtmlAdmin(est.salon || "—")}</td>`
+                : "";
 
             if (!r) {
                 return `
                     <tr class="table-light">
                         <td>${escapeHtmlAdmin(est.nombre || est.correo)}</td>
+                        ${celdaSalon}
                         <td class="text-center">0</td>
                         <td class="text-center">—</td>
                         <td class="text-center">—</td>
@@ -1598,6 +1610,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return `
                 <tr>
                     <td>${escapeHtmlAdmin(est.nombre || est.correo)}</td>
+                    ${celdaSalon}
                     <td class="text-center fw-bold">${r.totalVisitas}</td>
                     <td class="text-center">${r.diasDistintos.size}</td>
                     <td class="text-center">${formatearDuracion(r.tiempoTotalSeg)}</td>
