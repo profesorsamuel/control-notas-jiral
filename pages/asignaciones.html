@@ -104,6 +104,29 @@
             </div>
             <input type="text" id="inputOtraMateria" class="form-control mb-3" placeholder="¿Otra materia que no está en la lista? Escríbela aquí (separa con coma si son varias)">
 
+            <div class="row g-2 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Día de clase</label>
+                    <select id="selectDiaAsignacion" class="form-select">
+                        <option value="">Seleccione un día</option>
+                        <option value="Lunes">Lunes</option>
+                        <option value="Martes">Martes</option>
+                        <option value="Miércoles">Miércoles</option>
+                        <option value="Jueves">Jueves</option>
+                        <option value="Viernes">Viernes</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Hora de clase</label>
+                    <input type="time" id="inputHoraAsignacion" class="form-control">
+                </div>
+            </div>
+            <p class="small text-muted" style="margin-top:-8px;">
+                El día y la hora que elijas aquí se guardan para todas las materias y salones
+                que marques en este envío. Este dato se usa para armar el horario del día en
+                el módulo de Asistencia.
+            </p>
+
             <label class="subtitulo-campo">Salones donde da clase (puedes marcar varios)</label>
             <div class="grupo-checks mb-3" id="grupoSalones">
                 <div class="form-check">
