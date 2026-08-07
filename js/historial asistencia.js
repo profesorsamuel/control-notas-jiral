@@ -21,6 +21,19 @@ const TEXTO_ESTADO = {
     permiso: "🔵 Permiso",
 };
 
+// Versión sin emoji, para PDF/Excel/CSV (las fuentes estándar de PDF no
+// dibujan emojis correctamente).
+const TEXTO_ESTADO_PLANO = {
+    presente: "Presente",
+    ausente: "Ausente",
+    tardanza: "Tardanza",
+    permiso: "Permiso",
+};
+
+// ⚠️ AJUSTA ESTOS DOS VALORES a los datos reales de tu colegio.
+const NOMBRE_COLEGIO = "Nombre del Colegio";
+const LOGO_URL = "logo-colegio.png"; // ruta o URL pública del logo (PNG/JPG)
+
 function formatearFechaLarga(fechaISO) {
     // fechaISO viene como "2026-08-07" (columna date de Postgres)
     const [y, m, d] = fechaISO.split("-").map(Number);
@@ -76,12 +89,21 @@ const detalleProfesor = document.getElementById("detalleProfesor");
 const cuerpoTablaDetalle = document.getElementById("cuerpoTablaDetalle");
 const btnCerrarDetalle = document.getElementById("btnCerrarDetalle");
 
+const btnExportar = document.getElementById("btnExportar");
+const opcionesExportar = document.getElementById("opcionesExportar");
+const btnExportarPDF = document.getElementById("btnExportarPDF");
+const btnExportarExcel = document.getElementById("btnExportarExcel");
+const btnExportarCSV = document.getElementById("btnExportarCSV");
+
 // =========================================================
 // 3) DATOS EN MEMORIA
 // =========================================================
 
 let todasAsistencias = [];       // filas de "asistencias" (cabeceras), sin filtrar
 let mapaNombresProfesor = {};    // correo_profesor -> nombre_profesor
+
+let asistenciaActual = null;     // cabecera de la asistencia con el detalle abierto
+let detalleActual = [];          // filas de asistencia_detalle de esa asistencia
 
 // =========================================================
 // 4) CARGA INICIAL
@@ -250,6 +272,11 @@ async function abrirDetalleAsistencia(asistenciaId) {
         (a.estudiantes?.nombre || "").localeCompare(b.estudiantes?.nombre || "", "es")
     );
 
+    // Se guardan para que exportarPDF/exportarExcel/exportarCSV trabajen
+    // exactamente sobre lo que está mostrado en pantalla.
+    asistenciaActual = cabecera || null;
+    detalleActual = filas;
+
     if (filas.length === 0) {
         cuerpoTablaDetalle.innerHTML = `<tr><td colspan="4">No hay estudiantes registrados en esta asistencia.</td></tr>`;
         return;
@@ -268,6 +295,245 @@ async function abrirDetalleAsistencia(asistenciaId) {
 btnCerrarDetalle.addEventListener("click", () => {
     panelDetalle.style.display = "none";
     cuerpoTablaDetalle.innerHTML = "";
+    opcionesExportar.style.display = "none";
+    asistenciaActual = null;
+    detalleActual = [];
+});
+
+// =========================================================
+// 8) EXPORTAR (PDF / Excel / CSV)
+// =========================================================
+// Exporta exactamente la asistencia abierta en el panel de detalle
+// (asistenciaActual + detalleActual). Las librerías se cargan solo
+// cuando el profesor realmente exporta (no en cada carga de página).
+
+function calcularResumen(filas) {
+    const resumen = { presente: 0, ausente: 0, tardanza: 0, permiso: 0, total: filas.length };
+    filas.forEach((f) => {
+        if (resumen[f.estado] !== undefined) resumen[f.estado]++;
+    });
+    return resumen;
+}
+
+function nombreBaseArchivo(extension) {
+    return `asistencia_${asistenciaActual.salon}_${asistenciaActual.materia}_${asistenciaActual.fecha}.${extension}`
+        .replace(/\s+/g, "_");
+}
+
+async function cargarImagenBase64(url) {
+    const respuesta = await fetch(url);
+    if (!respuesta.ok) throw new Error(`No se pudo cargar el logo (${respuesta.status})`);
+    const blob = await respuesta.blob();
+    return await new Promise((resolve, reject) => {
+        const lector = new FileReader();
+        lector.onload = () => resolve(lector.result);
+        lector.onerror = reject;
+        lector.readAsDataURL(blob);
+    });
+}
+
+async function exportarPDF() {
+    if (!asistenciaActual) return;
+
+    const { jsPDF } = await import("https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm");
+    const autoTable = (await import("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/+esm")).default;
+
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const margenIzq = 40;
+    let y = 40;
+
+    // Logo (si no se puede cargar, se sigue sin él para no bloquear el PDF)
+    try {
+        const logoBase64 = await cargarImagenBase64(LOGO_URL);
+        doc.addImage(logoBase64, "PNG", margenIzq, y, 55, 55);
+    } catch (e) {
+        console.warn("⚠️ No se pudo incluir el logo en el PDF:", e);
+    }
+
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(NOMBRE_COLEGIO, margenIzq + 70, y + 18);
+
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text("Reporte de asistencia", margenIzq + 70, y + 36);
+
+    y += 75;
+
+    doc.setFontSize(11);
+    const info = [
+        ["Profesor:", nombreProfesorDe(asistenciaActual.correo_profesor)],
+        ["Materia:", asistenciaActual.materia],
+        ["Fecha:", formatearFechaLarga(asistenciaActual.fecha)],
+        ["Salón:", asistenciaActual.salon],
+    ];
+    info.forEach(([etiqueta, valor]) => {
+        doc.setFont("helvetica", "bold");
+        doc.text(etiqueta, margenIzq, y);
+        doc.setFont("helvetica", "normal");
+        doc.text(String(valor), margenIzq + 70, y);
+        y += 16;
+    });
+
+    y += 8;
+
+    const resumen = calcularResumen(detalleActual);
+    doc.setFont("helvetica", "bold");
+    doc.text("Resumen", margenIzq, y);
+    y += 16;
+    doc.setFont("helvetica", "normal");
+    [
+        `Total estudiantes: ${resumen.total}`,
+        `Presentes: ${resumen.presente}`,
+        `Ausentes: ${resumen.ausente}`,
+        `Tardanzas: ${resumen.tardanza}`,
+        `Permisos: ${resumen.permiso}`,
+    ].forEach((linea) => {
+        doc.text(linea, margenIzq, y);
+        y += 14;
+    });
+
+    y += 10;
+    doc.setFont("helvetica", "bold");
+    doc.text("Lista completa", margenIzq, y);
+    y += 8;
+
+    autoTable(doc, {
+        startY: y,
+        margin: { left: margenIzq, right: margenIzq },
+        head: [["Estudiante", "Estado", "Observación / Justificación"]],
+        body: detalleActual.map((f) => [
+            f.estudiantes?.nombre || "—",
+            TEXTO_ESTADO_PLANO[f.estado] || f.estado,
+            [f.observacion, f.justificacion].filter(Boolean).join(" — ") || "—",
+        ]),
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [40, 40, 40] },
+    });
+
+    doc.save(nombreBaseArchivo("pdf"));
+}
+
+async function exportarExcel() {
+    if (!asistenciaActual) return;
+
+    const XLSX = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm");
+    const resumen = calcularResumen(detalleActual);
+
+    const filas = [
+        [NOMBRE_COLEGIO],
+        ["Reporte de asistencia"],
+        [],
+        ["Profesor", nombreProfesorDe(asistenciaActual.correo_profesor)],
+        ["Materia", asistenciaActual.materia],
+        ["Fecha", formatearFechaLarga(asistenciaActual.fecha)],
+        ["Salón", asistenciaActual.salon],
+        [],
+        ["Resumen"],
+        ["Total estudiantes", resumen.total],
+        ["Presentes", resumen.presente],
+        ["Ausentes", resumen.ausente],
+        ["Tardanzas", resumen.tardanza],
+        ["Permisos", resumen.permiso],
+        [],
+        ["Lista completa"],
+        ["Estudiante", "Estado", "Observación", "Justificación"],
+        ...detalleActual.map((f) => [
+            f.estudiantes?.nombre || "—",
+            TEXTO_ESTADO_PLANO[f.estado] || f.estado,
+            f.observacion || "",
+            f.justificacion || "",
+        ]),
+    ];
+
+    const hoja = XLSX.utils.aoa_to_sheet(filas);
+    hoja["!cols"] = [{ wch: 28 }, { wch: 14 }, { wch: 30 }, { wch: 30 }];
+
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, "Asistencia");
+    XLSX.writeFile(libro, nombreBaseArchivo("xlsx"));
+}
+
+function exportarCSV() {
+    if (!asistenciaActual) return;
+
+    const resumen = calcularResumen(detalleActual);
+
+    const filas = [
+        [NOMBRE_COLEGIO],
+        ["Reporte de asistencia"],
+        [],
+        ["Profesor", nombreProfesorDe(asistenciaActual.correo_profesor)],
+        ["Materia", asistenciaActual.materia],
+        ["Fecha", formatearFechaLarga(asistenciaActual.fecha)],
+        ["Salón", asistenciaActual.salon],
+        [],
+        ["Resumen"],
+        ["Total estudiantes", resumen.total],
+        ["Presentes", resumen.presente],
+        ["Ausentes", resumen.ausente],
+        ["Tardanzas", resumen.tardanza],
+        ["Permisos", resumen.permiso],
+        [],
+        ["Lista completa"],
+        ["Estudiante", "Estado", "Observación", "Justificación"],
+        ...detalleActual.map((f) => [
+            f.estudiantes?.nombre || "—",
+            TEXTO_ESTADO_PLANO[f.estado] || f.estado,
+            f.observacion || "",
+            f.justificacion || "",
+        ]),
+    ];
+
+    const escaparCeldaCSV = (valor) => {
+        const texto = String(valor ?? "");
+        return /[",\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+    };
+
+    const contenidoCSV = filas.map((fila) => fila.map(escaparCeldaCSV).join(",")).join("\n");
+
+    // BOM al inicio para que Excel abra bien los acentos en UTF-8.
+    const blob = new Blob(["\uFEFF" + contenidoCSV], { type: "text/csv;charset=utf-8;" });
+    const enlace = document.createElement("a");
+    enlace.href = URL.createObjectURL(blob);
+    enlace.download = nombreBaseArchivo("csv");
+    enlace.click();
+    URL.revokeObjectURL(enlace.href);
+}
+
+btnExportar.addEventListener("click", () => {
+    if (!asistenciaActual) return;
+    opcionesExportar.style.display = opcionesExportar.style.display === "none" ? "block" : "none";
+});
+
+btnExportarPDF.addEventListener("click", async () => {
+    opcionesExportar.style.display = "none";
+    try {
+        await exportarPDF();
+    } catch (e) {
+        console.error("❌ Error al exportar PDF:", e);
+        alert("Ocurrió un error al generar el PDF.");
+    }
+});
+
+btnExportarExcel.addEventListener("click", async () => {
+    opcionesExportar.style.display = "none";
+    try {
+        await exportarExcel();
+    } catch (e) {
+        console.error("❌ Error al exportar Excel:", e);
+        alert("Ocurrió un error al generar el Excel.");
+    }
+});
+
+btnExportarCSV.addEventListener("click", () => {
+    opcionesExportar.style.display = "none";
+    try {
+        exportarCSV();
+    } catch (e) {
+        console.error("❌ Error al exportar CSV:", e);
+        alert("Ocurrió un error al generar el CSV.");
+    }
 });
 
 // =========================================================
