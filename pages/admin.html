@@ -372,7 +372,7 @@
                             <i class="fa-solid fa-chalkboard text-secondary me-1"></i> Salón
                         </label>
                         <select id="visitasSalon" class="form-select">
-                            <option value="">Seleccione...</option>
+                            <option value="">Todos los salones</option>
                             <option value="8A">8°A</option>
                             <option value="9A">9°A</option>
                             <option value="9B">9°B</option>
@@ -391,6 +391,7 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Estudiante</th>
+                                <th id="thSalonVisitas" class="text-center" style="display:none;">Salón</th>
                                 <th class="text-center">Visitas</th>
                                 <th class="text-center">Días distintos</th>
                                 <th class="text-center">Tiempo total</th>
@@ -401,7 +402,7 @@
                         <tbody id="tablaVisitas">
                             <tr>
                                 <td colspan="6" class="text-center text-muted py-3">
-                                    Elegí un salón y tocá "Ver actividad".
+                                    Elegí un salón (o "Todos los salones") y tocá "Ver actividad".
                                 </td>
                             </tr>
                         </tbody>
