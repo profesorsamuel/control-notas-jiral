@@ -302,15 +302,18 @@ function render() {
     let html = "";
 
     resumen.forEach(({ materia, datos, promApr, promEje, promFinal, fracaso }) => {
-        const filasApr = datos.apreciacion
-            .sort((a, b) => a.numero - b.numero)
-            .map((n) => `<td>${n.valor.toFixed(1)}</td>`)
-            .join("");
+        const notasApr = datos.apreciacion.slice().sort((a, b) => a.numero - b.numero);
+        const notasEje = datos.ejercicio.slice().sort((a, b) => a.numero - b.numero);
+        const maxCols = Math.max(notasApr.length, notasEje.length, 1);
 
-        const filasEje = datos.ejercicio
-            .sort((a, b) => a.numero - b.numero)
-            .map((n) => `<td>${n.valor.toFixed(1)}</td>`)
-            .join("");
+        const celdasNota = (lista) => {
+            const celdas = lista.map((n) => `<td>${n.valor.toFixed(1)}</td>`);
+            while (celdas.length < maxCols) celdas.push(`<td>-</td>`);
+            return celdas.join("");
+        };
+
+        const filasApr = celdasNota(notasApr);
+        const filasEje = celdasNota(notasEje);
 
         const claseAprFallo = promApr !== null && promApr < NOTA_MINIMA_APROBAR ? "promedio promedio-fracaso" : "promedio";
         const claseEjeFallo = promEje !== null && promEje < NOTA_MINIMA_APROBAR ? "promedio promedio-fracaso" : "promedio";
@@ -325,19 +328,19 @@ function render() {
                         <thead>
                             <tr>
                                 <th>Tipo</th>
-                                <th colspan="99" style="text-align:left; padding-left:10px;">Notas</th>
+                                <th colspan="${maxCols}" style="text-align:left; padding-left:10px;">Notas</th>
                                 <th>Promedio</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
                                 <td><strong>Apreciación</strong></td>
-                                ${filasApr || `<td>-</td>`}
+                                ${filasApr}
                                 <td class="${claseAprFallo}">${promApr !== null ? promApr.toFixed(1) : "-"}</td>
                             </tr>
                             <tr>
                                 <td><strong>Ejercicio</strong></td>
-                                ${filasEje || `<td>-</td>`}
+                                ${filasEje}
                                 <td class="${claseEjeFallo}">${promEje !== null ? promEje.toFixed(1) : "-"}</td>
                             </tr>
                         </tbody>
@@ -392,10 +395,20 @@ btnPdf.addEventListener("click", () => {
     const trimestre = filtroTrimestre.value;
     doc.text(`Trimestre: ${trimestre === "todos" ? "Todos" : trimestre}`, 20, 44);
 
+    const fechaGeneracion = new Date().toLocaleString("es-PA", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit"
+    });
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generado el: ${fechaGeneracion}`, 20, 50);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+
     const filas = filasParaTrimestre(trimestre);
     const resumen = calcularResumenMaterias(filas);
 
-    let y = 54;
+    let y = 58;
 
     // ---------------------------------------------------
     // UNA TABLA POR MATERIA, CON TODAS LAS NOTAS INDIVIDUALES
