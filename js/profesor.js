@@ -130,8 +130,6 @@ const selectSalonNota = document.getElementById("selectSalonNota");
 const selectMateriaNota = document.getElementById("selectMateriaNota");
 const selectTipoNota = document.getElementById("selectTipoNota");
 const inputNumeroNota = document.getElementById("inputNumeroNota");
-const btnMasColumna = document.getElementById("btnMasColumna");
-const btnMenosColumna = document.getElementById("btnMenosColumna");
 const selectTrimestreNota = document.getElementById("selectTrimestreNota");
 const estadoCargaSalon = document.getElementById("estadoCargaSalon");
 const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
@@ -313,8 +311,8 @@ async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
 
 // Hace el borrado suave de la casilla sin pedir confirmación. Separada
 // de eliminarColumnaCasilla() para que quien la llame (el botón 🗑️ de
-// la tabla, o el botón "−" de arriba) pueda controlar el orden exacto
-// entre "confirmar" y "actualizar el resto de la UI" (ver btnMenosColumna).
+// la tabla) pueda controlar el orden exacto entre "confirmar" y
+// "actualizar el resto de la UI".
 async function eliminarColumnaCasillaInterno(tipo, numero) {
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
@@ -692,8 +690,33 @@ function renderTabla() {
         renderizarListaChecksEstudiantes();
     }
 
+    // Después de la última columna de cada Tipo (Aprec./Ejer./Exam.) se
+    // intercala un marcador especial para dibujar ahí mismo un botón "+"
+    // que agrega la siguiente casilla de ese Tipo. Se arma una sola vez
+    // y se reutiliza en la cabecera, la fila de temas y cada fila de
+    // estudiante, así las tres quedan siempre alineadas entre sí.
+    const columnasConBoton = [];
+    columnasVisibles.forEach((c, idx) => {
+        columnasConBoton.push(c);
+        const siguiente = columnasVisibles[idx + 1];
+        if (!siguiente || siguiente.tipo !== c.tipo) {
+            columnasConBoton.push({ tipo: c.tipo, numero: null, esBotonAgregar: true });
+        }
+    });
+    // Índice de columna de nota "real" para cada posición (null en los
+    // marcadores "+"); se usa para la navegación con flechas arriba/abajo.
+    let contadorColNota = 0;
+    const indicesColumna = columnasConBoton.map((c) => c.esBotonAgregar ? null : contadorColNota++);
+
     let htmlCabecera = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
-    columnasVisibles.forEach((c) => {
+    columnasConBoton.forEach((c) => {
+        if (c.esBotonAgregar) {
+            htmlCabecera += `
+                <th class="text-center" style="width:34px;">
+                    <button type="button" class="btn btn-link btn-sm p-0 text-success btn-agregar-columna" data-tipo="${c.tipo}" title="Agregar otra columna de ${escapeHtml(ETIQUETAS_TIPO[c.tipo] || c.tipo)}">➕</button>
+                </th>`;
+            return;
+        }
         const sel = claveCasilla(c.tipo, c.numero) === claveSel;
         htmlCabecera += `
             <th class="text-center small ${sel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
@@ -708,7 +731,11 @@ function renderTabla() {
     cabeceraNotasGrupo.innerHTML = htmlCabecera;
 
     let htmlTemas = `<th class="col-fija col-fija-num"></th><th class="col-fija col-fija-nombre small text-muted fw-normal">Tema de cada casilla:</th>`;
-    columnasVisibles.forEach((c) => {
+    columnasConBoton.forEach((c) => {
+        if (c.esBotonAgregar) {
+            htmlTemas += `<th></th>`;
+            return;
+        }
         const tema = obtenerTemaCasilla(c.tipo, c.numero);
         htmlTemas += `
             <th style="padding:2px 4px;">
@@ -730,7 +757,9 @@ function renderTabla() {
         const sinCuenta = !est.correo;
         const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
 
-        const columnas = columnasVisibles.map((c, colIndex) => {
+        const columnas = columnasConBoton.map((c, pos) => {
+            if (c.esBotonAgregar) return `<td></td>`;
+            const colIndex = indicesColumna[pos];
             const claveCas = claveCasilla(c.tipo, c.numero);
             const n = historial[claveCas];
             const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
@@ -761,6 +790,18 @@ function renderTabla() {
 
     cabeceraNotasGrupo.querySelectorAll(".btn-eliminar-columna").forEach((btn) => {
         btn.addEventListener("click", () => eliminarColumnaCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10)));
+    });
+
+    // "➕" al final de cada grupo de columnas: agrega la siguiente casilla
+    // de ese mismo Tipo (Aprec./Ejer./Exam.), sin importar cuál Tipo esté
+    // elegido arriba en el selector.
+    cabeceraNotasGrupo.querySelectorAll(".btn-agregar-columna").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const tipo = btn.dataset.tipo;
+            selectTipoNota.value = tipo;
+            inputNumeroNota.value = obtenerUltimoNumeroTipo(tipo) + 1;
+            renderTabla();
+        });
     });
 
     tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna").forEach((input) => {
@@ -814,39 +855,12 @@ inputNumeroNota?.addEventListener("input", () => {
 });
 
 // Último número de casilla ya existente para un tipo dado (0 si el tipo
-// todavía no tiene ninguna columna). Se usa para que "+" y "−" siempre
-// operen sobre la última columna del Tipo seleccionado.
+// todavía no tiene ninguna columna). Se usa para que el botón "➕" al
+// final de cada grupo de columnas agregue siempre la siguiente.
 function obtenerUltimoNumeroTipo(tipo) {
     const numeros = casillasTabla.filter((c) => c.tipo === tipo).map((c) => c.numero);
     return numeros.length ? Math.max(...numeros) : 0;
 }
-
-// "+": agrega una nueva columna al final (número = último + 1) para el
-// Tipo seleccionado. No hay nada que confirmar: solo prepara la casilla
-// para que el/la docente empiece a escribir notas en ella.
-btnMasColumna?.addEventListener("click", () => {
-    const tipo = selectTipoNota.value;
-    inputNumeroNota.value = obtenerUltimoNumeroTipo(tipo) + 1;
-    if (grupoActual.length > 0) renderTabla();
-});
-
-// "−": quita la última columna del Tipo seleccionado (la envía a la
-// papelera, igual que el 🗑️ de la cabecera). Importante: si el/la
-// docente cancela el diálogo de confirmación, el número de la casilla
-// NO debe bajar. Por eso primero se confirma, y solo si confirma se
-// baja el número (antes de borrar, para que la UI ya quede consistente
-// mientras la llamada a Supabase termina).
-btnMenosColumna?.addEventListener("click", async () => {
-    const tipo = selectTipoNota.value;
-    const ultimo = obtenerUltimoNumeroTipo(tipo);
-
-    if (ultimo < 1) return; // este tipo todavía no tiene columnas para quitar
-
-    if (!confirmarEliminarColumna(tipo, ultimo)) return;
-
-    inputNumeroNota.value = Math.max(1, ultimo - 1);
-    await eliminarColumnaCasillaInterno(tipo, ultimo);
-});
 
 let cargaSalonEnCurso = false;
 
