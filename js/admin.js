@@ -220,38 +220,85 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        // Código interno único para vincular con notas antes del registro
-        const codigo = `EST-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        btnAgregarEstudiante.disabled = true;
+        const textoOriginalBoton = btnAgregarEstudiante.innerHTML;
+        btnAgregarEstudiante.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
 
-        const { error } = await supabase
-            .from("estudiantes")
-            .insert([{
-                codigo,
-                nombre,
-                cedula: cedula || null,
-                salon,
-                es_prueba: false
-            }]);
+        try {
+            // -------- 1) Verificar que la cédula no exista ya (si se dio una) --------
+            if (cedula) {
+                const { data: existente, error: errBuscar } = await supabase
+                    .from("estudiantes")
+                    .select("id")
+                    .eq("cedula", cedula)
+                    .maybeSingle();
 
-        if (error) {
-            console.error("❌ Error al agregar estudiante:", error);
-            mostrarMensajeEstudiantes(
-                error.code === "23505"
-                    ? "⚠️ Esa cédula ya está en uso por otro estudiante."
-                    : "❌ No se pudo agregar el estudiante.",
-                "danger"
-            );
-            return;
-        }
+                if (errBuscar) {
+                    throw new Error("No se pudo verificar la cédula: " + errBuscar.message);
+                }
+                if (existente) {
+                    mostrarMensajeEstudiantes("⚠️ Esa cédula ya está en uso por otro estudiante.", "warning");
+                    return;
+                }
+            }
 
-        mostrarMensajeEstudiantes(`✅ ${nombre} fue agregado(a) a ${salon}.`, "success");
-        nuevoEstNombre.value = "";
-        nuevoEstCedula.value = "";
-        nuevoEstSalonOtro.value = "";
+            // -------- 2) Calcular el siguiente código dentro de ese salón --------
+            // "codigo" es un número entero en la base de datos, así que no puede
+            // ser un texto tipo "EST-...". Se calcula como el siguiente número
+            // disponible dentro del salón (1, 2, 3...).
+            const { data: ultimoCodigo, error: errCodigo } = await supabase
+                .from("estudiantes")
+                .select("codigo")
+                .eq("salon", salon)
+                .order("codigo", { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-        // Si el salón filtrado coincide (o está en "Todos"), refresca la tabla
-        if (!estFiltroSalon.value || estFiltroSalon.value === salon) {
-            await cargarEstudiantesAdmin();
+            if (errCodigo) {
+                throw new Error("No se pudo calcular el código: " + errCodigo.message);
+            }
+
+            const siguienteCodigo = ultimoCodigo ? (Number(ultimoCodigo.codigo) + 1) : 1;
+
+            // -------- 3) Insertar el estudiante --------
+            const { error } = await supabase
+                .from("estudiantes")
+                .insert([{
+                    codigo: siguienteCodigo,
+                    nombre,
+                    cedula: cedula || null,
+                    salon,
+                    es_prueba: false
+                }]);
+
+            if (error) {
+                // 23505 = cédula o (salón, código) duplicado
+                if (error.code === "23505") {
+                    throw new Error("⚠️ Esa cédula ya está en uso, o hubo un choque de código. Intenta de nuevo.");
+                }
+                // 42501 = RLS bloqueó el insert (sin permiso)
+                if (error.code === "42501") {
+                    throw new Error("No tienes permiso para agregar estudiantes en este salón.");
+                }
+                throw new Error(error.message);
+            }
+
+            mostrarMensajeEstudiantes(`✅ ${nombre} fue agregado(a) a ${salon} con el código ${siguienteCodigo}.`, "success");
+            nuevoEstNombre.value = "";
+            nuevoEstCedula.value = "";
+            nuevoEstSalonOtro.value = "";
+
+            // Si el salón filtrado coincide (o está en "Todos"), refresca la tabla
+            if (!estFiltroSalon.value || estFiltroSalon.value === salon) {
+                await cargarEstudiantesAdmin();
+            }
+
+        } catch (err) {
+            console.error("❌ Error al agregar estudiante:", err);
+            mostrarMensajeEstudiantes(err.message || "❌ No se pudo agregar el estudiante.", "danger");
+        } finally {
+            btnAgregarEstudiante.disabled = false;
+            btnAgregarEstudiante.innerHTML = textoOriginalBoton;
         }
     });
 
@@ -1386,6 +1433,134 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     btnRecargarUsuarios.addEventListener("click", cargarUsuarios);
     btnRecargarNotas.addEventListener("click", cargarNotas);
+
+    // =================================================
+    // 6.5) GESTIONAR PROFESORES (salón + permiso para
+    // agregar estudiantes). Se guarda solo al cambiar
+    // cada campo, sin necesidad de un botón "Guardar".
+    // =================================================
+
+    const tablaProfesoresAdmin = document.getElementById("tablaProfesoresAdmin");
+    const mensajeProfesores = document.getElementById("mensajeProfesores");
+
+    const SALONES_DISPONIBLES = ["8A", "8B", "9A", "9B", "9C"];
+
+    function mostrarMensajeProfesores(texto, tipo) {
+        if (!mensajeProfesores) return;
+        mensajeProfesores.textContent = texto;
+        mensajeProfesores.className = `alert alert-${tipo}`;
+        mensajeProfesores.classList.remove("d-none");
+        setTimeout(() => mensajeProfesores.classList.add("d-none"), 3000);
+    }
+
+    function opcionesSalonProfesor(salonActualDelProfesor) {
+        const opciones = ["", ...SALONES_DISPONIBLES];
+        // Si el profesor ya tiene un salón que no está en la lista fija,
+        // se agrega igual para no perder el dato al mostrarlo.
+        if (salonActualDelProfesor && !opciones.includes(salonActualDelProfesor)) {
+            opciones.push(salonActualDelProfesor);
+        }
+        return opciones.map((s) => {
+            const seleccionado = s === (salonActualDelProfesor || "") ? "selected" : "";
+            const etiqueta = s === "" ? "-- Sin asignar --" : s;
+            return `<option value="${escapeHtmlAdmin(s)}" ${seleccionado}>${escapeHtmlAdmin(etiqueta)}</option>`;
+        }).join("");
+    }
+
+    async function cargarProfesoresAdmin() {
+        if (!tablaProfesoresAdmin) return;
+
+        tablaProfesoresAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando profesores...</td></tr>`;
+
+        const { data: profesores, error } = await supabase
+            .from("profesores")
+            .select("correo_profesor, nombre_profesor, salon, puede_agregar_estudiantes")
+            .order("nombre_profesor", { ascending: true });
+
+        if (error) {
+            console.error("❌ Error al cargar profesores:", error);
+            tablaProfesoresAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-3">No se pudieron cargar los profesores.</td></tr>`;
+            return;
+        }
+
+        if (!profesores || profesores.length === 0) {
+            tablaProfesoresAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Todavía no hay profesores registrados.</td></tr>`;
+            return;
+        }
+
+        tablaProfesoresAdmin.innerHTML = profesores.map((p) => `
+            <tr>
+                <td>${escapeHtmlAdmin(p.nombre_profesor || "(sin nombre)")}</td>
+                <td class="small">${escapeHtmlAdmin(p.correo_profesor || "-")}</td>
+                <td>
+                    <select class="form-select form-select-sm profesor-salon-select" data-correo="${escapeHtmlAdmin(p.correo_profesor)}">
+                        ${opcionesSalonProfesor(p.salon)}
+                    </select>
+                </td>
+                <td>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input profesor-permiso-switch" type="checkbox"
+                            role="switch"
+                            data-correo="${escapeHtmlAdmin(p.correo_profesor)}"
+                            ${p.puede_agregar_estudiantes ? "checked" : ""}>
+                    </div>
+                </td>
+            </tr>
+        `).join("");
+
+        // -------- Cambiar salón --------
+        tablaProfesoresAdmin.querySelectorAll(".profesor-salon-select").forEach((select) => {
+            select.addEventListener("change", async () => {
+                const correo = select.dataset.correo;
+                const nuevoSalon = select.value || null;
+
+                const { error: errUpdate } = await supabase
+                    .from("profesores")
+                    .update({ salon: nuevoSalon })
+                    .eq("correo_profesor", correo);
+
+                if (errUpdate) {
+                    console.error("❌ Error al actualizar salón del profesor:", errUpdate);
+                    mostrarMensajeProfesores("No se pudo guardar el salón: " + errUpdate.message, "danger");
+                    return;
+                }
+
+                mostrarMensajeProfesores(`Salón actualizado para ${correo}.`, "success");
+            });
+        });
+
+        // -------- Cambiar permiso de agregar estudiantes --------
+        tablaProfesoresAdmin.querySelectorAll(".profesor-permiso-switch").forEach((toggle) => {
+            toggle.addEventListener("change", async () => {
+                const correo = toggle.dataset.correo;
+                const nuevoValor = toggle.checked;
+
+                const { error: errUpdate } = await supabase
+                    .from("profesores")
+                    .update({ puede_agregar_estudiantes: nuevoValor })
+                    .eq("correo_profesor", correo);
+
+                if (errUpdate) {
+                    console.error("❌ Error al actualizar permiso del profesor:", errUpdate);
+                    mostrarMensajeProfesores("No se pudo guardar el permiso: " + errUpdate.message, "danger");
+                    // Revertir el switch visualmente si falló el guardado
+                    toggle.checked = !nuevoValor;
+                    return;
+                }
+
+                mostrarMensajeProfesores(
+                    nuevoValor
+                        ? `✅ ${correo} ahora puede agregar estudiantes.`
+                        : `${correo} ya no puede agregar estudiantes.`,
+                    "success"
+                );
+            });
+        });
+    }
+
+    // Se expone para que el script de navegación del menú (en admin.html)
+    // pueda cargar la tabla la primera vez que se abre esta sección.
+    window.cargarProfesoresAdmin = cargarProfesoresAdmin;
 
     // =================================================
     // 7) PREGUNTAS DE SEGURIDAD DE UN ESTUDIANTE
