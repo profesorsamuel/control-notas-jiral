@@ -114,6 +114,13 @@
                         <span class="small text-muted d-none d-md-block">Salón y permisos</span>
                     </button>
                 </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-warning w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-trimestres">
+                        <i class="fa-solid fa-calendar-days fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Trimestres</span>
+                        <span class="small text-muted d-none d-md-block">Fechas y trimestre activo</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -667,6 +674,85 @@
         </section>
         </div>
 
+        <!-- ===================== TRIMESTRES (fechas y trimestre activo) ===================== -->
+        <div id="panel-trimestres" class="panel-seccion d-none">
+        <section class="card shadow border-warning border-2 mb-4">
+            <div class="card-header bg-warning">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-calendar-days me-2" aria-hidden="true"></i>
+                    Trimestres — fechas y trimestre activo
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Definí la fecha de inicio y de fin de cada trimestre. El sistema calcula
+                    solo, según la fecha de hoy, cuál trimestre está activo para toda la
+                    escuela — ya no hace falta cambiarlo a mano desde el panel del docente.
+                </p>
+
+                <div id="mensajeTrimestres" class="alert d-none" role="alert"></div>
+
+                <div class="alert alert-light border d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+                    <span>
+                        <i class="fa-solid fa-circle-check text-success me-1"></i>
+                        <strong>Trimestre activo ahora mismo:</strong>
+                        <span id="trimestreActivoCalculado" class="fw-bold">—</span>
+                    </span>
+                    <span id="trimestreActivoDetalle" class="small text-muted"></span>
+                </div>
+
+                <div class="row g-4">
+
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <h3 class="h6 text-primary mb-3">
+                                <i class="fa-solid fa-1 me-1"></i> Trimestre 1
+                            </h3>
+                            <label for="t1Inicio" class="form-label small fw-semibold">Inicio</label>
+                            <input type="date" id="t1Inicio" class="form-control mb-2">
+                            <label for="t1Fin" class="form-label small fw-semibold">Fin</label>
+                            <input type="date" id="t1Fin" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <h3 class="h6 text-primary mb-3">
+                                <i class="fa-solid fa-2 me-1"></i> Trimestre 2
+                            </h3>
+                            <label for="t2Inicio" class="form-label small fw-semibold">Inicio</label>
+                            <input type="date" id="t2Inicio" class="form-control mb-2">
+                            <label for="t2Fin" class="form-label small fw-semibold">Fin</label>
+                            <input type="date" id="t2Fin" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <h3 class="h6 text-primary mb-3">
+                                <i class="fa-solid fa-3 me-1"></i> Trimestre 3
+                            </h3>
+                            <label for="t3Inicio" class="form-label small fw-semibold">Inicio</label>
+                            <input type="date" id="t3Inicio" class="form-control mb-2">
+                            <label for="t3Fin" class="form-label small fw-semibold">Fin</label>
+                            <input type="date" id="t3Fin" class="form-control">
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="d-flex align-items-center gap-3 mt-4">
+                    <button type="button" id="btnGuardarTrimestres" class="btn btn-warning">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Guardar fechas
+                    </button>
+                    <span id="estadoGuardadoTrimestres" class="small"></span>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
     </main>
 
     <!-- Bootstrap JS -->
@@ -699,6 +785,10 @@
 
                 if (idPanel === "panel-profesores" && typeof window.cargarProfesoresAdmin === "function") {
                     window.cargarProfesoresAdmin();
+                }
+
+                if (idPanel === "panel-trimestres" && typeof window.cargarConfigTrimestres === "function") {
+                    window.cargarConfigTrimestres();
                 }
             }
 
