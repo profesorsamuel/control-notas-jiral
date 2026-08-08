@@ -32,6 +32,9 @@ async function verificarSesion() {
 
     nombreProfesor = perfilProfesor?.nombre_profesor || correoProfesor;
 
+    const nodoNombreProfesor = document.getElementById("nombreProfesorTop");
+    if (nodoNombreProfesor) nodoNombreProfesor.textContent = nombreProfesor;
+
     const combinadas = [...(materias || []), ...(bloques || [])].filter((m) => m.materia && m.salon);
     const vistos = new Set();
     misMateriasSalones = combinadas.filter((m) => {
@@ -126,6 +129,7 @@ async function buscarHistorial() {
 
     if (cabecerasCache.length === 0) {
         estadoHistorial.textContent = "No hay asistencias que coincidan con estos filtros.";
+        document.getElementById("panelAlertas").style.display = "none";
         return;
     }
 
@@ -146,6 +150,8 @@ async function buscarHistorial() {
     cuerpoTablaHistorial.querySelectorAll(".btn-ver-detalle").forEach((btn) => {
         btn.addEventListener("click", () => abrirDetalle(btn.dataset.id));
     });
+
+    calcularAlertas(cabecerasCache);
 }
 
 filtroFecha.addEventListener("change", buscarHistorial);
@@ -158,6 +164,77 @@ btnLimpiarFiltros.addEventListener("click", () => {
     filtroMateria.value = "";
     buscarHistorial();
 });
+
+// =========================================================
+// ALERTAS: estudiantes con tardanzas frecuentes o ausencias sin justificar
+// (se recalcula sobre los mismos registros que se ven arriba, según filtros)
+// =========================================================
+
+const UMBRAL_TARDANZAS = 3;
+const UMBRAL_AUSENCIAS_SIN_EXCUSA = 3;
+
+async function calcularAlertas(cabeceras) {
+    const panelAlertas = document.getElementById("panelAlertas");
+    const metaAlertas = document.getElementById("metaAlertas");
+    const listaAlertas = document.getElementById("listaAlertas");
+    if (!panelAlertas) return;
+
+    if (!cabeceras || cabeceras.length === 0) {
+        panelAlertas.style.display = "none";
+        return;
+    }
+
+    const ids = cabeceras.map((c) => c.id);
+    const { data: detalles, error } = await supabase
+        .from("asistencia_detalle")
+        .select("estudiante_id, estado, justificacion")
+        .in("asistencia_id", ids);
+
+    if (error || !detalles || detalles.length === 0) {
+        panelAlertas.style.display = "none";
+        return;
+    }
+
+    const conteos = {}; // estudiante_id -> { tardanzas, ausenciasSinExcusa }
+    detalles.forEach((d) => {
+        if (!conteos[d.estudiante_id]) conteos[d.estudiante_id] = { tardanzas: 0, ausenciasSinExcusa: 0 };
+        if (d.estado === "tardanza") conteos[d.estudiante_id].tardanzas++;
+        if (d.estado === "ausente" && !d.justificacion) conteos[d.estudiante_id].ausenciasSinExcusa++;
+    });
+
+    const entradasAlerta = Object.entries(conteos)
+        .filter(([, c]) => c.tardanzas >= UMBRAL_TARDANZAS || c.ausenciasSinExcusa >= UMBRAL_AUSENCIAS_SIN_EXCUSA)
+        .sort((a, b) => (b[1].tardanzas + b[1].ausenciasSinExcusa) - (a[1].tardanzas + a[1].ausenciasSinExcusa));
+
+    if (entradasAlerta.length === 0) {
+        panelAlertas.style.display = "none";
+        return;
+    }
+
+    const { data: estudiantes } = await supabase
+        .from("estudiantes")
+        .select("id, nombre")
+        .in("id", entradasAlerta.map(([id]) => id));
+
+    const nombrePorId = Object.fromEntries((estudiantes || []).map((e) => [e.id, e.nombre]));
+
+    metaAlertas.textContent = `Según los ${cabeceras.length} registro(s) mostrados abajo · umbral: ${UMBRAL_TARDANZAS}+ tardanzas o ${UMBRAL_AUSENCIAS_SIN_EXCUSA}+ ausencias sin justificar`;
+
+    listaAlertas.innerHTML = entradasAlerta.map(([id, c]) => {
+        const badges = [];
+        if (c.tardanzas > 0) {
+            const fuerte = c.tardanzas >= UMBRAL_TARDANZAS ? " badge-fuerte" : "";
+            badges.push(`<span class="badge-alerta badge-tardanza${fuerte}">🕒 ${c.tardanzas} tardanza${c.tardanzas === 1 ? "" : "s"}</span>`);
+        }
+        if (c.ausenciasSinExcusa > 0) {
+            const fuerte = c.ausenciasSinExcusa >= UMBRAL_AUSENCIAS_SIN_EXCUSA ? " badge-fuerte" : "";
+            badges.push(`<span class="badge-alerta badge-ausencia${fuerte}">🚫 ${c.ausenciasSinExcusa} ausencia${c.ausenciasSinExcusa === 1 ? "" : "s"} sin justificar</span>`);
+        }
+        return `<li><span class="nombre-alerta">${escapeHtml(nombrePorId[id] || id)}</span><span class="badges-alerta">${badges.join("")}</span></li>`;
+    }).join("");
+
+    panelAlertas.style.display = "block";
+}
 
 // =========================================================
 // ABRIR EL DETALLE DE UNA ASISTENCIA
@@ -322,6 +399,81 @@ btnExportarExcel.addEventListener("click", async () => {
         alert("No se pudo generar el Excel. Revisa tu conexión e intenta de nuevo.");
     }
     opcionesExportar.style.display = "none";
+});
+
+// =========================================================
+// EXPORTAR PDF DEL TRIMESTRE COMPLETO
+// (todas las clases registradas por este profesor, sin filtrar por fecha)
+// =========================================================
+
+const btnExportarTrimestre = document.getElementById("btnExportarTrimestre");
+
+btnExportarTrimestre?.addEventListener("click", async () => {
+    const textoOriginal = btnExportarTrimestre.textContent;
+    btnExportarTrimestre.disabled = true;
+    btnExportarTrimestre.textContent = "Generando PDF...";
+
+    try {
+        let consulta = supabase
+            .from("asistencias")
+            .select("fecha, materia, salon, notas_profesor")
+            .eq("correo_profesor", correoProfesor)
+            .order("materia", { ascending: true })
+            .order("fecha", { ascending: true })
+            .limit(1000);
+
+        // Respeta los filtros de salón/materia activos, si el profesor ya filtró algo
+        if (filtroSalon.value) consulta = consulta.eq("salon", filtroSalon.value);
+        if (filtroMateria.value) consulta = consulta.eq("materia", filtroMateria.value);
+
+        const { data, error } = await consulta;
+
+        if (error) {
+            alert("❌ Error al generar el reporte: " + error.message);
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            alert("No hay registros de asistencia para generar el reporte.");
+            return;
+        }
+
+        const { jsPDF } = await import("https://esm.sh/jspdf@2.5.1");
+        await import("https://esm.sh/jspdf-autotable@3.8.2");
+
+        const doc = new jsPDF();
+        const fechaGeneracion = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
+
+        doc.setFontSize(15);
+        doc.text("Reporte de asistencia del trimestre", 14, 16);
+        doc.setFontSize(10);
+        doc.setTextColor(90);
+        doc.text(`Profesor: ${nombreProfesor}`, 14, 24);
+        doc.text(`Generado el: ${fechaGeneracion}`, 14, 29);
+        doc.setTextColor(0);
+
+        doc.autoTable({
+            head: [["Fecha", "Materia", "Salón", "Observaciones"]],
+            body: data.map((fila) => [
+                new Date(fila.fecha + "T00:00:00").toLocaleDateString("es-PA", { year: "numeric", month: "short", day: "numeric" }),
+                fila.materia,
+                fila.salon,
+                fila.notas_profesor || "—",
+            ]),
+            startY: 35,
+            styles: { fontSize: 8, cellPadding: 3 },
+            headStyles: { fillColor: [24, 40, 73] },
+            columnStyles: { 3: { cellWidth: 70 } },
+        });
+
+        doc.save(`asistencia_trimestre_${nombreProfesor}.pdf`.replace(/\s+/g, "_"));
+    } catch (err) {
+        console.error("❌ Error al exportar el trimestre:", err);
+        alert("No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo.");
+    } finally {
+        btnExportarTrimestre.disabled = false;
+        btnExportarTrimestre.textContent = textoOriginal;
+    }
 });
 
 // =========================================================
