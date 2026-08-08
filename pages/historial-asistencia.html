@@ -200,6 +200,8 @@
   .celda-vacia{ background:#eef1f6; color:#9aa4bb; border:1px dashed var(--rule); }
   .celda-sin-registrar{ border:1px dashed rgba(0,0,0,.35) !important; }
   .celda-suspendida{ background:#e4e6ec; color:#5c6478; font-size:10.5px; font-weight:600; }
+  .celda-bloqueada{ cursor:not-allowed; }
+  .celda-bloqueada:hover{ outline:none !important; }
   #tablaCuadricula th.th-suspendida{ background:#8a4b00; }
   .link-suspender{
     display:inline-block;
@@ -244,6 +246,12 @@
   #tablaCuadricula td.celda-clic{ cursor:pointer; user-select:none; }
   #tablaCuadricula td.celda-clic:hover{ outline:2px solid var(--gold); outline-offset:-2px; }
   #tablaCuadricula td.celda-guardando{ opacity:.5; }
+  .col-nota-cuadricula{
+    font-weight:700;
+    background:#fdf6e8 !important;
+    color:var(--gold) !important;
+  }
+  #tablaCuadricula thead th.col-nota-cuadricula{ background:var(--gold) !important; color:#fff !important; }
 
 
   /* ============ FILTROS ============ */
@@ -699,12 +707,16 @@
       <span class="celda-estado celda-ausente">A</span> Ausente ·
       <span class="celda-estado celda-tardanza">T</span> Tardanza ·
       <span class="celda-estado celda-permiso">Pe</span> Permiso ·
-      <span class="celda-estado celda-presente celda-sin-registrar">P</span> Sin registrar (Presente por defecto) ·
-      <span class="celda-estado celda-suspendida">Susp</span> Día suspendido (excepción de horario)
+      <span class="celda-estado celda-suspendida">Susp</span> Suspendida (también se puede elegir con clic, para un estudiante puntual) ·
+      <span class="celda-estado celda-presente celda-sin-registrar">P</span> Sin registrar (Presente por defecto)
     </p>
     <p class="leyenda-cuadricula" style="margin-top:-6px;">
-      🔔 junto a cada fecha = marcar/gestionar ese día como suspendido (abre la página de excepciones en una pestaña nueva).
+      🔔 junto a cada fecha = marcar/gestionar ese día ENTERO como suspendido (abre la página de excepciones en pestaña nueva).
+      Cuando el día completo está marcado así, esas celdas salen en
+      <span class="celda-estado celda-suspendida celda-bloqueada">Susp</span> bloqueadas (no responden al clic) — para corregir
+      una en particular, primero corrige/quita la excepción de ese día con el 🔔.
     </p>
+
 
     <div class="tabla-envoltura" id="envolturaCuadricula" style="overflow-x:auto; display:none;">
       <table id="tablaCuadricula">
