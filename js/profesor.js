@@ -158,7 +158,6 @@ const tablaNotasGrupo = document.getElementById("tablaNotasGrupo");
 const btnGuardarNotasGrupo = document.getElementById("btnGuardarNotasGrupo");
 const estadoGuardadoNotas = document.getElementById("estadoGuardadoNotas");
 const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
-const checkBloqueoEstudiantes = document.getElementById("checkBloqueoEstudiantes");
 const listaChecksColumnas = document.getElementById("listaChecksColumnas");
 const btnColumnasSeleccionarTodas = document.getElementById("btnColumnasSeleccionarTodas");
 const btnColumnasSeleccionarNinguna = document.getElementById("btnColumnasSeleccionarNinguna");
@@ -170,6 +169,41 @@ const btnEstudiantesSeleccionarNinguno = document.getElementById("btnEstudiantes
 const btnExportarPdf = document.getElementById("btnExportarPdf");
 const btnExportarJpg = document.getElementById("btnExportarJpg");
 
+// ---------------------------------------------------------------
+// "Chips" (botoncitos con gancho) para elegir Salón / Materia en vez
+// de un <select> tradicional: se ve toda la lista de una vez y se
+// elige tocando encima. Solo una opción activa a la vez (no es
+// selección múltiple); por debajo se sigue usando el <select> oculto
+// para no tener que tocar el resto de la lógica de la página.
+// ---------------------------------------------------------------
+function renderizarChips(select, contenedorId) {
+    const contenedor = document.getElementById(contenedorId);
+    if (!contenedor) return;
+
+    const opciones = Array.from(select.options).filter((o) => o.value !== "");
+
+    if (select.disabled || opciones.length === 0) {
+        const textoVacio = select.options[0]?.textContent || "";
+        contenedor.innerHTML = `<span class="small text-muted">${escapeHtml(textoVacio)}</span>`;
+        return;
+    }
+
+    contenedor.innerHTML = opciones.map((o) => {
+        const activa = o.value === select.value;
+        return `<button type="button" class="chip-opcion ${activa ? "chip-opcion-activa" : ""}" data-valor="${escapeHtml(o.value)}">
+            ${activa ? "✅" : "⬜"} ${escapeHtml(o.textContent)}
+        </button>`;
+    }).join("");
+
+    contenedor.querySelectorAll(".chip-opcion").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            if (select.value === btn.dataset.valor) return;
+            select.value = btn.dataset.valor;
+            select.dispatchEvent(new Event("change"));
+        });
+    });
+}
+
 function poblarSelectSalon() {
     const salones = [...new Set(misAsignaciones.map((a) => a.salon))].sort();
 
@@ -177,6 +211,7 @@ function poblarSelectSalon() {
         selectSalonNota.innerHTML = `<option value="">No tienes salones asignados</option>`;
         selectSalonNota.disabled = true;
         avisoSinAsignaciones.style.display = "block";
+        renderizarChips(selectSalonNota, "chipsSalonNota");
         return;
     }
 
@@ -185,6 +220,7 @@ function poblarSelectSalon() {
         `<option value="">Seleccione un salón</option>` +
         salones.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
     selectSalonNota.disabled = false;
+    renderizarChips(selectSalonNota, "chipsSalonNota");
 }
 
 function poblarSelectMateria() {
@@ -193,6 +229,7 @@ function poblarSelectMateria() {
     if (!salon) {
         selectMateriaNota.innerHTML = `<option value="">Seleccione primero un salón</option>`;
         selectMateriaNota.disabled = true;
+        renderizarChips(selectMateriaNota, "chipsMateriaNota");
         return;
     }
 
@@ -209,6 +246,7 @@ function poblarSelectMateria() {
         selectMateriaNota.innerHTML =
             `<option value="${escapeHtml(materias[0])}" selected>${escapeHtml(materias[0])}</option>`;
         selectMateriaNota.disabled = false;
+        renderizarChips(selectMateriaNota, "chipsMateriaNota");
         cargarSalon();
         return;
     }
@@ -217,14 +255,19 @@ function poblarSelectMateria() {
         `<option value="">Seleccione una materia</option>` +
         materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
     selectMateriaNota.disabled = false;
+    renderizarChips(selectMateriaNota, "chipsMateriaNota");
 }
 
-selectSalonNota?.addEventListener("change", poblarSelectMateria);
+selectSalonNota?.addEventListener("change", () => {
+    renderizarChips(selectSalonNota, "chipsSalonNota");
+    poblarSelectMateria();
+});
 
 // Si hay varias materias en el salón elegido, el/la docente las elige a
 // mano; en cuanto elige una, cargamos el salón solos (ya no hace falta
 // un botón "Cargar salón").
 selectMateriaNota?.addEventListener("change", () => {
+    renderizarChips(selectMateriaNota, "chipsMateriaNota");
     if (selectSalonNota.value && selectMateriaNota.value) cargarSalon();
 });
 
@@ -499,6 +542,48 @@ btnPapelera?.addEventListener("click", () => {
     if (abrir) cargarPapelera();
 });
 
+// A cuánto tiene que cambiar el promedio entre la primera mitad y la
+// segunda mitad de las notas de un estudiante para considerarse que
+// "mejoró" o "bajó su rendimiento" (y no solo una variación normal).
+const UMBRAL_TENDENCIA = 0.4;
+
+// Compara la primera mitad de las notas del estudiante (en el orden de
+// casillasTabla, que va de la casilla más vieja a la más nueva de cada
+// Tipo) contra la segunda mitad, para saber si viene mejorando o
+// bajando. Devuelve "mejoro", "bajo" o "estable"; null si no hay
+// suficientes notas todavía para comparar.
+function calcularTendenciaEstudiante(historial, valoresEnPantalla) {
+    const valores = [];
+    casillasTabla.forEach((c) => {
+        const clave = claveCasilla(c.tipo, c.numero);
+        let valorStr;
+        if (clave in valoresEnPantalla) {
+            valorStr = valoresEnPantalla[clave];
+        } else {
+            const n = historial[clave];
+            valorStr = (n && n.nota !== null && n.nota !== undefined) ? String(n.nota) : "";
+        }
+        if (valorStr === "") return;
+        const num = parseFloat(valorStr);
+        if (!isNaN(num)) valores.push(num);
+    });
+
+    if (valores.length < 2) return null;
+
+    const mitad = Math.ceil(valores.length / 2);
+    const primeraParte = valores.slice(0, mitad);
+    const segundaParte = valores.slice(mitad);
+    if (segundaParte.length === 0) return null;
+
+    const promPrimera = primeraParte.reduce((a, b) => a + b, 0) / primeraParte.length;
+    const promSegunda = segundaParte.reduce((a, b) => a + b, 0) / segundaParte.length;
+    const diferencia = promSegunda - promPrimera;
+
+    if (diferencia >= UMBRAL_TENDENCIA) return "mejoro";
+    if (diferencia <= -UMBRAL_TENDENCIA) return "bajo";
+    return "estable";
+}
+
 function recalcularPromedios() {
     // Los promedios se calculan usando TODAS las casillas que existen
     // (casillasTabla), no solo las que están visibles en pantalla en
@@ -559,8 +644,29 @@ function recalcularPromedios() {
         pintar(cExa, promExa);
         pintar(cFinal, promFinal);
 
+        // Resaltado del estudiante: "en peligro" (nota final por debajo de
+        // 3.0) manda sobre todo lo demás; si no está en peligro, se marca
+        // si viene mejorando o bajando su rendimiento comparando la
+        // primera mitad de sus notas contra la segunda mitad.
         const enRiesgoFinal = promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR;
+        const tendencia = enRiesgoFinal ? null : calcularTendenciaEstudiante(historial, valoresEnPantalla);
+
         tr.classList.toggle("table-danger", enRiesgoFinal);
+        tr.classList.toggle("fila-mejora", tendencia === "mejoro");
+        tr.classList.toggle("fila-bajada", tendencia === "bajo");
+
+        const badge = tr.querySelector(".badge-tendencia");
+        if (badge) {
+            if (enRiesgoFinal) {
+                badge.innerHTML = ' <span class="badge bg-danger">⚠️ En peligro</span>';
+            } else if (tendencia === "mejoro") {
+                badge.innerHTML = ' <span class="badge bg-success">📈 Mejoró</span>';
+            } else if (tendencia === "bajo") {
+                badge.innerHTML = ' <span class="badge bg-warning text-dark">📉 Bajó</span>';
+            } else {
+                badge.innerHTML = "";
+            }
+        }
     });
 }
 
@@ -578,6 +684,10 @@ const CLAVE_PROM_APREC = "__prom_aprec__";
 const CLAVE_PROM_EJER = "__prom_ejer__";
 const CLAVE_PROM_EXAMEN = "__prom_examen__";
 const CLAVE_PROM_FINAL = "__prom_final__";
+// Columna fija "#" (el número de fila): también se puede ocultar desde el
+// mismo panel de checkboxes, igual que cualquier otra columna.
+const CLAVE_COL_NUMERO = "__col_numero__";
+const COLUMNA_NUMERO_SELECCIONABLE = { clave: CLAVE_COL_NUMERO, etiqueta: "# (número)" };
 const PROMEDIOS_SELECCIONABLES = [
     { clave: CLAVE_PROM_APREC, etiqueta: "Prom. Aprec." },
     { clave: CLAVE_PROM_EJER, etiqueta: "Prom. Ejer." },
@@ -592,7 +702,7 @@ function renderizarListaChecksColumnas() {
         clave: claveCasilla(c.tipo, c.numero),
         etiqueta: etiquetaCasilla(c.tipo, c.numero),
     }));
-    const todosLosItems = [...itemsCasillas, ...PROMEDIOS_SELECCIONABLES];
+    const todosLosItems = [COLUMNA_NUMERO_SELECCIONABLE, ...itemsCasillas, ...PROMEDIOS_SELECCIONABLES];
 
     listaChecksColumnas.innerHTML = todosLosItems.map(({ clave, etiqueta }) => {
         const marcado = !columnasOcultas.has(clave);
@@ -622,6 +732,7 @@ btnColumnasSeleccionarTodas?.addEventListener("click", () => {
 btnColumnasSeleccionarNinguna?.addEventListener("click", () => {
     casillasTabla.forEach((c) => columnasOcultas.add(claveCasilla(c.tipo, c.numero)));
     PROMEDIOS_SELECCIONABLES.forEach((p) => columnasOcultas.add(p.clave));
+    columnasOcultas.add(CLAVE_COL_NUMERO);
     renderizarListaChecksColumnas();
     renderTabla();
 });
@@ -678,8 +789,14 @@ btnEstudiantesSeleccionarNinguno?.addEventListener("click", () => {
 });
 
 function renderTabla() {
+    const mostrarColNumero = !columnasOcultas.has(CLAVE_COL_NUMERO);
+    // Cuando la columna "#" está oculta, la columna "Estudiante" pasa a
+    // ocupar su lugar pegada al borde izquierdo (en vez de dejar el hueco).
+    const styleColNombre = mostrarColNumero ? "" : ` style="left:0;"`;
+    const thColNumero = mostrarColNumero ? `<th class="col-fija col-fija-num">#</th>` : "";
+
     if (grupoActual.length === 0) {
-        cabeceraNotasGrupo.innerHTML = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
+        cabeceraNotasGrupo.innerHTML = `${thColNumero}<th class="col-fija col-fija-nombre"${styleColNombre}>Estudiante</th>`;
         cabeceraTemasGrupo.innerHTML = "";
         tablaNotasGrupo.innerHTML = `<tr><td colspan="2" class="text-center text-muted py-3">Este salón aún no tiene estudiantes cargados.</td></tr>`;
         return;
@@ -727,7 +844,7 @@ function renderTabla() {
     let contadorColNota = 0;
     const indicesColumna = columnasConBoton.map((c) => c.esBotonAgregar ? null : contadorColNota++);
 
-    let htmlCabecera = `<th class="col-fija col-fija-num">#</th><th class="col-fija col-fija-nombre">Estudiante</th>`;
+    let htmlCabecera = `${thColNumero}<th class="col-fija col-fija-nombre"${styleColNombre}>Estudiante</th>`;
     columnasConBoton.forEach((c) => {
         if (c.esBotonAgregar) {
             htmlCabecera += `
@@ -749,7 +866,7 @@ function renderTabla() {
     if (mostrarPromFinal) htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
     cabeceraNotasGrupo.innerHTML = htmlCabecera;
 
-    let htmlTemas = `<th class="col-fija col-fija-num"></th><th class="col-fija col-fija-nombre small text-muted fw-normal">Tema de cada casilla:</th>`;
+    let htmlTemas = `${mostrarColNumero ? `<th class="col-fija col-fija-num"></th>` : ""}<th class="col-fija col-fija-nombre small text-muted fw-normal"${styleColNombre}>Tema de cada casilla:</th>`;
     columnasConBoton.forEach((c) => {
         if (c.esBotonAgregar) {
             htmlTemas += `<th></th>`;
@@ -795,8 +912,8 @@ function renderTabla() {
 
         return `
             <tr class="${sinCuenta ? "table-warning" : ""}" data-clave-estudiante="${escapeHtml(claveEstudiante(est))}">
-                <td class="col-fija col-fija-num">${i + 1}</td>
-                <td class="col-fija col-fija-nombre">${escapeHtml(est.nombre)}${sinCuenta ? ' <span class="badge bg-warning text-dark">Sin cuenta</span>' : ""}</td>
+                ${mostrarColNumero ? `<td class="col-fija col-fija-num">${i + 1}</td>` : ""}
+                <td class="col-fija col-fija-nombre"${styleColNombre}>${escapeHtml(est.nombre)}${sinCuenta ? ' <span class="badge bg-warning text-dark">Sin cuenta</span>' : ""}<span class="badge-tendencia"></span></td>
                 ${columnas}
                 ${mostrarPromApr ? `<td class="celda-prom-apr text-center fw-bold">–</td>` : ""}
                 ${mostrarPromEje ? `<td class="celda-prom-eje text-center fw-bold">–</td>` : ""}
@@ -866,10 +983,11 @@ function renderTabla() {
 // Si el docente cambia cuál casilla está editando (Tipo / Número),
 // volvemos a dibujar la tabla al instante con los datos que ya están en
 // memoria (sin tener que volver a presionar "Cargar salón").
+// El número de casilla ya no lo escribe el docente: cada vez que
+// cambia el Tipo, se calcula solo como "la siguiente casilla libre"
+// de ese Tipo (misma lógica que usa el botón "➕").
 selectTipoNota?.addEventListener("change", () => {
-    if (grupoActual.length > 0) renderTabla();
-});
-inputNumeroNota?.addEventListener("input", () => {
+    if (inputNumeroNota) inputNumeroNota.value = String(obtenerUltimoNumeroTipo(selectTipoNota.value) + 1);
     if (grupoActual.length > 0) renderTabla();
 });
 
@@ -966,14 +1084,25 @@ async function cargarSalon() {
         return { tipo: c.slice(0, sep), numero: parseInt(c.slice(sep + 1), 10) };
     });
     ordenarCasillas(casillasTabla);
+    if (inputNumeroNota) inputNumeroNota.value = String(obtenerUltimoNumeroTipo(tipo) + 1);
 
     const { data: filaAsignacion } = await supabase
         .from("profesor_materias")
         .select("bloqueado_para_estudiantes")
         .eq("correo_profesor", correoProfesor).eq("materia", materia).eq("salon", salon)
         .maybeSingle();
-    bloqueoActual = !!filaAsignacion?.bloqueado_para_estudiantes;
-    if (checkBloqueoEstudiantes) checkBloqueoEstudiantes.checked = bloqueoActual;
+    // Los estudiantes nunca deben poder agregar/editar notas: si esta
+    // materia/salón todavía no está marcada como bloqueada en la base
+    // de datos, la bloqueamos ahora mismo de forma automática y
+    // silenciosa (ya no depende de que el docente marque una casilla).
+    bloqueoActual = true;
+    if (!filaAsignacion?.bloqueado_para_estudiantes) {
+        supabase
+            .from("profesor_materias")
+            .update({ bloqueado_para_estudiantes: true })
+            .eq("correo_profesor", correoProfesor).eq("materia", materia).eq("salon", salon)
+            .then(({ error }) => { if (error) console.error("No se pudo bloquear automáticamente:", error); });
+    }
 
     renderTabla();
     bloqueTablaNotas.style.display = "block";
@@ -1203,31 +1332,6 @@ async function enviarRespaldoPorCorreo() {
     }
 }
 
-checkBloqueoEstudiantes?.addEventListener("change", async () => {
-    const salon = selectSalonNota.value;
-    const materia = selectMateriaNota.value;
-    if (!salon || !materia) return;
-
-    bloqueoActual = checkBloqueoEstudiantes.checked;
-    const { error } = await supabase
-        .from("profesor_materias")
-        .update({ bloqueado_para_estudiantes: bloqueoActual })
-        .eq("correo_profesor", correoProfesor).eq("materia", materia).eq("salon", salon);
-
-    if (error) {
-        estadoGuardadoNotas.textContent = "❌ No se pudo guardar el candado: " + error.message;
-        estadoGuardadoNotas.className = "small text-danger";
-        checkBloqueoEstudiantes.checked = !bloqueoActual;
-        bloqueoActual = !bloqueoActual;
-        return;
-    }
-
-    estadoGuardadoNotas.textContent = bloqueoActual
-        ? "🔒 Los estudiantes ya no pueden agregar notas en esta materia/salón."
-        : "🔓 Los estudiantes pueden volver a agregar notas donde no haya nota tuya.";
-    estadoGuardadoNotas.className = "small text-success";
-});
-
 // Auto-guardado real: cada celda se guarda sola al salir de ella (blur)
 // o al presionar Enter, sin necesidad de un botón "Guardar". Guardamos
 // la promesa en curso para que, si el docente cambia de salón/materia/
@@ -1366,6 +1470,9 @@ async function cargarTrimestreActivo() {
     if (trimestreCalculado && selectTrimestreNota) {
         selectTrimestreNota.value = trimestreCalculado;
     }
+
+    const textoTrimestre = document.getElementById("textoTrimestreActivo");
+    if (textoTrimestre) textoTrimestre.textContent = trimestreCalculado || "Sin definir";
 }
 
 // =========================================================
