@@ -1307,40 +1307,47 @@ function renderizarTablaHistorial(notas) {
 }
 
 // =========================================================
-// 6) TRIMESTRE ACTIVO (funcionalidad que ya existía)
+// 6) TRIMESTRE ACTIVO (calculado solo, según fechas configuradas
+//    por el admin — el docente ya NO puede cambiarlo a mano)
 // =========================================================
 
-const selectTrimestre = document.getElementById("selectTrimestre");
-const btnGuardarTrimestre = document.getElementById("btnGuardarTrimestre");
-const estadoTrimestre = document.getElementById("estadoTrimestre");
+// Misma lógica que en admin.js: compara la fecha de hoy contra los
+// 3 rangos configurados y devuelve cuál trimestre corresponde, o
+// null si hoy cae en un hueco (ej. receso entre trimestres).
+function calcularTrimestreActivo(fechas) {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const rangos = [
+        { nombre: "Trimestre 1", inicio: fechas.t1_inicio, fin: fechas.t1_fin },
+        { nombre: "Trimestre 2", inicio: fechas.t2_inicio, fin: fechas.t2_fin },
+        { nombre: "Trimestre 3", inicio: fechas.t3_inicio, fin: fechas.t3_fin }
+    ];
 
-async function cargarTrimestreActivo() {
-    const { data, error } = await supabase.from("configuracion").select("trimestre_activo").eq("id", 1).single();
-    if (error) { console.error(error); return; }
-    if (data) {
-        selectTrimestre.value = data.trimestre_activo;
-        if (selectTrimestreNota) selectTrimestreNota.value = data.trimestre_activo;
+    for (const rango of rangos) {
+        if (!rango.inicio || !rango.fin) continue;
+        if (hoy >= rango.inicio && hoy <= rango.fin) return rango.nombre;
     }
+    return null;
 }
 
-btnGuardarTrimestre?.addEventListener("click", async () => {
-    const trimestreSeleccionado = selectTrimestre.value;
-    btnGuardarTrimestre.disabled = true;
-    estadoTrimestre.style.color = "#198754";
-    estadoTrimestre.textContent = "Guardando...";
+async function cargarTrimestreActivo() {
+    const { data, error } = await supabase
+        .from("configuracion")
+        .select("t1_inicio, t1_fin, t2_inicio, t2_fin, t3_inicio, t3_fin, trimestre_activo")
+        .eq("id", 1)
+        .single();
 
-    const { error } = await supabase.from("configuracion").update({ trimestre_activo: trimestreSeleccionado }).eq("id", 1);
-    btnGuardarTrimestre.disabled = false;
+    if (error) { console.error(error); return; }
+    if (!data) return;
 
-    if (error) {
-        estadoTrimestre.style.color = "#dc3545";
-        estadoTrimestre.textContent = "❌ Error al guardar";
-    } else {
-        estadoTrimestre.style.color = "#198754";
-        estadoTrimestre.textContent = "✅ Guardado";
+    // Se calcula localmente a partir de las fechas; si por lo que sea
+    // hoy no cae en ningún rango (fechas sin configurar, o receso),
+    // se usa como respaldo el último trimestre_activo guardado.
+    const trimestreCalculado = calcularTrimestreActivo(data) || data.trimestre_activo;
+
+    if (trimestreCalculado && selectTrimestreNota) {
+        selectTrimestreNota.value = trimestreCalculado;
     }
-    setTimeout(() => { estadoTrimestre.textContent = ""; }, 2000);
-});
+}
 
 // =========================================================
 // EXPORTAR REPORTE (PDF y JPG) — membrete, notas malas en rojo, firma
