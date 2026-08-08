@@ -147,6 +147,7 @@ function alCambiarSalones() {
     actualizarTextoBoton(botonSalon, salonesSeleccionados, "Todos los salones", "salones");
     poblarMateriasSegunSalon();
     buscarHistorial();
+    if (document.getElementById("panelCuadricula")?.style.display !== "none") cargarCuadricula();
 }
 
 // El profesor puede dar la misma materia en varios salones, pero con contenidos
@@ -170,6 +171,7 @@ function alCambiarMaterias() {
     materiasSeleccionadas = leerCasillasMarcadas(panelMateria);
     actualizarTextoBoton(botonMateria, materiasSeleccionadas, "Todas las materias", "materias");
     buscarHistorial();
+    if (document.getElementById("panelCuadricula")?.style.display !== "none") cargarCuadricula();
 }
 
 // Abrir/cerrar los paneles desplegables
@@ -684,6 +686,313 @@ btnExportarTrimestre?.addEventListener("click", async () => {
         btnExportarTrimestre.disabled = false;
         btnExportarTrimestre.textContent = textoOriginal;
     }
+});
+
+// =========================================================
+// CUADRÍCULA DEL TRIMESTRE: estudiantes (filas) x fechas (columnas)
+// =========================================================
+// Muestra TODA la asistencia de una materia/salón en una sola tabla,
+// con una fecha por columna (solo los días de la semana en que esa
+// clase tiene horario, para no llenar de columnas vacías de fin de
+// semana ni de días que no le tocan). Cada celda se puede corregir
+// con un clic, sin salir de la cuadrícula.
+
+const btnVerCuadricula = document.getElementById("btnVerCuadricula");
+const btnCerrarCuadricula = document.getElementById("btnCerrarCuadricula");
+const panelCuadricula = document.getElementById("panelCuadricula");
+const avisoCuadricula = document.getElementById("avisoCuadricula");
+const subtituloCuadricula = document.getElementById("subtituloCuadricula");
+const envolturaCuadricula = document.getElementById("envolturaCuadricula");
+const cabezaCuadricula = document.getElementById("cabezaCuadricula");
+const cuerpoCuadricula = document.getElementById("cuerpoCuadricula");
+
+const DIAS_SEMANA_CUAD = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+
+function quitarAcentosCuad(texto) {
+    return String(texto ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+const CICLO_ESTADOS_CUAD = ["presente", "ausente", "tardanza", "permiso"];
+const ETIQUETAS_CORTAS_CUAD = { presente: "P", ausente: "A", tardanza: "T", permiso: "Pe" };
+
+// Fechas ISO (ascendente) entre desde/hasta cuyo día de la semana esté
+// en diasPermitidos (Set de strings sin acentos, ej. {"lunes","miercoles"}).
+// Si diasPermitidos viene vacío, se usa de lunes a viernes por defecto.
+function generarFechasCuadricula(desdeISO, hastaISO, diasPermitidos) {
+    const permitidos = diasPermitidos && diasPermitidos.size > 0
+        ? diasPermitidos
+        : new Set(["lunes", "martes", "miercoles", "jueves", "viernes"]);
+
+    const fechas = [];
+    const cursor = new Date(desdeISO + "T00:00:00");
+    const limite = new Date(hastaISO + "T00:00:00");
+
+    while (cursor <= limite && fechas.length < 200) {
+        const diaTexto = DIAS_SEMANA_CUAD[cursor.getDay()];
+        if (permitidos.has(diaTexto)) {
+            const y = cursor.getFullYear();
+            const m = String(cursor.getMonth() + 1).padStart(2, "0");
+            const d = String(cursor.getDate()).padStart(2, "0");
+            fechas.push(`${y}-${m}-${d}`);
+        }
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return fechas;
+}
+
+// asistencia_id por fecha (para no volver a hacer upsert de la
+// cabecera si ya se creó al hacer clic en otra celda de esa columna).
+let cabeceraIdPorFechaCuad = {};
+
+async function averiguarDiasDeClase(materia, salon) {
+    const [{ data: filasViejas }, { data: filasHorario }] = await Promise.all([
+        supabase.from("profesor_materias").select("dia").eq("correo_profesor", correoProfesor).eq("materia", materia).eq("salon", salon),
+        supabase.from("horario_profesor").select("dia").eq("correo_profesor", correoProfesor).eq("materia", materia).eq("salon", salon).eq("tipo", "clase"),
+    ]);
+
+    const dias = new Set();
+    [...(filasViejas || []), ...(filasHorario || [])].forEach((f) => {
+        const dia = quitarAcentosCuad((f.dia || "").trim().toLowerCase());
+        if (dia) dias.add(dia);
+    });
+    return dias;
+}
+
+async function cargarCuadricula() {
+    avisoCuadricula.className = "aviso-cuadricula";
+    envolturaCuadricula.style.display = "none";
+    cabezaCuadricula.innerHTML = "";
+    cuerpoCuadricula.innerHTML = "";
+    cabeceraIdPorFechaCuad = {};
+
+    if (materiasSeleccionadas.length !== 1 || salonesSeleccionados.length !== 1) {
+        avisoCuadricula.textContent = "⬆️ Arriba en los filtros, elige exactamente UNA materia y UN salón para ver su cuadrícula del trimestre.";
+        avisoCuadricula.classList.add("error");
+        return;
+    }
+
+    const materia = materiasSeleccionadas[0];
+    const salon = salonesSeleccionados[0];
+
+    // Si no hay rango de fechas puesto en los filtros, usa por defecto
+    // los últimos ~90 días (aprox. un trimestre) hasta hoy.
+    if (!filtroFechaHasta.value) filtroFechaHasta.value = obtenerFechaHoyISOCuad();
+    if (!filtroFechaDesde.value) {
+        const hace90 = new Date();
+        hace90.setDate(hace90.getDate() - 90);
+        filtroFechaDesde.value = hace90.toISOString().slice(0, 10);
+    }
+    const desde = filtroFechaDesde.value;
+    const hasta = filtroFechaHasta.value;
+
+    avisoCuadricula.textContent = "Cargando cuadrícula...";
+
+    const diasDeClase = await averiguarDiasDeClase(materia, salon);
+    const fechas = generarFechasCuadricula(desde, hasta, diasDeClase);
+
+    if (fechas.length === 0) {
+        avisoCuadricula.textContent = "No hay días de clase de esta materia/salón en el rango de fechas elegido.";
+        avisoCuadricula.classList.add("error");
+        return;
+    }
+
+    const { data: estudiantes, error: errEstudiantes } = await supabase
+        .from("estudiantes")
+        .select("id, nombre")
+        .eq("salon", salon)
+        .order("nombre", { ascending: true });
+
+    if (errEstudiantes) {
+        avisoCuadricula.textContent = "❌ Error al cargar estudiantes: " + errEstudiantes.message;
+        avisoCuadricula.classList.add("error");
+        return;
+    }
+
+    if (!estudiantes || estudiantes.length === 0) {
+        avisoCuadricula.textContent = "Ese salón todavía no tiene estudiantes registrados.";
+        avisoCuadricula.classList.add("error");
+        return;
+    }
+
+    const { data: cabeceras, error: errCabeceras } = await supabase
+        .from("asistencias")
+        .select("id, fecha")
+        .eq("correo_profesor", correoProfesor)
+        .eq("materia", materia)
+        .eq("salon", salon)
+        .gte("fecha", desde)
+        .lte("fecha", hasta);
+
+    if (errCabeceras) {
+        avisoCuadricula.textContent = "❌ Error al cargar asistencias: " + errCabeceras.message;
+        avisoCuadricula.classList.add("error");
+        return;
+    }
+
+    (cabeceras || []).forEach((c) => { cabeceraIdPorFechaCuad[c.fecha] = c.id; });
+
+    const idsCabeceras = (cabeceras || []).map((c) => c.id);
+    let detalles = [];
+    if (idsCabeceras.length > 0) {
+        const { data: filasDetalle, error: errDetalle } = await supabase
+            .from("asistencia_detalle")
+            .select("asistencia_id, estudiante_id, estado")
+            .in("asistencia_id", idsCabeceras);
+        if (errDetalle) {
+            avisoCuadricula.textContent = "❌ Error al cargar el detalle: " + errDetalle.message;
+            avisoCuadricula.classList.add("error");
+            return;
+        }
+        detalles = filasDetalle || [];
+    }
+
+    const idAFecha = Object.fromEntries((cabeceras || []).map((c) => [c.id, c.fecha]));
+    const estadoPorEstudianteFecha = {}; // "estudianteId|||fecha" -> estado
+    detalles.forEach((d) => {
+        const fecha = idAFecha[d.asistencia_id];
+        if (fecha) estadoPorEstudianteFecha[`${d.estudiante_id}|||${fecha}`] = d.estado;
+    });
+
+    // --- Pintar encabezado, agrupado por semana (como tu hoja de cálculo) ---
+    const LETRA_DIA = { lunes: "L", martes: "M", miercoles: "M", jueves: "J", viernes: "V", sabado: "S", domingo: "D" };
+
+    // Lunes de la semana de cada fecha, para agrupar columnas de la misma semana.
+    function lunesDeLaSemana(fechaISO) {
+        const d = new Date(fechaISO + "T00:00:00");
+        const diaSemana = d.getDay(); // 0=domingo..6=sabado
+        const desplazamiento = diaSemana === 0 ? -6 : 1 - diaSemana; // retrocede hasta el lunes
+        d.setDate(d.getDate() + desplazamiento);
+        return d.toISOString().slice(0, 10);
+    }
+
+    const gruposSemana = []; // [{ inicio, fechas: [...] }]
+    fechas.forEach((f) => {
+        const inicio = lunesDeLaSemana(f);
+        let grupo = gruposSemana[gruposSemana.length - 1];
+        if (!grupo || grupo.inicio !== inicio) {
+            grupo = { inicio, fechas: [] };
+            gruposSemana.push(grupo);
+        }
+        grupo.fechas.push(f);
+    });
+
+    const filaSemanas = gruposSemana.map((g, i) =>
+        `<th colspan="${g.fechas.length}">SEMANA ${i + 1}</th>`
+    ).join("");
+
+    const filaDias = fechas.map((f) => {
+        const d = new Date(f + "T00:00:00");
+        const dia = DIAS_SEMANA_CUAD[d.getDay()];
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `<th title="${f}">${LETRA_DIA[dia] || "?"}<br>${dd}</th>`;
+    }).join("");
+
+    cabezaCuadricula.innerHTML = `
+        <tr>
+            <th class="col-estudiante-cuadricula" rowspan="2">Estudiante</th>
+            ${filaSemanas}
+        </tr>
+        <tr>${filaDias}</tr>
+    `;
+
+    // --- Pintar filas de estudiantes ---
+    cuerpoCuadricula.innerHTML = estudiantes.map((est) => `
+        <tr>
+            <td class="col-estudiante-cuadricula">${escapeHtml(est.nombre)}</td>
+            ${fechas.map((f) => {
+                const estado = estadoPorEstudianteFecha[`${est.id}|||${f}`] || "";
+                const clase = estado ? `celda-${estado}` : "celda-vacia";
+                const texto = estado ? ETIQUETAS_CORTAS_CUAD[estado] : "—";
+                return `<td class="celda-clic ${clase}" data-estudiante="${est.id}" data-fecha="${f}" data-estado="${estado}">${texto}</td>`;
+            }).join("")}
+        </tr>
+    `).join("");
+
+    envolturaCuadricula.style.display = "block";
+    subtituloCuadricula.textContent = `${materia} — ${salon} · ${estudiantes.length} estudiante(s) · ${fechas.length} día(s) de clase, del ${desde} al ${hasta}.`;
+    avisoCuadricula.textContent = "";
+
+    cuerpoCuadricula.querySelectorAll("td.celda-clic").forEach((celda) => {
+        celda.addEventListener("click", () => alHacerClicCelda(celda, materia, salon));
+    });
+}
+
+function obtenerFechaHoyISOCuad() {
+    const hoy = new Date();
+    const y = hoy.getFullYear();
+    const m = String(hoy.getMonth() + 1).padStart(2, "0");
+    const d = String(hoy.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+}
+
+async function alHacerClicCelda(celda, materia, salon) {
+    const estudianteId = celda.dataset.estudiante;
+    const fecha = celda.dataset.fecha;
+    const estadoActual = celda.dataset.estado;
+
+    const indiceActual = CICLO_ESTADOS_CUAD.indexOf(estadoActual);
+    const nuevoEstado = CICLO_ESTADOS_CUAD[(indiceActual + 1) % CICLO_ESTADOS_CUAD.length];
+
+    const estadoAnterior = estadoActual;
+    const textoAnterior = celda.textContent;
+    const claseAnterior = celda.className;
+
+    // Cambio optimista en pantalla mientras se guarda.
+    celda.className = `celda-clic celda-guardando celda-${nuevoEstado}`;
+    celda.textContent = ETIQUETAS_CORTAS_CUAD[nuevoEstado];
+
+    try {
+        let asistenciaId = cabeceraIdPorFechaCuad[fecha];
+
+        if (!asistenciaId) {
+            const { data: cabecera, error: errCabecera } = await supabase
+                .from("asistencias")
+                .upsert(
+                    { correo_profesor: correoProfesor, materia, salon, fecha },
+                    { onConflict: "materia,salon,fecha" }
+                )
+                .select("id")
+                .single();
+            if (errCabecera) throw errCabecera;
+            asistenciaId = cabecera.id;
+            cabeceraIdPorFechaCuad[fecha] = asistenciaId;
+        }
+
+        const { error: errDetalle } = await supabase
+            .from("asistencia_detalle")
+            .upsert(
+                { asistencia_id: asistenciaId, estudiante_id: estudianteId, estado: nuevoEstado },
+                { onConflict: "asistencia_id,estudiante_id" }
+            );
+        if (errDetalle) throw errDetalle;
+
+        celda.dataset.estado = nuevoEstado;
+        celda.className = `celda-clic celda-${nuevoEstado}`;
+    } catch (error) {
+        console.error("❌ Error al guardar la celda:", error);
+        celda.dataset.estado = estadoAnterior;
+        celda.className = claseAnterior;
+        celda.textContent = textoAnterior;
+        alert("No se pudo guardar ese cambio. Revisa tu conexión e intenta de nuevo.");
+    }
+}
+
+btnVerCuadricula?.addEventListener("click", async () => {
+    panelCuadricula.style.display = "block";
+    panelCuadricula.scrollIntoView({ behavior: "smooth" });
+    await cargarCuadricula();
+});
+
+btnCerrarCuadricula?.addEventListener("click", () => {
+    panelCuadricula.style.display = "none";
+});
+
+// Si la cuadrícula está abierta y el profesor cambia los filtros
+// (fechas, materia o salón), la recarga automáticamente.
+[filtroFechaDesde, filtroFechaHasta].forEach((input) => {
+    input.addEventListener("change", () => {
+        if (panelCuadricula.style.display !== "none") cargarCuadricula();
+    });
 });
 
 // =========================================================
