@@ -55,14 +55,15 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 6px 12px;
+            padding: 6px 14px;
             border-radius: 20px;
-            border: 1px solid #cfcabb;
+            border: 1px solid var(--color-borde);
             background: #ffffff;
             color: var(--color-texto);
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
+            transition: border-color .15s ease, background-color .15s ease;
         }
 
         .chip-opcion:hover { border-color: var(--color-primario); }
@@ -73,20 +74,21 @@
             color: var(--color-primario-oscuro);
         }
 
-        /* ============ Paleta propia (verde pizarra + dorado) ============
-           En vez del azul marino genérico de Bootstrap: un verde pizarra
-           profundo como color principal (evoca el salón de clases, sin
-           ser negro-azulado plano) y un dorado cálido como color de
-           acción, sobre un fondo crema tipo cuaderno. */
+        /* ============ Paleta propia (índigo + ámbar, moderna) ============
+           Antes: verde pizarra + dorado sobre fondo crema. Ahora: índigo
+           como color principal (más actual, tipo apps de escritorio/SaaS),
+           ámbar como color de acción/acento, sobre un fondo gris frío
+           suave en vez del crema tipo cuaderno. */
         :root {
-            --color-fondo: #faf6ee;
+            --color-fondo: #f1f5f9;
             --color-panel: #ffffff;
-            --color-primario: #2f6f62;
-            --color-primario-oscuro: #234f45;
-            --color-primario-claro: #e3efec;
-            --color-acento: #cf8b2c;
-            --color-acento-oscuro: #a86f1f;
-            --color-texto: #2c2620;
+            --color-primario: #4f46e5;
+            --color-primario-oscuro: #3730a3;
+            --color-primario-claro: #eef2ff;
+            --color-acento: #f59e0b;
+            --color-acento-oscuro: #b45309;
+            --color-texto: #1e293b;
+            --color-borde: #e2e8f0;
         }
 
         body {
@@ -111,10 +113,10 @@
             gap: 16px;
             background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
             color: #ffffff;
-            border-radius: 14px;
+            border-radius: 18px;
             padding: 22px 26px;
             margin-bottom: 22px;
-            box-shadow: 0 4px 14px rgba(35, 79, 69, .25);
+            box-shadow: 0 8px 24px rgba(67, 56, 202, .28);
         }
 
         .docente-header-identidad {
@@ -149,7 +151,7 @@
             font-weight: 700;
             letter-spacing: 1.5px;
             text-transform: uppercase;
-            color: #e9c988;
+            color: #c7d2fe;
             margin: 0 0 2px;
         }
 
@@ -165,7 +167,7 @@
 
         .docente-header-resumen {
             font-size: 13px;
-            color: #dfeae6;
+            color: #e0e7ff;
             margin-top: 4px;
         }
 
@@ -186,7 +188,7 @@
             color: #fff;
             text-decoration: none;
             padding: 8px 16px;
-            border-radius: 5px;
+            border-radius: 10px;
             font-size: 14px;
             font-weight: bold;
             border: none;
@@ -194,6 +196,7 @@
             align-items: center;
             gap: 6px;
             white-space: nowrap;
+            transition: background-color .15s ease;
         }
 
         .btn-header-accion:hover { background: var(--color-acento-oscuro); color: #fff; }
@@ -204,15 +207,15 @@
         }
 
         table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #ddd4c4; padding: 8px; text-align: center; }
+        th, td { border: 1px solid var(--color-borde); padding: 8px; text-align: center; }
         th { background: var(--color-primario); color: white; font-family: 'Inter', Arial, sans-serif; }
 
         .resumen, .panel-blanco {
             background: white;
             padding: 15px 20px;
-            border-radius: 10px;
+            border-radius: 16px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 20px rgba(15, 23, 42, .06);
         }
 
         .form-notas-fila {
@@ -226,8 +229,8 @@
         .form-notas-fila label { font-size: 13px; font-weight: bold; color: var(--color-primario); }
         .form-notas-fila select, .form-notas-fila input {
             padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            border: 1px solid var(--color-borde);
+            border-radius: 8px;
             font-size: 14px;
         }
 
@@ -236,7 +239,7 @@
             background: var(--color-acento);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
             height: 38px;
@@ -244,28 +247,62 @@
 
         #btnGuardarNotasGrupo { background: var(--color-primario); margin-top: 15px; }
 
-        /* Paleta pastel: fondos suaves con letra oscura, y las casillas
-           de nota siempre en blanco para que se lean bien encima. */
+        /* Botones de exportar (PDF / JPG): píldoras con degradado propio,
+           en vez de los botones planos "outline" de Bootstrap, con un
+           pequeño efecto de elevación al pasar el mouse. */
+        .botonera-exportar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-exportar {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, .14);
+            transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+        }
+
+        .btn-exportar:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(15, 23, 42, .2); }
+        .btn-exportar:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(15, 23, 42, .14); }
+        .btn-exportar:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .btn-exportar-icono { font-size: 16px; line-height: 1; }
+
+        .btn-exportar-pdf { background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); }
+        .btn-exportar-jpg { background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); }
+
+        /* Paleta pastel moderna (tonos índigo/ámbar/rojo/violeta), con
+           fondos suaves y letra oscura; las casillas de nota siempre en
+           blanco para que se lean bien encima. */
         .table-danger, tr.table-danger > td, tr.table-danger > th {
-            background-color: #fbe2e2 !important;
-            color: #7a2e2e !important;
+            background-color: #fee2e2 !important;
+            color: #991b1b !important;
         }
         .table-warning, tr.table-warning > td, tr.table-warning > th {
-            background-color: #fdf3d6 !important;
-            color: #6b5100 !important;
+            background-color: #fef3c7 !important;
+            color: #92400e !important;
         }
         .table-success, td.table-success {
             background-color: var(--color-primario-claro) !important;
             color: var(--color-primario-oscuro) !important;
         }
-        .text-danger { color: #c0575a !important; }
-        .badge.bg-warning { background-color: #fdf3d6 !important; color: #6b5100 !important; }
+        .text-danger { color: #dc2626 !important; }
+        .badge.bg-warning { background-color: #fef3c7 !important; color: #92400e !important; }
 
         /* Columna actualmente seleccionada en el formulario de arriba:
-           antes era el azul genérico de Bootstrap (table-primary), ahora
-           usa el dorado de acento para que combine con el resto. */
-        .table-primary, th.table-primary { background-color: #f7e6c4 !important; }
-        .text-primary { color: var(--color-acento-oscuro) !important; }
+           un violeta suave, distinto del índigo principal y del ámbar de
+           acento, para que se note sin confundirse con otros estados. */
+        .table-primary, th.table-primary { background-color: #ede9fe !important; }
+        .text-primary { color: #5b21b6 !important; }
 
         .input-nota-grupo, .input-tema-columna {
             background-color: #fff !important;
@@ -319,22 +356,23 @@
             box-shadow: 2px 0 4px rgba(0, 0, 0, .12);
         }
         thead .col-fija { background: var(--color-primario); color: #fff; z-index: 2; }
-        tr.table-warning td.col-fija { background-color: #fdf3d6; }
-        tr.table-danger td.col-fija { background-color: #fbe2e2; }
+        tr.table-warning td.col-fija { background-color: #fef3c7; }
+        tr.table-danger td.col-fija { background-color: #fee2e2; }
 
-        /* Resaltado de tendencia por estudiante: mejoró (verde), bajó
-           rendimiento (naranja). "En peligro" ya usa table-danger/rojo
+        /* Resaltado de tendencia por estudiante: mejoró (verde esmeralda),
+           bajó rendimiento (naranja). "En peligro" ya usa table-danger/rojo
            (nota final por debajo de 3.0) y tiene prioridad sobre estas dos. */
-        tr.fila-mejora { background-color: #e6f6ea; }
-        tr.fila-mejora td.col-fija { background-color: #d9f0e0; }
-        tr.fila-bajada { background-color: #fdeee0; }
-        tr.fila-bajada td.col-fija { background-color: #fbe2c8; }
+        tr.fila-mejora { background-color: #ecfdf5; }
+        tr.fila-mejora td.col-fija { background-color: #d1fae5; }
+        tr.fila-bajada { background-color: #fff7ed; }
+        tr.fila-bajada td.col-fija { background-color: #ffedd5; }
         .badge-tendencia .badge { font-size: 10px; font-weight: normal; vertical-align: middle; }
 
-        /* Bootstrap pinta ".text-muted" en gris oscuro, que sobre el verde
-           del encabezado casi no se ve. Lo aclaramos solo dentro de la tabla. */
-        #tablaScroll thead .text-muted { color: #cfe3dd !important; }
-        #tablaScroll thead .btn-eliminar-columna { color: #ffb199 !important; }
+        /* Bootstrap pinta ".text-muted" en gris oscuro, que sobre el
+           índigo del encabezado casi no se ve. Lo aclaramos solo dentro
+           de la tabla. */
+        #tablaScroll thead .text-muted { color: #c7d2fe !important; }
+        #tablaScroll thead .btn-eliminar-columna { color: #fecaca !important; }
 
         /* Celular: menos relleno alrededor y campos del formulario a todo
            el ancho, para que no quede tanto espacio vacío. */
@@ -351,8 +389,8 @@
         #buscarCorreo {
             width: 350px;
             padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            border: 1px solid var(--color-borde);
+            border-radius: 8px;
             margin-bottom: 20px;
             font-size: 14px;
         }
@@ -382,7 +420,7 @@
         <button type="button" id="btnPapelera" class="btn btn-outline-secondary btn-sm">🗑️ Papelera</button>
     </div>
 
-    <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc3545;">
+    <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc2626;">
         Todavía no tienes materias ni salones asignados. Pídele al administrador que te
         agregue en la pantalla de "Asignaciones de profesores".
     </div>
@@ -434,19 +472,13 @@
     <div id="bloqueTablaNotas" class="panel-blanco" style="display:none;">
         <div class="mb-2 small">
             <div style="font-weight:bold; color:var(--color-primario); margin-bottom:6px;">
-                🧩 Elegir columnas para ver (marca las que quieras, incluidos el # y los promedios):
+                🧩 Elegir columnas para ver
             </div>
             <div style="margin-bottom:6px;">
                 <button type="button" id="btnColumnasSeleccionarTodas" class="btn btn-link btn-sm p-0 me-3" style="text-decoration:none;">Seleccionar todas</button>
                 <button type="button" id="btnColumnasSeleccionarNinguna" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Ninguna</button>
             </div>
-            <div id="listaChecksColumnas" style="display:flex; flex-wrap:wrap; gap:10px; padding:10px; background:#f7f5ef; border-radius:6px;"></div>
-            <p style="font-size:11px; color:#888; margin:8px 0 0;">
-                Los promedios se calculan solos a partir de las casillas de nota; no se
-                escriben directamente ahí. Para meter una nota de Examen, elige "Examen" en
-                Tipo arriba, pon un número de casilla, y aparecerá aquí como una columna
-                más para marcar y escribir.
-            </p>
+            <div id="listaChecksColumnas" style="display:flex; flex-wrap:wrap; gap:10px; padding:10px; background:#f8fafc; border-radius:6px;"></div>
         </div>
         <div class="mb-2 small">
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
@@ -460,7 +492,7 @@
                     <button type="button" id="btnEstudiantesSeleccionarTodos" class="btn btn-link btn-sm p-0 me-3" style="text-decoration:none;">Seleccionar todos</button>
                     <button type="button" id="btnEstudiantesSeleccionarNinguno" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Ninguno</button>
                 </div>
-                <div id="listaChecksEstudiantes" style="display:flex; flex-wrap:wrap; gap:10px; padding:10px; background:#f7f5ef; border-radius:6px; max-height:220px; overflow-y:auto;"></div>
+                <div id="listaChecksEstudiantes" style="display:flex; flex-wrap:wrap; gap:10px; padding:10px; background:#f8fafc; border-radius:6px; max-height:220px; overflow-y:auto;"></div>
                 <p style="font-size:11px; color:#888; margin:8px 0 0;">
                     Esto solo afecta lo que ves en pantalla; el PDF y el JPG siempre salen con
                     todos los estudiantes, como un reporte formal.
@@ -483,16 +515,15 @@
         </div>
         <button type="button" id="btnGuardarNotasGrupo" style="display:none;">💾 Guardar notas</button>
         <span id="estadoGuardadoNotas" class="small" style="margin-left:0;"></span>
-        <p style="font-size:12px; color:#888; margin-top:8px;">
-            ✅ Cada nota se guarda sola apenas sales de la casilla (no hace falta presionar nada).
-            Escribe la casilla arriba (tipo + número) que quieras usar; el salón se carga solo al
-            elegir salón, materia o trimestre. Si la casilla ya existe se editará, si no, se crea al
-            escribir la primera nota. Puedes escribir un texto en "Tema de cada casilla" para
-            describir de qué se trata esa nota.
-        </p>
-        <div class="mt-2">
-            <button type="button" id="btnExportarPdf" class="btn btn-outline-primary btn-sm">📄 Descargar PDF</button>
-            <button type="button" id="btnExportarJpg" class="btn btn-outline-primary btn-sm">🖼️ Descargar JPG</button>
+        <div class="mt-3 botonera-exportar">
+            <button type="button" id="btnExportarPdf" class="btn-exportar btn-exportar-pdf">
+                <span class="btn-exportar-icono">📄</span>
+                <span class="btn-exportar-texto">Descargar PDF</span>
+            </button>
+            <button type="button" id="btnExportarJpg" class="btn-exportar btn-exportar-jpg">
+                <span class="btn-exportar-icono">🖼️</span>
+                <span class="btn-exportar-texto">Descargar JPG</span>
+            </button>
         </div>
     </div>
 
