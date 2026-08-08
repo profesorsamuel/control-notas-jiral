@@ -14,6 +14,15 @@ function escapeHtml(str) {
         .replace(/'/g, "&#39;");
 }
 
+// Fecha de HOY en formato ISO (YYYY-MM-DD), en hora local (no UTC).
+function obtenerFechaHoyISO() {
+    const hoy = new Date();
+    const y = hoy.getFullYear();
+    const m = String(hoy.getMonth() + 1).padStart(2, "0");
+    const d = String(hoy.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+}
+
 // =========================================================
 // 1) LEER MATERIA Y SALÓN DESDE LA URL
 // =========================================================
@@ -23,6 +32,20 @@ function escapeHtml(str) {
 const parametros = new URLSearchParams(window.location.search);
 const materiaSeleccionada = (parametros.get("materia") || "").trim();
 const salonSeleccionado = (parametros.get("salon") || "").trim();
+
+// Fecha para la que se está tomando/editando asistencia. Por defecto es
+// HOY, pero se puede pasar ?fecha=YYYY-MM-DD en la URL (o cambiarla con
+// el selector de fecha que se agrega en la vista de detalle) para
+// registrar asistencia de un día pasado que no se haya tomado todavía.
+// Nunca se permite una fecha futura.
+function normalizarFechaParam(valor) {
+    const v = (valor || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return obtenerFechaHoyISO();
+    return v > obtenerFechaHoyISO() ? obtenerFechaHoyISO() : v;
+}
+
+let fechaSeleccionada = normalizarFechaParam(parametros.get("fecha"));
+const esFechaHoy = () => fechaSeleccionada === obtenerFechaHoyISO();
 
 // =========================================================
 // 2) VERIFICAR SESIÓN Y QUE SEA PROFESOR DE ESE SALÓN/MATERIA
@@ -134,25 +157,96 @@ const avisoSinAcceso = document.getElementById("avisoSinAcceso");
 const cuerpoTablaEstudiantes = document.getElementById("cuerpoTablaEstudiantes");
 const estadoLista = document.getElementById("estadoLista");
 
-function pintarEncabezado() {
-    const fechaHoyTexto = new Date().toLocaleDateString("es-PA", {
+function formatearFechaLarga(fechaISO) {
+    return new Date(fechaISO + "T00:00:00").toLocaleDateString("es-PA", {
+        weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric"
     });
-    if (fechaActual) fechaActual.textContent = fechaHoyTexto;
-    if (nombreProfesorTexto) nombreProfesorTexto.textContent = nombreProfesor;
+}
 
+function pintarEncabezado() {
+    if (nombreProfesorTexto) nombreProfesorTexto.textContent = nombreProfesor;
     if (!fechaActual || !nombreProfesorTexto) {
         console.error("❌ Falta alguno de estos ids en el HTML: fechaActual, nombreProfesorTexto.");
     }
 
     if (esVistaDetalle) {
+        // En la vista de detalle, "Fecha" muestra la fecha que se está
+        // tomando/editando (fechaSeleccionada) y trae un selector para
+        // cambiarla a cualquier día pasado que no se haya registrado.
+        pintarSelectorFechaDetalle();
+
         if (materiaTexto) materiaTexto.textContent = materiaSeleccionada;
         if (salonTexto) salonTexto.textContent = salonSeleccionado;
         if (!materiaTexto || !salonTexto) {
             console.error("❌ Falta alguno de estos ids en el HTML: materiaTexto, salonTexto.");
         }
+    } else if (fechaActual) {
+        fechaActual.textContent = formatearFechaLarga(obtenerFechaHoyISO());
+    }
+}
+
+// =========================================================
+// 3.0.1) SELECTOR DE FECHA EN LA VISTA DE DETALLE
+// =========================================================
+// Permite cambiar la fecha para la que se está tomando asistencia sin
+// tener que volver al dashboard. Al cambiarla, recarga la página con
+// ?fecha=... para reutilizar toda la lógica de carga que ya existe.
+
+function irAFecha(nuevaFechaISO) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("materia", materiaSeleccionada);
+    url.searchParams.set("salon", salonSeleccionado);
+    url.searchParams.set("fecha", nuevaFechaISO);
+    window.location.href = url.toString();
+}
+
+function pintarSelectorFechaDetalle() {
+    if (!fechaActual) return;
+
+    const hoyISO = obtenerFechaHoyISO();
+    fechaActual.innerHTML = "";
+
+    const spanTexto = document.createElement("span");
+    spanTexto.textContent = formatearFechaLarga(fechaSeleccionada);
+    if (!esFechaHoy()) {
+        spanTexto.style.color = "#a86f1f";
+        spanTexto.style.fontWeight = "700";
+    }
+    fechaActual.appendChild(spanTexto);
+
+    const inputFecha = document.createElement("input");
+    inputFecha.type = "date";
+    inputFecha.id = "inputFechaAsistencia";
+    inputFecha.value = fechaSeleccionada;
+    inputFecha.max = hoyISO; // no se puede tomar asistencia de un día futuro
+    inputFecha.style.marginLeft = "10px";
+    inputFecha.style.padding = "4px 8px";
+    inputFecha.style.border = "1px solid #ccc";
+    inputFecha.style.borderRadius = "5px";
+    inputFecha.addEventListener("change", () => {
+        if (!inputFecha.value) return;
+        irAFecha(inputFecha.value);
+    });
+    fechaActual.appendChild(inputFecha);
+
+    if (!esFechaHoy()) {
+        const btnHoy = document.createElement("button");
+        btnHoy.type = "button";
+        btnHoy.textContent = "Volver a hoy";
+        btnHoy.className = "btn-tomar-asistencia";
+        btnHoy.style.marginLeft = "8px";
+        btnHoy.style.padding = "4px 10px";
+        btnHoy.style.fontSize = "12px";
+        btnHoy.addEventListener("click", () => irAFecha(hoyISO));
+        fechaActual.appendChild(btnHoy);
+
+        const avisoFecha = document.createElement("div");
+        avisoFecha.style.cssText = "margin-top:6px; font-size:13px; color:#a86f1f;";
+        avisoFecha.textContent = "⚠️ Estás viendo/editando un día distinto de hoy. Los cambios que guardes se aplican a esta fecha.";
+        fechaActual.parentElement?.appendChild(avisoFecha);
     }
 }
 
@@ -338,6 +432,7 @@ async function cargarClasesDeHoy() {
         if (avisoSinHorarioHoy) avisoSinHorarioHoy.style.display = "block";
         if (estadoCargaAsistencia) estadoCargaAsistencia.textContent = "";
         asegurarPanelHorarioSemanal();
+        asegurarPanelOtroDia(bloques);
         return;
     }
 
@@ -358,6 +453,71 @@ async function cargarClasesDeHoy() {
     if (estadoCargaAsistencia) estadoCargaAsistencia.textContent = `${clasesHoy.length} clase(s) hoy.`;
 
     asegurarPanelHorarioSemanal();
+    asegurarPanelOtroDia(bloques);
+}
+
+// =========================================================
+// 3.1.1) TOMAR/CORREGIR ASISTENCIA DE OTRO DÍA
+// =========================================================
+// "Clases de hoy" solo muestra las materias/salones que tocan HOY
+// según el horario. Para registrar un día que se pasó por alto (de
+// cualquier materia/salón, sea de hoy o no), este panel deja elegir
+// la materia+salón y la fecha, y abre la vista de detalle con
+// ?fecha=... ya seteado.
+
+function todasMisMateriaSalon(bloques) {
+    const combos = new Map();
+    materiasProfesor.forEach((m) => {
+        if (m.materia && m.salon) combos.set(`${m.materia}|||${m.salon}`, { materia: m.materia, salon: m.salon });
+    });
+    (bloques || []).forEach((b) => {
+        if (b.materia && b.salon) combos.set(`${b.materia}|||${b.salon}`, { materia: b.materia, salon: b.salon });
+    });
+    return [...combos.values()].sort((a, b) => a.materia.localeCompare(b.materia) || a.salon.localeCompare(b.salon));
+}
+
+function asegurarPanelOtroDia(bloques) {
+    const combos = todasMisMateriaSalon(bloques);
+    if (combos.length === 0) return;
+
+    let panel = document.getElementById("panelOtroDia");
+    if (panel) { panel.remove(); } // repintar por si cambiaron las materias
+
+    const contenedor = document.getElementById("listaClasesHoy")?.parentElement || document.body;
+    const ayer = new Date();
+    ayer.setDate(ayer.getDate() - 1);
+    const ayerISO = ayer.toISOString().slice(0, 10);
+
+    panel = document.createElement("div");
+    panel.id = "panelOtroDia";
+    panel.className = "panel-blanco";
+    panel.style.marginTop = "14px";
+    panel.innerHTML = `
+        <h2 style="margin-top:0;">🗓️ ¿Se te pasó tomar asistencia otro día?</h2>
+        <p style="font-size:14px; margin-bottom:10px;">
+            Elige la materia/salón y la fecha que quieres registrar o corregir.
+        </p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            <div>
+                <label style="display:block; font-size:12px; font-weight:600; color:var(--color-primario); margin-bottom:4px;">Materia / Salón</label>
+                <select id="selectComboOtroDia" style="padding:7px 10px; border:1px solid #ccc; border-radius:5px; min-width:220px;">
+                    ${combos.map((c) => `<option value="${escapeHtml(c.materia)}|||${escapeHtml(c.salon)}">${escapeHtml(c.materia)} — ${escapeHtml(c.salon)}</option>`).join("")}
+                </select>
+            </div>
+            <div>
+                <label style="display:block; font-size:12px; font-weight:600; color:var(--color-primario); margin-bottom:4px;">Fecha</label>
+                <input type="date" id="inputFechaOtroDia" value="${ayerISO}" max="${obtenerFechaHoyISO()}" style="padding:6px 10px; border:1px solid #ccc; border-radius:5px;">
+            </div>
+            <button type="button" id="btnIrOtroDia" class="btn-tomar-asistencia">✅ Ir a tomar/corregir asistencia</button>
+        </div>
+    `;
+    contenedor.appendChild(panel);
+
+    document.getElementById("btnIrOtroDia").addEventListener("click", () => {
+        const [materia, salon] = document.getElementById("selectComboOtroDia").value.split("|||");
+        const fecha = document.getElementById("inputFechaOtroDia").value || ayerISO;
+        window.location.href = `asistencia.html?materia=${encodeURIComponent(materia)}&salon=${encodeURIComponent(salon)}&fecha=${encodeURIComponent(fecha)}`;
+    });
 }
 
 // =========================================================
@@ -690,21 +850,13 @@ function programarGuardadoAutomatico() {
 
 const BUCKET_ADJUNTOS = "asistencia-adjuntos"; // ⚠️ crear este bucket en Supabase Storage
 
-function obtenerFechaHoyISO() {
-    const hoy = new Date();
-    const y = hoy.getFullYear();
-    const m = String(hoy.getMonth() + 1).padStart(2, "0");
-    const d = String(hoy.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-}
-
 // Sube el adjunto (si el profesor eligió uno) y devuelve su URL pública.
 // Si no hay archivo nuevo, devuelve null (no se toca lo que hubiera antes).
 async function subirAdjuntoSiHay(inputArchivo, estudianteId) {
     const archivo = inputArchivo?.files?.[0];
     if (!archivo) return null;
 
-    const rutaArchivo = `${salonSeleccionado}/${obtenerFechaHoyISO()}/${estudianteId}-${Date.now()}-${archivo.name}`;
+    const rutaArchivo = `${salonSeleccionado}/${fechaSeleccionada}/${estudianteId}-${Date.now()}-${archivo.name}`;
 
     const { error: errSubida } = await supabase
         .storage
@@ -724,7 +876,10 @@ async function subirAdjuntoSiHay(inputArchivo, estudianteId) {
     return urlPublica?.publicUrl || null;
 }
 
-async function guardarAsistencia({ silencioso = false } = {}) {
+// fechaObjetivo: por defecto guarda en la fecha que se está viendo
+// (fechaSeleccionada). El relleno de varios días (ver sección 9) llama
+// a esta misma función pasando cada fecha elegida, una por una.
+async function guardarAsistencia({ silencioso = false, fechaObjetivo = fechaSeleccionada } = {}) {
     const btnGuardar = document.getElementById("btnGuardarAsistencia");
     const estadoGuardado = document.getElementById("estadoGuardado");
 
@@ -745,7 +900,7 @@ async function guardarAsistencia({ silencioso = false } = {}) {
                     correo_profesor: correoProfesor,
                     materia: materiaSeleccionada,
                     salon: salonSeleccionado,
-                    fecha: obtenerFechaHoyISO(),
+                    fecha: fechaObjetivo,
                     notas_profesor: inputNotas?.value?.trim() || null,
                 },
                 { onConflict: "materia,salon,fecha" }
@@ -770,7 +925,12 @@ async function guardarAsistencia({ silencioso = false } = {}) {
             const inputJustificacion = filaDetalle?.querySelector(".input-justificacion");
             const inputAdjunto = filaDetalle?.querySelector(".input-adjunto");
 
-            const adjuntoUrl = await subirAdjuntoSiHay(inputAdjunto, estudianteId);
+            // Al rellenar varios días a la vez no se vuelven a subir
+            // adjuntos (se subirían N veces, uno por fecha); esos se
+            // suben aparte, entrando normalmente a cada día.
+            const adjuntoUrl = fechaObjetivo === fechaSeleccionada
+                ? await subirAdjuntoSiHay(inputAdjunto, estudianteId)
+                : null;
 
             // Valores de las columnas dinámicas para este estudiante.
             const valoresExtra = {};
@@ -801,18 +961,24 @@ async function guardarAsistencia({ silencioso = false } = {}) {
 
         if (errDetalle) throw errDetalle;
 
+        const etiquetaFecha = fechaObjetivo === obtenerFechaHoyISO() ? "" : ` (${fechaObjetivo})`;
         if (estadoGuardado) {
             estadoGuardado.textContent = silencioso
-                ? `✅ Guardado automáticamente (${detalles.length} estudiante(s)).`
-                : `✅ Asistencia guardada (${detalles.length} estudiante(s)).`;
+                ? `✅ Guardado automáticamente (${detalles.length} estudiante(s))${etiquetaFecha}.`
+                : `✅ Asistencia guardada (${detalles.length} estudiante(s))${etiquetaFecha}.`;
         }
 
-        // Las ausencias/tardanzas de hoy recién se guardaron: recalcular alertas.
-        detectarAlertas();
+        // Las ausencias/tardanzas recién guardadas pueden afectar las
+        // alertas, pero solo tiene sentido recalcularlas para la fecha
+        // que se está viendo en pantalla.
+        if (fechaObjetivo === fechaSeleccionada) detectarAlertas();
+
+        return true;
     } catch (error) {
         console.error("❌ Error al guardar asistencia:", error);
         if (estadoGuardado) estadoGuardado.textContent = "❌ Error al guardar. Intenta de nuevo.";
         if (!silencioso) alert("Ocurrió un error al guardar la asistencia. Intenta de nuevo.");
+        return false;
     } finally {
         if (btnGuardar) {
             btnGuardar.disabled = false;
@@ -865,7 +1031,7 @@ async function copiarAsistenciaDiaAnterior() {
             .select("id, fecha")
             .eq("materia", materiaSeleccionada)
             .eq("salon", salonSeleccionado)
-            .lt("fecha", obtenerFechaHoyISO())
+            .lt("fecha", fechaSeleccionada)
             .order("fecha", { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -1175,7 +1341,7 @@ async function exportarPDF() {
         doc.setFontSize(14);
         doc.text(`Asistencia — ${materiaSeleccionada} / ${salonSeleccionado}`, 14, 15);
         doc.setFontSize(10);
-        doc.text(`Fecha: ${obtenerFechaHoyISO()}   Profesor: ${nombreProfesor}`, 14, 22);
+        doc.text(`Fecha: ${fechaSeleccionada}   Profesor: ${nombreProfesor}`, 14, 22);
 
         doc.autoTable({
             head: [encabezados],
@@ -1184,7 +1350,7 @@ async function exportarPDF() {
             styles: { fontSize: 8 },
         });
 
-        doc.save(`asistencia_${materiaSeleccionada}_${salonSeleccionado}_${obtenerFechaHoyISO()}.pdf`);
+        doc.save(`asistencia_${materiaSeleccionada}_${salonSeleccionado}_${fechaSeleccionada}.pdf`);
     } catch (error) {
         console.error("❌ Error al exportar PDF:", error);
         alert("No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo.");
@@ -1200,7 +1366,7 @@ async function exportarExcel() {
         const libro = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(libro, hoja, "Asistencia");
 
-        XLSX.writeFile(libro, `asistencia_${materiaSeleccionada}_${salonSeleccionado}_${obtenerFechaHoyISO()}.xlsx`);
+        XLSX.writeFile(libro, `asistencia_${materiaSeleccionada}_${salonSeleccionado}_${fechaSeleccionada}.xlsx`);
     } catch (error) {
         console.error("❌ Error al exportar Excel:", error);
         alert("No se pudo generar el Excel. Revisa tu conexión e intenta de nuevo.");
@@ -1224,15 +1390,17 @@ function asegurarBotonesExportar() {
     document.getElementById("btnExportarExcel").addEventListener("click", exportarExcel);
 }
 
-// Precarga en la tabla lo que ya se hubiera guardado HOY (notas,
-// estados, columnas dinámicas), por si el profesor recarga la página.
+// Precarga en la tabla lo que ya se hubiera guardado para la fecha
+// seleccionada (notas, estados, columnas dinámicas). Así, si el
+// profesor entra a un día pasado que ya tiene asistencia tomada, ve
+// lo guardado en vez de una tabla en blanco (y puede corregirla).
 async function precargarValoresGuardadosHoy() {
     const { data: cabeceraHoy } = await supabase
         .from("asistencias")
         .select("id, notas_profesor")
         .eq("materia", materiaSeleccionada)
         .eq("salon", salonSeleccionado)
-        .eq("fecha", obtenerFechaHoyISO())
+        .eq("fecha", fechaSeleccionada)
         .maybeSingle();
 
     if (!cabeceraHoy) return;
@@ -1303,6 +1471,107 @@ function asegurarBotonGuardar() {
 }
 
 // =========================================================
+// 9) RELLENAR VARIOS DÍAS A LA VEZ
+// =========================================================
+// Marca esta misma tabla (los estados/observaciones que se ven ahora
+// en pantalla para ${materiaSeleccionada} / ${salonSeleccionado}) y la
+// guarda en VARIAS fechas elegidas de una vez. Pensado para ponerse al
+// día cuando quedaron varias clases sin asistencia registrada (por
+// ejemplo, todos presentes salvo alguna falta puntual que se anota
+// aparte en cada fecha si hace falta).
+
+let contadorFilasMultiFecha = 0;
+
+function crearFilaSelectorFecha(valorInicial) {
+    contadorFilasMultiFecha += 1;
+    const idFila = `filaMultiFecha-${contadorFilasMultiFecha}`;
+    const fila = document.createElement("div");
+    fila.id = idFila;
+    fila.style.cssText = "display:flex; align-items:center; gap:8px; margin-bottom:6px;";
+    fila.innerHTML = `
+        <input type="date" class="input-multi-fecha" value="${escapeHtml(valorInicial || "")}" max="${obtenerFechaHoyISO()}"
+            style="padding:6px 10px; border:1px solid #ccc; border-radius:5px;">
+        <button type="button" class="btn-quitar-multi-fecha" title="Quitar" style="border:none; background:none; color:#a83232; font-size:16px; cursor:pointer;">✖</button>
+    `;
+    fila.querySelector(".btn-quitar-multi-fecha").addEventListener("click", () => fila.remove());
+    return fila;
+}
+
+function asegurarPanelMultiFecha() {
+    if (document.getElementById("panelMultiFecha")) return;
+
+    const contenedor = document.getElementById("panelTabla") || document.body;
+
+    const panel = document.createElement("div");
+    panel.id = "panelMultiFecha";
+    panel.style.cssText = "margin-top:20px; padding-top:16px; border-top:1px solid #eee;";
+    panel.innerHTML = `
+        <label style="display:block; font-weight:600; color:var(--color-primario); margin-bottom:6px;">
+            🗓️ Aplicar esta asistencia también a otros días
+        </label>
+        <div class="small text-muted" style="margin-bottom:8px;">
+            Usa esto para ponerte al día con varias clases que quedaron sin registrar: guarda lo que marcaste arriba
+            (mismos estados, observaciones y justificaciones) en cada una de las fechas que agregues aquí, además de
+            en ${escapeHtml(fechaSeleccionada)}.
+        </div>
+        <div id="listaFilasMultiFecha"></div>
+        <button type="button" id="btnAgregarFechaMulti" class="btn-tomar-asistencia" style="background:var(--color-primario-claro); color:var(--color-primario); margin-top:4px;">
+            ➕ Agregar otra fecha
+        </button>
+        <div style="margin-top:10px;">
+            <button type="button" id="btnGuardarMultiFecha" class="btn-tomar-asistencia" style="background:var(--color-acento);">
+                💾 Guardar en todas las fechas seleccionadas
+            </button>
+            <span id="estadoMultiFecha" style="margin-left:10px; font-size:13px;"></span>
+        </div>
+    `;
+    contenedor.appendChild(panel);
+
+    const listaFilas = document.getElementById("listaFilasMultiFecha");
+    listaFilas.appendChild(crearFilaSelectorFecha());
+
+    document.getElementById("btnAgregarFechaMulti").addEventListener("click", () => {
+        listaFilas.appendChild(crearFilaSelectorFecha());
+    });
+
+    document.getElementById("btnGuardarMultiFecha").addEventListener("click", guardarEnVariasFechas);
+}
+
+async function guardarEnVariasFechas() {
+    const estadoMultiFecha = document.getElementById("estadoMultiFecha");
+    const btn = document.getElementById("btnGuardarMultiFecha");
+
+    const fechasElegidas = [...document.querySelectorAll(".input-multi-fecha")]
+        .map((i) => i.value)
+        .filter(Boolean);
+
+    const fechasUnicas = [...new Set(fechasElegidas)].filter((f) => f !== fechaSeleccionada);
+
+    if (fechasUnicas.length === 0) {
+        if (estadoMultiFecha) estadoMultiFecha.textContent = "Agrega al menos una fecha distinta a la de arriba.";
+        return;
+    }
+
+    btn.disabled = true;
+    let exitosas = 0;
+
+    for (const fecha of fechasUnicas) {
+        if (estadoMultiFecha) estadoMultiFecha.textContent = `Guardando ${fecha}...`;
+        // silencioso: true evita que cada guardado muestre su propio
+        // alert/estado individual; se reporta un resumen al final.
+        const ok = await guardarAsistencia({ silencioso: true, fechaObjetivo: fecha });
+        if (ok) exitosas += 1;
+    }
+
+    btn.disabled = false;
+    if (estadoMultiFecha) {
+        estadoMultiFecha.textContent = exitosas === fechasUnicas.length
+            ? `✅ Guardado en ${exitosas} fecha(s): ${fechasUnicas.join(", ")}.`
+            : `⚠️ Se guardó en ${exitosas} de ${fechasUnicas.length} fecha(s). Revisa la consola para más detalle.`;
+    }
+}
+
+// =========================================================
 // INICIO
 // =========================================================
 
@@ -1328,5 +1597,6 @@ function asegurarBotonGuardar() {
     await cargarEstudiantes();
 
     asegurarBotonGuardar();
-    document.getElementById("btnGuardarAsistencia").addEventListener("click", guardarAsistencia);
+    document.getElementById("btnGuardarAsistencia").addEventListener("click", () => guardarAsistencia());
+    asegurarPanelMultiFecha();
 })();
