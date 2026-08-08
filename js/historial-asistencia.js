@@ -716,22 +716,30 @@ const ETIQUETAS_CORTAS_CUAD = { presente: "P", ausente: "A", tardanza: "T", perm
 // =========================================================
 // NOTA DE ASISTENCIA (columna final de la cuadrícula)
 // =========================================================
-// Empieza en NOTA_MAXIMA y se resta por cada ausencia/tardanza. Presente,
-// Permiso y días sin registrar (el "P" por defecto) no restan. Los días
-// suspendidos (columna completa o celda individual) no cuentan para nada.
-// Ajusta estos 3 números si cambia el criterio de calificación.
-const NOTA_MAXIMA = 5;
-const PUNTOS_POR_AUSENCIA = 1;
-const PUNTOS_POR_TARDANZA = 0.5;
+// Método de PROMEDIO: cada día cuenta unos puntos según el estado
+// (Presente/Permiso = PUNTOS_PRESENTE, Ausente/Tardanza = PUNTOS_AUSENTE),
+// se suman los puntos de todos los días que cuentan y se divide entre esa
+// cantidad de días. Los días suspendidos (columna completa o celda
+// individual) se EXCLUYEN por completo: no suman puntos ni cuentan en el
+// total de días. Ajusta estos 2 números si cambia el criterio.
+const PUNTOS_PRESENTE = 5;
+const PUNTOS_AUSENTE = 1;
 
 function calcularNotaAsistencia(estadosDelEstudiante) {
-    let nota = NOTA_MAXIMA;
+    let sumaPuntos = 0;
+    let diasContados = 0;
     estadosDelEstudiante.forEach((estado) => {
-        if (estado === "ausente") nota -= PUNTOS_POR_AUSENCIA;
-        else if (estado === "tardanza") nota -= PUNTOS_POR_TARDANZA;
-        // presente, permiso, suspendida (o sin registrar) no restan.
+        if (estado === "presente" || estado === "permiso") {
+            sumaPuntos += PUNTOS_PRESENTE;
+            diasContados += 1;
+        } else if (estado === "ausente" || estado === "tardanza") {
+            sumaPuntos += PUNTOS_AUSENTE;
+            diasContados += 1;
+        }
+        // suspendida (o cualquier otro estado) no suma ni cuenta.
     });
-    return Math.max(0, Math.round(nota * 10) / 10);
+    if (diasContados === 0) return 0;
+    return Math.round((sumaPuntos / diasContados) * 100) / 100;
 }
 
 // Fechas ISO (ascendente) entre desde/hasta cuyo día de la semana esté
