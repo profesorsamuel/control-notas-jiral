@@ -898,14 +898,20 @@ async function cargarCuadricula() {
     `;
 
     // --- Pintar filas de estudiantes ---
+    // Si un día no tiene asistencia registrada todavía, se muestra como
+    // "Presente" por defecto (más rápido de revisar), pero sigue siendo
+    // editable con un clic igual que cualquier otra celda; el borde
+    // punteado avisa que es un valor por defecto, no uno guardado.
     cuerpoCuadricula.innerHTML = estudiantes.map((est) => `
         <tr>
             <td class="col-estudiante-cuadricula">${escapeHtml(est.nombre)}</td>
             ${fechas.map((f) => {
-                const estado = estadoPorEstudianteFecha[`${est.id}|||${f}`] || "";
-                const clase = estado ? `celda-${estado}` : "celda-vacia";
-                const texto = estado ? ETIQUETAS_CORTAS_CUAD[estado] : "—";
-                return `<td class="celda-clic ${clase}" data-estudiante="${est.id}" data-fecha="${f}" data-estado="${estado}">${texto}</td>`;
+                const estadoGuardado = estadoPorEstudianteFecha[`${est.id}|||${f}`] || "";
+                const sinRegistrar = !estadoGuardado;
+                const estadoMostrado = estadoGuardado || "presente";
+                const clase = `celda-${estadoMostrado}${sinRegistrar ? " celda-sin-registrar" : ""}`;
+                const texto = ETIQUETAS_CORTAS_CUAD[estadoMostrado];
+                return `<td class="celda-clic ${clase}" data-estudiante="${est.id}" data-fecha="${f}" data-estado="${estadoGuardado}" title="${sinRegistrar ? "Sin registrar (mostrando Presente por defecto) — haz clic para corregir" : ""}">${texto}</td>`;
             }).join("")}
         </tr>
     `).join("");
