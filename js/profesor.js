@@ -1550,7 +1550,7 @@ function construirTablaReporteCompleta() {
     const thead = document.createElement("thead");
 
     const trCabecera = document.createElement("tr");
-    let htmlCabecera = `<th style="${estiloThCabecera} width:36px;">#</th><th style="${estiloThCabecera} text-align:left;">Estudiante</th>`;
+    let htmlCabecera = `<th style="${estiloThCabecera} width:36px;">#</th><th style="${estiloThCabecera} text-align:left; min-width:190px;">Estudiante</th>`;
     casillasTabla.forEach((c) => {
         htmlCabecera += `<th style="${estiloThCabecera}">${etiquetaCasilla(c.tipo, c.numero)}</th>`;
     });
@@ -1580,7 +1580,49 @@ function construirTablaReporteCompleta() {
         const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
         const apr = [], eje = [], exa = [];
 
-        let htmlCeldas = "";
+        const fondoFila = sinCuenta ? "#fef9e7" : (i % 2 === 0 ? "#ffffff" : "#fafaff");
+
+        const tr = document.createElement("tr");
+        tr.style.backgroundColor = fondoFila;
+
+        // Celda "#"
+        const tdNum = document.createElement("td");
+        tdNum.style.cssText = "text-align:center; padding:7px 6px; color:#6b7280; font-size:12px;";
+        tdNum.textContent = String(i + 1);
+        tr.appendChild(tdNum);
+
+        // Celda del nombre: se arma con nodos DOM reales (no como texto
+        // HTML concatenado) y cada parte (nombre y, si aplica, el
+        // badge "SIN CUENTA") va en su propio <span> con
+        // "display:inline-block". Esto evita un problema conocido de
+        // html2canvas donde, al capturar la tabla, a veces "pierde" el
+        // texto de una celda que combina texto normal + un span con
+        // fondo de color, dejando solo el fondo visible y sin el
+        // nombre del estudiante.
+        const tdNombre = document.createElement("td");
+        tdNombre.style.cssText = "text-align:left; padding:7px 10px; font-weight:500; white-space:normal; word-break:break-word;";
+
+        const spanNombre = document.createElement("span");
+        spanNombre.style.cssText = "display:inline-block;";
+        if (est.nombre && est.nombre.trim()) {
+            spanNombre.textContent = est.nombre;
+        } else {
+            spanNombre.textContent = "(Sin nombre registrado)";
+            spanNombre.style.color = "#b91c1c";
+            spanNombre.style.fontStyle = "italic";
+        }
+        tdNombre.appendChild(spanNombre);
+
+        if (sinCuenta) {
+            tdNombre.appendChild(document.createTextNode(" "));
+            const spanBadge = document.createElement("span");
+            spanBadge.style.cssText = "display:inline-block; white-space:nowrap; font-size:10px; font-weight:600; color:#92400e; background:#fde68a; padding:1px 6px; border-radius:8px;";
+            spanBadge.textContent = "SIN CUENTA";
+            tdNombre.appendChild(spanBadge);
+        }
+        tr.appendChild(tdNombre);
+
+        // Celdas de notas
         casillasTabla.forEach((c) => {
             const claveCas = claveCasilla(c.tipo, c.numero);
             const n = historial[claveCas];
@@ -1592,12 +1634,27 @@ function construirTablaReporteCompleta() {
                 else if (c.tipo === "examen") exa.push(valorNum);
                 else eje.push(valorNum);
             }
-
             const bajo = valorNum !== null && valorNum < PROMEDIO_MINIMO_APROBAR;
-            const contenido = valorStr === "" ? `<span style="color:#b8bcc8;">–</span>` : (bajo
-                ? `<span style="display:inline-block; min-width:26px; padding:2px 6px; border-radius:10px; background:#fee2e2; color:#b91c1c; font-weight:700;">${valorStr}</span>`
-                : `<span style="font-weight:500;">${valorStr}</span>`);
-            htmlCeldas += `<td style="text-align:center; padding:7px 6px;">${contenido}</td>`;
+
+            const tdNota = document.createElement("td");
+            tdNota.style.cssText = "text-align:center; padding:7px 6px;";
+            if (valorStr === "") {
+                const span = document.createElement("span");
+                span.style.color = "#b8bcc8";
+                span.textContent = "–";
+                tdNota.appendChild(span);
+            } else if (bajo) {
+                const span = document.createElement("span");
+                span.style.cssText = "display:inline-block; min-width:26px; padding:2px 6px; border-radius:10px; background:#fee2e2; color:#b91c1c; font-weight:700;";
+                span.textContent = valorStr;
+                tdNota.appendChild(span);
+            } else {
+                const span = document.createElement("span");
+                span.style.fontWeight = "500";
+                span.textContent = valorStr;
+                tdNota.appendChild(span);
+            }
+            tr.appendChild(tdNota);
         });
 
         const promApr = apr.length ? apr.reduce((a, b) => a + b, 0) / apr.length : null;
@@ -1606,22 +1663,28 @@ function construirTablaReporteCompleta() {
         const presentes = [promApr, promEje, promExa].filter((v) => v !== null);
         const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
 
-        const celdaProm = (val, esFinal) => {
-            if (val === null) return `<td style="text-align:center; padding:7px 6px; background:${esFinal ? "#f0fdf4" : "#f8f8fd"};"><span style="color:#b8bcc8;">–</span></td>`;
-            const bajo = val < PROMEDIO_MINIMO_APROBAR;
-            const color = bajo ? "#b91c1c" : (esFinal ? "#15803d" : REPORTE_COLOR_OSCURO);
-            return `<td style="text-align:center; padding:7px 6px; font-weight:700; color:${color}; background:${esFinal ? "#f0fdf4" : "#f8f8fd"};">${val.toFixed(1)}</td>`;
+        const agregarCeldaProm = (val, esFinal) => {
+            const td = document.createElement("td");
+            const fondo = esFinal ? "#f0fdf4" : "#f8f8fd";
+            if (val === null) {
+                td.style.cssText = `text-align:center; padding:7px 6px; background:${fondo};`;
+                const span = document.createElement("span");
+                span.style.color = "#b8bcc8";
+                span.textContent = "–";
+                td.appendChild(span);
+            } else {
+                const bajo = val < PROMEDIO_MINIMO_APROBAR;
+                const color = bajo ? "#b91c1c" : (esFinal ? "#15803d" : REPORTE_COLOR_OSCURO);
+                td.style.cssText = `text-align:center; padding:7px 6px; font-weight:700; color:${color}; background:${fondo};`;
+                td.textContent = val.toFixed(1);
+            }
+            tr.appendChild(td);
         };
+        agregarCeldaProm(promApr, false);
+        agregarCeldaProm(promEje, false);
+        agregarCeldaProm(promExa, false);
+        agregarCeldaProm(promFinal, true);
 
-        const fondoFila = sinCuenta ? "#fef9e7" : (i % 2 === 0 ? "#ffffff" : "#fafaff");
-
-        const tr = document.createElement("tr");
-        tr.style.backgroundColor = fondoFila;
-        tr.innerHTML =
-            `<td style="text-align:center; padding:7px 6px; color:#6b7280; font-size:12px;">${i + 1}</td>` +
-            `<td style="text-align:left; padding:7px 10px; font-weight:500;">${escapeHtml(est.nombre)}${sinCuenta ? ` <span style="font-size:10px; font-weight:600; color:#92400e; background:#fde68a; padding:1px 6px; border-radius:8px;">SIN CUENTA</span>` : ""}</td>` +
-            htmlCeldas +
-            celdaProm(promApr, false) + celdaProm(promEje, false) + celdaProm(promExa, false) + celdaProm(promFinal, true);
         tbody.appendChild(tr);
     });
 
@@ -1719,7 +1782,7 @@ function construirReporteHtml() {
         </div>
 
         <div style="padding:20px 32px 0;">
-            <div id="tablaReporteContenedor" style="border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);"></div>
+            <div id="tablaReporteContenedor" style="box-shadow:0 1px 3px rgba(0,0,0,0.08);"></div>
             <div style="margin-top:10px; font-size:11px; color:#6b7280; display:flex; align-items:center; gap:6px;">
                 <span style="display:inline-block; width:10px; height:10px; border-radius:5px; background:#fee2e2; border:1px solid #fecaca;"></span>
                 Notas en rojo: por debajo del mínimo para aprobar (${PROMEDIO_MINIMO_APROBAR.toFixed(1)})
@@ -1753,6 +1816,17 @@ async function generarCanvasReporte() {
     document.body.appendChild(contenedor);
 
     try {
+        // Antes de tomar la "foto" de la tabla, esperamos a que las
+        // fuentes terminen de cargar y le damos al navegador dos vueltas
+        // de pintado (requestAnimationFrame x2). Sin esto, a veces
+        // html2canvas captura la tabla a medio calcular y el texto de
+        // alguna celda (típicamente un nombre junto a un badge de color)
+        // sale en blanco aunque el fondo de color sí se vea.
+        if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+        }
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
         const canvas = await html2canvas(contenedor, { scale: 3, backgroundColor: "#ffffff" });
         return canvas;
     } finally {
