@@ -105,12 +105,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Encabezado y bienvenida dinámicos (ya no dicen "9C" fijo)
     const navbarSalonEl = document.getElementById("navbarSalon");
     if (navbarSalonEl) {
-        navbarSalonEl.textContent = `C.E.B.G. EL JIRAL | Consejería ${salonActual}`;
+        navbarSalonEl.textContent = `Consejería · Salón ${salonActual}`;
+    }
+
+    const navbarProfesorNombreEl = document.getElementById("navbarProfesorNombre");
+    if (navbarProfesorNombreEl) {
+        navbarProfesorNombreEl.textContent = consejeroInfo.nombre || "Consejero(a)";
     }
 
     const bienvenidaEl = document.getElementById("bienvenidaConsejero");
     if (bienvenidaEl) {
         bienvenidaEl.textContent = `Bienvenido(a), ${consejeroInfo.nombre || "consejero(a)"}`;
+    }
+
+    // =====================================================
+    // BOTÓN "REGRESAR" DE LA BARRA SUPERIOR
+    // Vuelve a la página anterior (por ejemplo, el selector de
+    // panel si esta cuenta también es profesor y/o administrador).
+    // Si no hay una página anterior en el historial, cae de
+    // vuelta al inicio de sesión.
+    // =====================================================
+
+    const btnVolver = document.getElementById("btnVolver");
+    if (btnVolver) {
+        btnVolver.addEventListener("click", () => {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = "login.html";
+            }
+        });
     }
 
     // =====================================================
@@ -1290,10 +1314,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const tablaListadoEl = document.getElementById("tablaListado");
     const contadorListadoEl = document.getElementById("contadorListado");
     const btnPdfListado = document.getElementById("btnPdfListado");
-    const seccionListadoEl = document.getElementById("seccionListado");
 
     let todosLosEstudiantes = []; // { codigo, nombre, cedula, salon }
-    let listadoYaCargado = false;
 
     async function cargarListadoEstudiantes() {
         tablaListadoEl.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando...</td></tr>`;
@@ -1310,12 +1332,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (error) {
             console.error("❌ Error al cargar la lista de estudiantes:", error);
             tablaListadoEl.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-3">
-                No se pudo cargar la lista de estudiantes.
+                No se pudo cargar la lista de estudiantes: ${escapeHtml(error.message)}
             </td></tr>`;
+            filtroSalonListadoEl.innerHTML = `<option value="">Todos los salones</option>`;
+            contadorListadoEl.textContent = "0 estudiantes";
             return;
         }
 
         todosLosEstudiantes = data || [];
+
+        if (todosLosEstudiantes.length === 0) {
+            tablaListadoEl.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">
+                No se encontró ningún estudiante. Si esperabas ver otros salones además del tuyo,
+                puede que falte habilitar el permiso de lectura entre salones para el rol "consejero" en Supabase.
+            </td></tr>`;
+            filtroSalonListadoEl.innerHTML = `<option value="">Todos los salones</option>`;
+            contadorListadoEl.textContent = "0 estudiantes";
+            return;
+        }
 
         // -------- Llenar el selector de salones con lo que realmente exista --------
         const salonesUnicos = [...new Set(todosLosEstudiantes.map((e) => e.salon).filter(Boolean))]
@@ -1368,17 +1402,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (buscarListadoEl) buscarListadoEl.addEventListener("input", renderListado);
     if (filtroSalonListadoEl) filtroSalonListadoEl.addEventListener("change", renderListado);
 
-    // Carga la lista la primera vez que se entra a esta sección
-    // (patrón perezoso, igual que el bloque de consultas).
-    if (seccionListadoEl) {
-        const observer = new MutationObserver(() => {
-            if (seccionListadoEl.style.display !== "none" && !listadoYaCargado) {
-                listadoYaCargado = true;
-                cargarListadoEstudiantes();
-            }
-        });
-        observer.observe(seccionListadoEl, { attributes: true, attributeFilter: ["style"] });
-    }
+    // Se carga de una vez (no se espera a que el consejero entre a la
+    // sección), así el desplegable de salones y la tabla ya están
+    // listos apenas hace clic en "Ver lista de estudiantes".
+    cargarListadoEstudiantes();
 
     // -------- Descargar / imprimir la lista actual (filtrada) en PDF --------
     if (btnPdfListado) {
