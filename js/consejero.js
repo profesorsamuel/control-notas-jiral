@@ -1277,6 +1277,126 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // =====================================================
+    // AGREGAR ESTUDIANTE (cédula, nombre y apellido)
+    // El código se calcula solo: es el siguiente número
+    // disponible dentro de este salón (1, 2, 3...).
+    // =====================================================
+
+    const formAgregarEstudiante = document.getElementById("formAgregarEstudiante");
+    const inputCedula = document.getElementById("inputCedula");
+    const inputNombreEst = document.getElementById("inputNombreEst");
+    const inputApellidoEst = document.getElementById("inputApellidoEst");
+    const mensajeAgregarEstudiante = document.getElementById("mensajeAgregarEstudiante");
+    const btnGuardarEstudiante = document.getElementById("btnGuardarEstudiante");
+    const modalAgregarEstudianteEl = document.getElementById("modalAgregarEstudiante");
+
+    // Limpia el formulario cada vez que se abre el modal
+    if (modalAgregarEstudianteEl) {
+        modalAgregarEstudianteEl.addEventListener("shown.bs.modal", () => {
+            formAgregarEstudiante.reset();
+            mensajeAgregarEstudiante.textContent = "";
+            mensajeAgregarEstudiante.className = "small";
+            inputCedula.focus();
+        });
+    }
+
+    if (formAgregarEstudiante) {
+        formAgregarEstudiante.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const cedula = inputCedula.value.trim();
+            const nombre = inputNombreEst.value.trim();
+            const apellido = inputApellidoEst.value.trim();
+
+            if (!cedula || !nombre || !apellido) {
+                mensajeAgregarEstudiante.textContent = "Completa todos los campos.";
+                mensajeAgregarEstudiante.className = "small text-danger";
+                return;
+            }
+
+            btnGuardarEstudiante.disabled = true;
+            btnGuardarEstudiante.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Guardando...`;
+            mensajeAgregarEstudiante.textContent = "";
+            mensajeAgregarEstudiante.className = "small";
+
+            try {
+                // -------- 1) Verificar que la cédula no exista ya --------
+                const { data: cedulaExistente, error: errBuscar } = await supabase
+                    .from("estudiantes")
+                    .select("id")
+                    .eq("cedula", cedula)
+                    .maybeSingle();
+
+                if (errBuscar) {
+                    throw new Error("No se pudo verificar la cédula: " + errBuscar.message);
+                }
+
+                if (cedulaExistente) {
+                    mensajeAgregarEstudiante.textContent = "Ya existe un estudiante registrado con esa cédula.";
+                    mensajeAgregarEstudiante.className = "small text-danger";
+                    return;
+                }
+
+                // -------- 2) Calcular el siguiente código dentro del salón --------
+                const { data: ultimoCodigo, error: errCodigo } = await supabase
+                    .from("estudiantes")
+                    .select("codigo")
+                    .eq("salon", salonActual)
+                    .order("codigo", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (errCodigo) {
+                    throw new Error("No se pudo calcular el código: " + errCodigo.message);
+                }
+
+                const siguienteCodigo = ultimoCodigo ? (Number(ultimoCodigo.codigo) + 1) : 1;
+
+                // -------- 3) Insertar el estudiante --------
+                const { error: errInsertar } = await supabase
+                    .from("estudiantes")
+                    .insert([{
+                        codigo: siguienteCodigo,
+                        nombre: `${nombre} ${apellido}`.trim(),
+                        cedula,
+                        salon: salonActual,
+                        es_prueba: false
+                    }]);
+
+                if (errInsertar) {
+                    // 23505 = violación de restricción única (cédula o código duplicado)
+                    if (errInsertar.code === "23505") {
+                        throw new Error("Ya existe un estudiante con esa cédula o ese código en el salón.");
+                    }
+                    // 42501 = RLS bloqueó el insert (no tiene permiso)
+                    if (errInsertar.code === "42501") {
+                        throw new Error("No tienes permiso para agregar estudiantes en este salón.");
+                    }
+                    throw new Error(errInsertar.message);
+                }
+
+                mensajeAgregarEstudiante.textContent = `✅ ${nombre} ${apellido} fue agregado(a) con el código ${siguienteCodigo}.`;
+                mensajeAgregarEstudiante.className = "small text-success";
+
+                // Refresca la tabla y las tarjetas de totales
+                await cargarPanel();
+
+                setTimeout(() => {
+                    bootstrap.Modal.getInstance(modalAgregarEstudianteEl)?.hide();
+                }, 1200);
+
+            } catch (error) {
+                console.error("❌ Error al agregar estudiante:", error);
+                mensajeAgregarEstudiante.textContent = error.message || "Ocurrió un error inesperado.";
+                mensajeAgregarEstudiante.className = "small text-danger";
+            } finally {
+                btnGuardarEstudiante.disabled = false;
+                btnGuardarEstudiante.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i> Guardar`;
+            }
+        });
+    }
+
+    // =====================================================
     // CERRAR SESIÓN
     // =====================================================
 
