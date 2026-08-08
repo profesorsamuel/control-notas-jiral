@@ -198,6 +198,7 @@
   .celda-tardanza{ background:#fdf3d6; color:#6b5100; }
   .celda-permiso{ background:#dbe8f7; color:#1f4e79; }
   .celda-vacia{ background:#eef1f6; color:#9aa4bb; border:1px dashed var(--rule); }
+  .celda-sin-registrar{ border:1px dashed rgba(0,0,0,.35) !important; }
 
   #tablaCuadricula{
     border-collapse:collapse;
@@ -688,7 +689,7 @@
       <span class="celda-estado celda-ausente">A</span> Ausente ·
       <span class="celda-estado celda-tardanza">T</span> Tardanza ·
       <span class="celda-estado celda-permiso">Pe</span> Permiso ·
-      <span class="celda-estado celda-vacia">—</span> Sin registrar
+      <span class="celda-estado celda-presente celda-sin-registrar">P</span> Sin registrar (Presente por defecto)
     </p>
 
     <div class="tabla-envoltura" id="envolturaCuadricula" style="overflow-x:auto; display:none;">
