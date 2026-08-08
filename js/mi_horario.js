@@ -72,12 +72,17 @@ const btnImportarMaterias = document.getElementById("btnImportarMaterias");
 const fondoModalBloque = document.getElementById("fondoModalBloque");
 const tituloModalBloque = document.getElementById("tituloModalBloque");
 const selectTipoBloque = document.getElementById("selectTipoBloque");
+const campoMateriaSalon = document.getElementById("campoMateriaSalon");
+const selectMateriaSalonBloque = document.getElementById("selectMateriaSalonBloque");
+const campoTextoLibre = document.getElementById("campoTextoLibre");
 const inputTextoBloque = document.getElementById("inputTextoBloque");
+const avisoBloqueLegado = document.getElementById("avisoBloqueLegado");
 const btnEliminarBloqueModal = document.getElementById("btnEliminarBloqueModal");
 const btnCancelarBloqueModal = document.getElementById("btnCancelarBloqueModal");
 const btnGuardarBloqueModal = document.getElementById("btnGuardarBloqueModal");
 
 let bloqueEnEdicion = null; // {dia, franjaId, filaExistente}
+let misMateriasSalones = []; // [{materia, salon}, ...] — la única fuente de verdad para el desplegable
 
 // =========================================================
 // 1) VERIFICAR SESIÓN (mismo patrón que profesor.js / tomar_asistencia.js)
@@ -120,6 +125,43 @@ async function verificarSesion() {
     nombreProfesor = perfilProfesor?.nombre_profesor || correoProfesor;
 
     return true;
+}
+
+// =========================================================
+// 1.1) MATERIAS/SALONES REALES DEL PROFESOR
+// =========================================================
+// Única fuente de verdad para el desplegable del modal: lo que el
+// administrador te asignó en profesor_materias. Así el bloque siempre
+// queda con el nombre de materia correcto, sin importar qué texto
+// libre se haya escrito antes a mano.
+
+async function cargarMisMateriasSalones() {
+    const { data, error } = await supabase
+        .from("profesor_materias")
+        .select("materia, salon")
+        .eq("correo_profesor", correoProfesor);
+
+    if (error) {
+        console.error("❌ Error al cargar materias/salones asignados:", error);
+        return [];
+    }
+
+    const combos = new Map();
+    (data || []).forEach((m) => {
+        if (m.materia && m.salon) combos.set(`${m.materia}|||${m.salon}`, { materia: m.materia, salon: m.salon });
+    });
+
+    return [...combos.values()].sort((a, b) => a.materia.localeCompare(b.materia) || a.salon.localeCompare(b.salon));
+}
+
+function poblarSelectMateriaSalon() {
+    if (misMateriasSalones.length === 0) {
+        selectMateriaSalonBloque.innerHTML = `<option value="">No tienes materias asignadas — pídeselas al administrador</option>`;
+        return;
+    }
+    selectMateriaSalonBloque.innerHTML = misMateriasSalones
+        .map((c) => `<option value="${escapeHtml(c.materia)}|||${escapeHtml(c.salon)}">${escapeHtml(c.materia)} — ${escapeHtml(c.salon)}</option>`)
+        .join("");
 }
 
 // =========================================================
@@ -226,6 +268,17 @@ function dibujarTabla() {
 // 4) MODAL: AGREGAR / EDITAR / ELIMINAR UN BLOQUE
 // =========================================================
 
+function alternarCamposModal() {
+    const esClase = selectTipoBloque.value === "clase";
+    campoMateriaSalon.classList.toggle("d-none", !esClase);
+    campoTextoLibre.classList.toggle("d-none", esClase);
+}
+
+selectTipoBloque.addEventListener("change", () => {
+    alternarCamposModal();
+    avisoBloqueLegado.classList.add("d-none");
+});
+
 function abrirModal(dia, franjaId) {
     const filaExistente = horarioPorClave[claveDiaFranja(dia, franjaId)] || null;
     bloqueEnEdicion = { dia, franjaId, filaExistente };
@@ -235,11 +288,33 @@ function abrirModal(dia, franjaId) {
 
     tituloModalBloque.textContent = `${NOMBRES_DIA[dia]} · ${horaTexto}`;
     selectTipoBloque.value = filaExistente?.tipo || "clase";
-    inputTextoBloque.value = filaExistente?.texto || "";
+    alternarCamposModal();
+
+    poblarSelectMateriaSalon();
+    avisoBloqueLegado.classList.add("d-none");
+
+    if (filaExistente?.tipo !== "otro") {
+        // Bloque de clase (nuevo o existente): preseleccionar la materia/salón
+        // guardados, si coinciden con alguna de tus asignaciones actuales.
+        const claveExistente = filaExistente?.materia && filaExistente?.salon
+            ? `${filaExistente.materia}|||${filaExistente.salon}`
+            : null;
+
+        if (claveExistente && [...selectMateriaSalonBloque.options].some((o) => o.value === claveExistente)) {
+            selectMateriaSalonBloque.value = claveExistente;
+        } else if (filaExistente) {
+            // Bloque viejo con materia/salón que ya no coincide con ninguna
+            // asignación actual (el caso de "Naturales"/"Compu" que ya no
+            // existen). Avisamos y obligamos a volver a elegir de la lista.
+            avisoBloqueLegado.textContent = `⚠️ Este bloque tenía guardado "${filaExistente.materia || "(sin materia)"} — ${filaExistente.salon || "(sin salón)"}", que ya no coincide con tus materias asignadas. Elige la materia/salón correcta de la lista y guarda para corregirlo.`;
+            avisoBloqueLegado.classList.remove("d-none");
+        }
+    }
+
+    inputTextoBloque.value = filaExistente?.tipo === "otro" ? (filaExistente?.texto || "") : "";
     btnEliminarBloqueModal.classList.toggle("d-none", !filaExistente);
 
     fondoModalBloque.classList.add("mostrar");
-    inputTextoBloque.focus();
 }
 
 function cerrarModal() {
@@ -255,13 +330,28 @@ fondoModalBloque.addEventListener("click", (e) => {
 btnGuardarBloqueModal.addEventListener("click", async () => {
     if (!bloqueEnEdicion) return;
 
-    const texto = inputTextoBloque.value.trim();
-    if (!texto) {
-        alert("Escribe qué va en este bloque.");
-        return;
-    }
-
     const { dia, franjaId } = bloqueEnEdicion;
+    const tipo = selectTipoBloque.value;
+
+    let texto = "";
+    let materia = null;
+    let salon = null;
+
+    if (tipo === "clase") {
+        const valorCombo = selectMateriaSalonBloque.value;
+        if (!valorCombo) {
+            alert("Elige una materia/salón de la lista. Si no aparece la que buscas, pídele al administrador que te la asigne primero.");
+            return;
+        }
+        [materia, salon] = valorCombo.split("|||");
+        texto = `${materia} ${salon}`.trim();
+    } else {
+        texto = inputTextoBloque.value.trim();
+        if (!texto) {
+            alert("Escribe qué va en este bloque.");
+            return;
+        }
+    }
 
     const { data, error } = await supabase
         .from("horario_profesor")
@@ -272,7 +362,9 @@ btnGuardarBloqueModal.addEventListener("click", async () => {
                 dia,
                 franja_id: franjaId,
                 texto,
-                tipo: selectTipoBloque.value,
+                tipo,
+                materia,
+                salon,
                 actualizado_en: new Date().toISOString(),
             }],
             { onConflict: "correo_profesor,dia,franja_id" }
@@ -410,6 +502,7 @@ btnImportarMaterias.addEventListener("click", async () => {
 
     franjas = await cargarFranjas();
     horarioPorClave = await cargarHorarioGuardado();
+    misMateriasSalones = await cargarMisMateriasSalones();
 
     dibujarTabla();
 })();
