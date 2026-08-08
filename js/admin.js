@@ -56,7 +56,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // =================================================
 
     const estFiltroSalon = document.getElementById("estFiltroSalon");
-    const btnCargarEstudiantes = document.getElementById("btnCargarEstudiantes");
     const tablaEstudiantesAdmin = document.getElementById("tablaEstudiantesAdmin");
     const estadoGuardadoEstudiantes = document.getElementById("estadoGuardadoEstudiantes");
     const nuevoEstNombre = document.getElementById("nuevoEstNombre");
@@ -204,7 +203,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    btnCargarEstudiantes.addEventListener("click", cargarEstudiantesAdmin);
+    estFiltroSalon.addEventListener("change", cargarEstudiantesAdmin);
+
+    // Se expone por si el script de navegación del menú (en admin.html)
+    // necesita volver a llamarla, pero ya no depende de eso: la cargamos
+    // ahora mismo para que la tabla nunca se quede en "Cargando...".
+    window.cargarEstudiantesAdmin = cargarEstudiantesAdmin;
+    cargarEstudiantesAdmin();
 
     btnAgregarEstudiante.addEventListener("click", async () => {
         ocultarMensajeEstudiantes();
