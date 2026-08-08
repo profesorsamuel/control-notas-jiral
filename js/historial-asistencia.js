@@ -787,11 +787,13 @@ async function cargarCuadricula() {
 
     avisoCuadricula.textContent = "Cargando cuadrícula...";
 
-    const diasDeClase = await averiguarDiasDeClase(materia, salon);
-    const fechas = generarFechasCuadricula(desde, hasta, diasDeClase);
+    // Todos los días de lunes a viernes del rango (nunca fines de semana),
+    // sin importar si ese día en particular tenía clase programada — así
+    // se ven también los huecos donde falta tomar/registrar asistencia.
+    const fechas = generarFechasCuadricula(desde, hasta, null);
 
     if (fechas.length === 0) {
-        avisoCuadricula.textContent = "No hay días de clase de esta materia/salón en el rango de fechas elegido.";
+        avisoCuadricula.textContent = "Revisa el rango de fechas: no generó ningún día de lunes a viernes.";
         avisoCuadricula.classList.add("error");
         return;
     }
@@ -909,7 +911,7 @@ async function cargarCuadricula() {
     `).join("");
 
     envolturaCuadricula.style.display = "block";
-    subtituloCuadricula.textContent = `${materia} — ${salon} · ${estudiantes.length} estudiante(s) · ${fechas.length} día(s) de clase, del ${desde} al ${hasta}.`;
+    subtituloCuadricula.textContent = `${materia} — ${salon} · ${estudiantes.length} estudiante(s) · ${fechas.length} día(s) hábil(es), del ${desde} al ${hasta}. Las celdas con "—" son días sin asistencia registrada todavía.`;
     avisoCuadricula.textContent = "";
 
     cuerpoCuadricula.querySelectorAll("td.celda-clic").forEach((celda) => {
