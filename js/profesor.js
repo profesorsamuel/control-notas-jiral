@@ -119,6 +119,25 @@ async function verificarSesion() {
         .maybeSingle();
     nombreProfesor = perfilProfesor?.nombre_profesor || correoProfesor;
 
+    const nombreProfesorHeader = document.getElementById("nombreProfesorHeader");
+    const avatarDocente = document.getElementById("avatarDocente");
+    const resumenAsignacionesHeader = document.getElementById("resumenAsignacionesHeader");
+
+    if (nombreProfesorHeader) nombreProfesorHeader.textContent = nombreProfesor;
+
+    if (avatarDocente) {
+        const inicial = (nombreProfesor || correoProfesor || "?").trim().charAt(0).toUpperCase();
+        if (inicial) avatarDocente.textContent = inicial;
+    }
+
+    if (resumenAsignacionesHeader) {
+        const salonesUnicos = new Set(materias.map((m) => m.salon)).size;
+        const materiasUnicas = new Set(materias.map((m) => m.materia)).size;
+        const txtSalones = salonesUnicos === 1 ? "1 salón" : `${salonesUnicos} salones`;
+        const txtMaterias = materiasUnicas === 1 ? "1 materia" : `${materiasUnicas} materias`;
+        resumenAsignacionesHeader.textContent = `${txtMaterias} · ${txtSalones}`;
+    }
+
     return true;
 }
 
