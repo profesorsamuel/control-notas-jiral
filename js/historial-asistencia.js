@@ -57,9 +57,12 @@ async function verificarSesion() {
 // ELEMENTOS
 // =========================================================
 
-const filtroFecha = document.getElementById("filtroFecha");
-const filtroSalon = document.getElementById("filtroSalon");
-const filtroMateria = document.getElementById("filtroMateria");
+const filtroFechaDesde = document.getElementById("filtroFechaDesde");
+const filtroFechaHasta = document.getElementById("filtroFechaHasta");
+const botonSalon = document.getElementById("botonSalon");
+const panelSalon = document.getElementById("panelSalon");
+const botonMateria = document.getElementById("botonMateria");
+const panelMateria = document.getElementById("panelMateria");
 const filtroProfesor = document.getElementById("filtroProfesor");
 const btnLimpiarFiltros = document.getElementById("btnLimpiarFiltros");
 const estadoHistorial = document.getElementById("estadoHistorial");
@@ -70,6 +73,7 @@ const detalleFecha = document.getElementById("detalleFecha");
 const detalleMateria = document.getElementById("detalleMateria");
 const detalleSalon = document.getElementById("detalleSalon");
 const detalleProfesor = document.getElementById("detalleProfesor");
+const avisoEdicion = document.getElementById("avisoEdicion");
 const cuerpoTablaDetalle = document.getElementById("cuerpoTablaDetalle");
 const btnExportar = document.getElementById("btnExportar");
 const opcionesExportar = document.getElementById("opcionesExportar");
@@ -77,6 +81,9 @@ const btnExportarPDF = document.getElementById("btnExportarPDF");
 const btnExportarExcel = document.getElementById("btnExportarExcel");
 const btnExportarCSV = document.getElementById("btnExportarCSV");
 const btnCerrarDetalle = document.getElementById("btnCerrarDetalle");
+const btnCorregir = document.getElementById("btnCorregir");
+const btnGuardarCambios = document.getElementById("btnGuardarCambios");
+const btnCancelarEdicion = document.getElementById("btnCancelarEdicion");
 
 // El filtro de "Profesor" no aplica aquí: el profesor solo ve lo suyo.
 const bloqueFiltroProfesor = filtroProfesor?.closest("div");
@@ -84,17 +91,112 @@ if (bloqueFiltroProfesor) bloqueFiltroProfesor.style.display = "none";
 
 // =========================================================
 // POBLAR FILTROS DE SALÓN / MATERIA (solo lo que da este profesor)
+// Selectores de casillas múltiples (checkboxes) desplegables
 // =========================================================
 
-function poblarFiltros() {
-    const salones = [...new Set(misMateriasSalones.map((m) => m.salon))].sort();
-    filtroSalon.innerHTML = `<option value="">Todos los salones</option>` +
-        salones.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+let salonesSeleccionados = [];
+let materiasSeleccionadas = [];
 
-    const materias = [...new Set(misMateriasSalones.map((m) => m.materia))].sort();
-    filtroMateria.innerHTML = `<option value="">Todas las materias</option>` +
-        materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+function construirPanelCasillas(panel, valores, seleccionados, alCambiar) {
+    if (valores.length === 0) {
+        panel.innerHTML = `<p class="multiselect-vacio">No hay opciones disponibles.</p>`;
+        return;
+    }
+    panel.innerHTML =
+        `<button type="button" class="multiselect-panel-accion" data-accion="todos">Seleccionar todos</button>` +
+        `<button type="button" class="multiselect-panel-accion" data-accion="ninguno">Limpiar selección</button>` +
+        valores.map((v) => `
+            <label class="multiselect-item">
+                <input type="checkbox" value="${escapeHtml(v)}" ${seleccionados.includes(v) ? "checked" : ""}>
+                <span>${escapeHtml(v)}</span>
+            </label>`).join("");
+
+    panel.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+        cb.addEventListener("change", () => alCambiar());
+    });
+    panel.querySelector('[data-accion="todos"]').addEventListener("click", () => {
+        panel.querySelectorAll('input[type="checkbox"]').forEach((cb) => (cb.checked = true));
+        alCambiar();
+    });
+    panel.querySelector('[data-accion="ninguno"]').addEventListener("click", () => {
+        panel.querySelectorAll('input[type="checkbox"]').forEach((cb) => (cb.checked = false));
+        alCambiar();
+    });
 }
+
+function leerCasillasMarcadas(panel) {
+    return [...panel.querySelectorAll('input[type="checkbox"]:checked')].map((cb) => cb.value);
+}
+
+function actualizarTextoBoton(boton, seleccionados, etiquetaTodos, singular) {
+    if (seleccionados.length === 0) boton.textContent = etiquetaTodos;
+    else if (seleccionados.length === 1) boton.textContent = seleccionados[0];
+    else if (seleccionados.length <= 2) boton.textContent = seleccionados.join(", ");
+    else boton.textContent = `${seleccionados.length} ${singular} seleccionados`;
+}
+
+function poblarFiltros() {
+    const salonesDisponibles = [...new Set(misMateriasSalones.map((m) => m.salon))].sort();
+    construirPanelCasillas(panelSalon, salonesDisponibles, salonesSeleccionados, alCambiarSalones);
+    actualizarTextoBoton(botonSalon, salonesSeleccionados, "Todos los salones", "salones");
+    poblarMateriasSegunSalon();
+}
+
+function alCambiarSalones() {
+    salonesSeleccionados = leerCasillasMarcadas(panelSalon);
+    actualizarTextoBoton(botonSalon, salonesSeleccionados, "Todos los salones", "salones");
+    poblarMateriasSegunSalon();
+    buscarHistorial();
+}
+
+// El profesor puede dar la misma materia en varios salones, pero con contenidos
+// distintos por grado. Al elegir uno o más salones, la lista de materias se
+// reduce solo a las que ese profesor dicta EN ESOS salones.
+function poblarMateriasSegunSalon() {
+    const combinacionesValidas = salonesSeleccionados.length > 0
+        ? misMateriasSalones.filter((m) => salonesSeleccionados.includes(m.salon))
+        : misMateriasSalones;
+
+    const materiasDisponibles = [...new Set(combinacionesValidas.map((m) => m.materia))].sort();
+
+    // Descarta materias seleccionadas que ya no aplican al salón elegido
+    materiasSeleccionadas = materiasSeleccionadas.filter((m) => materiasDisponibles.includes(m));
+
+    construirPanelCasillas(panelMateria, materiasDisponibles, materiasSeleccionadas, alCambiarMaterias);
+    actualizarTextoBoton(botonMateria, materiasSeleccionadas, "Todas las materias", "materias");
+}
+
+function alCambiarMaterias() {
+    materiasSeleccionadas = leerCasillasMarcadas(panelMateria);
+    actualizarTextoBoton(botonMateria, materiasSeleccionadas, "Todas las materias", "materias");
+    buscarHistorial();
+}
+
+// Abrir/cerrar los paneles desplegables
+function alternarPanel(boton, panel, otroPanel) {
+    const abierto = panel.style.display === "block";
+    otroPanel.style.display = "none";
+    panel.style.display = abierto ? "none" : "block";
+    boton.setAttribute("aria-expanded", String(!abierto));
+    boton.classList.toggle("abierto", !abierto);
+}
+
+botonSalon.addEventListener("click", (e) => {
+    e.stopPropagation();
+    alternarPanel(botonSalon, panelSalon, panelMateria);
+});
+botonMateria.addEventListener("click", (e) => {
+    e.stopPropagation();
+    alternarPanel(botonMateria, panelMateria, panelSalon);
+});
+document.addEventListener("click", () => {
+    panelSalon.style.display = "none";
+    panelMateria.style.display = "none";
+    botonSalon.classList.remove("abierto");
+    botonMateria.classList.remove("abierto");
+});
+panelSalon.addEventListener("click", (e) => e.stopPropagation());
+panelMateria.addEventListener("click", (e) => e.stopPropagation());
 
 // =========================================================
 // BUSCAR Y PINTAR LA LISTA
@@ -114,9 +216,10 @@ async function buscarHistorial() {
         .order("fecha", { ascending: false })
         .limit(100);
 
-    if (filtroFecha.value) consulta = consulta.eq("fecha", filtroFecha.value);
-    if (filtroSalon.value) consulta = consulta.eq("salon", filtroSalon.value);
-    if (filtroMateria.value) consulta = consulta.eq("materia", filtroMateria.value);
+    if (filtroFechaDesde.value) consulta = consulta.gte("fecha", filtroFechaDesde.value);
+    if (filtroFechaHasta.value) consulta = consulta.lte("fecha", filtroFechaHasta.value);
+    if (salonesSeleccionados.length > 0) consulta = consulta.in("salon", salonesSeleccionados);
+    if (materiasSeleccionadas.length > 0) consulta = consulta.in("materia", materiasSeleccionadas);
 
     const { data, error } = await consulta;
 
@@ -154,14 +257,15 @@ async function buscarHistorial() {
     calcularAlertas(cabecerasCache);
 }
 
-filtroFecha.addEventListener("change", buscarHistorial);
-filtroSalon.addEventListener("change", buscarHistorial);
-filtroMateria.addEventListener("change", buscarHistorial);
+filtroFechaDesde.addEventListener("change", buscarHistorial);
+filtroFechaHasta.addEventListener("change", buscarHistorial);
 
 btnLimpiarFiltros.addEventListener("click", () => {
-    filtroFecha.value = "";
-    filtroSalon.value = "";
-    filtroMateria.value = "";
+    filtroFechaDesde.value = "";
+    filtroFechaHasta.value = "";
+    salonesSeleccionados = [];
+    materiasSeleccionadas = [];
+    poblarFiltros();
     buscarHistorial();
 });
 
@@ -283,20 +387,126 @@ async function abrirDetalle(asistenciaId) {
     detalleSalon.textContent = fila.salon;
     detalleProfesor.textContent = nombreProfesor;
 
-    cuerpoTablaDetalle.innerHTML = filasOrdenadas.map((d) => {
-        const obsJust = [d.observacion, d.justificacion].filter(Boolean).join(" — ");
-        return `
-        <tr>
-            <td>${escapeHtml(nombrePorId[d.estudiante_id] || d.estudiante_id)}</td>
-            <td>${ETIQUETAS_ESTADO[d.estado] || escapeHtml(d.estado)}</td>
-            <td>${escapeHtml(obsJust || "—")}</td>
-            <td>${d.adjunto_url ? `<a href="${d.adjunto_url}" target="_blank" rel="noopener">Ver</a>` : "—"}</td>
-        </tr>`;
-    }).join("");
+    salirModoEdicion();
+    renderTablaDetalle(filasOrdenadas, nombrePorId, false);
 
     panelDetalle.style.display = "block";
     panelDetalle.scrollIntoView({ behavior: "smooth" });
 }
+
+// =========================================================
+// RENDERIZAR EL DETALLE (modo lectura o modo edición)
+// =========================================================
+
+const OPCIONES_ESTADO = [
+    ["presente", "🟢 Presente"],
+    ["ausente", "🔴 Ausente"],
+    ["tardanza", "🟡 Tardanza"],
+    ["permiso", "🔵 Permiso"],
+];
+
+function renderTablaDetalle(filasOrdenadas, nombrePorId, editable) {
+    if (!editable) {
+        cuerpoTablaDetalle.innerHTML = filasOrdenadas.map((d) => {
+            const obsJust = [d.observacion, d.justificacion].filter(Boolean).join(" — ");
+            return `
+            <tr>
+                <td>${escapeHtml(nombrePorId[d.estudiante_id] || d.estudiante_id)}</td>
+                <td>${ETIQUETAS_ESTADO[d.estado] || escapeHtml(d.estado)}</td>
+                <td>${escapeHtml(obsJust || "—")}</td>
+                <td>${d.adjunto_url ? `<a href="${d.adjunto_url}" target="_blank" rel="noopener">Ver</a>` : "—"}</td>
+            </tr>`;
+        }).join("");
+        return;
+    }
+
+    cuerpoTablaDetalle.innerHTML = filasOrdenadas.map((d) => {
+        const opciones = OPCIONES_ESTADO.map(([valor, etiqueta]) =>
+            `<option value="${valor}" ${d.estado === valor ? "selected" : ""}>${etiqueta}</option>`
+        ).join("");
+        return `
+        <tr class="fila-editable" data-estudiante="${escapeHtml(d.estudiante_id)}">
+            <td>${escapeHtml(nombrePorId[d.estudiante_id] || d.estudiante_id)}</td>
+            <td><select class="editor-estado">${opciones}</select></td>
+            <td>
+                <div class="campos-editables">
+                    <input type="text" class="editor-observacion" placeholder="Observación" value="${escapeHtml(d.observacion || "")}">
+                    <input type="text" class="editor-justificacion" placeholder="Justificación" value="${escapeHtml(d.justificacion || "")}">
+                </div>
+            </td>
+            <td>${d.adjunto_url ? `<a href="${d.adjunto_url}" target="_blank" rel="noopener">Ver</a>` : "—"}</td>
+        </tr>`;
+    }).join("");
+}
+
+function salirModoEdicion() {
+    avisoEdicion.classList.remove("activo");
+    btnCorregir.style.display = "";
+    btnGuardarCambios.style.display = "none";
+    btnCancelarEdicion.style.display = "none";
+}
+
+btnCorregir.addEventListener("click", () => {
+    const { filasOrdenadas, nombrePorId } = detalleActualCache;
+    if (!filasOrdenadas) return;
+    renderTablaDetalle(filasOrdenadas, nombrePorId, true);
+    avisoEdicion.classList.add("activo");
+    btnCorregir.style.display = "none";
+    btnGuardarCambios.style.display = "";
+    btnCancelarEdicion.style.display = "";
+});
+
+btnCancelarEdicion.addEventListener("click", () => {
+    const { filasOrdenadas, nombrePorId } = detalleActualCache;
+    if (!filasOrdenadas) return;
+    renderTablaDetalle(filasOrdenadas, nombrePorId, false);
+    salirModoEdicion();
+});
+
+btnGuardarCambios.addEventListener("click", async () => {
+    const { fila } = detalleActualCache;
+    if (!fila) return;
+
+    const filasEditadas = [...cuerpoTablaDetalle.querySelectorAll(".fila-editable")];
+    if (filasEditadas.length === 0) return;
+
+    const textoOriginal = btnGuardarCambios.textContent;
+    btnGuardarCambios.disabled = true;
+    btnGuardarCambios.textContent = "Guardando...";
+
+    try {
+        const actualizaciones = filasEditadas.map((tr) => {
+            const estudianteId = tr.dataset.estudiante;
+            const estado = tr.querySelector(".editor-estado").value;
+            const observacion = tr.querySelector(".editor-observacion").value.trim();
+            const justificacion = tr.querySelector(".editor-justificacion").value.trim();
+
+            return supabase
+                .from("asistencia_detalle")
+                .update({ estado, observacion: observacion || null, justificacion: justificacion || null })
+                .eq("asistencia_id", fila.id)
+                .eq("estudiante_id", estudianteId);
+        });
+
+        const resultados = await Promise.all(actualizaciones);
+        const conError = resultados.find((r) => r.error);
+
+        if (conError) {
+            alert("❌ Algunos cambios no se pudieron guardar: " + conError.error.message);
+        } else {
+            estadoHistorial.textContent = "✅ Asistencia corregida correctamente.";
+        }
+
+        await abrirDetalle(fila.id); // recarga desde la base de datos y sale de edición
+        calcularAlertas(cabecerasCache); // los contadores de alerta pueden haber cambiado
+    } catch (err) {
+        console.error("❌ Error al guardar los cambios:", err);
+        alert("No se pudieron guardar los cambios. Revisa tu conexión e intenta de nuevo.");
+    } finally {
+        btnGuardarCambios.disabled = false;
+        btnGuardarCambios.textContent = textoOriginal;
+    }
+});
 
 btnCerrarDetalle.addEventListener("click", () => {
     panelDetalle.style.display = "none";
@@ -423,8 +633,8 @@ btnExportarTrimestre?.addEventListener("click", async () => {
             .limit(1000);
 
         // Respeta los filtros de salón/materia activos, si el profesor ya filtró algo
-        if (filtroSalon.value) consulta = consulta.eq("salon", filtroSalon.value);
-        if (filtroMateria.value) consulta = consulta.eq("materia", filtroMateria.value);
+        if (salonesSeleccionados.length > 0) consulta = consulta.in("salon", salonesSeleccionados);
+        if (materiasSeleccionadas.length > 0) consulta = consulta.in("materia", materiasSeleccionadas);
 
         const { data, error } = await consulta;
 
@@ -484,13 +694,17 @@ btnExportarTrimestre?.addEventListener("click", async () => {
     const ok = await verificarSesion();
     if (!ok) return;
 
-    poblarFiltros();
-
     // Si vienen desde un enlace con fecha/salon/materia en la URL, precargar.
     const parametros = new URLSearchParams(window.location.search);
-    if (parametros.get("fecha")) filtroFecha.value = parametros.get("fecha");
-    if (parametros.get("salon")) filtroSalon.value = parametros.get("salon");
-    if (parametros.get("materia")) filtroMateria.value = parametros.get("materia");
+    if (parametros.get("fecha")) {
+        filtroFechaDesde.value = parametros.get("fecha");
+        filtroFechaHasta.value = parametros.get("fecha");
+    }
+    if (parametros.get("desde")) filtroFechaDesde.value = parametros.get("desde");
+    if (parametros.get("hasta")) filtroFechaHasta.value = parametros.get("hasta");
+    if (parametros.get("salon")) salonesSeleccionados = [parametros.get("salon")];
+    if (parametros.get("materia")) materiasSeleccionadas = [parametros.get("materia")];
+    poblarFiltros();
 
     await buscarHistorial();
 })();
