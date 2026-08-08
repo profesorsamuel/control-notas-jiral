@@ -199,6 +199,16 @@
   .celda-permiso{ background:#dbe8f7; color:#1f4e79; }
   .celda-vacia{ background:#eef1f6; color:#9aa4bb; border:1px dashed var(--rule); }
   .celda-sin-registrar{ border:1px dashed rgba(0,0,0,.35) !important; }
+  .celda-suspendida{ background:#e4e6ec; color:#5c6478; font-size:10.5px; font-weight:600; }
+  #tablaCuadricula th.th-suspendida{ background:#8a4b00; }
+  .link-suspender{
+    display:inline-block;
+    margin-left:3px;
+    text-decoration:none;
+    filter:grayscale(1) brightness(2);
+    opacity:.7;
+  }
+  .link-suspender:hover{ filter:none; opacity:1; }
 
   #tablaCuadricula{
     border-collapse:collapse;
@@ -689,7 +699,11 @@
       <span class="celda-estado celda-ausente">A</span> Ausente ·
       <span class="celda-estado celda-tardanza">T</span> Tardanza ·
       <span class="celda-estado celda-permiso">Pe</span> Permiso ·
-      <span class="celda-estado celda-presente celda-sin-registrar">P</span> Sin registrar (Presente por defecto)
+      <span class="celda-estado celda-presente celda-sin-registrar">P</span> Sin registrar (Presente por defecto) ·
+      <span class="celda-estado celda-suspendida">Susp</span> Día suspendido (excepción de horario)
+    </p>
+    <p class="leyenda-cuadricula" style="margin-top:-6px;">
+      🔔 junto a cada fecha = marcar/gestionar ese día como suspendido (abre la página de excepciones en una pestaña nueva).
     </p>
 
     <div class="tabla-envoltura" id="envolturaCuadricula" style="overflow-x:auto; display:none;">
