@@ -617,17 +617,12 @@ btnExportarExcel.addEventListener("click", async () => {
 
 // =========================================================
 // EXPORTAR PDF DEL TRIMESTRE COMPLETO
-// (todas las clases registradas por este profesor, sin filtrar por fecha)
+// (exporta la cuadrícula tal cual está en pantalla)
 // =========================================================
 
 const btnExportarTrimestre = document.getElementById("btnExportarTrimestre");
 
 btnExportarTrimestre?.addEventListener("click", async () => {
-    // Este reporte exporta la CUADRÍCULA (estudiante × fecha × estado) tal
-    // cual está en pantalla, para que el PDF siempre coincida con lo que el
-    // profesor ve y ya corrigió. Por eso exige que la cuadrícula esté abierta
-    // y cargada con exactamente una materia y un salón (los mismos requisitos
-    // que ya tiene el botón "Ver cuadrícula del trimestre").
     if (materiasSeleccionadas.length !== 1 || salonesSeleccionados.length !== 1) {
         alert("⬆️ Arriba en los filtros, elige exactamente UNA materia y UN salón antes de imprimir.");
         return;
@@ -660,17 +655,12 @@ btnExportarTrimestre?.addEventListener("click", async () => {
         doc.text(`Generado el: ${fechaGeneracion}`, 14, 32);
         doc.setTextColor(0);
 
-        // Toma la cuadrícula tal cual está renderizada en la página (incluye
-        // los encabezados de SEMANA/fecha y la columna de Nota al final).
         autoTable(doc, {
             html: "#tablaCuadricula",
             startY: 37,
             styles: { fontSize: 7, cellPadding: 2, halign: "center", valign: "middle" },
             headStyles: { fillColor: [24, 40, 73], fontSize: 7 },
             columnStyles: { 0: { halign: "left", cellWidth: 38 } },
-            // El botón 🔔 dentro de cada encabezado de fecha es un enlace;
-            // autoTable ya extrae solo el texto de la celda, así que no
-            // aparece en el PDF, pero por si acaso lo limpiamos también.
             didParseCell: (data) => {
                 data.cell.text = data.cell.text.map((t) => t.replace("🔔", "").trim());
             },
@@ -689,11 +679,6 @@ btnExportarTrimestre?.addEventListener("click", async () => {
 // =========================================================
 // CUADRÍCULA DEL TRIMESTRE: estudiantes (filas) x fechas (columnas)
 // =========================================================
-// Muestra TODA la asistencia de una materia/salón en una sola tabla,
-// con una fecha por columna (solo los días de la semana en que esa
-// clase tiene horario, para no llenar de columnas vacías de fin de
-// semana ni de días que no le tocan). Cada celda se puede corregir
-// con un clic, sin salir de la cuadrícula.
 
 const btnVerCuadricula = document.getElementById("btnVerCuadricula");
 const btnCerrarCuadricula = document.getElementById("btnCerrarCuadricula");
@@ -952,7 +937,7 @@ async function cargarCuadricula() {
         <tr>
             <th class="col-estudiante-cuadricula" rowspan="2">Estudiante</th>
             ${filaSemanas}
-            <th class="col-nota-cuadricula" rowspan="2" title="Nota de asistencia: empieza en ${NOTA_MAXIMA}, −${PUNTOS_POR_AUSENCIA} por ausencia, −${PUNTOS_POR_TARDANZA} por tardanza. Permiso y días suspendidos no afectan.">Nota</th>
+            <th class="col-nota-cuadricula" rowspan="2" title="Nota de asistencia: promedio de puntos por día. Presente/Permiso = ${PUNTOS_PRESENTE}, Ausente/Tardanza = ${PUNTOS_AUSENTE}. Días suspendidos se excluyen del cálculo.">Nota</th>
         </tr>
         <tr>${filaDias}</tr>
     `;
