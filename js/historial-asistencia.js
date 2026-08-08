@@ -623,64 +623,60 @@ btnExportarExcel.addEventListener("click", async () => {
 const btnExportarTrimestre = document.getElementById("btnExportarTrimestre");
 
 btnExportarTrimestre?.addEventListener("click", async () => {
+    // Este reporte exporta la CUADRÍCULA (estudiante × fecha × estado) tal
+    // cual está en pantalla, para que el PDF siempre coincida con lo que el
+    // profesor ve y ya corrigió. Por eso exige que la cuadrícula esté abierta
+    // y cargada con exactamente una materia y un salón (los mismos requisitos
+    // que ya tiene el botón "Ver cuadrícula del trimestre").
+    if (materiasSeleccionadas.length !== 1 || salonesSeleccionados.length !== 1) {
+        alert("⬆️ Arriba en los filtros, elige exactamente UNA materia y UN salón antes de imprimir.");
+        return;
+    }
+
+    if (panelCuadricula.style.display === "none" || !cuerpoCuadricula.children.length) {
+        alert('Primero haz clic en "📊 Ver cuadrícula del trimestre" para cargar la asistencia, y luego imprime.');
+        return;
+    }
+
     const textoOriginal = btnExportarTrimestre.textContent;
     btnExportarTrimestre.disabled = true;
     btnExportarTrimestre.textContent = "Generando PDF...";
 
     try {
-        let consulta = supabase
-            .from("asistencias")
-            .select("fecha, materia, salon, notas_profesor")
-            .eq("correo_profesor", correoProfesor)
-            .order("materia", { ascending: true })
-            .order("fecha", { ascending: true })
-            .limit(1000);
-
-        // Respeta los filtros de salón/materia activos, si el profesor ya filtró algo
-        if (salonesSeleccionados.length > 0) consulta = consulta.in("salon", salonesSeleccionados);
-        if (materiasSeleccionadas.length > 0) consulta = consulta.in("materia", materiasSeleccionadas);
-
-        const { data, error } = await consulta;
-
-        if (error) {
-            alert("❌ Error al generar el reporte: " + error.message);
-            return;
-        }
-
-        if (!data || data.length === 0) {
-            alert("No hay registros de asistencia para generar el reporte.");
-            return;
-        }
-
         const { jsPDF } = await import("https://esm.sh/jspdf@2.5.1");
         const { default: autoTable } = await import("https://esm.sh/jspdf-autotable@3.8.2");
 
-        const doc = new jsPDF();
+        const doc = new jsPDF({ orientation: "landscape" });
         const fechaGeneracion = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
+        const materia = materiasSeleccionadas[0];
+        const salon = salonesSeleccionados[0];
 
         doc.setFontSize(15);
-        doc.text("Reporte de asistencia del trimestre", 14, 16);
+        doc.text("Reporte de asistencia del trimestre", 14, 15);
         doc.setFontSize(10);
         doc.setTextColor(90);
-        doc.text(`Profesor: ${nombreProfesor}`, 14, 24);
-        doc.text(`Generado el: ${fechaGeneracion}`, 14, 29);
+        doc.text(`Profesor: ${nombreProfesor}`, 14, 22);
+        doc.text(`Materia: ${materia} — Salón: ${salon}`, 14, 27);
+        doc.text(`Generado el: ${fechaGeneracion}`, 14, 32);
         doc.setTextColor(0);
 
+        // Toma la cuadrícula tal cual está renderizada en la página (incluye
+        // los encabezados de SEMANA/fecha y la columna de Nota al final).
         autoTable(doc, {
-            head: [["Fecha", "Materia", "Salón", "Observaciones"]],
-            body: data.map((fila) => [
-                new Date(fila.fecha + "T00:00:00").toLocaleDateString("es-PA", { year: "numeric", month: "short", day: "numeric" }),
-                fila.materia,
-                fila.salon,
-                fila.notas_profesor || "—",
-            ]),
-            startY: 35,
-            styles: { fontSize: 8, cellPadding: 3 },
-            headStyles: { fillColor: [24, 40, 73] },
-            columnStyles: { 3: { cellWidth: 70 } },
+            html: "#tablaCuadricula",
+            startY: 37,
+            styles: { fontSize: 7, cellPadding: 2, halign: "center", valign: "middle" },
+            headStyles: { fillColor: [24, 40, 73], fontSize: 7 },
+            columnStyles: { 0: { halign: "left", cellWidth: 38 } },
+            // El botón 🔔 dentro de cada encabezado de fecha es un enlace;
+            // autoTable ya extrae solo el texto de la celda, así que no
+            // aparece en el PDF, pero por si acaso lo limpiamos también.
+            didParseCell: (data) => {
+                data.cell.text = data.cell.text.map((t) => t.replace("🔔", "").trim());
+            },
         });
 
-        doc.save(`asistencia_trimestre_${nombreProfesor}.pdf`.replace(/\s+/g, "_"));
+        doc.save(`asistencia_trimestre_${materia}_${salon}_${nombreProfesor}.pdf`.replace(/\s+/g, "_"));
     } catch (err) {
         console.error("❌ Error al exportar el trimestre:", err);
         alert("No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo.");
