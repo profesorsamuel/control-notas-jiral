@@ -386,14 +386,16 @@ async function eliminarColumnaCasillaInterno(tipo, numero) {
     // botón ➕ usa como "próxima lista para escribir"), hay que moverla
     // ANTES de recargar el salón. Si no, cargarSalon() la vuelve a crear
     // vacía de inmediato porque siempre deja lista la casilla activa
-    // para escribir, y da la impresión de que "al eliminar aparece otra".
+    // para escribir. Importante: cuando la casilla borrada es la de
+    // mayor número de su Tipo (el caso más común), "el siguiente número
+    // libre" calculado a partir de lo que queda da ese MISMO número que
+    // se acaba de borrar (porque al quitarla, ese número vuelve a estar
+    // libre) — por eso simplemente usamos número+1, que nunca puede
+    // coincidir con el que se está eliminando.
     const claveBorrada = claveCasilla(tipo, numero);
     if (selectTipoNota && inputNumeroNota &&
         claveCasilla(selectTipoNota.value, parseInt(inputNumeroNota.value, 10)) === claveBorrada) {
-        const restantes = casillasTabla.filter((c) => claveCasilla(c.tipo, c.numero) !== claveBorrada);
-        const numerosDelTipo = restantes.filter((c) => c.tipo === tipo).map((c) => c.numero);
-        const siguienteLibre = numerosDelTipo.length ? Math.max(...numerosDelTipo) + 1 : 1;
-        inputNumeroNota.value = String(siguienteLibre);
+        inputNumeroNota.value = String(numero + 1);
     }
 
     const ahora = new Date().toISOString();
