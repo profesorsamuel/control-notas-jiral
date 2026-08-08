@@ -285,6 +285,13 @@ let grupoActual = [];
 let historiaPorEstudiante = {};
 let casillasTabla = [];
 let temasCasillasBD = {};
+// Se pone en true justo antes de llamar a renderTabla() SOLO cuando el
+// docente presionó el botón "➕" de agregar columna. renderTabla() la usa
+// una única vez (y la vuelve a poner en false) para decidir si debe crear
+// la columna vacía "lista para escribir". Así, cualquier otro renderTabla()
+// (por ejemplo el que sigue a eliminar una columna) no crea una columna
+// nueva por su cuenta.
+let agregarColumnaVaciaSolicitada = false;
 
 function claveEstudiante(est) {
     return est.correo ? `correo:${est.correo}` : `id:${est.id}`;
@@ -822,13 +829,17 @@ function renderTabla() {
     const claveSel = claveCasilla(selectTipoNota.value, parseInt(inputNumeroNota.value, 10));
 
     // Si la casilla que el docente seleccionó arriba (Tipo + Número)
-    // todavía no tiene ninguna nota guardada, no aparecerá en
-    // casillasTabla; la agregamos igual para que la columna esté lista
-    // para escribir desde el primer momento.
-    if (!casillasTabla.some((c) => claveCasilla(c.tipo, c.numero) === claveSel)) {
+    // todavía no tiene ninguna nota guardada, normalmente NO la
+    // agregamos como columna: solo lo hacemos cuando el docente la pidió
+    // a propósito con el botón "➕", o cuando no hay ninguna otra
+    // columna que mostrar (salón recién empezado). Así, después de
+    // eliminar una columna no aparece otra automáticamente en su lugar.
+    if (!casillasTabla.some((c) => claveCasilla(c.tipo, c.numero) === claveSel) &&
+        (agregarColumnaVaciaSolicitada || casillasTabla.length === 0)) {
         casillasTabla.push({ tipo: selectTipoNota.value, numero: parseInt(inputNumeroNota.value, 10) });
         ordenarCasillas(casillasTabla);
     }
+    agregarColumnaVaciaSolicitada = false;
 
     // Cada columna (de nota o de promedio) se muestra u oculta según lo
     // que el docente haya marcado en el panel "Elegir columnas para ver".
@@ -953,6 +964,7 @@ function renderTabla() {
             const tipo = btn.dataset.tipo;
             selectTipoNota.value = tipo;
             inputNumeroNota.value = obtenerUltimoNumeroTipo(tipo) + 1;
+            agregarColumnaVaciaSolicitada = true;
             renderTabla();
         });
     });
@@ -1104,7 +1116,15 @@ async function cargarSalon() {
     // una segunda columna vacía además de esta.
     const numeroYaTeniaDatos = casillasEncontradas.has(claveCasilla(tipo, numero));
 
-    casillasEncontradas.add(claveCasilla(tipo, numero));
+    // Solo agregamos la casilla activa como columna "lista para escribir"
+    // cuando el salón/materia/trimestre no tiene ABSOLUTAMENTE ninguna
+    // columna todavía (primera vez que se usa esa combinación). Si ya
+    // existe al menos una columna, no la agregamos aquí: así, al eliminar
+    // una columna, no vuelve a aparecer otra automáticamente. Para
+    // agregar una columna nueva a mano, el docente usa el botón "➕".
+    if (casillasEncontradas.size === 0) {
+        casillasEncontradas.add(claveCasilla(tipo, numero));
+    }
     casillasTabla = [...casillasEncontradas].map((c) => {
         const sep = c.lastIndexOf("-");
         return { tipo: c.slice(0, sep), numero: parseInt(c.slice(sep + 1), 10) };
