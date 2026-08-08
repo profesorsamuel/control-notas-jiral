@@ -351,6 +351,7 @@ const ETIQUETAS_ESTADO = {
     ausente: "🔴 Ausente",
     tardanza: "🟡 Tardanza",
     permiso: "🔵 Permiso",
+    suspendida: "⬜ Suspendida",
 };
 
 let detalleActualCache = { fila: null, estudiantes: [] }; // para exportar sin reconsultar
@@ -405,6 +406,7 @@ const OPCIONES_ESTADO = [
     ["ausente", "🔴 Ausente"],
     ["tardanza", "🟡 Tardanza"],
     ["permiso", "🔵 Permiso"],
+    ["suspendida", "⬜ Suspendida"],
 ];
 
 function renderTablaDetalle(filasOrdenadas, nombrePorId, editable) {
@@ -712,8 +714,29 @@ function quitarAcentosCuad(texto) {
     return String(texto ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-const CICLO_ESTADOS_CUAD = ["presente", "ausente", "tardanza", "permiso"];
-const ETIQUETAS_CORTAS_CUAD = { presente: "P", ausente: "A", tardanza: "T", permiso: "Pe" };
+const CICLO_ESTADOS_CUAD = ["presente", "ausente", "tardanza", "permiso", "suspendida"];
+const ETIQUETAS_CORTAS_CUAD = { presente: "P", ausente: "A", tardanza: "T", permiso: "Pe", suspendida: "Susp" };
+
+// =========================================================
+// NOTA DE ASISTENCIA (columna final de la cuadrícula)
+// =========================================================
+// Empieza en NOTA_MAXIMA y se resta por cada ausencia/tardanza. Presente,
+// Permiso y días sin registrar (el "P" por defecto) no restan. Los días
+// suspendidos (columna completa o celda individual) no cuentan para nada.
+// Ajusta estos 3 números si cambia el criterio de calificación.
+const NOTA_MAXIMA = 5;
+const PUNTOS_POR_AUSENCIA = 1;
+const PUNTOS_POR_TARDANZA = 0.5;
+
+function calcularNotaAsistencia(estadosDelEstudiante) {
+    let nota = NOTA_MAXIMA;
+    estadosDelEstudiante.forEach((estado) => {
+        if (estado === "ausente") nota -= PUNTOS_POR_AUSENCIA;
+        else if (estado === "tardanza") nota -= PUNTOS_POR_TARDANZA;
+        // presente, permiso, suspendida (o sin registrar) no restan.
+    });
+    return Math.max(0, Math.round(nota * 10) / 10);
+}
 
 // Fechas ISO (ascendente) entre desde/hasta cuyo día de la semana esté
 // en diasPermitidos (Set de strings sin acentos, ej. {"lunes","miercoles"}).
@@ -925,6 +948,7 @@ async function cargarCuadricula() {
         <tr>
             <th class="col-estudiante-cuadricula" rowspan="2">Estudiante</th>
             ${filaSemanas}
+            <th class="col-nota-cuadricula" rowspan="2" title="Nota de asistencia: empieza en ${NOTA_MAXIMA}, −${PUNTOS_POR_AUSENCIA} por ausencia, −${PUNTOS_POR_TARDANZA} por tardanza. Permiso y días suspendidos no afectan.">Nota</th>
         </tr>
         <tr>${filaDias}</tr>
     `;
@@ -934,26 +958,40 @@ async function cargarCuadricula() {
     // "Presente" por defecto (más rápido de revisar) — salvo que ese día
     // esté marcado como suspendido en excepciones_horario, en cuyo caso
     // se muestra "Susp" en gris. Ambos casos siguen siendo editables con
-    // un clic por si hace falta corregir a un estudiante en particular.
-    cuerpoCuadricula.innerHTML = estudiantes.map((est) => `
+    // un clic por si hace falta corregir a un estudiante en particular
+    // (salvo el "Susp" bloqueado del día completo).
+    cuerpoCuadricula.innerHTML = estudiantes.map((est) => {
+        const estadosParaNota = []; // solo lo que SÍ cuenta para la nota
+
+        const celdasHtml = fechas.map((f) => {
+            const estadoGuardado = estadoPorEstudianteFecha[`${est.id}|||${f}`] || "";
+            const suspendida = Boolean(motivoSuspensionPorFecha[f]);
+
+            if (suspendida && !estadoGuardado) {
+                // Día suspendido y sin registro individual: se deja fija en
+                // "Susp" (no editable, no cuenta para la nota) hasta que se
+                // quite/corrija la excepción con el 🔔.
+                return `<td class="celda-suspendida celda-bloqueada" data-estudiante="${est.id}" data-fecha="${f}" title="Día suspendido: ${escapeHtml(motivoSuspensionPorFecha[f])}. Para cambiar esta celda, primero corrige/quita la suspensión con 🔔.">Susp</td>`;
+            }
+
+            const sinRegistrar = !estadoGuardado;
+            const estadoMostrado = estadoGuardado || "presente";
+            estadosParaNota.push(estadoMostrado);
+
+            const clase = `celda-${estadoMostrado}${sinRegistrar ? " celda-sin-registrar" : ""}`;
+            const texto = ETIQUETAS_CORTAS_CUAD[estadoMostrado];
+            return `<td class="celda-clic ${clase}" data-estudiante="${est.id}" data-fecha="${f}" data-estado="${estadoGuardado}" title="${sinRegistrar ? "Sin registrar (mostrando Presente por defecto) — haz clic para corregir" : ""}">${texto}</td>`;
+        }).join("");
+
+        const nota = calcularNotaAsistencia(estadosParaNota);
+
+        return `
         <tr>
             <td class="col-estudiante-cuadricula">${escapeHtml(est.nombre)}</td>
-            ${fechas.map((f) => {
-                const estadoGuardado = estadoPorEstudianteFecha[`${est.id}|||${f}`] || "";
-                const suspendida = Boolean(motivoSuspensionPorFecha[f]);
-
-                if (suspendida && !estadoGuardado) {
-                    return `<td class="celda-clic celda-suspendida" data-estudiante="${est.id}" data-fecha="${f}" data-estado="" title="Suspendida: ${escapeHtml(motivoSuspensionPorFecha[f])} — clic para registrar igual">Susp</td>`;
-                }
-
-                const sinRegistrar = !estadoGuardado;
-                const estadoMostrado = estadoGuardado || "presente";
-                const clase = `celda-${estadoMostrado}${sinRegistrar ? " celda-sin-registrar" : ""}`;
-                const texto = ETIQUETAS_CORTAS_CUAD[estadoMostrado];
-                return `<td class="celda-clic ${clase}" data-estudiante="${est.id}" data-fecha="${f}" data-estado="${estadoGuardado}" title="${sinRegistrar ? "Sin registrar (mostrando Presente por defecto) — haz clic para corregir" : ""}">${texto}</td>`;
-            }).join("")}
-        </tr>
-    `).join("");
+            ${celdasHtml}
+            <td class="col-nota-cuadricula">${nota.toFixed(1)}</td>
+        </tr>`;
+    }).join("");
 
     envolturaCuadricula.style.display = "block";
     subtituloCuadricula.textContent = `${materia} — ${salon} · ${estudiantes.length} estudiante(s) · ${fechas.length} día(s) hábil(es), del ${desde} al ${hasta}. Las celdas con "—" son días sin asistencia registrada todavía.`;
@@ -970,6 +1008,21 @@ function obtenerFechaHoyISOCuad() {
     const m = String(hoy.getMonth() + 1).padStart(2, "0");
     const d = String(hoy.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
+}
+
+// Después de guardar un clic, recalcula solo la nota de esa fila (sin
+// tener que volver a consultar toda la cuadrícula).
+function recalcularNotaDeFila(celda) {
+    const fila = celda.closest("tr");
+    if (!fila) return;
+
+    const estadosParaNota = [];
+    fila.querySelectorAll("td.celda-clic[data-estado]").forEach((c) => {
+        estadosParaNota.push(c.dataset.estado || "presente");
+    });
+
+    const celdaNota = fila.querySelector(".col-nota-cuadricula");
+    if (celdaNota) celdaNota.textContent = calcularNotaAsistencia(estadosParaNota).toFixed(1);
 }
 
 async function alHacerClicCelda(celda, materia, salon) {
@@ -1015,6 +1068,7 @@ async function alHacerClicCelda(celda, materia, salon) {
 
         celda.dataset.estado = nuevoEstado;
         celda.className = `celda-clic celda-${nuevoEstado}`;
+        recalcularNotaDeFila(celda);
     } catch (error) {
         console.error("❌ Error al guardar la celda:", error);
         celda.dataset.estado = estadoAnterior;
