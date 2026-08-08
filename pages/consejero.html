@@ -26,17 +26,167 @@
     <link rel="stylesheet" href="../css/style.css">
 
     <style>
+        :root {
+            --jiral-azul: #0d6efd;
+            --jiral-azul-oscuro: #0a4fb5;
+        }
+
+        /* -------- BARRA SUPERIOR -------- */
+        .topbar-jiral {
+            background: linear-gradient(100deg, var(--jiral-azul-oscuro), var(--jiral-azul) 65%);
+            box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .18);
+        }
+
+        .topbar-jiral .container-fluid {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn-topbar-icon {
+            background: rgba(255, 255, 255, .15);
+            border: 1px solid rgba(255, 255, 255, .35);
+            color: #fff;
+            width: 2.4rem;
+            height: 2.4rem;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background .15s ease, transform .15s ease;
+        }
+
+        .btn-topbar-icon:hover,
+        .btn-topbar-icon:focus-visible {
+            background: rgba(255, 255, 255, .3);
+            color: #fff;
+            transform: translateX(-2px);
+        }
+
+        .topbar-titulos {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.15;
+        }
+
+        .topbar-escuela {
+            font-size: .72rem;
+            letter-spacing: .06em;
+            font-weight: 600;
+            color: rgba(255, 255, 255, .75);
+            text-transform: uppercase;
+        }
+
+        .topbar-panel {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .topbar-profesor {
+            background: rgba(255, 255, 255, .16);
+            color: #fff;
+            font-weight: 500;
+            font-size: .85rem;
+            padding: .5rem .8rem;
+            border-radius: 2rem;
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .btn-cerrar-sesion {
+            background: rgba(255, 255, 255, .95);
+            color: #b02a37;
+            font-weight: 600;
+            border: none;
+            border-radius: 2rem;
+            padding: .5rem 1rem;
+            transition: background .15s ease;
+        }
+
+        .btn-cerrar-sesion:hover,
+        .btn-cerrar-sesion:focus-visible {
+            background: #fff;
+            color: #dc3545;
+        }
+
+        #cambiarPanelContainer:empty {
+            display: none;
+        }
+
+        /* -------- TARJETAS DE ESTADÍSTICAS -------- */
+        .stat-card {
+            border: none;
+            border-radius: 1rem;
+            background: #fff;
+            box-shadow: 0 .35rem .9rem rgba(15, 23, 42, .06);
+            transition: transform .15s ease, box-shadow .15s ease;
+            height: 100%;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 .6rem 1.2rem rgba(15, 23, 42, .1);
+        }
+
+        .stat-card .stat-icono {
+            width: 2.6rem;
+            height: 2.6rem;
+            border-radius: .75rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+            margin-bottom: .5rem;
+        }
+
+        .stat-card h3 {
+            font-size: clamp(1.4rem, 4vw, 1.9rem);
+            font-weight: 700;
+            margin-bottom: .1rem;
+        }
+
+        .stat-card p {
+            font-size: .82rem;
+            color: #6c757d;
+        }
+
+        /* -------- BIENVENIDA -------- */
+        .bienvenida-card {
+            border: none;
+            border-radius: 1rem;
+            background: linear-gradient(120deg, #eaf2ff, #f7faff);
+            box-shadow: 0 .35rem .9rem rgba(15, 23, 42, .06);
+        }
+
+        .bienvenida-card .bienvenida-icono {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            background: var(--jiral-azul);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        /* -------- MENÚ DE OPCIONES -------- */
         .menu-opcion {
             cursor: pointer;
-            transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-            border: 1px solid transparent;
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 .35rem .9rem rgba(15, 23, 42, .06);
+            transition: transform .15s ease, box-shadow .15s ease;
         }
 
         .menu-opcion:hover,
         .menu-opcion:focus-visible {
             transform: translateY(-4px);
-            box-shadow: 0 .75rem 1.25rem rgba(0, 0, 0, .15) !important;
-            border-color: var(--bs-primary);
+            box-shadow: 0 .75rem 1.4rem rgba(15, 23, 42, .14) !important;
             outline: none;
         }
 
@@ -44,13 +194,92 @@
             padding: 2rem 1.25rem;
         }
 
+        .menu-opcion .icono-opcion {
+            width: 3.2rem;
+            height: 3.2rem;
+            border-radius: .9rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.3rem;
+        }
+
+        /* -------- IDEAS / FUNCIONES FUTURAS (solo vista previa) -------- */
+        .menu-opcion-futura {
+            cursor: pointer;
+            border: 1.5px dashed #ced4da;
+            border-radius: 1rem;
+            background: #f8f9fb;
+            transition: transform .15s ease, border-color .15s ease;
+            position: relative;
+        }
+
+        .menu-opcion-futura:hover,
+        .menu-opcion-futura:focus-visible {
+            transform: translateY(-2px);
+            border-color: #adb5bd;
+            outline: none;
+        }
+
+        .menu-opcion-futura .card-body {
+            padding: 1.6rem 1.1rem;
+            opacity: .85;
+        }
+
+        .badge-proximamente {
+            position: absolute;
+            top: .7rem;
+            right: .7rem;
+            font-size: .62rem;
+            font-weight: 600;
+            letter-spacing: .03em;
+            padding: .3rem .55rem;
+            border-radius: 2rem;
+            background: #ffe8cc;
+            color: #b35c00;
+        }
+
         .vista-panel {
             animation: aparecer .2s ease-in;
+        }
+
+        .vista-panel .card.shadow {
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 .35rem .9rem rgba(15, 23, 42, .06) !important;
         }
 
         @keyframes aparecer {
             from { opacity: 0; transform: translateY(6px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* -------- RESPONSIVE (CELULAR) -------- */
+        @media (max-width: 575.98px) {
+            .topbar-jiral .container-fluid {
+                flex-wrap: wrap;
+                row-gap: .6rem;
+                padding-top: .6rem;
+                padding-bottom: .6rem;
+            }
+
+            .topbar-panel {
+                font-size: 1rem;
+            }
+
+            .topbar-profesor {
+                font-size: .78rem;
+            }
+
+            main.container {
+                padding-left: .85rem;
+                padding-right: .85rem;
+            }
+
+            .menu-opcion .card-body {
+                padding: 1.5rem 1rem;
+            }
         }
     </style>
 </head>
@@ -58,16 +287,35 @@
 <body class="bg-light">
 
     <!-- BARRA SUPERIOR -->
-    <nav class="navbar navbar-dark bg-primary">
-        <div class="container-fluid">
-            <span class="navbar-brand" id="navbarSalon">
-                C.E.B.G. EL JIRAL | Consejería
-            </span>
+    <nav class="navbar navbar-dark topbar-jiral sticky-top py-2">
+        <div class="container-fluid flex-wrap gap-2">
 
-            <button id="btnSalir" type="button" class="btn btn-danger">
-                <i class="fa-solid fa-right-from-bracket"></i>
-                Cerrar sesión
-            </button>
+            <div class="d-flex align-items-center gap-2">
+                <button id="btnVolver" type="button" class="btn-topbar-icon" title="Regresar">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="topbar-titulos">
+                    <span class="topbar-escuela">C.E.B.G. El Jiral</span>
+                    <span class="topbar-panel" id="navbarSalon">Consejería</span>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="topbar-profesor" id="navbarProfesor">
+                    <i class="fa-solid fa-user-tie me-2"></i>
+                    <span id="navbarProfesorNombre">Cargando...</span>
+                </span>
+
+                <!-- Si el usuario tiene más de un rol (profesor, consejero,
+                     administrador), roles.js pinta aquí el selector de panel -->
+                <div id="cambiarPanelContainer"></div>
+
+                <button id="btnSalir" type="button" class="btn-cerrar-sesion">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span class="d-none d-sm-inline ms-1">Cerrar sesión</span>
+                </button>
+            </div>
+
         </div>
     </nav>
 
@@ -75,36 +323,48 @@
 
         <!-- TARJETAS INFORMATIVAS -->
         <div class="row g-3">
-            <div class="col-md-3">
-                <div class="card shadow">
+            <div class="col-6 col-md-3">
+                <div class="card stat-card">
                     <div class="card-body text-center">
+                        <div class="stat-icono mx-auto" style="background:#e7f1ff; color:#0d6efd;">
+                            <i class="fa-solid fa-user-graduate"></i>
+                        </div>
                         <h3 id="totalEstudiantes">0</h3>
                         <p class="mb-0">Estudiantes</p>
                     </div>
                 </div>
             </div>
 
-            <div class="col-md-3">
-                <div class="card shadow">
+            <div class="col-6 col-md-3">
+                <div class="card stat-card">
                     <div class="card-body text-center">
+                        <div class="stat-icono mx-auto" style="background:#e9f7ef; color:#198754;">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
                         <h3 id="totalRegistrados">0</h3>
                         <p class="mb-0">Con cuenta creada</p>
                     </div>
                 </div>
             </div>
 
-            <div class="col-md-3">
-                <div class="card shadow">
+            <div class="col-6 col-md-3">
+                <div class="card stat-card">
                     <div class="card-body text-center">
+                        <div class="stat-icono mx-auto" style="background:#fff4e5; color:#fd7e14;">
+                            <i class="fa-solid fa-clipboard-list"></i>
+                        </div>
                         <h3 id="totalNotas">0</h3>
                         <p class="mb-0">Notas registradas</p>
                     </div>
                 </div>
             </div>
 
-            <div class="col-md-3">
-                <div class="card shadow">
+            <div class="col-6 col-md-3">
+                <div class="card stat-card">
                     <div class="card-body text-center">
+                        <div class="stat-icono mx-auto" style="background:#fdeaea; color:#dc3545;">
+                            <i class="fa-solid fa-calendar-days"></i>
+                        </div>
                         <h3 id="trimestreLabel">-</h3>
                         <p class="mb-0">Trimestre activo</p>
                     </div>
@@ -113,13 +373,18 @@
         </div>
 
         <!-- BIENVENIDA -->
-        <div class="card mt-4 shadow">
-            <div class="card-body">
-                <h3 id="bienvenidaConsejero">Bienvenido(a)</h3>
-                <p class="mb-0">
-                    Aquí puedes ver qué estudiantes van al día con sus notas
-                    y a cuáles les falta registrar actividades este trimestre.
-                </p>
+        <div class="card bienvenida-card mt-4">
+            <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+                <div class="bienvenida-icono">
+                    <i class="fa-solid fa-hand-sparkles"></i>
+                </div>
+                <div>
+                    <h3 class="mb-1" id="bienvenidaConsejero" style="font-size:1.3rem;">Bienvenido(a)</h3>
+                    <p class="mb-0 text-muted">
+                        Aquí puedes ver qué estudiantes van al día con sus notas
+                        y a cuáles les falta registrar actividades este trimestre.
+                    </p>
+                </div>
             </div>
         </div>
 
@@ -132,11 +397,13 @@
             </div>
 
             <div class="col-md-4">
-                <div class="card shadow-sm h-100 menu-opcion" role="button" tabindex="0"
+                <div class="card h-100 menu-opcion" role="button" tabindex="0"
                     onclick="mostrarSeccion('seccionResumen')"
                     onkeydown="if(event.key==='Enter'){mostrarSeccion('seccionResumen')}">
                     <div class="card-body text-center">
-                        <i class="fa-solid fa-list-check fa-2x text-primary mb-3"></i>
+                        <div class="icono-opcion" style="background:#e7f1ff; color:#0d6efd;">
+                            <i class="fa-solid fa-list-check"></i>
+                        </div>
                         <h5 class="mb-1">Avance por estudiante</h5>
                         <p class="text-muted small mb-0">
                             Ver quién va al día, a quién le faltan notas y el detalle por materia.
@@ -146,11 +413,13 @@
             </div>
 
             <div class="col-md-4">
-                <div class="card shadow-sm h-100 menu-opcion" role="button" tabindex="0"
+                <div class="card h-100 menu-opcion" role="button" tabindex="0"
                     onclick="mostrarSeccion('seccionConsultas')"
                     onkeydown="if(event.key==='Enter'){mostrarSeccion('seccionConsultas')}">
                     <div class="card-body text-center">
-                        <i class="fa-solid fa-magnifying-glass-chart fa-2x text-primary mb-3"></i>
+                        <div class="icono-opcion" style="background:#eef1ff; color:#6f42c1;">
+                            <i class="fa-solid fa-magnifying-glass-chart"></i>
+                        </div>
                         <h5 class="mb-1">Control de consultas</h5>
                         <p class="text-muted small mb-0">
                             Quién ha revisado sus notas con su cédula y si descargó el PDF.
@@ -160,11 +429,13 @@
             </div>
 
             <div class="col-md-4">
-                <div class="card shadow-sm h-100 menu-opcion" role="button" tabindex="0"
+                <div class="card h-100 menu-opcion" role="button" tabindex="0"
                     onclick="irAGenerarBoletines()"
                     onkeydown="if(event.key==='Enter'){irAGenerarBoletines()}">
                     <div class="card-body text-center">
-                        <i class="fa-solid fa-file-pdf fa-2x text-danger mb-3"></i>
+                        <div class="icono-opcion" style="background:#fdeaea; color:#dc3545;">
+                            <i class="fa-solid fa-file-pdf"></i>
+                        </div>
                         <h5 class="mb-1">Generar boletines</h5>
                         <p class="text-muted small mb-0">
                             Genera de una vez el PDF con los boletines de todos los estudiantes.
@@ -174,14 +445,181 @@
             </div>
 
             <div class="col-md-4">
-                <div class="card shadow-sm h-100 menu-opcion" role="button" tabindex="0"
+                <div class="card h-100 menu-opcion" role="button" tabindex="0"
                     onclick="mostrarSeccion('seccionListado')"
                     onkeydown="if(event.key==='Enter'){mostrarSeccion('seccionListado')}">
                     <div class="card-body text-center">
-                        <i class="fa-solid fa-users fa-2x text-success mb-3"></i>
+                        <div class="icono-opcion" style="background:#e9f7ef; color:#198754;">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
                         <h5 class="mb-1">Ver lista de estudiantes</h5>
                         <p class="text-muted small mb-0">
                             Consulta por nombre o cédula, filtra por salón (o todos juntos) e imprime la lista en PDF.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- IDEAS PARA FUTURAS FUNCIONES DE CONSEJERÍA (solo vista previa) -->
+            <!-- Estas tarjetas NO tienen funcionalidad todavía; se agregan   -->
+            <!-- solo para conversar cuáles vale la pena construir de verdad. -->
+            <!-- ============================================================= -->
+            <div class="col-12 mt-4">
+                <h6 class="text-muted mb-0">
+                    <i class="fa-solid fa-lightbulb me-1"></i>
+                    Ideas para más adelante (todavía no funcionan)
+                </h6>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 menu-opcion-futura" role="button" tabindex="0"
+                    onclick="funcionEnDesarrollo('Asistencia diaria')"
+                    onkeydown="if(event.key==='Enter'){funcionEnDesarrollo('Asistencia diaria')}">
+                    <span class="badge-proximamente">PRÓXIMAMENTE</span>
+                    <div class="card-body text-center">
+                        <div class="icono-opcion" style="background:#e7f1ff; color:#0d6efd;">
+                            <i class="fa-solid fa-calendar-check"></i>
+                        </div>
+                        <h5 class="mb-1">Asistencia diaria</h5>
+                        <p class="text-muted small mb-0">
+                            Marcar presentes, ausentes y tardanzas del salón, con historial por estudiante.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 menu-opcion-futura" role="button" tabindex="0"
+                    onclick="funcionEnDesarrollo('Anotaciones / observador del estudiante')"
+                    onkeydown="if(event.key==='Enter'){funcionEnDesarrollo('Anotaciones / observador del estudiante')}">
+                    <span class="badge-proximamente">PRÓXIMAMENTE</span>
+                    <div class="card-body text-center">
+                        <div class="icono-opcion" style="background:#fff4e5; color:#fd7e14;">
+                            <i class="fa-solid fa-book-open"></i>
+                        </div>
+                        <h5 class="mb-1">Observador del estudiante</h5>
+                        <p class="text-muted small mb-0">
+                            Registrar incidencias de conducta, felicitaciones y seguimiento disciplinario.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 menu-opcion-futura" role="button" tabindex="0"
+                    onclick="funcionEnDesarrollo('Citar acudientes')"
+                    onkeydown="if(event.key==='Enter'){funcionEnDesarrollo('Citar acudientes')}">
+                    <span class="badge-proximamente">PRÓXIMAMENTE</span>
+                    <div class="card-body text-center">
+                        <div class="icono-opcion" style="background:#fdeaea; color:#dc3545;">
+                            <i class="fa-solid fa-calendar-day"></i>
+                        </div>
+                        <h5 class="mb-1">Citar acudientes</h5>
+                        <p class="text-muted small mb-0">
+                            Programar y llevar registro de citas con padres o acudientes.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 menu-opcion-futura" role="button" tabindex="0"
+                    onclick="funcionEnDesarrollo('Directorio de acudientes')"
+                    onkeydown="if(event.key==='Enter'){funcionEnDesarrollo('Directorio de acudientes')}">
+                    <span class="badge-proximamente">PRÓXIMAMENTE</span>
+                    <div class="card-body text-center">
+                        <div class="icono-opcion" style="background:#eef1ff; color:#6f42c1;">
+                            <i class="fa-solid fa-address-book"></i>
+                        </div>
+                        <h5 class="mb-1">Directorio de acudientes</h5>
+                        <p class="text-muted small mb-0">
+                            Nombres y teléfonos de contacto de cada estudiante, listos para llamar o imprimir.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 menu-opcion-futura" role="button" tabindex="0"
+                    onclick="funcionEnDesarrollo('Comunicados al salón')"
+                    onkeydown="if(event.key==='Enter'){funcionEnDesarrollo('Comunicados al salón')}">
+                    <span class="badge-proximamente">PRÓXIMAMENTE</span>
+                    <div class="card-body text-center">
+                        <div class="icono-opcion" style="background:#e9f7ef; color:#198754;">
+                            <i class="fa-solid fa-bullhorn"></i>
+                        </div>
+                        <h5 class="mb-1">Comunicados al salón</h5>
+                        <p class="text-muted small mb-0">
+                            Enviar un aviso a todos los acudientes del salón (reunión, actividad, recordatorio).
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 menu-opcion-futura" role="button" tabindex="0"
+                    onclick="funcionEnDesarrollo('Casos especiales / seguimiento psicosocial')"
+                    onkeydown="if(event.key==='Enter'){funcionEnDesarrollo('Casos especiales / seguimiento psicosocial')}">
+                    <span class="badge-proximamente">PRÓXIMAMENTE</span>
+                    <div class="card-body text-center">
+                        <div class="icono-opcion" style="background:#fdeef7; color:#d6336c;">
+                            <i class="fa-solid fa-hand-holding-heart"></i>
+                        </div>
+                        <h5 class="mb-1">Casos especiales</h5>
+                        <p class="text-muted small mb-0">
+                            Seguimiento privado a estudiantes con necesidades especiales o situaciones delicadas.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 menu-opcion-futura" role="button" tabindex="0"
+                    onclick="funcionEnDesarrollo('Calendario de actividades del salón')"
+                    onkeydown="if(event.key==='Enter'){funcionEnDesarrollo('Calendario de actividades del salón')}">
+                    <span class="badge-proximamente">PRÓXIMAMENTE</span>
+                    <div class="card-body text-center">
+                        <div class="icono-opcion" style="background:#e7f1ff; color:#0d6efd;">
+                            <i class="fa-solid fa-calendar-days"></i>
+                        </div>
+                        <h5 class="mb-1">Calendario del salón</h5>
+                        <p class="text-muted small mb-0">
+                            Fechas de entregas, reuniones y actividades importantes del salón.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 menu-opcion-futura" role="button" tabindex="0"
+                    onclick="funcionEnDesarrollo('Estadísticas y gráficas del grupo')"
+                    onkeydown="if(event.key==='Enter'){funcionEnDesarrollo('Estadísticas y gráficas del grupo')}">
+                    <span class="badge-proximamente">PRÓXIMAMENTE</span>
+                    <div class="card-body text-center">
+                        <div class="icono-opcion" style="background:#fff4e5; color:#fd7e14;">
+                            <i class="fa-solid fa-chart-simple"></i>
+                        </div>
+                        <h5 class="mb-1">Estadísticas del grupo</h5>
+                        <p class="text-muted small mb-0">
+                            Gráficas de rendimiento general, comparación por materia y evolución en el tiempo.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 menu-opcion-futura" role="button" tabindex="0"
+                    onclick="funcionEnDesarrollo('Exportar todo a Excel')"
+                    onkeydown="if(event.key==='Enter'){funcionEnDesarrollo('Exportar todo a Excel')}">
+                    <span class="badge-proximamente">PRÓXIMAMENTE</span>
+                    <div class="card-body text-center">
+                        <div class="icono-opcion" style="background:#e9f7ef; color:#198754;">
+                            <i class="fa-solid fa-file-excel"></i>
+                        </div>
+                        <h5 class="mb-1">Exportar a Excel</h5>
+                        <p class="text-muted small mb-0">
+                            Descargar el listado y el avance del salón en una hoja de cálculo, no solo en PDF.
                         </p>
                     </div>
                 </div>
@@ -443,9 +881,16 @@
             }, 250);
         }
 
+        // Tarjetas "PRÓXIMAMENTE": todavía no hacen nada, son solo
+        // ideas para conversar qué más necesita el consejero(a).
+        function funcionEnDesarrollo(nombre) {
+            alert(`"${nombre}" es solo una idea por ahora. Avísale al desarrollador si te sirve para que la construya de verdad.`);
+        }
+
         window.mostrarSeccion = mostrarSeccion;
         window.volverAlMenu = volverAlMenu;
         window.irAGenerarBoletines = irAGenerarBoletines;
+        window.funcionEnDesarrollo = funcionEnDesarrollo;
     </script>
 
 </body>
