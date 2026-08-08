@@ -381,6 +381,21 @@ async function eliminarColumnaCasillaInterno(tipo, numero) {
     const trimestre = selectTrimestreNota.value;
     const etiqueta = etiquetaCasilla(tipo, numero);
 
+    // Si la casilla que se está borrando es justo la "casilla activa"
+    // (Tipo + Número guardados en los campos ocultos, que es la que el
+    // botón ➕ usa como "próxima lista para escribir"), hay que moverla
+    // ANTES de recargar el salón. Si no, cargarSalon() la vuelve a crear
+    // vacía de inmediato porque siempre deja lista la casilla activa
+    // para escribir, y da la impresión de que "al eliminar aparece otra".
+    const claveBorrada = claveCasilla(tipo, numero);
+    if (selectTipoNota && inputNumeroNota &&
+        claveCasilla(selectTipoNota.value, parseInt(inputNumeroNota.value, 10)) === claveBorrada) {
+        const restantes = casillasTabla.filter((c) => claveCasilla(c.tipo, c.numero) !== claveBorrada);
+        const numerosDelTipo = restantes.filter((c) => c.tipo === tipo).map((c) => c.numero);
+        const siguienteLibre = numerosDelTipo.length ? Math.max(...numerosDelTipo) + 1 : 1;
+        inputNumeroNota.value = String(siguienteLibre);
+    }
+
     const ahora = new Date().toISOString();
 
     // No se borra nada de verdad: se marca como eliminado (borrado
@@ -1534,7 +1549,7 @@ function construirTablaReporteCompleta() {
             }
 
             const bajo = valorNum !== null && valorNum < PROMEDIO_MINIMO_APROBAR;
-            htmlCeldas += `<td style="text-align:center; padding:6px; ${bajo ? "color:#c0392b; font-weight:bold;" : ""}">${valorStr === "" ? "–" : valorStr}</td>`;
+            htmlCeldas += `<td style="text-align:center; padding:6px; ${bajo ? "color:#dc2626; font-weight:bold;" : ""}">${valorStr === "" ? "–" : valorStr}</td>`;
         });
 
         const promApr = apr.length ? apr.reduce((a, b) => a + b, 0) / apr.length : null;
@@ -1546,11 +1561,11 @@ function construirTablaReporteCompleta() {
         const celdaProm = (val) => {
             if (val === null) return `<td style="text-align:center; padding:6px;">–</td>`;
             const bajo = val < PROMEDIO_MINIMO_APROBAR;
-            return `<td style="text-align:center; padding:6px; font-weight:bold; ${bajo ? "color:#c0392b;" : ""}">${val.toFixed(1)}</td>`;
+            return `<td style="text-align:center; padding:6px; font-weight:bold; ${bajo ? "color:#dc2626;" : ""}">${val.toFixed(1)}</td>`;
         };
 
         const tr = document.createElement("tr");
-        if (sinCuenta) tr.style.backgroundColor = "#fdf3d6";
+        if (sinCuenta) tr.style.backgroundColor = "#fef3c7";
         tr.innerHTML =
             `<td style="text-align:center; padding:6px;">${i + 1}</td>` +
             `<td style="text-align:left; padding:6px;">${escapeHtml(est.nombre)}${sinCuenta ? " (Sin cuenta)" : ""}</td>` +
@@ -1580,7 +1595,7 @@ function construirReporteHtml() {
     contenedor.style.cssText = "background:#fff; padding:24px; width:1000px; font-family:Arial, sans-serif; color:#222;";
     contenedor.innerHTML = `
         <div style="text-align:center; margin-bottom:14px;">
-            <h2 style="margin:0; color:#1f4e79;">🏫 CENTRO BÁSICO GENERAL EL JIRAL</h2>
+            <h2 style="margin:0; color:#3730a3;">🏫 CENTRO BÁSICO GENERAL EL JIRAL</h2>
             <p style="margin:4px 0 0; font-size:14px;">Reporte de notas · ${fechaHoyTexto}</p>
         </div>
         <table style="width:100%; margin-bottom:14px; font-size:13px;">
@@ -1626,7 +1641,7 @@ async function generarCanvasReporte() {
 btnExportarPdf?.addEventListener("click", async () => {
     if (!selectSalonNota.value || !selectMateriaNota.value) return alert("Primero carga un salón y materia.");
     btnExportarPdf.disabled = true;
-    btnExportarPdf.textContent = "Generando PDF...";
+    btnExportarPdf.innerHTML = `<span class="btn-exportar-icono">⏳</span><span class="btn-exportar-texto">Generando PDF...</span>`;
     try {
         const canvas = await generarCanvasReporte();
         const { jsPDF } = window.jspdf;
@@ -1643,14 +1658,14 @@ btnExportarPdf?.addEventListener("click", async () => {
         alert("No se pudo generar el PDF: " + err.message);
     } finally {
         btnExportarPdf.disabled = false;
-        btnExportarPdf.textContent = "📄 Descargar PDF";
+        btnExportarPdf.innerHTML = `<span class="btn-exportar-icono">📄</span><span class="btn-exportar-texto">Descargar PDF</span>`;
     }
 });
 
 btnExportarJpg?.addEventListener("click", async () => {
     if (!selectSalonNota.value || !selectMateriaNota.value) return alert("Primero carga un salón y materia.");
     btnExportarJpg.disabled = true;
-    btnExportarJpg.textContent = "Generando JPG...";
+    btnExportarJpg.innerHTML = `<span class="btn-exportar-icono">⏳</span><span class="btn-exportar-texto">Generando JPG...</span>`;
     try {
         const canvas = await generarCanvasReporte();
         const enlace = document.createElement("a");
@@ -1662,7 +1677,7 @@ btnExportarJpg?.addEventListener("click", async () => {
         alert("No se pudo generar el JPG: " + err.message);
     } finally {
         btnExportarJpg.disabled = false;
-        btnExportarJpg.textContent = "🖼️ Descargar JPG";
+        btnExportarJpg.innerHTML = `<span class="btn-exportar-icono">🖼️</span><span class="btn-exportar-texto">Descargar JPG</span>`;
     }
 });
 
