@@ -855,6 +855,29 @@ async function cargarCuadricula() {
         if (fecha) estadoPorEstudianteFecha[`${d.estudiante_id}|||${fecha}`] = d.estado;
     });
 
+    // --- Días suspendidos (excepciones_horario) dentro del rango ---
+    // "escuela": aplica a todos. "profesor": aplica a todas tus clases ese
+    // día. "salon": aplica a este salón puntual. Solo se toman en cuenta
+    // las suspensiones de "dia_completo" (no franjas específicas), porque
+    // aquí no sabemos en qué franja cae cada materia.
+    const { data: excepciones, error: errExcepciones } = await supabase
+        .from("excepciones_horario")
+        .select("fecha, alcance, correo_profesor, salon, tipo, motivo")
+        .gte("fecha", desde)
+        .lte("fecha", hasta)
+        .eq("tipo", "dia_completo");
+
+    const motivoSuspensionPorFecha = {};
+    if (!errExcepciones) {
+        (excepciones || []).forEach((exc) => {
+            const aplica =
+                exc.alcance === "escuela" ||
+                (exc.alcance === "profesor" && exc.correo_profesor === correoProfesor) ||
+                (exc.alcance === "salon" && exc.salon === salon);
+            if (aplica) motivoSuspensionPorFecha[exc.fecha] = exc.motivo || "Suspendida";
+        });
+    }
+
     // --- Pintar encabezado, agrupado por semana (como tu hoja de cálculo) ---
     const LETRA_DIA = { lunes: "L", martes: "M", miercoles: "M", jueves: "J", viernes: "V", sabado: "S", domingo: "D" };
 
@@ -886,7 +909,16 @@ async function cargarCuadricula() {
         const d = new Date(f + "T00:00:00");
         const dia = DIAS_SEMANA_CUAD[d.getDay()];
         const dd = String(d.getDate()).padStart(2, "0");
-        return `<th title="${f}">${LETRA_DIA[dia] || "?"}<br>${dd}</th>`;
+        const suspendida = Boolean(motivoSuspensionPorFecha[f]);
+        const claseSuspendida = suspendida ? " th-suspendida" : "";
+        const tituloTh = suspendida ? `${f} — Suspendida: ${motivoSuspensionPorFecha[f]}` : f;
+        // El icono 🔔 abre (en pestaña nueva) el panel donde ya se marcan
+        // suspensiones/cambios de horario, con la fecha y el salón listos.
+        return `
+            <th class="${claseSuspendida}" title="${escapeHtml(tituloTh)}">
+                ${LETRA_DIA[dia] || "?"}<br>${dd}
+                <a href="excepciones_horario.html?fecha=${f}&salon=${encodeURIComponent(salon)}" target="_blank" rel="noopener" class="link-suspender" title="Marcar/gestionar suspensión de este día">🔔</a>
+            </th>`;
     }).join("");
 
     cabezaCuadricula.innerHTML = `
@@ -899,14 +931,21 @@ async function cargarCuadricula() {
 
     // --- Pintar filas de estudiantes ---
     // Si un día no tiene asistencia registrada todavía, se muestra como
-    // "Presente" por defecto (más rápido de revisar), pero sigue siendo
-    // editable con un clic igual que cualquier otra celda; el borde
-    // punteado avisa que es un valor por defecto, no uno guardado.
+    // "Presente" por defecto (más rápido de revisar) — salvo que ese día
+    // esté marcado como suspendido en excepciones_horario, en cuyo caso
+    // se muestra "Susp" en gris. Ambos casos siguen siendo editables con
+    // un clic por si hace falta corregir a un estudiante en particular.
     cuerpoCuadricula.innerHTML = estudiantes.map((est) => `
         <tr>
             <td class="col-estudiante-cuadricula">${escapeHtml(est.nombre)}</td>
             ${fechas.map((f) => {
                 const estadoGuardado = estadoPorEstudianteFecha[`${est.id}|||${f}`] || "";
+                const suspendida = Boolean(motivoSuspensionPorFecha[f]);
+
+                if (suspendida && !estadoGuardado) {
+                    return `<td class="celda-clic celda-suspendida" data-estudiante="${est.id}" data-fecha="${f}" data-estado="" title="Suspendida: ${escapeHtml(motivoSuspensionPorFecha[f])} — clic para registrar igual">Susp</td>`;
+                }
+
                 const sinRegistrar = !estadoGuardado;
                 const estadoMostrado = estadoGuardado || "presente";
                 const clase = `celda-${estadoMostrado}${sinRegistrar ? " celda-sin-registrar" : ""}`;
@@ -993,6 +1032,12 @@ btnVerCuadricula?.addEventListener("click", async () => {
 
 btnCerrarCuadricula?.addEventListener("click", () => {
     panelCuadricula.style.display = "none";
+});
+
+// Si abriste el 🔔 en pestaña nueva para marcar una suspensión y vuelves
+// aquí, refresca sola para que se vea reflejada sin tener que recargar.
+window.addEventListener("focus", () => {
+    if (panelCuadricula.style.display !== "none") cargarCuadricula();
 });
 
 // Si la cuadrícula está abierta y el profesor cambia los filtros
