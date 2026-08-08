@@ -70,6 +70,107 @@
         h1 { color: var(--color-primario); font-weight: 700; }
         h2 { color: var(--color-primario); font-size: 1.2rem; margin-top: 30px; font-weight: 600; }
 
+        /* ============ Encabezado del panel (nombre del docente) ============ */
+        .docente-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+            color: #ffffff;
+            border-radius: 14px;
+            padding: 22px 26px;
+            margin-bottom: 22px;
+            box-shadow: 0 4px 14px rgba(35, 79, 69, .25);
+        }
+
+        .docente-header-identidad {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        .docente-header-avatar {
+            flex: none;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--color-acento);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
+        }
+
+        .docente-header-texto {
+            min-width: 0;
+        }
+
+        .docente-header-eyebrow {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #e9c988;
+            margin: 0 0 2px;
+        }
+
+        .docente-header-nombre {
+            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
+            font-weight: 800;
+            font-size: clamp(1.3rem, 2.6vw, 1.9rem);
+            color: #ffffff;
+            margin: 0;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        .docente-header-resumen {
+            font-size: 13px;
+            color: #dfeae6;
+            margin-top: 4px;
+        }
+
+        .docente-header-acciones {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .docente-header-acciones a,
+        .docente-header-acciones button {
+            font-size: 14px;
+        }
+
+        .btn-header-accion {
+            background: var(--color-acento);
+            color: #fff;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .btn-header-accion:hover { background: var(--color-acento-oscuro); color: #fff; }
+
+        @media (max-width: 600px) {
+            .docente-header { padding: 16px 18px; }
+            .docente-header-avatar { width: 46px; height: 46px; font-size: 1.15rem; }
+        }
+
         table { width: 100%; border-collapse: collapse; background: white; }
         th, td { border: 1px solid #ddd4c4; padding: 8px; text-align: center; }
         th { background: var(--color-primario); color: white; font-family: 'Inter', Arial, sans-serif; }
@@ -219,13 +320,20 @@
 
 <body>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-        <h1>👨‍🏫 Panel del Docente</h1>
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <a href="asistencia.html" style="background:var(--color-acento); color:#fff; text-decoration:none; padding:8px 16px; border-radius:5px; font-size:14px; font-weight:bold;">📋 Asistencia</a>
+    <header class="docente-header">
+        <div class="docente-header-identidad">
+            <div class="docente-header-avatar" id="avatarDocente">👨‍🏫</div>
+            <div class="docente-header-texto">
+                <p class="docente-header-eyebrow">Panel del Docente</p>
+                <h1 class="docente-header-nombre" id="nombreProfesorHeader">Cargando...</h1>
+                <p class="docente-header-resumen" id="resumenAsignacionesHeader"></p>
+            </div>
+        </div>
+        <div class="docente-header-acciones">
+            <a href="asistencia.html" class="btn-header-accion">📋 Asistencia</a>
             <span id="navCambiarPanel"></span>
         </div>
-    </div>
+    </header>
 
     <!-- ================= REGISTRAR / EDITAR NOTAS ================= -->
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
