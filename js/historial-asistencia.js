@@ -347,7 +347,7 @@ btnExportarPDF.addEventListener("click", async () => {
 
     try {
         const { jsPDF } = await import("https://esm.sh/jspdf@2.5.1");
-        await import("https://esm.sh/jspdf-autotable@3.8.2");
+        const { default: autoTable } = await import("https://esm.sh/jspdf-autotable@3.8.2");
 
         const doc = new jsPDF();
         doc.setFontSize(14);
@@ -355,7 +355,7 @@ btnExportarPDF.addEventListener("click", async () => {
         doc.setFontSize(10);
         doc.text(`Fecha: ${fila.fecha}   Profesor: ${nombreProfesor}`, 14, 22);
 
-        doc.autoTable({
+        autoTable(doc, {
             head: [["Estudiante", "Estado", "Observación", "Justificación"]],
             body: filasOrdenadas.map((d) => [
                 nombrePorId[d.estudiante_id] || d.estudiante_id,
@@ -439,7 +439,7 @@ btnExportarTrimestre?.addEventListener("click", async () => {
         }
 
         const { jsPDF } = await import("https://esm.sh/jspdf@2.5.1");
-        await import("https://esm.sh/jspdf-autotable@3.8.2");
+        const { default: autoTable } = await import("https://esm.sh/jspdf-autotable@3.8.2");
 
         const doc = new jsPDF();
         const fechaGeneracion = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
@@ -452,7 +452,7 @@ btnExportarTrimestre?.addEventListener("click", async () => {
         doc.text(`Generado el: ${fechaGeneracion}`, 14, 29);
         doc.setTextColor(0);
 
-        doc.autoTable({
+        autoTable(doc, {
             head: [["Fecha", "Materia", "Salón", "Observaciones"]],
             body: data.map((fila) => [
                 new Date(fila.fecha + "T00:00:00").toLocaleDateString("es-PA", { year: "numeric", month: "short", day: "numeric" }),
