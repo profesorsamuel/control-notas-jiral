@@ -175,13 +175,13 @@
 
             <div class="col-md-4">
                 <div class="card shadow-sm h-100 menu-opcion" role="button" tabindex="0"
-                    data-bs-toggle="modal" data-bs-target="#modalAgregarEstudiante"
-                    onkeydown="if(event.key==='Enter'){document.getElementById('btnAbrirAgregarEstudiante').click()}">
+                    onclick="mostrarSeccion('seccionListado')"
+                    onkeydown="if(event.key==='Enter'){mostrarSeccion('seccionListado')}">
                     <div class="card-body text-center">
-                        <i class="fa-solid fa-user-plus fa-2x text-success mb-3"></i>
-                        <h5 class="mb-1">Agregar estudiante</h5>
+                        <i class="fa-solid fa-users fa-2x text-success mb-3"></i>
+                        <h5 class="mb-1">Ver lista de estudiantes</h5>
                         <p class="text-muted small mb-0">
-                            Registra un estudiante nuevo en tu salón con su cédula, nombre y apellido.
+                            Consulta por nombre o cédula, filtra por salón (o todos juntos) e imprime la lista en PDF.
                         </p>
                     </div>
                 </div>
@@ -314,6 +314,69 @@
         </div>
         <!-- fin seccionResumen -->
 
+        <!-- LISTA DE ESTUDIANTES (todos los salones) -->
+        <div id="seccionListado" class="vista-panel" style="display:none;">
+            <button type="button" class="btn btn-link text-decoration-none px-0 mb-2 mt-3" onclick="volverAlMenu()">
+                <i class="fa-solid fa-arrow-left me-1"></i> Volver al menú
+            </button>
+
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                        <div>
+                            <h4 class="mb-1">
+                                <i class="fa-solid fa-users me-1 text-success"></i>
+                                Lista de estudiantes
+                            </h4>
+                            <p class="text-muted small mb-0">
+                                Busca por nombre o cédula. Puedes ver un salón a la vez o todos juntos.
+                                Para agregar un estudiante nuevo, contacta al administrador del sistema.
+                            </p>
+                        </div>
+
+                        <button type="button" id="btnPdfListado" class="btn btn-danger btn-sm">
+                            <i class="fa-solid fa-file-pdf me-1"></i>
+                            Imprimir / Descargar PDF
+                        </button>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-5">
+                            <input type="text" class="form-control" id="buscarListado"
+                                placeholder="Buscar por nombre o cédula...">
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select" id="filtroSalonListado">
+                                <option value="">Todos los salones</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge bg-secondary w-100 py-2" id="contadorListado">0 estudiantes</span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-striped align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Salón</th>
+                                    <th>Código</th>
+                                    <th>Cédula</th>
+                                    <th>Nombre</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaListado">
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- fin seccionListado -->
+
     </main>
 
     <!-- MODAL DE DETALLE -->
@@ -327,41 +390,6 @@
                 <div class="modal-body" id="modalDetalleContenido">
                     <!-- Se llena dinámicamente -->
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL AGREGAR ESTUDIANTE -->
-    <div class="modal fade" id="modalAgregarEstudiante" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="formAgregarEstudiante">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Agregar estudiante</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Cédula</label>
-                            <input type="text" class="form-control" id="inputCedula" placeholder="Ej: 8-123-456" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Nombre</label>
-                            <input type="text" class="form-control" id="inputNombreEst" placeholder="Ej: María José" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Apellido</label>
-                            <input type="text" class="form-control" id="inputApellidoEst" placeholder="Ej: González Pérez" required>
-                        </div>
-                        <div id="mensajeAgregarEstudiante" class="small"></div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-success" id="btnGuardarEstudiante">
-                            <i class="fa-solid fa-floppy-disk me-1"></i> Guardar
-                        </button>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
