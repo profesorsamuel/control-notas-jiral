@@ -447,6 +447,95 @@
   }
   .aviso-edicion.activo{ display:block; }
 
+  /* ============ SELECTOR DE CASILLAS (SALÓN / MATERIA) ============ */
+  .multiselect{
+    position:relative;
+  }
+
+  .multiselect-boton{
+    width:100%;
+    text-align:left;
+    font-family:'Inter',sans-serif;
+    font-size:14.5px;
+    color:var(--ink);
+    background:var(--paper);
+    border:1px solid var(--rule);
+    border-radius:7px;
+    padding:9px 30px 9px 10px;
+    position:relative;
+  }
+
+  .multiselect-boton::after{
+    content:"";
+    position:absolute;
+    right:12px;
+    top:50%;
+    width:8px;
+    height:8px;
+    border-right:2px solid var(--ink-soft);
+    border-bottom:2px solid var(--ink-soft);
+    transform:translateY(-70%) rotate(45deg);
+    pointer-events:none;
+  }
+
+  .multiselect-boton:focus, .multiselect-boton.abierto{
+    outline:2px solid var(--blue);
+  }
+
+  .multiselect-panel{
+    position:absolute;
+    top:calc(100% + 6px);
+    left:0;
+    min-width:100%;
+    max-height:240px;
+    overflow-y:auto;
+    background:var(--paper-card);
+    border:1px solid var(--rule);
+    border-radius:8px;
+    box-shadow:var(--shadow);
+    padding:6px;
+    z-index:20;
+  }
+
+  .multiselect-panel-accion{
+    display:block;
+    width:100%;
+    text-align:left;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--blue);
+    background:transparent;
+    border:none;
+    padding:6px 8px;
+    border-radius:5px;
+  }
+  .multiselect-panel-accion:hover{ background:#eef3fc; }
+
+  .multiselect-item{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    padding:7px 8px;
+    border-radius:6px;
+    font-size:14px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .multiselect-item:hover{ background:var(--paper); }
+
+  .multiselect-item input[type="checkbox"]{
+    width:16px;
+    height:16px;
+    accent-color:var(--ink);
+    flex:0 0 auto;
+  }
+
+  .multiselect-vacio{
+    font-size:13px;
+    color:var(--ink-soft);
+    padding:8px;
+  }
+
   @media (max-width:640px){
     .panel-filtros{ flex-direction:column; align-items:stretch; }
     .campo{ min-width:0; }
@@ -503,16 +592,18 @@
           <input type="date" id="filtroFechaHasta">
       </div>
       <div class="campo">
-          <label for="filtroSalon">Salón</label>
-          <select id="filtroSalon">
-              <option value="">Todos los salones</option>
-          </select>
+          <label id="labelSalon">Salón</label>
+          <div class="multiselect" id="multiselectSalon">
+              <button type="button" class="multiselect-boton" id="botonSalon" aria-haspopup="true" aria-expanded="false">Todos los salones</button>
+              <div class="multiselect-panel" id="panelSalon" style="display:none;"></div>
+          </div>
       </div>
       <div class="campo">
-          <label for="filtroMateria">Materia</label>
-          <select id="filtroMateria">
-              <option value="">Todas las materias</option>
-          </select>
+          <label id="labelMateria">Materia</label>
+          <div class="multiselect" id="multiselectMateria">
+              <button type="button" class="multiselect-boton" id="botonMateria" aria-haspopup="true" aria-expanded="false">Todas las materias</button>
+              <div class="multiselect-panel" id="panelMateria" style="display:none;"></div>
+          </div>
       </div>
       <div class="campo">
           <label for="filtroProfesor">Profesor</label>
