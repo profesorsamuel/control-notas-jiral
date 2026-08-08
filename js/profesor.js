@@ -36,7 +36,8 @@ function sanitizarEntradaNota(valor) {
 }
 
 // Al salir de la casilla: convierte "3" en "3.0", ".6" en "0.6", y
-// limita cualquier valor al rango 0–5.
+// limita cualquier valor al rango 1–5 (la nota mínima permitida es 1.0;
+// no se aceptan notas de 0.9 o menos).
 function formatearNotaFinal(valor) {
     const texto = (valor ?? "").trim();
     if (texto === "" || texto === ".") return "";
@@ -44,7 +45,7 @@ function formatearNotaFinal(valor) {
     let num = parseFloat(texto);
     if (isNaN(num)) return "";
 
-    if (num < 0) num = 0;
+    if (num < 1) num = 1;
     if (num > 5) num = 5;
 
     return num.toFixed(1);
@@ -1530,30 +1531,43 @@ async function cargarTrimestreActivo() {
 // en pantalla el docente tiene activado "solo la casilla actual" o
 // tiene ocultos los promedios. El reporte en PDF/JPG siempre debe verse
 // completo, como un informe formal.
+
+// Paleta del reporte: la misma familia de colores que usa el resto de
+// la app (índigo), en vez del verde suelto que no combinaba con nada.
+const REPORTE_COLOR_OSCURO = "#3730a3";
+const REPORTE_COLOR_PRIMARIO = "#4f46e5";
+const REPORTE_COLOR_CLARO = "#eef2ff";
+const REPORTE_COLOR_TEXTO = "#1f2937";
+const REPORTE_COLOR_BORDE = "#e2e2f0";
+const REPORTE_FUENTE = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+
 function construirTablaReporteCompleta() {
     const tabla = document.createElement("table");
+
+    const estiloThCabecera = `background:${REPORTE_COLOR_OSCURO}; color:#fff; padding:10px 8px; font-size:12.5px; font-weight:600; letter-spacing:.2px;`;
+    const estiloThTema = `background:#2c2790; color:#d7d4fb; font-weight:400; font-size:10.5px; padding:5px 6px;`;
 
     const thead = document.createElement("thead");
 
     const trCabecera = document.createElement("tr");
-    let htmlCabecera = `<th style="background:#2f6f62; color:#fff; padding:6px;">#</th><th style="background:#2f6f62; color:#fff; padding:6px;">Estudiante</th>`;
+    let htmlCabecera = `<th style="${estiloThCabecera} width:36px;">#</th><th style="${estiloThCabecera} text-align:left;">Estudiante</th>`;
     casillasTabla.forEach((c) => {
-        htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">${etiquetaCasilla(c.tipo, c.numero)}</th>`;
+        htmlCabecera += `<th style="${estiloThCabecera}">${etiquetaCasilla(c.tipo, c.numero)}</th>`;
     });
-    htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">Prom. Aprec.</th>`;
-    htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">Prom. Ejer.</th>`;
-    htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">Prom. Examen</th>`;
-    htmlCabecera += `<th style="background:#2f6f62; color:#fff; padding:6px;">Prom. Final</th>`;
+    htmlCabecera += `<th style="${estiloThCabecera} background:${REPORTE_COLOR_PRIMARIO};">Prom. Aprec.</th>`;
+    htmlCabecera += `<th style="${estiloThCabecera} background:${REPORTE_COLOR_PRIMARIO};">Prom. Ejer.</th>`;
+    htmlCabecera += `<th style="${estiloThCabecera} background:${REPORTE_COLOR_PRIMARIO};">Prom. Examen</th>`;
+    htmlCabecera += `<th style="${estiloThCabecera} background:#22c55e;">Prom. Final</th>`;
     trCabecera.innerHTML = htmlCabecera;
     thead.appendChild(trCabecera);
 
     const trTemas = document.createElement("tr");
-    let htmlTemas = `<th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th>`;
+    let htmlTemas = `<th style="${estiloThTema}"></th><th style="${estiloThTema}"></th>`;
     casillasTabla.forEach((c) => {
         const tema = obtenerTemaCasilla(c.tipo, c.numero);
-        htmlTemas += `<th style="background:#2f6f62; color:#e3efec; font-weight:normal; font-size:11px; padding:4px;">${escapeHtml(tema)}</th>`;
+        htmlTemas += `<th style="${estiloThTema}">${escapeHtml(tema)}</th>`;
     });
-    htmlTemas += `<th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th><th style="background:#2f6f62;"></th>`;
+    htmlTemas += `<th style="${estiloThTema}"></th><th style="${estiloThTema}"></th><th style="${estiloThTema}"></th><th style="${estiloThTema}"></th>`;
     trTemas.innerHTML = htmlTemas;
     thead.appendChild(trTemas);
 
@@ -1580,7 +1594,10 @@ function construirTablaReporteCompleta() {
             }
 
             const bajo = valorNum !== null && valorNum < PROMEDIO_MINIMO_APROBAR;
-            htmlCeldas += `<td style="text-align:center; padding:6px; ${bajo ? "color:#dc2626; font-weight:bold;" : ""}">${valorStr === "" ? "–" : valorStr}</td>`;
+            const contenido = valorStr === "" ? `<span style="color:#b8bcc8;">–</span>` : (bajo
+                ? `<span style="display:inline-block; min-width:26px; padding:2px 6px; border-radius:10px; background:#fee2e2; color:#b91c1c; font-weight:700;">${valorStr}</span>`
+                : `<span style="font-weight:500;">${valorStr}</span>`);
+            htmlCeldas += `<td style="text-align:center; padding:7px 6px;">${contenido}</td>`;
         });
 
         const promApr = apr.length ? apr.reduce((a, b) => a + b, 0) / apr.length : null;
@@ -1589,29 +1606,67 @@ function construirTablaReporteCompleta() {
         const presentes = [promApr, promEje, promExa].filter((v) => v !== null);
         const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
 
-        const celdaProm = (val) => {
-            if (val === null) return `<td style="text-align:center; padding:6px;">–</td>`;
+        const celdaProm = (val, esFinal) => {
+            if (val === null) return `<td style="text-align:center; padding:7px 6px; background:${esFinal ? "#f0fdf4" : "#f8f8fd"};"><span style="color:#b8bcc8;">–</span></td>`;
             const bajo = val < PROMEDIO_MINIMO_APROBAR;
-            return `<td style="text-align:center; padding:6px; font-weight:bold; ${bajo ? "color:#dc2626;" : ""}">${val.toFixed(1)}</td>`;
+            const color = bajo ? "#b91c1c" : (esFinal ? "#15803d" : REPORTE_COLOR_OSCURO);
+            return `<td style="text-align:center; padding:7px 6px; font-weight:700; color:${color}; background:${esFinal ? "#f0fdf4" : "#f8f8fd"};">${val.toFixed(1)}</td>`;
         };
 
+        const fondoFila = sinCuenta ? "#fef9e7" : (i % 2 === 0 ? "#ffffff" : "#fafaff");
+
         const tr = document.createElement("tr");
-        if (sinCuenta) tr.style.backgroundColor = "#fef3c7";
+        tr.style.backgroundColor = fondoFila;
         tr.innerHTML =
-            `<td style="text-align:center; padding:6px;">${i + 1}</td>` +
-            `<td style="text-align:left; padding:6px;">${escapeHtml(est.nombre)}${sinCuenta ? " (Sin cuenta)" : ""}</td>` +
+            `<td style="text-align:center; padding:7px 6px; color:#6b7280; font-size:12px;">${i + 1}</td>` +
+            `<td style="text-align:left; padding:7px 10px; font-weight:500;">${escapeHtml(est.nombre)}${sinCuenta ? ` <span style="font-size:10px; font-weight:600; color:#92400e; background:#fde68a; padding:1px 6px; border-radius:8px;">SIN CUENTA</span>` : ""}</td>` +
             htmlCeldas +
-            celdaProm(promApr) + celdaProm(promEje) + celdaProm(promExa) + celdaProm(promFinal);
+            celdaProm(promApr, false) + celdaProm(promEje, false) + celdaProm(promExa, false) + celdaProm(promFinal, true);
         tbody.appendChild(tr);
     });
 
     tabla.appendChild(tbody);
 
     tabla.querySelectorAll("th, td").forEach((cell) => {
-        cell.style.border = "1px solid #ccc";
+        cell.style.border = `1px solid ${REPORTE_COLOR_BORDE}`;
     });
 
     return tabla;
+}
+
+// Calcula estadísticas rápidas del grupo (promedio general del salón y
+// cuántos estudiantes están por debajo del mínimo para aprobar), usando
+// exactamente la misma lógica de promedios que la tabla del reporte.
+function calcularResumenReporte() {
+    let sumaFinales = 0, conFinal = 0, reprobados = 0;
+    grupoActual.forEach((est) => {
+        const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
+        const apr = [], eje = [], exa = [];
+        casillasTabla.forEach((c) => {
+            const n = historial[claveCasilla(c.tipo, c.numero)];
+            const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
+            if (crudo === "") return;
+            const valorNum = parseFloat(formatearNotaFinal(String(crudo)));
+            if (Number.isNaN(valorNum)) return;
+            if (c.tipo === "apreciacion") apr.push(valorNum);
+            else if (c.tipo === "examen") exa.push(valorNum);
+            else eje.push(valorNum);
+        });
+        const promedios = [apr, eje, exa]
+            .filter((lista) => lista.length)
+            .map((lista) => lista.reduce((a, b) => a + b, 0) / lista.length);
+        if (!promedios.length) return;
+        const promFinal = promedios.reduce((a, b) => a + b, 0) / promedios.length;
+        sumaFinales += promFinal;
+        conFinal++;
+        if (promFinal < PROMEDIO_MINIMO_APROBAR) reprobados++;
+    });
+    return {
+        totalEstudiantes: grupoActual.length,
+        promedioGeneral: conFinal ? sumaFinales / conFinal : null,
+        reprobados,
+        aprobados: conFinal - reprobados,
+    };
 }
 
 function construirReporteHtml() {
@@ -1619,32 +1674,68 @@ function construirReporteHtml() {
     const materia = selectMateriaNota.value;
     const trimestre = selectTrimestreNota.value;
     const fechaHoyTexto = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
+    const horaHoyTexto = new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
 
     const tablaReporte = construirTablaReporteCompleta();
+    const resumen = calcularResumenReporte();
+
+    const dato = (etiqueta, valor) => `
+        <div style="flex:1; min-width:150px;">
+            <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:#9691e8; font-weight:600;">${etiqueta}</div>
+            <div style="font-size:14.5px; font-weight:600; color:#1f2937; margin-top:2px;">${valor}</div>
+        </div>`;
+
+    const estadistica = (numero, etiqueta, color) => `
+        <div style="text-align:center; padding:0 18px;">
+            <div style="font-size:22px; font-weight:700; color:${color};">${numero}</div>
+            <div style="font-size:10.5px; color:#6b7280; text-transform:uppercase; letter-spacing:.3px;">${etiqueta}</div>
+        </div>`;
 
     const contenedor = document.createElement("div");
-    contenedor.style.cssText = "background:#fff; padding:24px; width:1000px; font-family:Arial, sans-serif; color:#222;";
+    contenedor.style.cssText = `background:#fff; width:1050px; font-family:${REPORTE_FUENTE}; color:${REPORTE_COLOR_TEXTO};`;
     contenedor.innerHTML = `
-        <div style="text-align:center; margin-bottom:14px;">
-            <h2 style="margin:0; color:#3730a3;">🏫 CENTRO BÁSICO GENERAL EL JIRAL</h2>
-            <p style="margin:4px 0 0; font-size:14px;">Reporte de notas · ${fechaHoyTexto}</p>
-        </div>
-        <table style="width:100%; margin-bottom:14px; font-size:13px;">
-            <tr>
-                <td><strong>Profesor(a):</strong> ${escapeHtml(nombreProfesor)}</td>
-                <td><strong>Materia:</strong> ${escapeHtml(materia)}</td>
-            </tr>
-            <tr>
-                <td><strong>Salón:</strong> ${escapeHtml(salon)}</td>
-                <td><strong>Trimestre activo:</strong> ${escapeHtml(trimestre)}</td>
-            </tr>
-        </table>
-        <div id="tablaReporteContenedor"></div>
-        <div style="margin-top:60px; display:flex; justify-content:center;">
-            <div style="text-align:center;">
-                <div style="border-top:1px solid #333; width:280px; margin-bottom:6px;"></div>
-                <div style="font-size:13px;">Firma del/de la docente</div>
+        <div style="background:linear-gradient(135deg, ${REPORTE_COLOR_PRIMARIO} 0%, ${REPORTE_COLOR_OSCURO} 100%); padding:26px 32px; display:flex; align-items:center; justify-content:space-between;">
+            <div>
+                <div style="font-size:20px; font-weight:700; color:#fff; letter-spacing:.2px;">🏫 Centro Básico General El Jiral</div>
+                <div style="font-size:13px; color:#d9d7fb; margin-top:4px;">Reporte oficial de notas</div>
             </div>
+            <div style="text-align:right;">
+                <div style="font-size:12px; color:#d9d7fb;">${fechaHoyTexto}</div>
+                <div style="display:inline-block; margin-top:6px; background:rgba(255,255,255,0.18); color:#fff; font-size:12px; font-weight:600; padding:4px 12px; border-radius:14px;">${escapeHtml(trimestre)}</div>
+            </div>
+        </div>
+
+        <div style="padding:18px 32px 4px; display:flex; flex-wrap:wrap; gap:18px; background:${REPORTE_COLOR_CLARO}; border-bottom:1px solid ${REPORTE_COLOR_BORDE};">
+            ${dato("Profesor(a)", escapeHtml(nombreProfesor))}
+            ${dato("Materia", escapeHtml(materia))}
+            ${dato("Salón", escapeHtml(salon))}
+            ${dato("Estudiantes", resumen.totalEstudiantes)}
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:6px; padding:16px 32px; border-bottom:1px solid ${REPORTE_COLOR_BORDE};">
+            ${estadistica(resumen.promedioGeneral !== null ? resumen.promedioGeneral.toFixed(1) : "–", "Promedio general", REPORTE_COLOR_OSCURO)}
+            ${estadistica(resumen.aprobados, "Aprobados", "#15803d")}
+            ${estadistica(resumen.reprobados, "Por debajo del mínimo", "#b91c1c")}
+        </div>
+
+        <div style="padding:20px 32px 0;">
+            <div id="tablaReporteContenedor" style="border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);"></div>
+            <div style="margin-top:10px; font-size:11px; color:#6b7280; display:flex; align-items:center; gap:6px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:5px; background:#fee2e2; border:1px solid #fecaca;"></span>
+                Notas en rojo: por debajo del mínimo para aprobar (${PROMEDIO_MINIMO_APROBAR.toFixed(1)})
+            </div>
+        </div>
+
+        <div style="padding:50px 32px 28px; display:flex; justify-content:center;">
+            <div style="text-align:center;">
+                <div style="border-top:1px solid #9ca3af; width:280px; margin-bottom:6px;"></div>
+                <div style="font-size:12.5px; color:#4b5563;">Firma del/de la docente</div>
+            </div>
+        </div>
+
+        <div style="border-top:1px solid ${REPORTE_COLOR_BORDE}; padding:12px 32px; display:flex; justify-content:space-between; font-size:10.5px; color:#9ca3af;">
+            <span>Generado el ${fechaHoyTexto} a las ${horaHoyTexto}</span>
+            <span>Sistema de Control de Notas · Centro Básico General El Jiral</span>
         </div>
     `;
     contenedor.querySelector("#tablaReporteContenedor").appendChild(tablaReporte);
@@ -1682,7 +1773,8 @@ btnExportarPdf?.addEventListener("click", async () => {
         const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
         const w = canvas.width * ratio;
         const h = canvas.height * ratio;
-        pdf.addImage(canvas.toDataURL("image/jpeg", 1.0), "JPEG", (pageWidth - w) / 2, 20, w, h);
+        const y = Math.max(16, (pageHeight - h) / 2);
+        pdf.addImage(canvas.toDataURL("image/jpeg", 1.0), "JPEG", (pageWidth - w) / 2, y, w, h);
         pdf.save(`Notas_${selectMateriaNota.value}_${selectSalonNota.value}.pdf`);
     } catch (err) {
         console.error(err);
