@@ -415,6 +415,38 @@
     color:var(--rose);
   }
 
+  /* ============ EDICIÓN DE ASISTENCIA ============ */
+  .fila-editable select,
+  .fila-editable input[type="text"]{
+    font-family:'Inter',sans-serif;
+    font-size:13.5px;
+    border:1px solid var(--rule);
+    border-radius:6px;
+    padding:6px 8px;
+    background:var(--paper);
+    color:var(--ink);
+    width:100%;
+  }
+  .fila-editable select:focus,
+  .fila-editable input[type="text"]:focus{ outline:2px solid var(--blue); }
+
+  .campos-editables{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    min-width:160px;
+  }
+  .campos-editables input::placeholder{ color:#9aa3b8; }
+
+  .aviso-edicion{
+    font-size:12.5px;
+    color:var(--teal);
+    font-weight:600;
+    margin:0 0 12px;
+    display:none;
+  }
+  .aviso-edicion.activo{ display:block; }
+
   @media (max-width:640px){
     .panel-filtros{ flex-direction:column; align-items:stretch; }
     .campo{ min-width:0; }
@@ -463,8 +495,12 @@
   ========================================================= -->
   <div class="panel-filtros" id="panelFiltros">
       <div class="campo">
-          <label for="filtroFecha">Fecha</label>
-          <input type="date" id="filtroFecha">
+          <label for="filtroFechaDesde">Desde</label>
+          <input type="date" id="filtroFechaDesde">
+      </div>
+      <div class="campo">
+          <label for="filtroFechaHasta">Hasta</label>
+          <input type="date" id="filtroFechaHasta">
       </div>
       <div class="campo">
           <label for="filtroSalon">Salón</label>
@@ -529,6 +565,7 @@
           <strong>Salón:</strong> <span id="detalleSalon"></span> ·
           <strong>Profesor:</strong> <span id="detalleProfesor"></span>
       </p>
+      <p class="aviso-edicion" id="avisoEdicion">✏️ Modo edición: cambia el estado, la observación o la justificación y presiona "Guardar cambios".</p>
       <table>
           <thead>
               <tr>
@@ -541,6 +578,9 @@
           <tbody id="cuerpoTablaDetalle"></tbody>
       </table>
       <div class="acciones-detalle">
+        <button type="button" id="btnCorregir" class="btn-tomar-asistencia btn-secundario">✏️ Corregir asistencia</button>
+        <button type="button" id="btnGuardarCambios" class="btn-tomar-asistencia" style="display:none; background:var(--teal);">💾 Guardar cambios</button>
+        <button type="button" id="btnCancelarEdicion" class="btn-tomar-asistencia btn-secundario" style="display:none;">Cancelar</button>
         <div style="position:relative; display:inline-block;">
             <button type="button" id="btnExportar" class="btn-tomar-asistencia">⬇ Exportar</button>
             <div id="opcionesExportar" style="display:none; position:absolute; top:calc(100% + 6px); left:0; z-index:10;">
