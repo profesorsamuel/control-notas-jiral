@@ -57,7 +57,12 @@
         <!-- ===================== MENÚ PRINCIPAL (BOTONES) ===================== -->
         <div id="menuAdminPrincipal" class="mb-4">
             <h1 class="h4 mb-3 text-secondary">¿Qué querés hacer?</h1>
-            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+
+            <!-- ---- Académico ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2 mt-3">
+                <i class="fa-solid fa-graduation-cap me-1"></i> Académico
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 mb-4">
                 <div class="col">
                     <button type="button" class="btn btn-outline-success w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-estudiantes">
                         <i class="fa-solid fa-user-pen fa-2x d-block mb-2" aria-hidden="true"></i>
@@ -80,17 +85,73 @@
                     </button>
                 </div>
                 <div class="col">
-                    <button type="button" class="btn btn-outline-secondary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-actividad">
-                        <i class="fa-solid fa-chart-line fa-2x d-block mb-2" aria-hidden="true"></i>
-                        <span class="fw-semibold d-block">Actividad</span>
-                        <span class="small text-muted d-none d-md-block">Visitas a la plataforma</span>
+                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-notas-todos">
+                        <i class="fa-solid fa-file-lines fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Notas de todos</span>
+                        <span class="small text-muted d-none d-md-block">Todos los estudiantes</span>
                     </button>
                 </div>
                 <div class="col">
-                    <button type="button" class="btn btn-outline-warning w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-preguntas">
-                        <i class="fa-solid fa-key fa-2x d-block mb-2" aria-hidden="true"></i>
-                        <span class="fw-semibold d-block">Preguntas de seguridad</span>
-                        <span class="small text-muted d-none d-md-block">De un estudiante</span>
+                    <button type="button" class="btn btn-outline-warning w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-trimestres">
+                        <i class="fa-solid fa-calendar-days fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Trimestres</span>
+                        <span class="small text-muted d-none d-md-block">Fechas y trimestre activo</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <a href="datos.html" target="_blank" class="btn btn-outline-info w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-address-card fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Datos de estudiantes</span>
+                        <span class="small text-muted d-none d-md-block">Acudientes y contacto</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ---- Asistencia ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2">
+                <i class="fa-solid fa-clipboard-check me-1"></i> Asistencia
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 mb-4">
+                <div class="col">
+                    <a href="tomar-asistencia.html" target="_blank" class="btn btn-outline-success w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-square-check fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Tomar asistencia</span>
+                        <span class="small text-muted d-none d-md-block">Registro del día</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="historial-asistencia.html" target="_blank" class="btn btn-outline-secondary w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-clock-rotate-left fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Historial de asistencia</span>
+                        <span class="small text-muted d-none d-md-block">Por estudiante o salón</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="estadisticas_asistencias.html" target="_blank" class="btn btn-outline-info w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-chart-pie fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Estadísticas de asistencia</span>
+                        <span class="small text-muted d-none d-md-block">Resumen general</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="excepciones_horario.html" target="_blank" class="btn btn-outline-warning w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-calendar-xmark fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Excepciones de horario</span>
+                        <span class="small text-muted d-none d-md-block">Días y horas especiales</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ---- Personas ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2">
+                <i class="fa-solid fa-people-group me-1"></i> Personas
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 mb-4">
+                <div class="col">
+                    <button type="button" class="btn btn-outline-success w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-profesores">
+                        <i class="fa-solid fa-chalkboard-user fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Gestionar profesores</span>
+                        <span class="small text-muted d-none d-md-block">Salón y permisos</span>
                     </button>
                 </div>
                 <div class="col">
@@ -101,25 +162,46 @@
                     </button>
                 </div>
                 <div class="col">
-                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-notas-todos">
-                        <i class="fa-solid fa-file-lines fa-2x d-block mb-2" aria-hidden="true"></i>
-                        <span class="fw-semibold d-block">Notas de todos</span>
-                        <span class="small text-muted d-none d-md-block">Todos los estudiantes</span>
+                    <a href="consejero.html" target="_blank" class="btn btn-outline-secondary w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-comments fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Consejería</span>
+                        <span class="small text-muted d-none d-md-block">Panel del consejero</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="mi_horario.html" target="_blank" class="btn btn-outline-primary w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-calendar-week fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Mi horario</span>
+                        <span class="small text-muted d-none d-md-block">Horario personal</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ---- Sistema ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2">
+                <i class="fa-solid fa-gear me-1"></i> Sistema
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+                <div class="col">
+                    <button type="button" class="btn btn-outline-warning w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-preguntas">
+                        <i class="fa-solid fa-key fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Preguntas de seguridad</span>
+                        <span class="small text-muted d-none d-md-block">De un estudiante</span>
                     </button>
                 </div>
                 <div class="col">
-                    <button type="button" class="btn btn-outline-success w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-profesores">
-                        <i class="fa-solid fa-chalkboard-user fa-2x d-block mb-2" aria-hidden="true"></i>
-                        <span class="fw-semibold d-block">Gestionar profesores</span>
-                        <span class="small text-muted d-none d-md-block">Salón y permisos</span>
+                    <button type="button" class="btn btn-outline-secondary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-actividad">
+                        <i class="fa-solid fa-chart-line fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Actividad</span>
+                        <span class="small text-muted d-none d-md-block">Visitas a la plataforma</span>
                     </button>
                 </div>
                 <div class="col">
-                    <button type="button" class="btn btn-outline-warning w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-trimestres">
-                        <i class="fa-solid fa-calendar-days fa-2x d-block mb-2" aria-hidden="true"></i>
-                        <span class="fw-semibold d-block">Trimestres</span>
-                        <span class="small text-muted d-none d-md-block">Fechas y trimestre activo</span>
-                    </button>
+                    <a href="consulta.html" target="_blank" class="btn btn-outline-info w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-magnifying-glass fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Consulta</span>
+                        <span class="small text-muted d-none d-md-block">Búsqueda rápida</span>
+                    </a>
                 </div>
             </div>
         </div>
