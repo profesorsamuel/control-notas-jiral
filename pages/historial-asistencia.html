@@ -149,6 +149,92 @@
   .btn-trimestre:active{ transform:translateY(1px); }
   .btn-trimestre:disabled{ opacity:.6; cursor:progress; }
 
+  /* ============ CUADRÍCULA DEL TRIMESTRE ============ */
+  .panel-cuadricula{
+    background:var(--paper-card);
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:18px 20px;
+    margin-bottom:22px;
+  }
+  .cuadricula-encabezado{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .aviso-cuadricula{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin:6px 0 10px;
+  }
+  .aviso-cuadricula.error{ color:var(--rose); font-weight:600; }
+  .leyenda-cuadricula{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin:0 0 14px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px 4px;
+    align-items:center;
+  }
+  .celda-estado{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:26px;
+    height:22px;
+    padding:0 4px;
+    border-radius:5px;
+    font-size:11.5px;
+    font-weight:700;
+    margin-right:2px;
+  }
+  .celda-presente{ background:#e3efec; color:#1f5c3d; }
+  .celda-ausente{ background:#fbe2e2; color:#7a2e2e; }
+  .celda-tardanza{ background:#fdf3d6; color:#6b5100; }
+  .celda-permiso{ background:#dbe8f7; color:#1f4e79; }
+  .celda-vacia{ background:#eef1f6; color:#9aa4bb; border:1px dashed var(--rule); }
+
+  #tablaCuadricula{
+    border-collapse:collapse;
+    width:100%;
+    font-size:13px;
+  }
+  #tablaCuadricula th, #tablaCuadricula td{
+    border:1px solid var(--rule);
+    padding:5px 6px;
+    text-align:center;
+    white-space:nowrap;
+  }
+  #tablaCuadricula thead th{
+    background:var(--ink);
+    color:#fff;
+    font-weight:600;
+    font-size:11.5px;
+    position:sticky;
+    top:0;
+    z-index:1;
+  }
+  #tablaCuadricula td.col-estudiante-cuadricula,
+  #tablaCuadricula th.col-estudiante-cuadricula{
+    position:sticky;
+    left:0;
+    background:var(--paper-card);
+    text-align:left;
+    z-index:2;
+    box-shadow:2px 0 3px -2px rgba(0,0,0,.15);
+    min-width:150px;
+  }
+  #tablaCuadricula thead th.col-estudiante-cuadricula{ background:var(--ink); color:#fff; z-index:3; }
+  #tablaCuadricula td.celda-clic{ cursor:pointer; user-select:none; }
+  #tablaCuadricula td.celda-clic:hover{ outline:2px solid var(--gold); outline-offset:-2px; }
+  #tablaCuadricula td.celda-guardando{ opacity:.5; }
+
+
   /* ============ FILTROS ============ */
   .panel-filtros{
     background:var(--paper-card);
@@ -576,7 +662,41 @@
 
   <div class="barra-acciones">
     <div></div>
-    <button type="button" id="btnExportarTrimestre" class="btn-trimestre">🖨️ Imprimir asistencia del trimestre</button>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button type="button" id="btnVerCuadricula" class="btn-trimestre" style="background:var(--teal);">📊 Ver cuadrícula del trimestre</button>
+      <button type="button" id="btnExportarTrimestre" class="btn-trimestre">🖨️ Imprimir asistencia del trimestre</button>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       CUADRÍCULA DEL TRIMESTRE: estudiantes x fechas, editable
+  ========================================================= -->
+  <div class="panel-cuadricula" id="panelCuadricula" style="display:none;">
+    <div class="cuadricula-encabezado">
+      <div>
+        <h2 style="margin:0 0 4px;">📊 Asistencia del trimestre — cuadrícula</h2>
+        <p id="subtituloCuadricula" style="margin:0; font-size:13px; color:var(--ink-soft);"></p>
+      </div>
+      <button type="button" id="btnCerrarCuadricula" class="btn-tomar-asistencia btn-secundario">Cerrar cuadrícula</button>
+    </div>
+
+    <p id="avisoCuadricula" class="aviso-cuadricula"></p>
+
+    <p class="leyenda-cuadricula">
+      Haz clic en una celda para cambiar el estado (se guarda solo):
+      <span class="celda-estado celda-presente">P</span> Presente ·
+      <span class="celda-estado celda-ausente">A</span> Ausente ·
+      <span class="celda-estado celda-tardanza">T</span> Tardanza ·
+      <span class="celda-estado celda-permiso">Pe</span> Permiso ·
+      <span class="celda-estado celda-vacia">—</span> Sin registrar
+    </p>
+
+    <div class="tabla-envoltura" id="envolturaCuadricula" style="overflow-x:auto; display:none;">
+      <table id="tablaCuadricula">
+        <thead id="cabezaCuadricula"></thead>
+        <tbody id="cuerpoCuadricula"></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- =========================================================
