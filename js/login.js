@@ -216,8 +216,6 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("✅ Inicio de sesión correcto");
             console.log("👤 Usuario:", data.user);
 
-            alert("✅ Inicio de sesión correcto");
-
             /*
              * ¿QUÉ ROLES TIENE ESTA CUENTA?
              * Una misma cuenta puede ser admin, consejero(a) y
