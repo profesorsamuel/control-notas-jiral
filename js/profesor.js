@@ -1093,13 +1093,22 @@ async function cargarSalon() {
         if (t.tema) casillasEncontradas.add(claveCasilla(t.tipo, t.numero));
     });
 
+    // ¿La casilla que estaba seleccionada (numero) ya tenía notas guardadas
+    // de verdad en la base de datos? Si es así, es una casilla real y hay
+    // que mover el puntero a la siguiente libre. Si no, es solo la casilla
+    // "lista para escribir" que ya estaba esperando (por ejemplo, la que
+    // quedó después de eliminar una columna) y no hay que avanzarla de
+    // nuevo solo porque se recargó el salón; si se avanza igual, se crea
+    // una segunda columna vacía además de esta.
+    const numeroYaTeniaDatos = casillasEncontradas.has(claveCasilla(tipo, numero));
+
     casillasEncontradas.add(claveCasilla(tipo, numero));
     casillasTabla = [...casillasEncontradas].map((c) => {
         const sep = c.lastIndexOf("-");
         return { tipo: c.slice(0, sep), numero: parseInt(c.slice(sep + 1), 10) };
     });
     ordenarCasillas(casillasTabla);
-    if (inputNumeroNota) inputNumeroNota.value = String(obtenerUltimoNumeroTipo(tipo) + 1);
+    if (inputNumeroNota && numeroYaTeniaDatos) inputNumeroNota.value = String(obtenerUltimoNumeroTipo(tipo) + 1);
 
     const { data: filaAsignacion } = await supabase
         .from("profesor_materias")
