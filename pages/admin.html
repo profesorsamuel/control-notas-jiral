@@ -107,6 +107,13 @@
                         <span class="small text-muted d-none d-md-block">Todos los estudiantes</span>
                     </button>
                 </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-success w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-profesores">
+                        <i class="fa-solid fa-chalkboard-user fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Gestionar profesores</span>
+                        <span class="small text-muted d-none d-md-block">Salón y permisos</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -619,6 +626,47 @@
         </section>
         </div>
 
+        <!-- ===================== GESTIONAR PROFESORES ===================== -->
+        <div id="panel-profesores" class="panel-seccion d-none">
+        <section class="card shadow border-success border-2 mb-4">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-chalkboard-user me-2" aria-hidden="true"></i>
+                    Gestionar profesores
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-3">
+                    Asigna el salón de cada profesor y activa el permiso para que pueda
+                    agregar estudiantes nuevos (con cédula) desde su propio panel.
+                    Los cambios se guardan solos al elegir una opción.
+                </p>
+
+                <div id="mensajeProfesores" class="alert d-none" role="alert"></div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width:200px;">Profesor(a)</th>
+                                <th style="min-width:220px;">Correo</th>
+                                <th style="min-width:140px;">Salón</th>
+                                <th style="min-width:160px;">Puede agregar estudiantes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaProfesoresAdmin">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">Cargando profesores...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
     </main>
 
     <!-- Bootstrap JS -->
@@ -648,6 +696,10 @@
                 menu.classList.add("d-none");
                 volverBar.classList.remove("d-none");
                 window.scrollTo({ top: 0, behavior: "smooth" });
+
+                if (idPanel === "panel-profesores" && typeof window.cargarProfesoresAdmin === "function") {
+                    window.cargarProfesoresAdmin();
+                }
             }
 
             function mostrarMenu() {
