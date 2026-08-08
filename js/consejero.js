@@ -1277,122 +1277,159 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // =====================================================
-    // AGREGAR ESTUDIANTE (cédula, nombre y apellido)
-    // El código se calcula solo: es el siguiente número
-    // disponible dentro de este salón (1, 2, 3...).
+    // LISTA DE ESTUDIANTES (todos los salones)
+    // Nota: agregar estudiantes ya NO se hace desde este panel;
+    // esa tarea le corresponde exclusivamente al administrador
+    // para evitar códigos/cédulas duplicados entre consejeros.
+    // Aquí solo se CONSULTA e imprime en PDF, por nombre, por
+    // cédula, por salón o todos los salones juntos.
     // =====================================================
 
-    const formAgregarEstudiante = document.getElementById("formAgregarEstudiante");
-    const inputCedula = document.getElementById("inputCedula");
-    const inputNombreEst = document.getElementById("inputNombreEst");
-    const inputApellidoEst = document.getElementById("inputApellidoEst");
-    const mensajeAgregarEstudiante = document.getElementById("mensajeAgregarEstudiante");
-    const btnGuardarEstudiante = document.getElementById("btnGuardarEstudiante");
-    const modalAgregarEstudianteEl = document.getElementById("modalAgregarEstudiante");
+    const buscarListadoEl = document.getElementById("buscarListado");
+    const filtroSalonListadoEl = document.getElementById("filtroSalonListado");
+    const tablaListadoEl = document.getElementById("tablaListado");
+    const contadorListadoEl = document.getElementById("contadorListado");
+    const btnPdfListado = document.getElementById("btnPdfListado");
+    const seccionListadoEl = document.getElementById("seccionListado");
 
-    // Limpia el formulario cada vez que se abre el modal
-    if (modalAgregarEstudianteEl) {
-        modalAgregarEstudianteEl.addEventListener("shown.bs.modal", () => {
-            formAgregarEstudiante.reset();
-            mensajeAgregarEstudiante.textContent = "";
-            mensajeAgregarEstudiante.className = "small";
-            inputCedula.focus();
-        });
+    let todosLosEstudiantes = []; // { codigo, nombre, cedula, salon }
+    let listadoYaCargado = false;
+
+    async function cargarListadoEstudiantes() {
+        tablaListadoEl.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando...</td></tr>`;
+
+        // Se consultan TODOS los salones (no solo el propio), para que
+        // el consejero pueda ubicar a cualquier estudiante del colegio.
+        const { data, error } = await supabase
+            .from("estudiantes")
+            .select("codigo, nombre, cedula, salon")
+            .eq("es_prueba", false)
+            .order("salon", { ascending: true })
+            .order("codigo", { ascending: true });
+
+        if (error) {
+            console.error("❌ Error al cargar la lista de estudiantes:", error);
+            tablaListadoEl.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-3">
+                No se pudo cargar la lista de estudiantes.
+            </td></tr>`;
+            return;
+        }
+
+        todosLosEstudiantes = data || [];
+
+        // -------- Llenar el selector de salones con lo que realmente exista --------
+        const salonesUnicos = [...new Set(todosLosEstudiantes.map((e) => e.salon).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, "es"));
+
+        filtroSalonListadoEl.innerHTML = `<option value="">Todos los salones</option>` +
+            salonesUnicos.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+
+        // Por defecto se muestra el salón del propio consejero, si existe en la lista
+        if (salonesUnicos.includes(salonActual)) {
+            filtroSalonListadoEl.value = salonActual;
+        }
+
+        renderListado();
     }
 
-    if (formAgregarEstudiante) {
-        formAgregarEstudiante.addEventListener("submit", async (e) => {
-            e.preventDefault();
+    function renderListado() {
+        const texto = (buscarListadoEl.value || "").trim().toLowerCase();
+        const salonElegido = filtroSalonListadoEl.value;
 
-            const cedula = inputCedula.value.trim();
-            const nombre = inputNombreEst.value.trim();
-            const apellido = inputApellidoEst.value.trim();
+        const filtrados = todosLosEstudiantes.filter((e) => {
+            if (salonElegido && e.salon !== salonElegido) return false;
 
-            if (!cedula || !nombre || !apellido) {
-                mensajeAgregarEstudiante.textContent = "Completa todos los campos.";
-                mensajeAgregarEstudiante.className = "small text-danger";
+            if (!texto) return true;
+
+            const nombre = (e.nombre || "").toLowerCase();
+            const cedula = (e.cedula || "").toLowerCase();
+            return nombre.includes(texto) || cedula.includes(texto);
+        });
+
+        contadorListadoEl.textContent = `${filtrados.length} estudiante${filtrados.length === 1 ? "" : "s"}`;
+
+        if (filtrados.length === 0) {
+            tablaListadoEl.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">
+                No se encontraron estudiantes con ese criterio.
+            </td></tr>`;
+            return;
+        }
+
+        tablaListadoEl.innerHTML = filtrados.map((e) => `
+            <tr>
+                <td>${escapeHtml(e.salon || "-")}</td>
+                <td>${escapeHtml(e.codigo)}</td>
+                <td>${escapeHtml(e.cedula || "-")}</td>
+                <td>${escapeHtml(e.nombre)}</td>
+            </tr>
+        `).join("");
+    }
+
+    if (buscarListadoEl) buscarListadoEl.addEventListener("input", renderListado);
+    if (filtroSalonListadoEl) filtroSalonListadoEl.addEventListener("change", renderListado);
+
+    // Carga la lista la primera vez que se entra a esta sección
+    // (patrón perezoso, igual que el bloque de consultas).
+    if (seccionListadoEl) {
+        const observer = new MutationObserver(() => {
+            if (seccionListadoEl.style.display !== "none" && !listadoYaCargado) {
+                listadoYaCargado = true;
+                cargarListadoEstudiantes();
+            }
+        });
+        observer.observe(seccionListadoEl, { attributes: true, attributeFilter: ["style"] });
+    }
+
+    // -------- Descargar / imprimir la lista actual (filtrada) en PDF --------
+    if (btnPdfListado) {
+        btnPdfListado.addEventListener("click", () => {
+            if (typeof window.jspdf === "undefined") {
+                alert("No se pudo cargar la librería para generar el PDF.");
                 return;
             }
 
-            btnGuardarEstudiante.disabled = true;
-            btnGuardarEstudiante.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Guardando...`;
-            mensajeAgregarEstudiante.textContent = "";
-            mensajeAgregarEstudiante.className = "small";
+            const texto = (buscarListadoEl.value || "").trim().toLowerCase();
+            const salonElegido = filtroSalonListadoEl.value;
 
-            try {
-                // -------- 1) Verificar que la cédula no exista ya --------
-                const { data: cedulaExistente, error: errBuscar } = await supabase
-                    .from("estudiantes")
-                    .select("id")
-                    .eq("cedula", cedula)
-                    .maybeSingle();
+            const filtrados = todosLosEstudiantes.filter((e) => {
+                if (salonElegido && e.salon !== salonElegido) return false;
+                if (!texto) return true;
+                const nombre = (e.nombre || "").toLowerCase();
+                const cedula = (e.cedula || "").toLowerCase();
+                return nombre.includes(texto) || cedula.includes(texto);
+            });
 
-                if (errBuscar) {
-                    throw new Error("No se pudo verificar la cédula: " + errBuscar.message);
-                }
-
-                if (cedulaExistente) {
-                    mensajeAgregarEstudiante.textContent = "Ya existe un estudiante registrado con esa cédula.";
-                    mensajeAgregarEstudiante.className = "small text-danger";
-                    return;
-                }
-
-                // -------- 2) Calcular el siguiente código dentro del salón --------
-                const { data: ultimoCodigo, error: errCodigo } = await supabase
-                    .from("estudiantes")
-                    .select("codigo")
-                    .eq("salon", salonActual)
-                    .order("codigo", { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                if (errCodigo) {
-                    throw new Error("No se pudo calcular el código: " + errCodigo.message);
-                }
-
-                const siguienteCodigo = ultimoCodigo ? (Number(ultimoCodigo.codigo) + 1) : 1;
-
-                // -------- 3) Insertar el estudiante --------
-                const { error: errInsertar } = await supabase
-                    .from("estudiantes")
-                    .insert([{
-                        codigo: siguienteCodigo,
-                        nombre: `${nombre} ${apellido}`.trim(),
-                        cedula,
-                        salon: salonActual,
-                        es_prueba: false
-                    }]);
-
-                if (errInsertar) {
-                    // 23505 = violación de restricción única (cédula o código duplicado)
-                    if (errInsertar.code === "23505") {
-                        throw new Error("Ya existe un estudiante con esa cédula o ese código en el salón.");
-                    }
-                    // 42501 = RLS bloqueó el insert (no tiene permiso)
-                    if (errInsertar.code === "42501") {
-                        throw new Error("No tienes permiso para agregar estudiantes en este salón.");
-                    }
-                    throw new Error(errInsertar.message);
-                }
-
-                mensajeAgregarEstudiante.textContent = `✅ ${nombre} ${apellido} fue agregado(a) con el código ${siguienteCodigo}.`;
-                mensajeAgregarEstudiante.className = "small text-success";
-
-                // Refresca la tabla y las tarjetas de totales
-                await cargarPanel();
-
-                setTimeout(() => {
-                    bootstrap.Modal.getInstance(modalAgregarEstudianteEl)?.hide();
-                }, 1200);
-
-            } catch (error) {
-                console.error("❌ Error al agregar estudiante:", error);
-                mensajeAgregarEstudiante.textContent = error.message || "Ocurrió un error inesperado.";
-                mensajeAgregarEstudiante.className = "small text-danger";
-            } finally {
-                btnGuardarEstudiante.disabled = false;
-                btnGuardarEstudiante.innerHTML = `<i class="fa-solid fa-floppy-disk me-1"></i> Guardar`;
+            if (filtrados.length === 0) {
+                alert("No hay estudiantes para imprimir con ese criterio.");
+                return;
             }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            const tituloSalon = salonElegido ? `Salón ${salonElegido}` : "Todos los salones";
+            const fecha = new Date().toLocaleDateString("es-PA");
+
+            doc.setFont(undefined, "bold");
+            doc.setFontSize(14);
+            doc.text("CENTRO EDUCATIVO BASICO GENERAL EL JIRAL", 105, 15, { align: "center" });
+            doc.setFontSize(12);
+            doc.text("LISTA DE ESTUDIANTES", 105, 22, { align: "center" });
+            doc.setFont(undefined, "normal");
+            doc.setFontSize(10);
+            doc.text(`${tituloSalon}`, 14, 30);
+            doc.text(`Fecha: ${fecha}`, 196, 30, { align: "right" });
+
+            doc.autoTable({
+                startY: 35,
+                head: [["Salón", "Código", "Cédula", "Nombre"]],
+                body: filtrados.map((e) => [e.salon || "-", e.codigo, e.cedula || "-", e.nombre]),
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [13, 110, 253] }
+            });
+
+            const nombreArchivo = `Lista_estudiantes_${salonElegido || "TodosLosSalones"}_${new Date().toISOString().slice(0, 10)}.pdf`;
+            doc.save(nombreArchivo);
         });
     }
 
