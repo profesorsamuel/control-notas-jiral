@@ -592,6 +592,199 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     })();
 
+    // =================================================
+    // 2.6) TRIMESTRES: FECHAS Y CÁLCULO DEL TRIMESTRE ACTIVO
+    // =================================================
+    // El admin define fecha de inicio y de fin de cada trimestre.
+    // A partir de esas fechas, el sistema calcula solo cuál trimestre
+    // corresponde según el día de hoy, y lo guarda en
+    // configuracion.trimestre_activo (columna que ya usan tanto este
+    // panel como el del docente para precargar el selector de notas).
+
+    const t1Inicio = document.getElementById("t1Inicio");
+    const t1Fin = document.getElementById("t1Fin");
+    const t2Inicio = document.getElementById("t2Inicio");
+    const t2Fin = document.getElementById("t2Fin");
+    const t3Inicio = document.getElementById("t3Inicio");
+    const t3Fin = document.getElementById("t3Fin");
+    const btnGuardarTrimestres = document.getElementById("btnGuardarTrimestres");
+    const mensajeTrimestres = document.getElementById("mensajeTrimestres");
+    const estadoGuardadoTrimestres = document.getElementById("estadoGuardadoTrimestres");
+    const trimestreActivoCalculado = document.getElementById("trimestreActivoCalculado");
+    const trimestreActivoDetalle = document.getElementById("trimestreActivoDetalle");
+
+    function mostrarMensajeTrimestres(texto, tipo = "danger") {
+        if (!mensajeTrimestres) return;
+        mensajeTrimestres.textContent = texto;
+        mensajeTrimestres.className = `alert alert-${tipo}`;
+    }
+
+    function ocultarMensajeTrimestres() {
+        if (!mensajeTrimestres) return;
+        mensajeTrimestres.className = "alert d-none";
+    }
+
+    // Recibe las 3 parejas de fechas (strings "YYYY-MM-DD") y devuelve
+    // "Trimestre 1" / "Trimestre 2" / "Trimestre 3", o null si la fecha
+    // de hoy no cae dentro de ningún rango configurado.
+    function calcularTrimestreActivo(fechas) {
+        const hoy = new Date().toISOString().slice(0, 10);
+        const rangos = [
+            { nombre: "Trimestre 1", inicio: fechas.t1Inicio, fin: fechas.t1Fin },
+            { nombre: "Trimestre 2", inicio: fechas.t2Inicio, fin: fechas.t2Fin },
+            { nombre: "Trimestre 3", inicio: fechas.t3Inicio, fin: fechas.t3Fin }
+        ];
+
+        for (const rango of rangos) {
+            if (!rango.inicio || !rango.fin) continue;
+            if (hoy >= rango.inicio && hoy <= rango.fin) return rango.nombre;
+        }
+        return null;
+    }
+
+    function formatearFechaCorta(fechaIso) {
+        if (!fechaIso) return "?";
+        const [anio, mes, dia] = fechaIso.split("-");
+        return `${dia}/${mes}/${anio}`;
+    }
+
+    function actualizarTrimestreActivoUI(fechas) {
+        const activo = calcularTrimestreActivo(fechas);
+
+        if (activo) {
+            trimestreActivoCalculado.textContent = activo;
+            trimestreActivoCalculado.className = "fw-bold text-success";
+        } else {
+            trimestreActivoCalculado.textContent = "Ninguno (fuera de rango)";
+            trimestreActivoCalculado.className = "fw-bold text-danger";
+        }
+
+        if (trimestreActivoDetalle) {
+            const partes = [];
+            if (fechas.t1Inicio && fechas.t1Fin) partes.push(`T1: ${formatearFechaCorta(fechas.t1Inicio)}–${formatearFechaCorta(fechas.t1Fin)}`);
+            if (fechas.t2Inicio && fechas.t2Fin) partes.push(`T2: ${formatearFechaCorta(fechas.t2Inicio)}–${formatearFechaCorta(fechas.t2Fin)}`);
+            if (fechas.t3Inicio && fechas.t3Fin) partes.push(`T3: ${formatearFechaCorta(fechas.t3Inicio)}–${formatearFechaCorta(fechas.t3Fin)}`);
+            trimestreActivoDetalle.textContent = partes.join("   ·   ");
+        }
+
+        return activo;
+    }
+
+    async function cargarConfigTrimestres() {
+        ocultarMensajeTrimestres();
+
+        const { data: cfg, error } = await supabase
+            .from("configuracion")
+            .select("t1_inicio, t1_fin, t2_inicio, t2_fin, t3_inicio, t3_fin, trimestre_activo")
+            .eq("id", 1)
+            .maybeSingle();
+
+        if (error) {
+            console.error("❌ Error al cargar fechas de trimestres:", error);
+            mostrarMensajeTrimestres("No se pudieron cargar las fechas de los trimestres.");
+            return;
+        }
+
+        if (t1Inicio) t1Inicio.value = cfg?.t1_inicio || "";
+        if (t1Fin) t1Fin.value = cfg?.t1_fin || "";
+        if (t2Inicio) t2Inicio.value = cfg?.t2_inicio || "";
+        if (t2Fin) t2Fin.value = cfg?.t2_fin || "";
+        if (t3Inicio) t3Inicio.value = cfg?.t3_inicio || "";
+        if (t3Fin) t3Fin.value = cfg?.t3_fin || "";
+
+        actualizarTrimestreActivoUI({
+            t1Inicio: cfg?.t1_inicio, t1Fin: cfg?.t1_fin,
+            t2Inicio: cfg?.t2_inicio, t2Fin: cfg?.t2_fin,
+            t3Inicio: cfg?.t3_inicio, t3Fin: cfg?.t3_fin
+        });
+    }
+
+    async function guardarConfigTrimestres() {
+        ocultarMensajeTrimestres();
+
+        const fechas = {
+            t1Inicio: t1Inicio.value || null, t1Fin: t1Fin.value || null,
+            t2Inicio: t2Inicio.value || null, t2Fin: t2Fin.value || null,
+            t3Inicio: t3Inicio.value || null, t3Fin: t3Fin.value || null
+        };
+
+        // Validaciones básicas: cada trimestre con inicio y fin en orden,
+        // y que no se pisen entre sí (el fin de uno antes del inicio del siguiente).
+        const pares = [
+            ["Trimestre 1", fechas.t1Inicio, fechas.t1Fin],
+            ["Trimestre 2", fechas.t2Inicio, fechas.t2Fin],
+            ["Trimestre 3", fechas.t3Inicio, fechas.t3Fin]
+        ];
+
+        for (const [nombre, inicio, fin] of pares) {
+            if (inicio && fin && inicio > fin) {
+                mostrarMensajeTrimestres(`⚠️ En ${nombre}, la fecha de inicio no puede ser después de la fecha de fin.`);
+                return;
+            }
+        }
+
+        if (fechas.t1Fin && fechas.t2Inicio && fechas.t1Fin >= fechas.t2Inicio) {
+            mostrarMensajeTrimestres("⚠️ El Trimestre 1 se pisa con el Trimestre 2. Revisa las fechas.");
+            return;
+        }
+        if (fechas.t2Fin && fechas.t3Inicio && fechas.t2Fin >= fechas.t3Inicio) {
+            mostrarMensajeTrimestres("⚠️ El Trimestre 2 se pisa con el Trimestre 3. Revisa las fechas.");
+            return;
+        }
+
+        const trimestreCalculado = calcularTrimestreActivo(fechas);
+
+        btnGuardarTrimestres.disabled = true;
+        estadoGuardadoTrimestres.textContent = "Guardando...";
+        estadoGuardadoTrimestres.className = "small text-muted";
+
+        const cambios = {
+            t1_inicio: fechas.t1Inicio, t1_fin: fechas.t1Fin,
+            t2_inicio: fechas.t2Inicio, t2_fin: fechas.t2Fin,
+            t3_inicio: fechas.t3Inicio, t3_fin: fechas.t3Fin
+        };
+
+        // Si las fechas ya determinan un trimestre activo, lo actualizamos
+        // de una vez para que el resto del sistema (precarga en este panel
+        // y, en el panel del docente, la próxima vez que se conecte al
+        // sistema) quede al día sin pasos manuales extra.
+        if (trimestreCalculado) {
+            cambios.trimestre_activo = trimestreCalculado;
+        }
+
+        const { error } = await supabase
+            .from("configuracion")
+            .update(cambios)
+            .eq("id", 1);
+
+        btnGuardarTrimestres.disabled = false;
+
+        if (error) {
+            console.error("❌ Error al guardar fechas de trimestres:", error);
+            estadoGuardadoTrimestres.textContent = "❌ Error al guardar";
+            estadoGuardadoTrimestres.className = "small text-danger";
+            return;
+        }
+
+        estadoGuardadoTrimestres.textContent = "✅ Guardado";
+        estadoGuardadoTrimestres.className = "small text-success";
+        setTimeout(() => { estadoGuardadoTrimestres.textContent = ""; }, 2500);
+
+        actualizarTrimestreActivoUI(fechas);
+
+        if (trimestreCalculado && notasTrimestre) {
+            notasTrimestre.value = trimestreCalculado;
+        }
+    }
+
+    if (btnGuardarTrimestres) {
+        btnGuardarTrimestres.addEventListener("click", guardarConfigTrimestres);
+    }
+
+    // Se expone para que el script de navegación del menú (al final de
+    // admin.html) pueda cargar los datos justo al abrir este panel.
+    window.cargarConfigTrimestres = cargarConfigTrimestres;
+
     const MATERIAS_BASE = [
         "Español",
         "Matemática",
