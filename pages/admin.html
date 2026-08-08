@@ -325,14 +325,14 @@
             <div class="card-body">
 
                 <p class="text-muted small mb-4">
-                    Elige el salón, la materia y la casilla que vas a llenar (por ejemplo
-                    <strong>Apreciación 2</strong> o <strong>Ejercicio 1</strong>), carga la lista
-                    del grupo y escribe la nota de cada estudiante en una sola tabla.
+                    Elige el salón y la materia: la tabla carga sola con las
+                    <strong>10 casillas de Apreciación</strong> y las <strong>10 de Ejercicio</strong>
+                    del trimestre activo, para que completes las notas de todo el grupo en una sola vista.
                 </p>
 
                 <div class="row g-3 align-items-end">
 
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md-4">
                         <label for="notasSalon" class="form-label fw-semibold">
                             <i class="fa-solid fa-chalkboard text-primary me-1"></i> Salón
                         </label>
@@ -346,7 +346,7 @@
                         </select>
                     </div>
 
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md-4">
                         <label for="notasMateria" class="form-label fw-semibold">
                             <i class="fa-solid fa-book text-primary me-1"></i> Materia
                         </label>
@@ -355,41 +355,11 @@
                         </select>
                     </div>
 
-                    <div class="col-6 col-md-2">
-                        <label for="notasTipo" class="form-label fw-semibold">
-                            <i class="fa-solid fa-tag text-primary me-1"></i> Tipo
-                        </label>
-                        <select id="notasTipo" class="form-select">
-                            <option value="apreciacion">Apreciación</option>
-                            <option value="ejercicio">Ejercicio</option>
-                        </select>
-                    </div>
-
-                    <div class="col-3 col-md-1">
-                        <label for="notasNumero" class="form-label fw-semibold">N°</label>
-                        <select id="notasNumero" class="form-select">
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="6">6</option>
-                            <option value="7">7</option>
-                            <option value="8">8</option>
-                            <option value="9">9</option>
-                            <option value="10">10</option>
-                        </select>
-                    </div>
-
-                    <div class="col-3 col-md-3">
+                    <div class="col-12 col-md-4">
                         <label for="notasTrimestre" class="form-label fw-semibold">
-                            <i class="fa-solid fa-calendar text-primary me-1"></i> Trimestre
+                            <i class="fa-solid fa-calendar text-primary me-1"></i> Trimestre activo
                         </label>
-                        <select id="notasTrimestre" class="form-select">
-                            <option value="Trimestre 1">Trimestre 1</option>
-                            <option value="Trimestre 2">Trimestre 2</option>
-                            <option value="Trimestre 3">Trimestre 3</option>
-                        </select>
+                        <input type="text" id="notasTrimestre" class="form-control fw-bold text-primary" readonly value="—">
                     </div>
 
                 </div>
