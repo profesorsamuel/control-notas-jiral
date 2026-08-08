@@ -166,7 +166,25 @@ function formatearFechaLarga(fechaISO) {
     });
 }
 
+// Botón para regresar al panel principal del profesor. Se pinta en el
+// <span id="navCambiarPanel"> que ya está en el HTML (junto al título),
+// tanto en el dashboard como en la vista de detalle.
+function pintarBotonVolverAPanel() {
+    const nav = document.getElementById("navCambiarPanel");
+    if (!nav) return;
+
+    nav.innerHTML = `
+        <a href="profesor.html" style="text-decoration:none;">
+            <button type="button" class="btn-tomar-asistencia" style="background:var(--color-primario-oscuro);">
+                ⬅️ Volver al panel
+            </button>
+        </a>
+    `;
+}
+
 function pintarEncabezado() {
+    pintarBotonVolverAPanel();
+
     if (nombreProfesorTexto) nombreProfesorTexto.textContent = nombreProfesor;
     if (!fechaActual || !nombreProfesorTexto) {
         console.error("❌ Falta alguno de estos ids en el HTML: fechaActual, nombreProfesorTexto.");
