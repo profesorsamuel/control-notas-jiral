@@ -123,8 +123,23 @@
             <option value="otro">Otro (ej. Consejería, Reunión)</option>
         </select>
 
-        <label>Texto a mostrar</label>
-        <input type="text" id="inputTextoBloque" placeholder="Ej: 9°C Naturales, o Consejería">
+        <div id="campoMateriaSalon">
+            <label>Materia / Salón</label>
+            <select id="selectMateriaSalonBloque">
+                <option value="">Cargando tus materias...</option>
+            </select>
+            <div class="small text-muted" style="margin-top:4px;">
+                Elige de la lista para que la asistencia identifique bien la clase. Si no ves la materia que
+                buscas, pídele al administrador que te la asigne en el panel de asignaciones.
+            </div>
+        </div>
+
+        <div id="campoTextoLibre" class="d-none">
+            <label>Texto a mostrar</label>
+            <input type="text" id="inputTextoBloque" placeholder="Ej: Consejería, Reunión de grado">
+        </div>
+
+        <div id="avisoBloqueLegado" class="small text-danger d-none" style="margin-top:8px;"></div>
 
         <div class="acciones-modal">
             <button class="btn btn-sm btn-outline-danger d-none" id="btnEliminarBloqueModal">🗑 Eliminar</button>
