@@ -638,8 +638,22 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
     };
 }
 
+// Valor de comportamiento "efectivo" para un estudiante en una fecha:
+// - si hay un valor guardado explícitamente (5 o 1), se usa ese.
+// - si NO hay valor guardado pero esa fecha es un día de clase real
+//   (aparece en asistenciaFechas), se asume 5 (buen comportamiento por
+//   defecto) — el docente solo tiene que marcar 😕 a quien se portó mal.
+// - si la fecha no es día de clase (la agregó el docente a mano y
+//   todavía no le puso nada), no se asume nada: cuenta como vacío.
+function valorComportamientoEfectivo(estado_, fecha, estudianteId) {
+    const explicito = estado_.comportamientoPorFecha[fecha]?.[estudianteId];
+    if (explicito !== undefined && explicito !== null) return explicito;
+    if (estado_.asistenciaFechas.includes(fecha)) return VALOR_COMPORTAMIENTO_BUENO;
+    return undefined;
+}
+
 function calcularNotaFinalEstudiante(estado_, estudianteId) {
-    const { asistenciaFechas, asistenciaPorFecha, comportamientoFechas, comportamientoPorFecha, actividadesClase, actividadesCasa, valoresAsistencia, pesos } = estado_;
+    const { asistenciaFechas, asistenciaPorFecha, comportamientoFechas, actividadesClase, actividadesCasa, valoresAsistencia, pesos } = estado_;
 
     const valoresAsist = asistenciaFechas
         .map((f) => asistenciaPorFecha[f]?.[estudianteId])
@@ -648,9 +662,13 @@ function calcularNotaFinalEstudiante(estado_, estudianteId) {
         .filter((v) => v !== undefined);
     const notaAsistencia = promedio(valoresAsist);
 
-    const valoresComportamiento = comportamientoFechas
-        .map((f) => comportamientoPorFecha[f]?.[estudianteId])
-        .filter((v) => v !== undefined && v !== null);
+    // Unimos las fechas de comportamiento agregadas a mano con las de
+    // asistencia (así los días de clase cuentan aunque no se haya
+    // tocado nada ahí todavía).
+    const fechasComportamiento = [...new Set([...comportamientoFechas, ...asistenciaFechas])];
+    const valoresComportamiento = fechasComportamiento
+        .map((f) => valorComportamientoEfectivo(estado_, f, estudianteId))
+        .filter((v) => v !== undefined);
     const notaComportamiento = promedio(valoresComportamiento);
 
     const notaActClase = promedio(actividadesClase.map((a) => a.notas[estudianteId]).filter((v) => v !== undefined));
@@ -681,16 +699,18 @@ export function imprimirApreciacion(estado_) {
     const {
         materia, salon, trimestre, numeroApreciacion, estudiantes,
         fechaInicio, fechaFin, asistenciaFechas, asistenciaPorFecha,
-        comportamientoFechas, comportamientoPorFecha, actividadesClase, actividadesCasa,
+        comportamientoFechas, actividadesClase, actividadesCasa,
     } = estado_;
+
+    const fechasComportamientoReporte = [...new Set([...comportamientoFechas, ...asistenciaFechas])].sort();
 
     const filaAsistencia = (est) => asistenciaFechas.map((f) => {
         const v = asistenciaPorFecha[f]?.[est.id] || "—";
         return `<td>${escapeHtml(v)}</td>`;
     }).join("");
 
-    const filaComportamiento = (est) => comportamientoFechas.map((f) => {
-        const v = comportamientoPorFecha[f]?.[est.id];
+    const filaComportamiento = (est) => fechasComportamientoReporte.map((f) => {
+        const v = valorComportamientoEfectivo(estado_, f, est.id);
         return `<td>${v === 5 ? "Bueno" : v === 1 ? "Malo" : "—"}</td>`;
     }).join("");
 
@@ -710,7 +730,7 @@ export function imprimirApreciacion(estado_) {
         </tr>`).join("");
 
     const colspanAsistencia = Math.max(asistenciaFechas.length, 1);
-    const colspanComportamiento = Math.max(comportamientoFechas.length, 1);
+    const colspanComportamiento = Math.max(fechasComportamientoReporte.length, 1);
     const colspanActClase = Math.max(actividadesClase.length, 1);
     const colspanActCasa = Math.max(actividadesCasa.length, 1);
 
@@ -749,7 +769,7 @@ export function imprimirApreciacion(estado_) {
                     </tr>
                     <tr>
                         ${asistenciaFechas.length ? asistenciaFechas.map(th).join("") : "<th>—</th>"}
-                        ${comportamientoFechas.length ? comportamientoFechas.map(th).join("") : "<th>—</th>"}
+                        ${fechasComportamientoReporte.length ? fechasComportamientoReporte.map(th).join("") : "<th>—</th>"}
                         ${actividadesClase.length ? actividadesClase.map((a) => th(a.nombre)).join("") : "<th>—</th>"}
                         ${actividadesCasa.length ? actividadesCasa.map((a) => th(a.nombre)).join("") : "<th>—</th>"}
                     </tr>
@@ -834,11 +854,19 @@ function pintarModal(estado_) {
     // --- 2) Comportamiento: una columna por fecha, con botones 😀/😕
     // en vez de un select (más rápido de tocar). ---
     const bloqueComportamiento = () => {
-        const encabezadoFechas = comportamientoFechas.map((f) => `
+        // Columnas a mostrar: las que el docente agregó a mano + los
+        // días reales de clase (asistencia), sin repetir, en orden.
+        const fechasAMostrar = [...new Set([...comportamientoFechas, ...asistenciaFechas])].sort();
+
+        const encabezadoFechas = fechasAMostrar.map((f) => {
+            const esDiaDeClase = asistenciaFechas.includes(f);
+            return `
             <th class="text-center small" style="min-width:110px;">
                 ${escapeHtml(f)}
+                ${esDiaDeClase ? `<div class="text-muted" style="font-weight:normal; font-size:10px;">Día de clase</div>` : ""}
                 ${soloLectura ? "" : `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-fecha-comportamiento" data-fecha="${f}" title="Eliminar esta fecha">🗑️</button>`}
-            </th>`).join("");
+            </th>`;
+        }).join("");
 
         const columnaAgregar = soloLectura ? "" : `
             <th class="text-center" style="min-width:150px;">
@@ -848,8 +876,10 @@ function pintarModal(estado_) {
             </th>`;
 
         const filas = estudiantes.map((est) => {
-            const celdas = comportamientoFechas.map((f) => {
-                const valor = comportamientoPorFecha[f]?.[est.id];
+            const celdas = fechasAMostrar.map((f) => {
+                // Si es un día de clase y no se ha tocado nada todavía,
+                // se asume 5 (buen comportamiento) por defecto.
+                const valor = valorComportamientoEfectivo(estado_, f, est.id);
                 if (soloLectura) return `<td class="text-center">${valor === 5 ? "😀" : valor === 1 ? "😕" : "–"}</td>`;
                 return `<td class="text-center">
                     <div class="btn-group btn-group-sm" role="group">
@@ -864,8 +894,9 @@ function pintarModal(estado_) {
         return `
             <table class="table table-sm table-bordered align-middle mb-2">
                 <thead><tr><th class="small">Estudiante</th>${encabezadoFechas}${columnaAgregar}</tr></thead>
-                <tbody>${filas || `<tr><td colspan="99" class="text-muted small">Todavía no hay fechas de comportamiento agregadas.</td></tr>`}</tbody>
-            </table>`;
+                <tbody>${filas || `<tr><td colspan="99" class="text-muted small">Todavía no hay fechas de comportamiento. Define el rango de Asistencia arriba, o agrega una fecha a mano.</td></tr>`}</tbody>
+            </table>
+            <p class="small text-muted mb-2">Los días marcados "Día de clase" empiezan en 😀 (bueno) por defecto — solo toca 😕 en quien se portó mal ese día.</p>`;
     };
 
     // --- 3/4) Actividades: una columna por actividad, nombre editable
