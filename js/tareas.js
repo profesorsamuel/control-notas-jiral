@@ -232,7 +232,7 @@ async function cargarTareas() {
 
     listaTareas.querySelectorAll("[data-eliminar]").forEach(btn => {
         btn.addEventListener("click", (ev) => {
-            ev.stopPropagation(); // que no abra el detalle al eliminar
+            ev.stopPropagation();
             eliminarTarea(btn.dataset.eliminar);
         });
     });
@@ -365,3 +365,116 @@ btnGuardarTarea.addEventListener("click", guardarTarea);
 
 async function abrirDetalle(taskId, titulo) {
     tareaDetalleActual = taskId;
+    detalleTitulo.textContent = titulo;
+    detalleSubt.textContent = "";
+    detalleLista.innerHTML = `<p class="text-center text-muted py-3">Cargando estudiantes...</p>`;
+    overlayDetalle.classList.add("mostrar");
+    await cargarDetalleTarea(taskId);
+}
+
+function cerrarDetalle() {
+    overlayDetalle.classList.remove("mostrar");
+    tareaDetalleActual = null;
+}
+
+async function cargarDetalleTarea(taskId) {
+    const { data: asignaciones, error: errAsig } = await supabase
+        .from("task_assignments")
+        .select("id, estudiante_id, estado")
+        .eq("task_id", taskId);
+
+    if (errAsig) {
+        console.error("❌ Error al cargar asignaciones de la tarea:", errAsig);
+        detalleLista.innerHTML = `<p class="text-center text-danger py-3">Error al cargar estudiantes.</p>`;
+        return;
+    }
+
+    if (!asignaciones || asignaciones.length === 0) {
+        detalleLista.innerHTML = `<p class="text-center text-muted py-3">Esta tarea no tiene estudiantes asignados.</p>`;
+        return;
+    }
+
+    const idsEstudiantes = asignaciones.map(a => a.estudiante_id);
+    const { data: estudiantes, error: errEst } = await supabase
+        .from("estudiantes")
+        .select("id, nombre")
+        .in("id", idsEstudiantes);
+
+    if (errEst) {
+        console.error("❌ Error al cargar nombres de estudiantes:", errEst);
+    }
+
+    const nombrePorId = new Map((estudiantes || []).map(e => [e.id, e.nombre]));
+
+    const filas = asignaciones
+        .map(a => ({ ...a, nombre: nombrePorId.get(a.estudiante_id) || "(estudiante desconocido)" }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
+    const terminadas = filas.filter(f => f.estado === "terminada").length;
+    detalleSubt.textContent = `${filas.length} estudiante(s) · ${terminadas} terminada(s)`;
+
+    detalleLista.innerHTML = filas.map(f => `
+        <div class="fila-estudiante">
+            <span class="nombre">${escapeHtml(f.nombre)}</span>
+            <select data-asignacion="${f.id}" class="badge-${f.estado || "pendiente"}">
+                <option value="pendiente" ${f.estado === "pendiente" || !f.estado ? "selected" : ""}>⏳ Pendiente</option>
+                <option value="en_progreso" ${f.estado === "en_progreso" ? "selected" : ""}>✏️ En progreso</option>
+                <option value="terminada" ${f.estado === "terminada" ? "selected" : ""}>✅ Terminada</option>
+            </select>
+        </div>
+    `).join("");
+
+    detalleLista.querySelectorAll("[data-asignacion]").forEach(select => {
+        select.addEventListener("change", () => cambiarEstadoEstudiante(select.dataset.asignacion, select.value, select));
+    });
+}
+
+async function cambiarEstadoEstudiante(asignacionId, nuevoEstado, selectEl) {
+    selectEl.disabled = true;
+
+    const { error } = await supabase
+        .from("task_assignments")
+        .update({ estado: nuevoEstado })
+        .eq("id", asignacionId);
+
+    selectEl.disabled = false;
+
+    if (error) {
+        console.error("❌ Error al actualizar estado:", error);
+        mostrarEstadoDetalle("❌ No se pudo actualizar el estado.", true);
+        return;
+    }
+
+    selectEl.className = `badge-${nuevoEstado}`;
+    mostrarEstadoDetalle("✅ Estado actualizado.");
+
+    if (tareaDetalleActual) {
+        const { data: asignaciones } = await supabase
+            .from("task_assignments")
+            .select("estado")
+            .eq("task_id", tareaDetalleActual);
+
+        const total = (asignaciones || []).length;
+        const terminadas = (asignaciones || []).filter(a => a.estado === "terminada").length;
+        detalleSubt.textContent = `${total} estudiante(s) · ${terminadas} terminada(s)`;
+    }
+    cargarTareas();
+}
+
+btnCerrarDetalle.addEventListener("click", cerrarDetalle);
+overlayDetalle.addEventListener("click", (ev) => {
+    if (ev.target === overlayDetalle) cerrarDetalle();
+});
+
+// =========================================================
+// 7) INICIO
+// =========================================================
+
+(async function iniciar() {
+    const ok = await verificarSesion();
+    if (!ok) return;
+
+    await cargarSalones();
+    await cargarMisMaterias();
+    await cargarTareas();
+})();
