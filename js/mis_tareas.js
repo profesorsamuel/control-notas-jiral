@@ -10,8 +10,9 @@ import { supabase } from "./supabase.js";
 // Además:
 //  - Muestra un aviso arriba con las tareas vencidas y las que
 //    vencen pronto (según la fecha de entrega).
-//  - Si el profesor autorizó a este estudiante
-//    (estudiantes.puede_agregar_tareas = true), aparece un botón
+//  - Si el administrador autorizó a este estudiante
+//    (estudiantes.puede_publicar_tareas = true, en el panel de
+//    "Gestionar estudiantes"), aparece un botón
 //    "➕ Agregar tarea" para crear una tarea que se asigna a todo
 //    su salón (igual que cuando la crea el profesor).
 // =========================================================
@@ -84,7 +85,7 @@ async function verificarSesionYEstudiante() {
     const correo = (user.email || "").trim().toLowerCase();
     const { data: estudiante, error: errEst } = await supabase
         .from("estudiantes")
-        .select("id, salon, puede_agregar_tareas")
+        .select("id, salon, puede_publicar_tareas")
         .eq("correo", correo)
         .maybeSingle();
 
@@ -95,7 +96,7 @@ async function verificarSesionYEstudiante() {
 
     miEstudianteId = estudiante.id;
     miSalon = estudiante.salon || "";
-    puedeAgregarTareas = !!estudiante.puede_agregar_tareas;
+    puedeAgregarTareas = !!estudiante.puede_publicar_tareas;
     return true;
 }
 
