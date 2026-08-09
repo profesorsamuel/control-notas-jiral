@@ -571,6 +571,12 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
         comportamientoFechas: [...comportamientoTabla.fechas], comportamientoPorFecha: { ...comportamientoTabla.porFecha },
         actividadesClase, actividadesCasa,
         valoresAsistencia: VALOR_ASISTENCIA_DEFECTO,
+        // Qué columnas (fechas o actividades) NO quiere ver el docente
+        // ahora mismo en cada una de las 4 secciones. Es solo de
+        // pantalla — no borra nada, y empieza vacío (todo visible)
+        // hasta que el docente desmarque algo. Se guarda en estado_
+        // para que sobreviva a los re-pintados del modal.
+        columnasOcultas: { asistencia: new Set(), comportamiento: new Set(), clase: new Set(), casa: new Set() },
     };
 
     pintarModal(estado_);
@@ -797,6 +803,30 @@ function pintarModal(estado_) {
     } = estado_;
 
     const rangoDefinido = !!(fechaInicio && fechaFin);
+    const columnasOcultas = estado_.columnasOcultas;
+
+    // --- Selector de columnas reutilizable: "Seleccionar todas / Ninguna"
+    // + un checkbox por columna (fecha o actividad), igual que en la
+    // tabla principal de notas. `seccion` es la clave dentro de
+    // columnasOcultas (asistencia / comportamiento / clase / casa). ---
+    const bloqueSelectorColumnas = (seccion, items) => {
+        if (soloLectura || items.length === 0) return "";
+        const ocultas = columnasOcultas[seccion];
+        const checks = items.map(({ clave, etiqueta }) => {
+            const marcado = !ocultas.has(clave);
+            return `
+                <label class="form-check" style="display:flex; align-items:center; gap:4px; margin:0;">
+                    <input type="checkbox" class="form-check-input check-columna-apreciacion" data-seccion="${seccion}" data-clave="${escapeHtml(clave)}" ${marcado ? "checked" : ""} style="margin:0;">
+                    <span class="small">${escapeHtml(etiqueta)}</span>
+                </label>`;
+        }).join("");
+        return `
+            <div class="mb-2">
+                <button type="button" class="btn btn-link btn-sm p-0 me-3 btn-columnas-todas" data-seccion="${seccion}" style="text-decoration:none;">Ver todas</button>
+                <button type="button" class="btn btn-link btn-sm p-0 btn-columnas-ninguna" data-seccion="${seccion}" style="text-decoration:none;">Ninguna</button>
+                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; padding:8px; background:#f8fafc; border-radius:6px;">${checks}</div>
+            </div>`;
+    };
 
     // --- 0) Rango de fechas: de cuándo a cuándo es esta apreciación.
     // Mientras no esté definido, Asistencia no tiene de dónde sacar datos. ---
@@ -834,9 +864,17 @@ function pintarModal(estado_) {
         if (asistenciaFechas.length === 0) {
             return `<p class="text-muted small">No hay asistencia tomada todavía entre ${fechaInicio} y ${fechaFin}.</p>`;
         }
-        const encabezado = asistenciaFechas.map((f) => `<th class="text-center small" style="min-width:90px;">${escapeHtml(f)}</th>`).join("");
+
+        const selector = bloqueSelectorColumnas("asistencia", asistenciaFechas.map((f) => ({ clave: f, etiqueta: f })));
+        const fechasVisibles = asistenciaFechas.filter((f) => !columnasOcultas.asistencia.has(f));
+
+        if (fechasVisibles.length === 0) {
+            return `${selector}<p class="text-muted small">Ocultaste todas las fechas. Marca "Ver todas" arriba para volver a verlas.</p>`;
+        }
+
+        const encabezado = fechasVisibles.map((f) => `<th class="text-center small" style="min-width:90px;">${escapeHtml(f)}</th>`).join("");
         const filas = estudiantes.map((est) => {
-            const celdas = asistenciaFechas.map((f) => {
+            const celdas = fechasVisibles.map((f) => {
                 const est_ = asistenciaPorFecha[f]?.[est.id] || "—";
                 const badge = { presente: "success", tardanza: "warning", ausente: "danger", permiso: "secondary" }[est_] || "secondary";
                 return `<td class="text-center"><span class="badge bg-${badge}">${escapeHtml(est_)}</span></td>`;
@@ -845,6 +883,7 @@ function pintarModal(estado_) {
         }).join("");
 
         return `
+            ${selector}
             <table class="table table-sm table-bordered align-middle mb-2">
                 <thead><tr><th class="small">Estudiante</th>${encabezado}</tr></thead>
                 <tbody>${filas}</tbody>
@@ -856,7 +895,9 @@ function pintarModal(estado_) {
     const bloqueComportamiento = () => {
         // Columnas a mostrar: las que el docente agregó a mano + los
         // días reales de clase (asistencia), sin repetir, en orden.
-        const fechasAMostrar = [...new Set([...comportamientoFechas, ...asistenciaFechas])].sort();
+        const fechasTotales = [...new Set([...comportamientoFechas, ...asistenciaFechas])].sort();
+        const selector = bloqueSelectorColumnas("comportamiento", fechasTotales.map((f) => ({ clave: f, etiqueta: f })));
+        const fechasAMostrar = fechasTotales.filter((f) => !columnasOcultas.comportamiento.has(f));
 
         const encabezadoFechas = fechasAMostrar.map((f) => {
             const esDiaDeClase = asistenciaFechas.includes(f);
@@ -892,6 +933,7 @@ function pintarModal(estado_) {
         }).join("");
 
         return `
+            ${selector}
             <table class="table table-sm table-bordered align-middle mb-2">
                 <thead><tr><th class="small">Estudiante</th>${encabezadoFechas}${columnaAgregar}</tr></thead>
                 <tbody>${filas || `<tr><td colspan="99" class="text-muted small">Todavía no hay fechas de comportamiento. Define el rango de Asistencia arriba, o agrega una fecha a mano.</td></tr>`}</tbody>
@@ -902,7 +944,10 @@ function pintarModal(estado_) {
     // --- 3/4) Actividades: una columna por actividad, nombre editable
     // en el encabezado y "➕" al final para agregar otra. ---
     const bloqueActividades = (lista, tipoActividad) => {
-        const encabezado = lista.map((a) => `
+        const selector = bloqueSelectorColumnas(tipoActividad, lista.map((a) => ({ clave: a.id, etiqueta: a.nombre })));
+        const listaVisible = lista.filter((a) => !columnasOcultas[tipoActividad].has(a.id));
+
+        const encabezado = listaVisible.map((a) => `
             <th style="min-width:120px;">
                 ${soloLectura
                     ? `<div class="text-center small fw-bold">${escapeHtml(a.nombre)}</div>`
@@ -917,7 +962,7 @@ function pintarModal(estado_) {
             </th>`;
 
         const filas = estudiantes.map((est) => {
-            const celdas = lista.map((a) => {
+            const celdas = listaVisible.map((a) => {
                 const crudo = a.notas[est.id];
                 const valor = (crudo === null || crudo === undefined) ? "" : formatearNotaFinal(String(crudo));
                 if (soloLectura) return `<td class="text-center">${valor === "" ? "–" : valor}</td>`;
@@ -929,10 +974,15 @@ function pintarModal(estado_) {
             return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}${soloLectura ? "" : "<td></td>"}</tr>`;
         }).join("");
 
+        const mensajeVacio = lista.length === 0
+            ? "Todavía no hay actividades. Usa el ➕ de arriba para agregar la primera."
+            : "Ocultaste todas las actividades. Marca \"Ver todas\" arriba para volver a verlas.";
+
         return `
+            ${selector}
             <table class="table table-sm table-bordered align-middle mb-3">
                 <thead><tr><th class="small">Estudiante</th>${encabezado}${columnaAgregar}</tr></thead>
-                <tbody>${filas || `<tr><td colspan="99" class="text-muted small">Todavía no hay actividades. Usa el ➕ de arriba para agregar la primera.</td></tr>`}</tbody>
+                <tbody>${filas && listaVisible.length ? filas : `<tr><td colspan="99" class="text-muted small">${mensajeVacio}</td></tr>`}</tbody>
             </table>`;
     };
 
@@ -966,6 +1016,38 @@ function pintarModal(estado_) {
     });
 
     if (soloLectura) return;
+
+    // --- Listeners: selector de columnas (Asistencia / Comportamiento /
+    // Actividades en clase / Actividades para la casa) ---
+    el.cuerpo.querySelectorAll(".check-columna-apreciacion").forEach((chk) => {
+        chk.addEventListener("change", () => {
+            const seccion = chk.dataset.seccion;
+            const clave = chk.dataset.clave;
+            if (chk.checked) columnasOcultas[seccion].delete(clave);
+            else columnasOcultas[seccion].add(clave);
+            pintarModal(estado_);
+            calcularYPintarNotasFinales(estado_);
+        });
+    });
+
+    el.cuerpo.querySelectorAll(".btn-columnas-todas").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            columnasOcultas[btn.dataset.seccion].clear();
+            pintarModal(estado_);
+            calcularYPintarNotasFinales(estado_);
+        });
+    });
+
+    el.cuerpo.querySelectorAll(".btn-columnas-ninguna").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const seccion = btn.dataset.seccion;
+            const items = { asistencia: asistenciaFechas, comportamiento: [...new Set([...comportamientoFechas, ...asistenciaFechas])], clase: actividadesClase, casa: actividadesCasa }[seccion];
+            const claves = seccion === "clase" || seccion === "casa" ? items.map((a) => a.id) : items;
+            claves.forEach((c) => columnasOcultas[seccion].add(c));
+            pintarModal(estado_);
+            calcularYPintarNotasFinales(estado_);
+        });
+    });
 
     document.getElementById("btnVolverModoDirecto")?.addEventListener("click", async () => {
         const ok = window.confirm(
