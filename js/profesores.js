@@ -166,7 +166,7 @@ function pintarLista(lista) {
                     ${badgesSalones}
                 </div>
                 <div class="small mt-1">
-                    <a href="asignaciones.html">Editar materias/salones en Asignaciones</a>
+                    <a href="asignaciones.html?correo=${encodeURIComponent(p.correo_profesor)}">Editar materias/salones en Asignaciones</a>
                 </div>
             </div>
         `;
