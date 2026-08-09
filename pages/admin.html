@@ -25,11 +25,6 @@
     <!-- CSS del proyecto -->
     <link rel="stylesheet" href="../css/style.css">
 
-    <!-- Fix: las casillas de notas del admin cortaban el último dígito
-         decimal (ej. mostraban "4." en vez de "4.7") porque las flechitas
-         de incremento/decremento del input number se comían el espacio
-         dentro del ancho fijo de la columna. Esto las quita y ajusta
-         el padding/tamaño de letra para que el valor completo quepa. -->
     <style>
         .input-nota-grupo {
             padding: 2px 2px !important;
@@ -292,12 +287,15 @@
                                 <th style="min-width:150px;">Cédula</th>
                                 <th style="min-width:110px;">Salón</th>
                                 <th style="min-width:120px;">Estado</th>
+                                <th style="min-width:130px;" title="Permite que este estudiante publique tareas para todo su salón">
+                                    Publicar tareas
+                                </th>
                                 <th style="width:60px;"></th>
                             </tr>
                         </thead>
                         <tbody id="tablaEstudiantesAdmin">
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-3">
+                                <td colspan="6" class="text-center text-muted py-3">
                                     Cargando estudiantes...
                                 </td>
                             </tr>
