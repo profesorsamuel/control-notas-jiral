@@ -1,5 +1,6 @@
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
+import { registrarSalida } from "./accesos.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
 
@@ -47,6 +48,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // =================================================
 
     btnCerrarSesion.addEventListener("click", async () => {
+        await registrarSalida();
         await supabase.auth.signOut();
         window.location.href = "login.html";
     });
