@@ -108,6 +108,14 @@ export async function revisarAvanceApreciacionesDirectas(materia, trimestre, num
     return avanzoAlguna;
 }
 
+export async function reiniciarApreciacionActiva(materia, trimestre, numeroApreciacion) {
+    const { data: seReinicio, error } = await supabase.rpc("reiniciar_apreciacion_activa", {
+        p_materia: materia, p_trimestre: trimestre, p_numero: numeroApreciacion,
+    });
+    if (error) { console.error(error); return false; }
+    return !!seReinicio;
+}
+
 const ICONO_ESTADO = { completada: "✓", activa: "🟢", bloqueada: "🔒" };
 
 export function iconoApreciacion(estado) {
