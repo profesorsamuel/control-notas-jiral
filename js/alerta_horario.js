@@ -23,7 +23,6 @@ function normalizarDia(dia) {
     return validos.includes(d) ? d : null;
 }
 
-// Convierte el día de hoy (JS: 0=domingo...6=sábado) a nuestro formato interno
 function diaDeHoy() {
     const mapa = { 1: "lunes", 2: "martes", 3: "miercoles", 4: "jueves", 5: "viernes" };
     return mapa[new Date().getDay()] || null;
@@ -37,7 +36,6 @@ function formatearHora12(horaTexto) {
     return fecha.toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" });
 }
 
-// "HH:MM:SS" de hoy -> segundos transcurridos desde medianoche
 function horaASegundos(horaTexto) {
     if (!horaTexto) return null;
     const partes = String(horaTexto).split(":").map(n => parseInt(n, 10));
@@ -63,8 +61,8 @@ let correoUsuario = "";
 let esProfesor = false;
 let esEstudiante = false;
 let salonEstudiante = "";
-let clasesHoy = []; // [{titulo, meta, inicioSeg, finSeg}]
-let alertasDisparadas = new Set(); // claves "indice-umbral" ya avisadas en esta sesión
+let clasesHoy = [];
+let alertasDisparadas = new Set();
 let alertasActivas = false;
 let audioCtx = null;
 let intervaloMonitor = null;
@@ -182,7 +180,7 @@ async function cargarClasesHoy() {
             if (!franja) return null;
             return {
                 titulo: b.materia || b.texto || "Clase",
-                meta: esProfesor ? (b.salon || "") : (b.materia ? "" : ""),
+                meta: esProfesor ? (b.salon || "") : "",
                 inicioSeg: horaASegundos(franja.hora_inicio),
                 finSeg: horaASegundos(franja.hora_fin),
                 horaInicioTexto: franja.hora_inicio,
@@ -291,7 +289,7 @@ async function activarAlertas() {
     try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === "suspended") await audioCtx.resume();
-        pitido(1); // pitido de prueba, confirma que el sonido está desbloqueado
+        pitido(1);
     } catch (e) {
         console.warn("No se pudo iniciar el audio:", e);
     }
@@ -311,7 +309,7 @@ async function activarAlertas() {
 
 function revisarUmbrales() {
     const ahora = segundosAhora();
-    const umbrales = [300, 120, 0]; // 5 min, 2 min, al comenzar
+    const umbrales = [300, 120, 0];
 
     clasesHoy.forEach((c, indice) => {
         const diff = c.inicioSeg - ahora;
