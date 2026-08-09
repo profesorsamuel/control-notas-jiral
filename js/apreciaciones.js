@@ -150,42 +150,83 @@ async function obtenerConfigPesos() {
 // asistencia para esta materia/salón. Así no se le pide nada nuevo al
 // profesor: usamos lo que ya registró en la pantalla de Asistencia.
 
-async function obtenerClaseDeAsistencia(materia, salon, numeroApreciacion) {
+// =========================================================
+// 3) RANGO DE FECHAS DE LA APRECIACIÓN + ASISTENCIA DENTRO DE ESE RANGO
+// =========================================================
+// Reutiliza el sistema de asistencia existente: no se le pide nada
+// nuevo al profesor, solo se le muestran (en columnas, una por fecha)
+// las asistencias que ya tomó dentro del rango que él mismo define
+// para esta apreciación.
+
+export async function obtenerRangoFechas(materia, trimestre, numeroApreciacion) {
+    const { data, error } = await supabase
+        .from("apreciaciones_estado")
+        .select("fecha_inicio, fecha_fin")
+        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion)
+        .maybeSingle();
+    if (error) { console.error(error); return { fecha_inicio: null, fecha_fin: null }; }
+    return data || { fecha_inicio: null, fecha_fin: null };
+}
+
+export async function guardarRangoFechas(materia, trimestre, numeroApreciacion, fechaInicio, fechaFin) {
+    const { error } = await supabase.from("apreciaciones_estado")
+        .update({ fecha_inicio: fechaInicio, fecha_fin: fechaFin, updated_at: new Date().toISOString() })
+        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
+    if (error) console.error("No se pudo guardar el rango de fechas:", error);
+    return !error;
+}
+
+export async function obtenerAsistenciaPorRango(materia, salon, fechaInicio, fechaFin) {
+    if (!fechaInicio || !fechaFin) return { fechas: [], porFecha: {} };
+
     const { data: sesiones, error } = await supabase
         .from("asistencias")
         .select("id, fecha")
-        .eq("materia", materia)
-        .eq("salon", salon)
+        .eq("materia", materia).eq("salon", salon)
+        .gte("fecha", fechaInicio).lte("fecha", fechaFin)
         .order("fecha", { ascending: true });
 
-    if (error) { console.error(error); return null; }
-    if (!sesiones || sesiones.length < numeroApreciacion) return null; // esa clase aún no se ha dado
+    if (error) { console.error(error); return { fechas: [], porFecha: {} }; }
+    if (!sesiones || sesiones.length === 0) return { fechas: [], porFecha: {} };
 
-    const sesion = sesiones[numeroApreciacion - 1]; // Aprec. 4 = clase #4 = índice 3
-    const { data: detalle, error: errDet } = await supabase
+    const { data: detalles, error: errDet } = await supabase
         .from("asistencia_detalle")
-        .select("estudiante_id, estado")
-        .eq("asistencia_id", sesion.id);
+        .select("asistencia_id, estudiante_id, estado")
+        .in("asistencia_id", sesiones.map((s) => s.id));
+    if (errDet) { console.error(errDet); return { fechas: [], porFecha: {} }; }
 
-    if (errDet) { console.error(errDet); return null; }
-
-    return { fecha: sesion.fecha, porEstudiante: Object.fromEntries((detalle || []).map((d) => [d.estudiante_id, d.estado])) };
+    const fechaPorSesion = Object.fromEntries(sesiones.map((s) => [s.id, s.fecha]));
+    const fechas = sesiones.map((s) => s.fecha);
+    const porFecha = {};
+    (detalles || []).forEach((d) => {
+        const fecha = fechaPorSesion[d.asistencia_id];
+        (porFecha[fecha] ??= {})[d.estudiante_id] = d.estado;
+    });
+    return { fechas, porFecha };
 }
 
 // =========================================================
-// 4) COMPORTAMIENTO
+// 4) COMPORTAMIENTO — una columna por cada fecha que el docente agregue
 // =========================================================
 
-async function obtenerComportamiento(materia, trimestre, numeroApreciacion) {
+async function obtenerComportamientoTabla(materia, trimestre, numeroApreciacion) {
     const { data, error } = await supabase
         .from("comportamiento_detalle")
-        .select("estudiante_id, valor")
-        .eq("materia", materia).eq("trimestre", trimestre).eq("numero_apreciacion", numeroApreciacion);
+        .select("estudiante_id, fecha, valor")
+        .eq("materia", materia).eq("trimestre", trimestre).eq("numero_apreciacion", numeroApreciacion)
+        .order("fecha", { ascending: true });
 
-    if (error) { console.error(error); return {}; }
-    const porEstudiante = {};
-    (data || []).forEach((f) => { porEstudiante[f.estudiante_id] = f.valor; });
-    return porEstudiante;
+    if (error) { console.error(error); return { fechas: [], porFecha: {} }; }
+
+    const fechas = [...new Set((data || []).map((d) => d.fecha))];
+    const porFecha = {};
+    (data || []).forEach((d) => { (porFecha[d.fecha] ??= {})[d.estudiante_id] = d.valor; });
+    return { fechas, porFecha };
+}
+
+async function eliminarFechaComportamiento(materia, trimestre, numeroApreciacion, fecha) {
+    return supabase.from("comportamiento_detalle").delete()
+        .eq("materia", materia).eq("trimestre", trimestre).eq("numero_apreciacion", numeroApreciacion).eq("fecha", fecha);
 }
 
 async function guardarComportamiento(materia, trimestre, numeroApreciacion, fecha, estudianteId, valor) {
@@ -236,6 +277,14 @@ async function guardarCalificacionActividad(actividadId, estudianteId, nota) {
         { actividad_id: actividadId, estudiante_id: estudianteId, nota },
         { onConflict: "actividad_id,estudiante_id" }
     );
+}
+
+async function renombrarActividad(actividadId, nombre) {
+    return supabase.from("actividades_apreciacion").update({ nombre }).eq("id", actividadId);
+}
+
+async function eliminarActividad(actividadId) {
+    return supabase.from("actividades_apreciacion").delete().eq("id", actividadId);
 }
 
 // =========================================================
@@ -379,17 +428,19 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
         return;
     }
 
-    el.titulo.textContent = `Apreciación ${numeroApreciacion} — Clase ${numeroApreciacion}`;
+    el.titulo.textContent = `Apreciación ${numeroApreciacion}`;
     el.cuerpo.innerHTML = `<div class="text-center py-4"><span class="spinner-border"></span> Cargando...</div>`;
     const modalBootstrap = new bootstrap.Modal(el.modalEl);
     modalBootstrap.show();
 
     const soloLectura = estado === "completada";
 
-    const [pesos, asistenciaClase, comportamiento, actividadesClase, actividadesCasa] = await Promise.all([
+    const rango = await obtenerRangoFechas(materia, trimestre, numeroApreciacion);
+
+    const [pesos, asistenciaTabla, comportamientoTabla, actividadesClase, actividadesCasa] = await Promise.all([
         obtenerConfigPesos(),
-        obtenerClaseDeAsistencia(materia, salon, numeroApreciacion),
-        obtenerComportamiento(materia, trimestre, numeroApreciacion),
+        obtenerAsistenciaPorRango(materia, salon, rango.fecha_inicio, rango.fecha_fin),
+        obtenerComportamientoTabla(materia, trimestre, numeroApreciacion),
         obtenerActividades(materia, trimestre, numeroApreciacion, "clase"),
         obtenerActividades(materia, trimestre, numeroApreciacion, "casa"),
     ]);
@@ -418,7 +469,10 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
 
     const estado_ = {
         materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes, soloLectura, pesos,
-        asistenciaClase, comportamiento: { ...comportamiento }, actividadesClase, actividadesCasa,
+        fechaInicio: rango.fecha_inicio, fechaFin: rango.fecha_fin,
+        asistenciaFechas: [...asistenciaTabla.fechas], asistenciaPorFecha: { ...asistenciaTabla.porFecha },
+        comportamientoFechas: [...comportamientoTabla.fechas], comportamientoPorFecha: { ...comportamientoTabla.porFecha },
+        actividadesClase, actividadesCasa,
         valoresAsistencia: VALOR_ASISTENCIA_DEFECTO,
     };
 
@@ -463,13 +517,19 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
 }
 
 function calcularNotaFinalEstudiante(estado_, estudianteId) {
-    const { asistenciaClase, comportamiento, actividadesClase, actividadesCasa, valoresAsistencia, pesos } = estado_;
+    const { asistenciaFechas, asistenciaPorFecha, comportamientoFechas, comportamientoPorFecha, actividadesClase, actividadesCasa, valoresAsistencia, pesos } = estado_;
 
-    const notaAsistencia = asistenciaClase
-        ? (valoresAsistencia[asistenciaClase.porEstudiante[estudianteId]] ?? null)
-        : null;
+    const valoresAsist = asistenciaFechas
+        .map((f) => asistenciaPorFecha[f]?.[estudianteId])
+        .filter((v) => v !== undefined)
+        .map((estadoDia) => valoresAsistencia[estadoDia])
+        .filter((v) => v !== undefined);
+    const notaAsistencia = promedio(valoresAsist);
 
-    const notaComportamiento = comportamiento[estudianteId] ?? null;
+    const valoresComportamiento = comportamientoFechas
+        .map((f) => comportamientoPorFecha[f]?.[estudianteId])
+        .filter((v) => v !== undefined && v !== null);
+    const notaComportamiento = promedio(valoresComportamiento);
 
     const notaActClase = promedio(actividadesClase.map((a) => a.notas[estudianteId]).filter((v) => v !== undefined));
     const notaActCasa = promedio(actividadesCasa.map((a) => a.notas[estudianteId]).filter((v) => v !== undefined));
@@ -490,29 +550,117 @@ function calcularYPintarNotasFinales(estado_) {
 
 function pintarModal(estado_) {
     const el = obtenerElementosModal();
-    const { estudiantes, asistenciaClase, comportamiento, actividadesClase, actividadesCasa, soloLectura, numeroApreciacion } = estado_;
+    const {
+        estudiantes, fechaInicio, fechaFin,
+        asistenciaFechas, asistenciaPorFecha,
+        comportamientoFechas, comportamientoPorFecha,
+        actividadesClase, actividadesCasa, soloLectura, numeroApreciacion,
+    } = estado_;
 
-    const filaAsistencia = (est) => {
-        if (!asistenciaClase) return `<span class="text-muted small">Sin asistencia tomada aún</span>`;
-        const est_ = asistenciaClase.porEstudiante[est.id] || "—";
-        const badge = { presente: "success", tardanza: "warning", ausente: "danger", permiso: "secondary" }[est_] || "secondary";
-        return `<span class="badge bg-${badge}">${escapeHtml(est_)}</span>`;
-    };
+    const rangoDefinido = !!(fechaInicio && fechaFin);
 
-    const filaComportamiento = (est) => {
-        const valor = comportamiento[est.id];
-        if (soloLectura) return valor ?? "–";
+    // --- 0) Rango de fechas: de cuándo a cuándo es esta apreciación.
+    // Mientras no esté definido, Asistencia no tiene de dónde sacar datos. ---
+    const bloqueRango = () => {
+        if (soloLectura) {
+            return `<p class="small text-muted">Del ${fechaInicio || "–"} al ${fechaFin || "–"}.</p>`;
+        }
         return `
-            <select class="form-select form-select-sm input-comportamiento" data-estudiante-id="${est.id}" style="width:90px;">
-                <option value="">–</option>
-                <option value="5" ${valor === 5 ? "selected" : ""}>😀 Bueno (5)</option>
-                <option value="1" ${valor === 1 ? "selected" : ""}>😕 Malo (1)</option>
-            </select>`;
+            <div class="d-flex align-items-end gap-2 flex-wrap mb-2">
+                <div>
+                    <label class="small text-muted d-block">Desde</label>
+                    <input type="date" class="form-control form-control-sm" id="inputFechaInicioApreciacion" value="${fechaInicio || ""}">
+                </div>
+                <div>
+                    <label class="small text-muted d-block">Hasta</label>
+                    <input type="date" class="form-control form-control-sm" id="inputFechaFinApreciacion" value="${fechaFin || ""}">
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" id="btnGuardarRangoApreciacion">Guardar rango</button>
+                ${rangoDefinido ? `<span class="small text-success">✓ Definido</span>` : `<span class="small text-danger">Define el rango para ver la asistencia</span>`}
+            </div>`;
     };
 
+    // --- 1) Asistencia: una columna de solo lectura por cada fecha real
+    // dentro del rango (viene directo de tu pantalla de Asistencia). ---
+    const bloqueAsistencia = () => {
+        if (!rangoDefinido) {
+            return `<p class="text-muted small">Define primero el rango de fechas de arriba.</p>`;
+        }
+        if (asistenciaFechas.length === 0) {
+            return `<p class="text-muted small">No hay asistencia tomada todavía entre ${fechaInicio} y ${fechaFin}.</p>`;
+        }
+        const encabezado = asistenciaFechas.map((f) => `<th class="text-center small" style="min-width:90px;">${escapeHtml(f)}</th>`).join("");
+        const filas = estudiantes.map((est) => {
+            const celdas = asistenciaFechas.map((f) => {
+                const est_ = asistenciaPorFecha[f]?.[est.id] || "—";
+                const badge = { presente: "success", tardanza: "warning", ausente: "danger", permiso: "secondary" }[est_] || "secondary";
+                return `<td class="text-center"><span class="badge bg-${badge}">${escapeHtml(est_)}</span></td>`;
+            }).join("");
+            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}</tr>`;
+        }).join("");
+
+        return `
+            <table class="table table-sm table-bordered align-middle mb-2">
+                <thead><tr><th class="small">Estudiante</th>${encabezado}</tr></thead>
+                <tbody>${filas}</tbody>
+            </table>`;
+    };
+
+    // --- 2) Comportamiento: una columna por fecha, con botones 😀/😕
+    // en vez de un select (más rápido de tocar). ---
+    const bloqueComportamiento = () => {
+        const encabezadoFechas = comportamientoFechas.map((f) => `
+            <th class="text-center small" style="min-width:110px;">
+                ${escapeHtml(f)}
+                ${soloLectura ? "" : `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-fecha-comportamiento" data-fecha="${f}" title="Eliminar esta fecha">🗑️</button>`}
+            </th>`).join("");
+
+        const columnaAgregar = soloLectura ? "" : `
+            <th class="text-center" style="min-width:150px;">
+                <input type="date" class="form-control form-control-sm d-inline-block" id="inputNuevaFechaComportamiento"
+                    value="${fechaInicio || new Date().toISOString().slice(0, 10)}" style="width:130px;">
+                <button type="button" class="btn btn-link btn-sm p-0 text-success" id="btnAgregarFechaComportamiento" title="Agregar esta fecha como columna">➕</button>
+            </th>`;
+
+        const filas = estudiantes.map((est) => {
+            const celdas = comportamientoFechas.map((f) => {
+                const valor = comportamientoPorFecha[f]?.[est.id];
+                if (soloLectura) return `<td class="text-center">${valor === 5 ? "😀" : valor === 1 ? "😕" : "–"}</td>`;
+                return `<td class="text-center">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn ${valor === 5 ? "btn-success" : "btn-outline-success"} btn-comportamiento" data-fecha="${f}" data-estudiante-id="${est.id}" data-valor="5" title="Buen comportamiento">😀</button>
+                        <button type="button" class="btn ${valor === 1 ? "btn-danger" : "btn-outline-danger"} btn-comportamiento" data-fecha="${f}" data-estudiante-id="${est.id}" data-valor="1" title="Mal comportamiento">😕</button>
+                    </div>
+                </td>`;
+            }).join("");
+            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}${soloLectura ? "" : "<td></td>"}</tr>`;
+        }).join("");
+
+        return `
+            <table class="table table-sm table-bordered align-middle mb-2">
+                <thead><tr><th class="small">Estudiante</th>${encabezadoFechas}${columnaAgregar}</tr></thead>
+                <tbody>${filas || `<tr><td colspan="99" class="text-muted small">Todavía no hay fechas de comportamiento agregadas.</td></tr>`}</tbody>
+            </table>`;
+    };
+
+    // --- 3/4) Actividades: una columna por actividad, nombre editable
+    // en el encabezado y "➕" al final para agregar otra. ---
     const bloqueActividades = (lista, tipoActividad) => {
-        const filasEncabezado = lista.map((a) => `<th class="text-center small">${escapeHtml(a.nombre)}</th>`).join("");
-        const filasEstudiantes = estudiantes.map((est) => {
+        const encabezado = lista.map((a) => `
+            <th style="min-width:120px;">
+                ${soloLectura
+                    ? `<div class="text-center small fw-bold">${escapeHtml(a.nombre)}</div>`
+                    : `<input type="text" class="form-control form-control-sm input-nombre-actividad text-center fw-bold"
+                        data-actividad-id="${a.id}" value="${escapeHtml(a.nombre)}" style="font-size:12px;">`}
+                ${soloLectura ? "" : `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-actividad" data-actividad-id="${a.id}" title="Eliminar esta actividad">🗑️</button>`}
+            </th>`).join("");
+
+        const columnaAgregar = soloLectura ? "" : `
+            <th class="text-center" style="width:44px;">
+                <button type="button" class="btn btn-link btn-sm p-0 text-success btn-agregar-actividad" data-tipo="${tipoActividad}" title="Agregar otra actividad">➕</button>
+            </th>`;
+
+        const filas = estudiantes.map((est) => {
             const celdas = lista.map((a) => {
                 const valor = a.notas[est.id] ?? "";
                 if (soloLectura) return `<td class="text-center">${valor === "" ? "–" : valor}</td>`;
@@ -521,36 +669,25 @@ function pintarModal(estado_) {
                         data-actividad-id="${a.id}" data-estudiante-id="${est.id}" value="${valor}" style="width:60px; margin:auto;">
                 </td>`;
             }).join("");
-            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}</tr>`;
+            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}${soloLectura ? "" : "<td></td>"}</tr>`;
         }).join("");
 
         return `
-            <table class="table table-sm table-bordered align-middle mb-2">
-                <thead><tr><th class="small">Estudiante</th>${filasEncabezado}</tr></thead>
-                <tbody>${filasEstudiantes || `<tr><td colspan="99" class="text-muted small">Sin actividades todavía.</td></tr>`}</tbody>
-            </table>
-            ${soloLectura ? "" : `
-                <div class="d-flex gap-2 mb-3">
-                    <input type="text" class="form-control form-control-sm input-nombre-nueva-actividad" placeholder="Nombre de la nueva actividad (ej: Actividad ${lista.length + 1})" data-tipo="${tipoActividad}" style="max-width:280px;">
-                    <button type="button" class="btn btn-sm btn-outline-primary btn-agregar-actividad" data-tipo="${tipoActividad}">➕ Agregar actividad</button>
-                </div>`}
-        `;
+            <table class="table table-sm table-bordered align-middle mb-3">
+                <thead><tr><th class="small">Estudiante</th>${encabezado}${columnaAgregar}</tr></thead>
+                <tbody>${filas || `<tr><td colspan="99" class="text-muted small">Todavía no hay actividades. Usa el ➕ de arriba para agregar la primera.</td></tr>`}</tbody>
+            </table>`;
     };
 
     el.cuerpo.innerHTML = `
-        <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">1) Asistencia
-            ${asistenciaClase ? `<span class="small text-muted fw-normal">(clase del ${asistenciaClase.fecha})</span>` : ""}
-        </h6>
-        <table class="table table-sm table-bordered mb-3">
-            <thead><tr><th class="small">Estudiante</th><th class="small text-center">Asistencia</th></tr></thead>
-            <tbody>${estudiantes.map((est) => `<tr><td class="small">${escapeHtml(est.nombre)}</td><td class="text-center">${filaAsistencia(est)}</td></tr>`).join("")}</tbody>
-        </table>
+        <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">Rango de fechas de esta Apreciación</h6>
+        ${bloqueRango()}
 
-        <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">2) Comportamiento</h6>
-        <table class="table table-sm table-bordered mb-3">
-            <thead><tr><th class="small">Estudiante</th><th class="small text-center">Comportamiento</th></tr></thead>
-            <tbody>${estudiantes.map((est) => `<tr><td class="small">${escapeHtml(est.nombre)}</td><td class="text-center">${filaComportamiento(est)}</td></tr>`).join("")}</tbody>
-        </table>
+        <h6 class="fw-bold mt-3" style="color:var(--color-primario, #4f46e5);">1) Asistencia</h6>
+        ${bloqueAsistencia()}
+
+        <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">2) Comportamiento <span class="small text-muted fw-normal">(agrega una columna por cada día)</span></h6>
+        ${bloqueComportamiento()}
 
         <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">3) Actividades en clase</h6>
         ${bloqueActividades(actividadesClase, "clase")}
@@ -567,19 +704,64 @@ function pintarModal(estado_) {
 
     if (soloLectura) return;
 
-    el.cuerpo.querySelectorAll(".input-comportamiento").forEach((sel) => {
-        sel.addEventListener("change", async () => {
-            const estudianteId = sel.dataset.estudianteId;
-            const valor = sel.value ? parseInt(sel.value, 10) : null;
-            if (valor !== null) {
-                estado_.comportamiento[estudianteId] = valor;
-                const fecha = estado_.asistenciaClase?.fecha || new Date().toISOString().slice(0, 10);
-                await guardarComportamiento(estado_.materia, estado_.trimestre, numeroApreciacion, fecha, estudianteId, valor);
-            }
+    // --- Listeners: rango de fechas ---
+    document.getElementById("btnGuardarRangoApreciacion")?.addEventListener("click", async () => {
+        const inicio = document.getElementById("inputFechaInicioApreciacion").value;
+        const fin = document.getElementById("inputFechaFinApreciacion").value;
+        if (!inicio || !fin) { alert("Elige ambas fechas."); return; }
+        if (inicio > fin) { alert("La fecha 'Desde' no puede ser posterior a 'Hasta'."); return; }
+
+        await guardarRangoFechas(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, inicio, fin);
+        estado_.fechaInicio = inicio;
+        estado_.fechaFin = fin;
+
+        const asistenciaTabla = await obtenerAsistenciaPorRango(estado_.materia, estado_.salon, inicio, fin);
+        estado_.asistenciaFechas = [...asistenciaTabla.fechas];
+        estado_.asistenciaPorFecha = { ...asistenciaTabla.porFecha };
+
+        pintarModal(estado_);
+        calcularYPintarNotasFinales(estado_);
+    });
+
+    // --- Listeners: Comportamiento ---
+    el.cuerpo.querySelectorAll(".btn-comportamiento").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const fecha = btn.dataset.fecha;
+            const estudianteId = btn.dataset.estudianteId;
+            const valor = parseInt(btn.dataset.valor, 10);
+            (estado_.comportamientoPorFecha[fecha] ??= {})[estudianteId] = valor;
+            await guardarComportamiento(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, fecha, estudianteId, valor);
+            pintarModal(estado_);
             calcularYPintarNotasFinales(estado_);
         });
     });
 
+    document.getElementById("btnAgregarFechaComportamiento")?.addEventListener("click", () => {
+        const fecha = document.getElementById("inputNuevaFechaComportamiento").value;
+        if (!fecha) { alert("Elige una fecha primero."); return; }
+        if (!estado_.comportamientoFechas.includes(fecha)) {
+            estado_.comportamientoFechas.push(fecha);
+            estado_.comportamientoFechas.sort();
+            estado_.comportamientoPorFecha[fecha] ??= {};
+        }
+        pintarModal(estado_);
+        calcularYPintarNotasFinales(estado_);
+    });
+
+    el.cuerpo.querySelectorAll(".btn-eliminar-fecha-comportamiento").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const fecha = btn.dataset.fecha;
+            if (!window.confirm(`¿Eliminar la columna de comportamiento del ${fecha}?`)) return;
+            await eliminarFechaComportamiento(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, fecha);
+            estado_.comportamientoFechas = estado_.comportamientoFechas.filter((f) => f !== fecha);
+            delete estado_.comportamientoPorFecha[fecha];
+            pintarModal(estado_);
+            calcularYPintarNotasFinales(estado_);
+        });
+    });
+
+    // --- Listeners: Actividades ---
     el.cuerpo.querySelectorAll(".input-nota-actividad").forEach((input) => {
         input.addEventListener("change", async () => {
             const valor = input.value.trim();
@@ -597,17 +779,39 @@ function pintarModal(estado_) {
         });
     });
 
+    el.cuerpo.querySelectorAll(".input-nombre-actividad").forEach((input) => {
+        input.addEventListener("blur", async () => {
+            const nombre = input.value.trim();
+            if (!nombre) return;
+            const actividadId = input.dataset.actividadId;
+            const listaClase = estado_.actividadesClase.find((a) => a.id === actividadId);
+            const listaCasa = estado_.actividadesCasa.find((a) => a.id === actividadId);
+            if (listaClase) listaClase.nombre = nombre;
+            if (listaCasa) listaCasa.nombre = nombre;
+            await renombrarActividad(actividadId, nombre);
+        });
+    });
+
     el.cuerpo.querySelectorAll(".btn-agregar-actividad").forEach((btn) => {
         btn.addEventListener("click", async () => {
             const tipoActividad = btn.dataset.tipo;
-            const input = el.cuerpo.querySelector(`.input-nombre-nueva-actividad[data-tipo="${tipoActividad}"]`);
-            const nombre = input.value.trim();
-            if (!nombre) { alert("Escribe un nombre para la actividad."); return; }
-
             const lista = tipoActividad === "clase" ? estado_.actividadesClase : estado_.actividadesCasa;
-            const nueva = await crearActividad(estado_.materia, estado_.trimestre, numeroApreciacion, tipoActividad, nombre, lista.length);
+            const nombre = `Actividad ${lista.length + 1}`;
+            const nueva = await crearActividad(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, tipoActividad, nombre, lista.length);
             if (!nueva) { alert("No se pudo crear la actividad."); return; }
             lista.push(nueva);
+            pintarModal(estado_);
+            calcularYPintarNotasFinales(estado_);
+        });
+    });
+
+    el.cuerpo.querySelectorAll(".btn-eliminar-actividad").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const actividadId = btn.dataset.actividadId;
+            if (!window.confirm("¿Eliminar esta actividad y todas sus calificaciones?")) return;
+            await eliminarActividad(actividadId);
+            estado_.actividadesClase = estado_.actividadesClase.filter((a) => a.id !== actividadId);
+            estado_.actividadesCasa = estado_.actividadesCasa.filter((a) => a.id !== actividadId);
             pintarModal(estado_);
             calcularYPintarNotasFinales(estado_);
         });
