@@ -152,26 +152,50 @@ async function cargarClasesHoy() {
 
     const franjaPorId = new Map((franjas || []).map(f => [f.id, f]));
 
-    let consulta = supabase
-        .from("horario_profesor")
-        .select("franja_id, texto, tipo, materia, salon, correo_profesor")
-        .eq("dia", dia)
-        .eq("tipo", "clase");
+    let bloques = [];
 
     if (esProfesor) {
-        consulta = consulta.eq("correo_profesor", correoUsuario);
         subtituloHorario.textContent = `Tu horario de hoy (${normalizarDia(dia)})`;
+        const { data, error: errBloques } = await supabase
+            .from("horario_profesor")
+            .select("franja_id, texto, tipo, materia, salon, correo_profesor")
+            .eq("dia", dia)
+            .eq("tipo", "clase")
+            .eq("correo_profesor", correoUsuario);
+
+        if (errBloques) {
+            console.error("❌ Error al cargar el horario de hoy:", errBloques);
+            listaClases.innerHTML = `<p class="text-center text-danger py-4">Error al cargar el horario.</p>`;
+            return;
+        }
+        bloques = data || [];
     } else {
-        consulta = consulta.eq("salon", salonEstudiante);
         subtituloHorario.textContent = `Horario de ${salonEstudiante} — hoy`;
-    }
 
-    const { data: bloques, error: errBloques } = await consulta;
+        // Se combinan horario_profesor (lo que cada docente cargó) y
+        // horario_salon (lo que el administrador cargó directo para el
+        // salón); si chocan en la misma franja, gana horario_salon.
+        const [resProfesor, resSalon] = await Promise.all([
+            supabase
+                .from("horario_profesor")
+                .select("franja_id, texto, tipo, materia, salon, correo_profesor")
+                .eq("dia", dia).eq("tipo", "clase").eq("salon", salonEstudiante),
+            supabase
+                .from("horario_salon")
+                .select("franja_id, texto, tipo, materia, salon, correo_profesor")
+                .eq("dia", dia).eq("tipo", "clase").eq("salon", salonEstudiante),
+        ]);
 
-    if (errBloques) {
-        console.error("❌ Error al cargar el horario de hoy:", errBloques);
-        listaClases.innerHTML = `<p class="text-center text-danger py-4">Error al cargar el horario.</p>`;
-        return;
+        if (resProfesor.error && resSalon.error) {
+            console.error("❌ Error al cargar el horario de hoy:", resSalon.error || resProfesor.error);
+            listaClases.innerHTML = `<p class="text-center text-danger py-4">Error al cargar el horario.</p>`;
+            return;
+        }
+
+        const porFranja = new Map();
+        (resProfesor.data || []).forEach(b => porFranja.set(b.franja_id, b));
+        (resSalon.data || []).forEach(b => porFranja.set(b.franja_id, b));
+        bloques = [...porFranja.values()];
     }
 
     clasesHoy = (bloques || [])
