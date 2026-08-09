@@ -420,6 +420,35 @@
         <button type="button" id="btnPapelera" class="btn btn-outline-secondary btn-sm">🗑️ Papelera</button>
     </div>
 
+    <details class="panel-blanco" id="detallePesosGlobal">
+        <summary style="font-weight:bold; color:var(--color-primario); cursor:pointer;">
+            ⚙️ Fórmula de Apreciación 4+ (asistencia, comportamiento, actividades)
+        </summary>
+        <p class="small text-muted" style="margin:8px 0;">
+            Estos 4 porcentajes deben sumar 100% y aplican para todas las Apreciaciones 4 en adelante, en todas las materias y salones.
+        </p>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:end;">
+            <div>
+                <label class="small text-muted d-block">Asistencia %</label>
+                <input type="number" min="0" max="100" class="form-control form-control-sm input-peso-global" id="pesoAsistenciaGlobal" style="width:90px;">
+            </div>
+            <div>
+                <label class="small text-muted d-block">Comportamiento %</label>
+                <input type="number" min="0" max="100" class="form-control form-control-sm input-peso-global" id="pesoComportamientoGlobal" style="width:90px;">
+            </div>
+            <div>
+                <label class="small text-muted d-block">Act. en clase %</label>
+                <input type="number" min="0" max="100" class="form-control form-control-sm input-peso-global" id="pesoActClaseGlobal" style="width:90px;">
+            </div>
+            <div>
+                <label class="small text-muted d-block">Act. en casa %</label>
+                <input type="number" min="0" max="100" class="form-control form-control-sm input-peso-global" id="pesoActCasaGlobal" style="width:90px;">
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" id="btnGuardarPesosGlobal">Guardar porcentajes</button>
+            <span class="small" id="sumaPesosIndicadorGlobal"></span>
+        </div>
+    </details>
+
     <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc2626;">
         Todavía no tienes materias ni salones asignados. Pídele al administrador que te
         agregue en la pantalla de "Asignaciones de profesores".
@@ -476,7 +505,8 @@
             </div>
             <div style="margin-bottom:6px;">
                 <button type="button" id="btnColumnasSeleccionarTodas" class="btn btn-link btn-sm p-0 me-3" style="text-decoration:none;">Seleccionar todas</button>
-                <button type="button" id="btnColumnasSeleccionarNinguna" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Ninguna</button>
+                <button type="button" id="btnColumnasSeleccionarNinguna" class="btn btn-link btn-sm p-0 me-3" style="text-decoration:none;">Ninguna</button>
+                <button type="button" id="btnOcultarColumnasCompletas" class="btn btn-link btn-sm p-0" style="text-decoration:none;">👁️‍🗨️ Ocultar las que ya tienen nota</button>
             </div>
             <div id="listaChecksColumnas" style="display:flex; flex-wrap:wrap; gap:10px; padding:10px; background:#f8fafc; border-radius:6px;"></div>
         </div>
