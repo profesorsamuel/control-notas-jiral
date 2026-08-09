@@ -84,6 +84,15 @@
 
         .tarjeta-profesor:hover { box-shadow: 0 6px 18px rgba(20, 40, 70, .13); transform: translateY(-1px); }
 
+        .tarjeta-profesor.tarjeta-resaltada {
+            box-shadow: 0 0 0 3px var(--color-acento), 0 6px 18px rgba(20, 40, 70, .18);
+            animation: destelloResaltado 1.4s ease-in-out 1;
+        }
+        @keyframes destelloResaltado {
+            0%   { background: #eafaf1; }
+            100% { background: #ffffff; }
+        }
+
         .tarjeta-encabezado { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
 
         .avatar-profesor {
