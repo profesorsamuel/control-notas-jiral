@@ -22,11 +22,26 @@ function mostrarEstado(mensaje, esError = false) {
     }
 }
 
+function mostrarEstadoDetalle(mensaje, esError = false) {
+    const el = document.getElementById("estadoDetalle");
+    el.textContent = mensaje;
+    el.style.color = esError ? "#c0392b" : "#2e7d32";
+    if (mensaje) {
+        setTimeout(() => { if (el.textContent === mensaje) el.textContent = ""; }, 3000);
+    }
+}
+
 function formatearFecha(fechaTexto) {
     if (!fechaTexto) return "sin fecha";
     const [anio, mes, dia] = fechaTexto.split("-");
     return `${dia}/${mes}/${anio}`;
 }
+
+const ETIQUETAS_ESTADO = {
+    pendiente: "⏳ Pendiente",
+    en_progreso: "✏️ En progreso",
+    terminada: "✅ Terminada",
+};
 
 // =========================================================
 // ESTADO
@@ -34,6 +49,7 @@ function formatearFecha(fechaTexto) {
 
 let correoProfesor = "";
 let misMateriasSalones = []; // [{materia, salon}, ...]
+let tareaDetalleActual = null;
 
 // =========================================================
 // ELEMENTOS
@@ -51,6 +67,12 @@ const inputMateria = document.getElementById("inputMateria");
 const inputDescripcion = document.getElementById("inputDescripcion");
 const inputFecha = document.getElementById("inputFecha");
 const inputHora = document.getElementById("inputHora");
+
+const overlayDetalle = document.getElementById("overlayDetalle");
+const btnCerrarDetalle = document.getElementById("btnCerrarDetalle");
+const detalleTitulo = document.getElementById("detalleTitulo");
+const detalleSubt = document.getElementById("detalleSubt");
+const detalleLista = document.getElementById("detalleLista");
 
 // =========================================================
 // 1) VERIFICAR SESIÓN (mismo patrón que mi_horario.js)
@@ -192,7 +214,7 @@ async function cargarTareas() {
         const porcentaje = total > 0 ? Math.round((terminadas / total) * 100) : 0;
 
         return `
-        <div class="tarjeta-tarea">
+        <div class="tarjeta-tarea" data-detalle="${tarea.id}" data-titulo="${escapeHtml(tarea.titulo)}">
             <h3>${escapeHtml(tarea.titulo)}</h3>
             <div class="meta">
                 📘 ${escapeHtml(tarea.materia || "sin materia")} ·
@@ -209,7 +231,16 @@ async function cargarTareas() {
     }).join("");
 
     listaTareas.querySelectorAll("[data-eliminar]").forEach(btn => {
-        btn.addEventListener("click", () => eliminarTarea(btn.dataset.eliminar));
+        btn.addEventListener("click", (ev) => {
+            ev.stopPropagation(); // que no abra el detalle al eliminar
+            eliminarTarea(btn.dataset.eliminar);
+        });
+    });
+
+    listaTareas.querySelectorAll("[data-detalle]").forEach(tarjeta => {
+        tarjeta.addEventListener("click", () => {
+            abrirDetalle(tarjeta.dataset.detalle, tarjeta.dataset.titulo);
+        });
     });
 }
 
@@ -329,14 +360,8 @@ btnCancelarForm.addEventListener("click", cerrarForm);
 btnGuardarTarea.addEventListener("click", guardarTarea);
 
 // =========================================================
-// 6) INICIO
+// 6) DETALLE POR TAREA (ver/marcar estado de cada estudiante)
 // =========================================================
 
-(async function iniciar() {
-    const ok = await verificarSesion();
-    if (!ok) return;
-
-    await cargarSalones();
-    await cargarMisMaterias();
-    await cargarTareas();
-})();
+async function abrirDetalle(taskId, titulo) {
+    tareaDetalleActual = taskId;
