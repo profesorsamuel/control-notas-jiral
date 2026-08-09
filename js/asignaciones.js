@@ -84,14 +84,20 @@ async function cargarMateriasDisponibles() {
     }
 
     grupoMateriasCheckboxes.innerHTML = materias.map((m) => {
-        const niveles = [m.nivel_7 && "7°", m.nivel_8 && "8°", m.nivel_9 && "9°"].filter(Boolean).join("/");
+        const nivelesActivos = [m.nivel_7 && 7, m.nivel_8 && 8, m.nivel_9 && 9].filter(Boolean);
+        const niveles = nivelesActivos.map((n) => `${n}°`).join("/");
         const etiqueta = niveles ? `${escapeHtml(m.nombre)} <span class="text-muted" style="font-size:.78em;">(${niveles})</span>` : escapeHtml(m.nombre);
         return `
             <span class="chip-materia">
-                <input class="chip-check check-materia" type="checkbox" value="${escapeHtml(m.nombre)}" id="mat-${m.id}">
+                <input class="chip-check check-materia" type="checkbox" value="${escapeHtml(m.nombre)}" data-niveles="${nivelesActivos.join(",")}" id="mat-${m.id}">
                 <label for="mat-${m.id}">${etiqueta}</label>
             </span>`;
     }).join("");
+
+    grupoMateriasCheckboxes.querySelectorAll(".check-materia").forEach((chk) => {
+        chk.addEventListener("change", actualizarSalonesSegunMaterias);
+    });
+    actualizarSalonesSegunMaterias();
 }
 
 // =====================================================
@@ -105,7 +111,7 @@ async function cargarSalonesDisponibles() {
 
     const { data: salones, error } = await supabase
         .from("salones")
-        .select("codigo, nombre_visible")
+        .select("codigo, nombre_visible, nivel")
         .eq("activo", true)
         .order("orden", { ascending: true });
 
@@ -120,9 +126,68 @@ async function cargarSalonesDisponibles() {
     }
 
     grupoSalonesCheckboxes.innerHTML = salones.map((s) => `
-        <input class="chip-check check-salon" type="checkbox" value="${escapeHtml(s.codigo)}" id="sal-${escapeHtml(s.codigo)}">
-        <label for="sal-${escapeHtml(s.codigo)}">${escapeHtml(s.nombre_visible)}</label>
+        <span class="chip-salon" data-nivel="${s.nivel}">
+            <input class="chip-check check-salon" type="checkbox" value="${escapeHtml(s.codigo)}" id="sal-${escapeHtml(s.codigo)}">
+            <label for="sal-${escapeHtml(s.codigo)}">${escapeHtml(s.nombre_visible)}</label>
+        </span>
     `).join("");
+}
+
+// =====================================================
+// Filtrar los salones disponibles según los niveles que
+// tienen habilitados las materias marcadas. Si Informática o
+// Contabilidad (por ejemplo) solo están activas en 8°/9°, al
+// marcarlas se deshabilitan los salones de 7° para que no se
+// pueda registrar una combinación que no existe.
+// =====================================================
+function actualizarSalonesSegunMaterias() {
+    if (!grupoSalonesCheckboxes) return;
+
+    const materiasMarcadas = Array.from(document.querySelectorAll(".check-materia:checked"));
+    const chipsSalon = Array.from(grupoSalonesCheckboxes.querySelectorAll(".chip-salon"));
+    if (chipsSalon.length === 0) return;
+
+    let mensaje = document.getElementById("avisoNivelesSalones");
+
+    if (materiasMarcadas.length === 0) {
+        chipsSalon.forEach((chip) => {
+            chip.classList.remove("chip-deshabilitado");
+            chip.querySelector(".check-salon").disabled = false;
+        });
+        if (mensaje) mensaje.remove();
+        return;
+    }
+
+    // Unión de los niveles habilitados entre todas las materias marcadas.
+    const nivelesPermitidos = new Set();
+    materiasMarcadas.forEach((chk) => {
+        (chk.dataset.niveles || "").split(",").filter(Boolean).forEach((n) => nivelesPermitidos.add(n));
+    });
+
+    let algunoDeshabilitado = false;
+    chipsSalon.forEach((chip) => {
+        const nivelSalon = chip.dataset.nivel;
+        const permitido = nivelesPermitidos.size === 0 || nivelesPermitidos.has(nivelSalon);
+        const checkbox = chip.querySelector(".check-salon");
+        checkbox.disabled = !permitido;
+        chip.classList.toggle("chip-deshabilitado", !permitido);
+        if (!permitido) {
+            algunoDeshabilitado = true;
+            if (checkbox.checked) checkbox.checked = false;
+        }
+    });
+
+    if (algunoDeshabilitado) {
+        if (!mensaje) {
+            mensaje = document.createElement("div");
+            mensaje.id = "avisoNivelesSalones";
+            mensaje.className = "text-muted small mt-1";
+            grupoSalonesCheckboxes.insertAdjacentElement("afterend", mensaje);
+        }
+        mensaje.textContent = "ℹ️ Algunos salones están deshabilitados porque la materia marcada no se dicta en ese nivel. Cámbialo en \"Administrar materias\" si hace falta.";
+    } else if (mensaje) {
+        mensaje.remove();
+    }
 }
 
 function formatearHora12(horaTexto) {
@@ -308,8 +373,8 @@ formAsignacion?.addEventListener("submit", async (e) => {
         return;
     }
 
-    await cargarMateriasDisponibles();
     await cargarSalonesDisponibles();
+    await cargarMateriasDisponibles();
     await cargarProfesorActivo();
     if (bloqueFormulario.style.display !== "none") {
         cargarListadoActivo();
