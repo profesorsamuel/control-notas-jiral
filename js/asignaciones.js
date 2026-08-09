@@ -57,6 +57,44 @@ const listadoAsignacionesActivo = document.getElementById("listadoAsignacionesAc
 let nombreActivoCache = "";
 
 // =====================================================
+// MATERIAS: igual que los salones, se cargan desde la tabla
+// "materias" (administrable en materias.html) en vez de venir
+// fijas en el HTML. Cada materia indica en qué nivel (7°/8°/9°)
+// se dicta, para llevar el control por nivel desde ahí.
+// =====================================================
+const grupoMateriasCheckboxes = document.getElementById("grupoMaterias");
+
+async function cargarMateriasDisponibles() {
+    if (!grupoMateriasCheckboxes) return;
+
+    const { data: materias, error } = await supabase
+        .from("materias")
+        .select("id, nombre, nivel_7, nivel_8, nivel_9")
+        .eq("activo", true)
+        .order("orden", { ascending: true });
+
+    if (error) {
+        grupoMateriasCheckboxes.innerHTML = `<span class="text-danger small">No se pudieron cargar las materias: ${escapeHtml(error.message)}</span>`;
+        return;
+    }
+
+    if (!materias || materias.length === 0) {
+        grupoMateriasCheckboxes.innerHTML = `<span class="text-muted small">Todavía no hay materias creadas. <a href="materias.html">Crear la primera</a>.</span>`;
+        return;
+    }
+
+    grupoMateriasCheckboxes.innerHTML = materias.map((m) => {
+        const niveles = [m.nivel_7 && "7°", m.nivel_8 && "8°", m.nivel_9 && "9°"].filter(Boolean).join("/");
+        const etiqueta = niveles ? `${escapeHtml(m.nombre)} <span class="text-muted" style="font-size:.78em;">(${niveles})</span>` : escapeHtml(m.nombre);
+        return `
+            <span class="chip-materia">
+                <input class="chip-check check-materia" type="checkbox" value="${escapeHtml(m.nombre)}" id="mat-${m.id}">
+                <label for="mat-${m.id}">${etiqueta}</label>
+            </span>`;
+    }).join("");
+}
+
+// =====================================================
 // SALONES: se cargan desde la tabla "salones" (administrable
 // en salones.html) en vez de venir fijos en el HTML.
 // =====================================================
@@ -270,6 +308,7 @@ formAsignacion?.addEventListener("submit", async (e) => {
         return;
     }
 
+    await cargarMateriasDisponibles();
     await cargarSalonesDisponibles();
     await cargarProfesorActivo();
     if (bloqueFormulario.style.display !== "none") {
