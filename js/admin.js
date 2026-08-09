@@ -119,6 +119,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </td>
                 <td>${chip}</td>
                 <td class="text-center">
+                    <div class="form-check form-switch mb-0 d-inline-block">
+                        <input class="form-check-input estudiante-permiso-switch" type="checkbox"
+                            role="switch"
+                            ${!registrado ? "disabled" : ""}
+                            title="${!registrado ? "El estudiante debe registrarse (tener correo) antes de darle este permiso" : "Permite publicar tareas para todo el salón"}"
+                            ${est.puede_publicar_tareas ? "checked" : ""}>
+                    </div>
+                </td>
+                <td class="text-center">
                     <button type="button" class="btn btn-sm btn-outline-danger btn-borrar-estudiante" title="Eliminar estudiante">
                         <i class="fa-solid fa-trash"></i>
                     </button>
@@ -131,12 +140,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function cargarEstudiantesAdmin() {
         tablaEstudiantesAdmin.innerHTML = `
-            <tr><td colspan="5" class="text-center text-muted py-3">Cargando...</td></tr>
+            <tr><td colspan="6" class="text-center text-muted py-3">Cargando...</td></tr>
         `;
 
         let consulta = supabase
             .from("estudiantes")
-            .select("id, codigo, nombre, cedula, salon, correo, es_prueba")
+            .select("id, codigo, nombre, cedula, salon, correo, es_prueba, puede_publicar_tareas")
             .eq("es_prueba", false)
             .order("salon", { ascending: true })
             .order("nombre", { ascending: true });
@@ -150,14 +159,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (error) {
             console.error("❌ Error al cargar estudiantes:", error);
             tablaEstudiantesAdmin.innerHTML = `
-                <tr><td colspan="5" class="text-center text-danger py-3">No se pudo cargar la lista.</td></tr>
+                <tr><td colspan="6" class="text-center text-danger py-3">No se pudo cargar la lista.</td></tr>
             `;
             return;
         }
 
         if (!data || data.length === 0) {
             tablaEstudiantesAdmin.innerHTML = `
-                <tr><td colspan="5" class="text-center text-muted py-3">No hay estudiantes en este salón todavía.</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-3">No hay estudiantes en este salón todavía.</td></tr>
             `;
             return;
         }
@@ -171,6 +180,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const inputCedula = fila.querySelector(".campo-cedula");
             const inputSalon = fila.querySelector(".campo-salon");
             const btnBorrar = fila.querySelector(".btn-borrar-estudiante");
+            const permisoSwitch = fila.querySelector(".estudiante-permiso-switch");
 
             async function guardarCampo(campo, valor) {
                 const cambios = { [campo]: valor.trim() || null };
@@ -203,6 +213,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                     : "";
             });
             inputSalon.addEventListener("blur", () => guardarCampo("salon", inputSalon.value));
+
+            if (permisoSwitch) {
+                permisoSwitch.addEventListener("change", async () => {
+                    const nuevoValor = permisoSwitch.checked;
+                    const { error: errPermiso } = await supabase
+                        .from("estudiantes")
+                        .update({ puede_publicar_tareas: nuevoValor })
+                        .eq("id", id);
+
+                    if (errPermiso) {
+                        console.error("❌ Error al actualizar permiso de publicar tareas:", errPermiso);
+                        avisoGuardado("❌ No se pudo guardar el permiso", true);
+                        permisoSwitch.checked = !nuevoValor;
+                        return;
+                    }
+
+                    avisoGuardado(nuevoValor ? "✅ Ahora puede publicar tareas" : "Permiso quitado");
+                });
+            }
 
             btnBorrar.addEventListener("click", async () => {
                 const nombreActual = inputNombre.value || "este estudiante";
