@@ -112,7 +112,7 @@
             color: #dc3545;
         }
 
-        #cambiarPanelContainer:empty {
+        #navCambiarPanel:empty {
             display: none;
         }
 
@@ -308,7 +308,7 @@
 
                 <!-- Si el usuario tiene más de un rol (profesor, consejero,
                      administrador), roles.js pinta aquí el selector de panel -->
-                <div id="cambiarPanelContainer"></div>
+                <div id="navCambiarPanel"></div>
 
                 <button id="btnSalir" type="button" class="btn-cerrar-sesion">
                     <i class="fa-solid fa-right-from-bracket"></i>
@@ -752,7 +752,7 @@
         </div>
         <!-- fin seccionResumen -->
 
-        <!-- LISTA DE ESTUDIANTES (todos los salones) -->
+        <!-- LISTA DE ESTUDIANTES (solo el salón del consejero) -->
         <div id="seccionListado" class="vista-panel" style="display:none;">
             <button type="button" class="btn btn-link text-decoration-none px-0 mb-2 mt-3" onclick="volverAlMenu()">
                 <i class="fa-solid fa-arrow-left me-1"></i> Volver al menú
@@ -767,7 +767,7 @@
                                 Lista de estudiantes
                             </h4>
                             <p class="text-muted small mb-0">
-                                Busca por nombre o cédula. Puedes ver un salón a la vez o todos juntos.
+                                Busca por nombre o cédula.
                                 Para agregar un estudiante nuevo, contacta al administrador del sistema.
                             </p>
                         </div>
@@ -779,19 +779,15 @@
                     </div>
 
                     <div class="row g-2 mb-3">
-                        <div class="col-md-5">
+                        <div class="col-md-9">
                             <input type="text" class="form-control" id="buscarListado"
                                 placeholder="Buscar por nombre o cédula...">
-                        </div>
-                        <div class="col-md-4">
-                            <select class="form-select" id="filtroSalonListado">
-                                <option value="">Todos los salones</option>
-                            </select>
                         </div>
                         <div class="col-md-3">
                             <span class="badge bg-secondary w-100 py-2" id="contadorListado">0 estudiantes</span>
                         </div>
                     </div>
+
 
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered table-striped align-middle">
