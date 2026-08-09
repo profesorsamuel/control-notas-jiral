@@ -186,6 +186,13 @@
                     </a>
                 </div>
                 <div class="col">
+                    <button type="button" class="btn btn-outline-secondary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-consejeros">
+                        <i class="fa-solid fa-user-check fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Gestionar consejeros</span>
+                        <span class="small text-muted d-none d-md-block">Autorizar edición de horario por salón</span>
+                    </button>
+                </div>
+                <div class="col">
                     <a href="mi_horario.html" target="_blank" class="btn btn-outline-primary w-100 h-100 py-4 px-2">
                         <i class="fa-solid fa-calendar-week fa-2x d-block mb-2" aria-hidden="true"></i>
                         <span class="fw-semibold d-block">Mi horario</span>
@@ -197,6 +204,13 @@
                         <i class="fa-solid fa-eye fa-2x d-block mb-2" aria-hidden="true"></i>
                         <span class="fw-semibold d-block">Monitor de estudiantes</span>
                         <span class="small text-muted d-none d-md-block">Horario y tareas por salón, en vivo</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="horario_salon.html" target="_blank" class="btn btn-outline-dark w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-school fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Horario por salón</span>
+                        <span class="small text-muted d-none d-md-block">Cargar el horario completo de cada salón</span>
                     </a>
                 </div>
             </div>
@@ -888,6 +902,49 @@
         </section>
         </div>
 
+        <!-- ===================== GESTIONAR CONSEJEROS (permiso de horario) ===================== -->
+        <div id="panel-consejeros" class="panel-seccion d-none">
+        <section class="card shadow border-secondary border-2 mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-user-check me-2" aria-hidden="true"></i>
+                    Gestionar consejeros
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-3">
+                    Cada consejero(a) ya tiene un salón asignado (registrado en la tabla
+                    <code>consejeros</code>). Activa este permiso para que, además del
+                    administrador, esa persona pueda cargar y editar el horario completo
+                    de <strong>su propio salón</strong> desde "Horario por salón". El
+                    cambio se guarda solo al marcar/desmarcar.
+                </p>
+
+                <div id="mensajeConsejeros" class="alert d-none" role="alert"></div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width:200px;">Consejero(a)</th>
+                                <th style="min-width:220px;">Correo</th>
+                                <th style="min-width:100px;">Salón</th>
+                                <th style="min-width:200px;">Puede editar el horario de su salón</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaConsejerosAdmin">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">Cargando consejeros...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
         <!-- ===================== TRIMESTRES (fechas y trimestre activo) ===================== -->
         <div id="panel-trimestres" class="panel-seccion d-none">
         <section class="card shadow border-warning border-2 mb-4">
@@ -999,6 +1056,10 @@
 
                 if (idPanel === "panel-profesores" && typeof window.cargarProfesoresAdmin === "function") {
                     window.cargarProfesoresAdmin();
+                }
+
+                if (idPanel === "panel-consejeros" && typeof window.cargarConsejerosAdmin === "function") {
+                    window.cargarConsejerosAdmin();
                 }
 
                 if (idPanel === "panel-trimestres" && typeof window.cargarConfigTrimestres === "function") {
