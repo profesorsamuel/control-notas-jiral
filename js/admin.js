@@ -541,27 +541,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         const trimestre = notasTrimestre.value;
         const etiqueta = etiquetaCasilla(tipo, numero);
 
-        const confirmar = confirm(`¿Estás seguro de que deseas eliminar permanentemente la casilla "${etiqueta}" (${materia} - ${salon}) y TODAS las notas registradas en ella?`);
+        const confirmar = confirm(`¿Estás seguro de que deseas mover a la papelera la casilla "${etiqueta}" (${materia} - ${salon}) y todas las notas registradas en ella? (Se podrá restaurar después, como hace el/la docente.)`);
         if (!confirmar) return;
 
         estadoGuardadoNotas.textContent = `Eliminando columna ${etiqueta}...`;
         estadoGuardadoNotas.className = "small text-primary";
 
         try {
+            const ahora = new Date().toISOString();
+
+            // Borrado suave (igual que en el panel del docente): así queda
+            // disponible para restaurar desde la papelera y no desaparece
+            // de golpe y para siempre en TODOS los salones que comparten
+            // esta materia y trimestre.
             await supabase.from("notas")
-                .delete()
+                .update({ eliminado_en: ahora, eliminado_por: perfil.correo })
                 .eq("materia", materia)
                 .eq("trimestre", trimestre)
                 .eq("tipo", tipo)
-                .eq("numero", numero);
+                .eq("numero", numero)
+                .is("eliminado_en", null);
 
             await supabase.from("temas_casillas")
-                .delete()
+                .update({ eliminado_en: ahora, eliminado_por: perfil.correo })
                 .eq("salon", salon)
                 .eq("materia", materia)
                 .eq("trimestre", trimestre)
                 .eq("tipo", tipo)
-                .eq("numero", numero);
+                .eq("numero", numero)
+                .is("eliminado_en", null);
 
             await supabase.from("columnas_materia")
                 .delete()
@@ -570,7 +578,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .eq("tipo", tipo)
                 .eq("numero", numero);
 
-            estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} eliminada correctamente.`;
+            estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} movida a la papelera.`;
             estadoGuardadoNotas.className = "small text-success";
 
             cargarGrupoNotas();
@@ -1133,7 +1141,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .select("id, correo, tipo, numero, nota, tema")
                 .eq("materia", materia)
                 .eq("trimestre", trimestre)
-                .in("correo", correosDelGrupo);
+                .in("correo", correosDelGrupo)
+                .is("eliminado_en", null);
 
             if (errNotas) {
                 console.error("❌ Error al cargar historial de notas:", errNotas);
@@ -1148,7 +1157,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .select("id, estudiante_id, tipo, numero, nota, tema")
                 .eq("materia", materia)
                 .eq("trimestre", trimestre)
-                .in("estudiante_id", idsSinCuenta);
+                .in("estudiante_id", idsSinCuenta)
+                .is("eliminado_en", null);
 
             if (errNotasSinCuenta) {
                 console.error("❌ Error al cargar historial de notas (sin cuenta):", errNotasSinCuenta);
@@ -1164,7 +1174,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             .select("tipo, numero, tema")
             .eq("salon", salon)
             .eq("materia", materia)
-            .eq("trimestre", trimestre);
+            .eq("trimestre", trimestre)
+            .is("eliminado_en", null);
 
         if (errTemas) {
             console.error("❌ Error al cargar temas de casillas:", errTemas);
