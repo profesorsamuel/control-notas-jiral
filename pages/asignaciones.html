@@ -97,6 +97,8 @@
             background: var(--color-primario); border-color: var(--color-primario); color: #fff;
         }
         .chip-check:focus-visible + label { outline: 2px solid var(--color-acento); outline-offset: 2px; }
+        .chip-deshabilitado label { opacity: .4; cursor: not-allowed; text-decoration: line-through; }
+        .chip-check:disabled + label { pointer-events: none; }
 
         /* ---- Listado de lo ya asignado ---- */
         .fila-materia {
