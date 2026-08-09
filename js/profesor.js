@@ -1,5 +1,6 @@
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
+import { calcularColumnasApreciacionesNuevas, iconoApreciacion, abrirDetalleApreciacion } from "./apreciaciones.js";
 
 // =========================================================
 // 0) UTILIDADES
@@ -293,6 +294,10 @@ let temasCasillasBD = {};
 // (por ejemplo el que sigue a eliminar una columna) no crea una columna
 // nueva por su cuenta.
 let agregarColumnaVaciaSolicitada = false;
+// { 4: "activa", 5: "bloqueada", ... } — solo para Aprec. 4 en adelante.
+// Aprec. 1, 2 y 3 nunca aparecen aquí: siguen funcionando exactamente
+// igual que antes, sin pasar por este sistema nuevo.
+let estadoApreciacionesNuevas = {};
 
 function claveEstudiante(est) {
     return est.correo ? `correo:${est.correo}` : `id:${est.id}`;
@@ -865,7 +870,12 @@ function renderTabla() {
         columnasConBoton.push(c);
         const siguiente = columnasVisibles[idx + 1];
         if (!siguiente || siguiente.tipo !== c.tipo) {
-            columnasConBoton.push({ tipo: c.tipo, numero: null, esBotonAgregar: true });
+            // Las columnas de Apreciación 4+ se crean solas según su
+            // estado (activa/completada/bloqueada); ya no tiene sentido
+            // el botón "➕" manual para ese tipo.
+            if (c.tipo !== "apreciacion") {
+                columnasConBoton.push({ tipo: c.tipo, numero: null, esBotonAgregar: true });
+            }
         }
     });
     // Índice de columna de nota "real" para cada posición (null en los
@@ -879,6 +889,18 @@ function renderTabla() {
             htmlCabecera += `
                 <th class="text-center" style="width:34px;">
                     <button type="button" class="btn btn-link btn-sm p-0 text-success btn-agregar-columna" data-tipo="${c.tipo}" title="Agregar otra columna de ${escapeHtml(ETIQUETAS_TIPO[c.tipo] || c.tipo)}">➕</button>
+                </th>`;
+            return;
+        }
+        if (c.tipo === "apreciacion" && c.numero >= 4) {
+            const estadoCol = estadoApreciacionesNuevas[c.numero] || "bloqueada";
+            htmlCabecera += `
+                <th class="text-center small" style="width:90px; cursor:${estadoCol === "bloqueada" ? "default" : "pointer"};">
+                    <button type="button" class="btn btn-link btn-sm p-0 fw-bold btn-abrir-apreciacion-nueva text-decoration-none"
+                        data-numero="${c.numero}" data-estado="${estadoCol}"
+                        style="color:${estadoCol === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"};">
+                        ${iconoApreciacion(estadoCol)} Aprec. ${c.numero}
+                    </button>
                 </th>`;
             return;
         }
@@ -924,8 +946,19 @@ function renderTabla() {
 
         const columnas = columnasConBoton.map((c, pos) => {
             if (c.esBotonAgregar) return `<td></td>`;
-            const colIndex = indicesColumna[pos];
             const claveCas = claveCasilla(c.tipo, c.numero);
+
+            if (c.tipo === "apreciacion" && c.numero >= 4) {
+                const estadoCol = estadoApreciacionesNuevas[c.numero] || "bloqueada";
+                const n = historial[claveCas];
+                const valorGuardado = (n && n.nota !== null && n.nota !== undefined) ? formatearNotaFinal(String(n.nota)) : "";
+                const contenido = estadoCol === "completada"
+                    ? `<span class="fw-bold text-success">${valorGuardado || "–"}</span>`
+                    : `<span style="opacity:${estadoCol === "bloqueada" ? .5 : 1};">${iconoApreciacion(estadoCol)}</span>`;
+                return `<td class="celda-nota text-center" style="cursor:${estadoCol === "bloqueada" ? "default" : "pointer"};" data-abrir-apreciacion="${c.numero}" data-estado-apreciacion="${estadoCol}">${contenido}</td>`;
+            }
+
+            const colIndex = indicesColumna[pos];
             const n = historial[claveCas];
             const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
             const valor = crudo === "" ? "" : formatearNotaFinal(String(crudo));
@@ -955,6 +988,25 @@ function renderTabla() {
 
     cabeceraNotasGrupo.querySelectorAll(".btn-eliminar-columna").forEach((btn) => {
         btn.addEventListener("click", () => eliminarColumnaCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10)));
+    });
+
+    function abrirDesdeApreciacionNueva(numeroApreciacion, estadoCol) {
+        abrirDetalleApreciacion({
+            materia: selectMateriaNota.value,
+            salon: selectSalonNota.value,
+            trimestre: selectTrimestreNota.value,
+            numeroApreciacion, estado: estadoCol,
+            estudiantes: grupoActual, correoProfesor,
+        });
+    }
+
+    cabeceraNotasGrupo.querySelectorAll(".btn-abrir-apreciacion-nueva").forEach((btn) => {
+        btn.addEventListener("click", () => abrirDesdeApreciacionNueva(parseInt(btn.dataset.numero, 10), btn.dataset.estado));
+    });
+
+    tablaNotasGrupo.querySelectorAll("[data-abrir-apreciacion]").forEach((td) => {
+        if (td.dataset.estadoApreciacion === "bloqueada") return;
+        td.addEventListener("click", () => abrirDesdeApreciacionNueva(parseInt(td.dataset.abrirApreciacion, 10), td.dataset.estadoApreciacion));
     });
 
     // "➕" al final de cada grupo de columnas: agrega la siguiente casilla
@@ -1133,6 +1185,21 @@ async function cargarSalon() {
     ordenarCasillas(casillasTabla);
     if (inputNumeroNota && numeroYaTeniaDatos) inputNumeroNota.value = String(obtenerUltimoNumeroTipo(tipo) + 1);
 
+    // --- Apreciación 4 en adelante: sistema nuevo (asistencia +
+    // comportamiento + actividades). Estas columnas NO se manejan con
+    // el botón "➕" de arriba: se calculan solas según su estado
+    // (activa/completada/bloqueada) en apreciaciones_estado. Se quitan
+    // aquí de casillasTabla y se vuelven a agregar con su estado, para
+    // no duplicarlas si ya tenían notas guardadas.
+    casillasTabla = casillasTabla.filter((c) => !(c.tipo === "apreciacion" && c.numero >= 4));
+    estadoApreciacionesNuevas = {};
+    const columnasNuevas = await calcularColumnasApreciacionesNuevas(materia, trimestre);
+    columnasNuevas.forEach(({ numero, estado: estadoCol }) => {
+        estadoApreciacionesNuevas[numero] = estadoCol;
+        casillasTabla.push({ tipo: "apreciacion", numero, esNueva: true });
+    });
+    ordenarCasillas(casillasTabla);
+
     const { data: filaAsignacion } = await supabase
         .from("profesor_materias")
         .select("bloqueado_para_estudiantes")
@@ -1164,6 +1231,11 @@ async function cargarSalon() {
     }
     cargaSalonEnCurso = false;
 }
+
+// Le permite a js/apreciaciones.js refrescar esta misma tabla después
+// de guardar una Apreciación 4+, sin tener que reimplementar toda la
+// carga de estudiantes/notas/temas que ya hace cargarSalon().
+window.__recargarSalonProfesor = cargarSalon;
 
 // =========================================================
 // 4) GUARDAR NOTAS
