@@ -897,25 +897,22 @@ function renderTabla() {
             const infoCol = estadoApreciacionesNuevas[c.numero] || { estado: "bloqueada", modo: null };
             if (infoCol.modo === "directo") {
                 // Modo directo: se ve exactamente como una columna normal
-                // (Aprec. 1, 2, 3), solo que sin botón de eliminar (el
-                // sistema sigue controlando cuándo avanza a la siguiente).
-                // Si sigue activa, sí se puede reiniciar (↺) por si el
-                // docente quiere empezar de nuevo o cambiar de modo.
+                // (Aprec. 1, 2, 3), incluyendo el mismo botón de basura
+                // (🗑️) para reiniciarla mientras esté activa.
                 htmlCabecera += `
                     <th class="text-center small ${claveCasilla(c.tipo, c.numero) === claveSel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
                         <div>${iconoApreciacion(infoCol.estado)} ${etiquetaCasilla(c.tipo, c.numero)}</div>
-                        ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Reiniciar esta apreciación">↺</button>` : ""}
+                        ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar/reiniciar esta apreciación">🗑️</button>` : ""}
                     </th>`;
                 return;
             }
             htmlCabecera += `
-                <th class="text-center small" style="width:90px; cursor:${infoCol.estado === "bloqueada" ? "default" : "pointer"};">
-                    <button type="button" class="btn btn-link btn-sm p-0 fw-bold btn-abrir-apreciacion-nueva text-decoration-none"
-                        data-numero="${c.numero}" data-estado="${infoCol.estado}"
-                        style="color:${infoCol.estado === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"}; white-space:nowrap;">
+                <th class="text-center small" data-abrir-apreciacion-header="${c.numero}" data-estado-header="${infoCol.estado}"
+                    style="width:90px; cursor:${infoCol.estado === "bloqueada" ? "default" : "pointer"};">
+                    <div class="fw-bold" style="color:${infoCol.estado === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"};">
                         ${iconoApreciacion(infoCol.estado)} Aprec. ${c.numero}
-                    </button>
-                    ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Reiniciar esta apreciación">↺</button>` : ""}
+                    </div>
+                    ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar/reiniciar esta apreciación">🗑️</button>` : ""}
                 </th>`;
             return;
         }
@@ -1030,8 +1027,12 @@ function renderTabla() {
         });
     }
 
-    cabeceraNotasGrupo.querySelectorAll(".btn-abrir-apreciacion-nueva").forEach((btn) => {
-        btn.addEventListener("click", () => abrirDesdeApreciacionNueva(parseInt(btn.dataset.numero, 10), btn.dataset.estado));
+    cabeceraNotasGrupo.querySelectorAll("[data-abrir-apreciacion-header]").forEach((th) => {
+        if (th.dataset.estadoHeader === "bloqueada") return;
+        th.addEventListener("click", (e) => {
+            if (e.target.closest(".btn-reiniciar-apreciacion")) return; // el botón 🗑️ tiene su propio listener
+            abrirDesdeApreciacionNueva(parseInt(th.dataset.abrirApreciacionHeader, 10), th.dataset.estadoHeader);
+        });
     });
 
     cabeceraNotasGrupo.querySelectorAll(".btn-reiniciar-apreciacion").forEach((btn) => {
@@ -1039,7 +1040,7 @@ function renderTabla() {
             e.stopPropagation();
             const numeroApreciacion = parseInt(btn.dataset.numero, 10);
             const ok = window.confirm(
-                `¿Reiniciar la Apreciación ${numeroApreciacion}? Esto borra las notas, comportamiento y actividades guardadas de esta apreciación (solo de esta, no toca Aprec. 1, 2 ni 3) y vuelve a preguntar el modo.`
+                `¿Eliminar/reiniciar la Apreciación ${numeroApreciacion}? Esto borra las notas, comportamiento y actividades guardadas de esta apreciación (solo de esta, no toca Aprec. 1, 2 ni 3) y vuelve a preguntar el modo.`
             );
             if (!ok) return;
             const materia = selectMateriaNota.value, trimestre = selectTrimestreNota.value;
