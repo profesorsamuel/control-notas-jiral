@@ -125,16 +125,26 @@ export async function elegirModoApreciacion(materia, trimestre, numeroApreciacio
 // guardarNotas() de profesor.js. Esta función solo se encarga de la
 // parte que ese flujo NO sabe hacer: revisar si con esas notas la
 // apreciación quedó completa, y si es así, activar la siguiente.
-export async function revisarAvanceApreciacionesDirectas(materia, trimestre, numerosGuardados) {
+export async function revisarAvanceApreciacionesDirectas(materia, salon, trimestre, numerosGuardados) {
     let avanzoAlguna = false;
     for (const numero of numerosGuardados) {
         const { data: completada, error } = await supabase.rpc("completar_y_avanzar_apreciacion", {
-            p_materia: materia, p_trimestre: trimestre, p_numero: numero,
+            p_materia: materia, p_trimestre: trimestre, p_numero: numero, p_salon: salon,
         });
         if (error) { console.error(error); continue; }
         if (completada) avanzoAlguna = true;
     }
     return avanzoAlguna;
+}
+
+// Marca la apreciación como completada aunque falten estudiantes por
+// registrar: el profesor decide, sin depender del conteo automático.
+export async function completarApreciacionManual(materia, trimestre, numeroApreciacion) {
+    const { error } = await supabase.rpc("completar_apreciacion_manual", {
+        p_materia: materia, p_trimestre: trimestre, p_numero: numeroApreciacion,
+    });
+    if (error) { console.error(error); return false; }
+    return true;
 }
 
 export async function reiniciarApreciacionActiva(materia, trimestre, numeroApreciacion) {
@@ -155,7 +165,7 @@ export function iconoApreciacion(estado) {
 // 2) PESOS Y VALORES (leídos de config_pesos_apreciacion)
 // =========================================================
 
-async function obtenerConfigPesos() {
+export async function obtenerConfigPesos() {
     const { data, error } = await supabase
         .from("config_pesos_apreciacion")
         .select("*")
@@ -170,6 +180,18 @@ async function obtenerConfigPesos() {
         };
     }
     return data;
+}
+
+export async function guardarConfigPesos({ peso_asistencia, peso_comportamiento, peso_actividades_clase, peso_actividades_casa }) {
+    const suma = Number(peso_asistencia) + Number(peso_comportamiento) + Number(peso_actividades_clase) + Number(peso_actividades_casa);
+    if (Math.round(suma) !== 100) {
+        return { ok: false, error: { message: `Los 4 porcentajes deben sumar 100. Ahora mismo suman ${suma}.` } };
+    }
+    const { error } = await supabase.from("config_pesos_apreciacion").update({
+        peso_asistencia, peso_comportamiento, peso_actividades_clase, peso_actividades_casa,
+        updated_at: new Date().toISOString(),
+    }).eq("id", 1);
+    return { ok: !error, error };
 }
 
 // =========================================================
@@ -352,7 +374,7 @@ export function calcularNotaFinalApreciacion({ notaAsistencia, notaComportamient
 // guardar, la apreciación quedó lista y ya se activó la siguiente.
 
 export async function guardarApreciacionCompleta({
-    materia, trimestre, numeroApreciacion, correoProfesor, estudiantes, notasFinalesPorEstudiante,
+    materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes, notasFinalesPorEstudiante,
 }) {
     const hoy = new Date().toISOString().slice(0, 10);
 
@@ -388,7 +410,7 @@ export async function guardarApreciacionCompleta({
     }
 
     const { data: completada, error: errCompletar } = await supabase.rpc("completar_y_avanzar_apreciacion", {
-        p_materia: materia, p_trimestre: trimestre, p_numero: numeroApreciacion,
+        p_materia: materia, p_trimestre: trimestre, p_numero: numeroApreciacion, p_salon: salon,
     });
 
     if (errCompletar) return { ok: true, completada: false, error: errCompletar };
@@ -407,6 +429,7 @@ function obtenerElementosModal() {
         titulo: document.getElementById("apreciacionModalTitulo"),
         cuerpo: document.getElementById("apreciacionModalCuerpo"),
         btnGuardar: document.getElementById("btnGuardarApreciacionDetalle"),
+        btnCompletarManual: document.getElementById("btnCompletarApreciacionManual"),
         estadoGuardado: document.getElementById("apreciacionModalEstadoGuardado"),
     };
     return elementosModal;
@@ -418,6 +441,7 @@ export async function abrirSelectorModo({ materia, salon, trimestre, numeroAprec
 
     el.titulo.textContent = `Apreciación ${numeroApreciacion} — ¿Cómo la vas a registrar?`;
     el.btnGuardar.style.display = "none";
+    el.btnCompletarManual.style.display = "none";
     el.estadoGuardado.textContent = "";
     el.cuerpo.innerHTML = `
         <p class="text-muted small">Elige una vez cómo quieres trabajar esta apreciación. Esta elección queda fija para la Apreciación ${numeroApreciacion}.</p>
@@ -509,6 +533,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
     calcularYPintarNotasFinales(estado_);
 
     el.btnGuardar.style.display = soloLectura ? "none" : "inline-block";
+    el.btnCompletarManual.style.display = soloLectura ? "none" : "inline-block";
     el.estadoGuardado.textContent = soloLectura
         ? "Esta apreciación ya está completada. Solo lectura."
         : "";
@@ -523,7 +548,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
         });
 
         const resultado = await guardarApreciacionCompleta({
-            materia, trimestre, numeroApreciacion, correoProfesor, estudiantes, notasFinalesPorEstudiante,
+            materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes, notasFinalesPorEstudiante,
         });
 
         el.btnGuardar.disabled = false;
@@ -535,7 +560,31 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
 
         el.estadoGuardado.textContent = resultado.completada
             ? `✅ Guardado. Apreciación ${numeroApreciacion} completada — Apreciación ${numeroApreciacion + 1} ya está activa.`
-            : "✅ Guardado. Todavía faltan estudiantes por completar para cerrar esta apreciación.";
+            : "✅ Notas guardadas. Toca \"Marcar como completada\" cuando quieras cerrar esta apreciación.";
+        el.estadoGuardado.className = "small text-success ms-2";
+
+        if (resultado.completada && typeof window.__recargarSalonProfesor === "function") {
+            await window.__recargarSalonProfesor();
+            setTimeout(() => modalBootstrap.hide(), 1200);
+        }
+    };
+
+    el.btnCompletarManual.onclick = async () => {
+        const ok = window.confirm(
+            `¿Marcar la Apreciación ${numeroApreciacion} como completada? Esto activa la Apreciación ${numeroApreciacion + 1}, sin importar si a algún estudiante le falta nota. Antes de esto, asegúrate de haber presionado "💾 Guardar apreciación" para que las notas ya calculadas queden guardadas.`
+        );
+        if (!ok) return;
+
+        el.btnCompletarManual.disabled = true;
+        const seCompleto = await completarApreciacionManual(materia, trimestre, numeroApreciacion);
+        el.btnCompletarManual.disabled = false;
+
+        if (!seCompleto) {
+            alert("No se pudo completar la apreciación.");
+            return;
+        }
+
+        el.estadoGuardado.textContent = `✅ Apreciación ${numeroApreciacion} marcada como completada — Apreciación ${numeroApreciacion + 1} ya está activa.`;
         el.estadoGuardado.className = "small text-success ms-2";
 
         if (typeof window.__recargarSalonProfesor === "function") {
@@ -583,7 +632,7 @@ function pintarModal(estado_) {
         estudiantes, fechaInicio, fechaFin,
         asistenciaFechas, asistenciaPorFecha,
         comportamientoFechas, comportamientoPorFecha,
-        actividadesClase, actividadesCasa, soloLectura, numeroApreciacion,
+        actividadesClase, actividadesCasa, soloLectura, numeroApreciacion, pesos,
     } = estado_;
 
     const rangoDefinido = !!(fechaInicio && fechaFin);
@@ -715,6 +764,37 @@ function pintarModal(estado_) {
             </table>`;
     };
 
+    const bloquePesos = () => {
+        if (soloLectura) return "";
+        return `
+            <details class="mb-3">
+                <summary class="fw-bold" style="color:var(--color-primario, #4f46e5); cursor:pointer;">⚙️ Cambiar los porcentajes de la fórmula</summary>
+                <div class="border rounded p-2 mt-2">
+                    <p class="small text-muted mb-2">Deben sumar 100%. Este cambio aplica para <strong>todas</strong> las apreciaciones 4+ (no solo esta).</p>
+                    <div class="d-flex flex-wrap gap-2 align-items-end mb-2">
+                        <div>
+                            <label class="small text-muted d-block">Asistencia %</label>
+                            <input type="number" min="0" max="100" class="form-control form-control-sm input-peso" id="pesoAsistencia" value="${pesos.peso_asistencia}" style="width:80px;">
+                        </div>
+                        <div>
+                            <label class="small text-muted d-block">Comportamiento %</label>
+                            <input type="number" min="0" max="100" class="form-control form-control-sm input-peso" id="pesoComportamiento" value="${pesos.peso_comportamiento}" style="width:80px;">
+                        </div>
+                        <div>
+                            <label class="small text-muted d-block">Act. en clase %</label>
+                            <input type="number" min="0" max="100" class="form-control form-control-sm input-peso" id="pesoActClase" value="${pesos.peso_actividades_clase}" style="width:80px;">
+                        </div>
+                        <div>
+                            <label class="small text-muted d-block">Act. en casa %</label>
+                            <input type="number" min="0" max="100" class="form-control form-control-sm input-peso" id="pesoActCasa" value="${pesos.peso_actividades_casa}" style="width:80px;">
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary" id="btnGuardarPesos">Guardar porcentajes</button>
+                    </div>
+                    <span class="small" id="sumaPesosIndicador"></span>
+                </div>
+            </details>`;
+    };
+
     el.cuerpo.innerHTML = `
         <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">Rango de fechas de esta Apreciación</h6>
         ${bloqueRango()}
@@ -732,6 +812,8 @@ function pintarModal(estado_) {
         <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">4) Actividades para la casa</h6>
         ${bloqueActividades(actividadesCasa, "casa")}
 
+        ${bloquePesos()}
+
         <h6 class="fw-bold mt-4" style="color:var(--color-primario, #4f46e5);">Nota final de Apreciación ${numeroApreciacion}</h6>
         <table class="table table-sm table-bordered">
             <thead><tr><th class="small">Estudiante</th><th class="small text-center">Nota final</th></tr></thead>
@@ -740,6 +822,35 @@ function pintarModal(estado_) {
     `;
 
     if (soloLectura) return;
+
+    // --- Listeners: pesos de la fórmula ---
+    const actualizarIndicadorSuma = () => {
+        const suma = ["pesoAsistencia", "pesoComportamiento", "pesoActClase", "pesoActCasa"]
+            .reduce((acc, id) => acc + (parseFloat(document.getElementById(id)?.value) || 0), 0);
+        const indicador = document.getElementById("sumaPesosIndicador");
+        if (!indicador) return;
+        indicador.textContent = `Suma actual: ${suma}%`;
+        indicador.className = "small " + (suma === 100 ? "text-success" : "text-danger");
+    };
+    el.cuerpo.querySelectorAll(".input-peso").forEach((input) => {
+        input.addEventListener("input", actualizarIndicadorSuma);
+    });
+    actualizarIndicadorSuma();
+
+    document.getElementById("btnGuardarPesos")?.addEventListener("click", async () => {
+        const nuevosPesos = {
+            peso_asistencia: parseFloat(document.getElementById("pesoAsistencia").value) || 0,
+            peso_comportamiento: parseFloat(document.getElementById("pesoComportamiento").value) || 0,
+            peso_actividades_clase: parseFloat(document.getElementById("pesoActClase").value) || 0,
+            peso_actividades_casa: parseFloat(document.getElementById("pesoActCasa").value) || 0,
+        };
+        const resultado = await guardarConfigPesos(nuevosPesos);
+        if (!resultado.ok) { alert("❌ " + resultado.error.message); return; }
+
+        estado_.pesos = nuevosPesos;
+        alert("✅ Porcentajes guardados. Se van a usar de aquí en adelante para todas las apreciaciones.");
+        calcularYPintarNotasFinales(estado_);
+    });
 
     document.getElementById("btnVolverModoDirecto")?.addEventListener("click", async () => {
         const ok = window.confirm(
