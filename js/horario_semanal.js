@@ -90,19 +90,35 @@ async function cargarFranjas() {
 }
 
 async function cargarHorarioDelSalon() {
-    const { data, error } = await supabase
-        .from("horario_profesor")
-        .select("dia, franja_id, texto, tipo, materia, salon, correo_profesor")
-        .eq("salon", salon);
+    // Se combinan dos fuentes:
+    // 1) horario_profesor: lo que cada profesor va llenando en "Mi horario".
+    // 2) horario_salon: lo que el administrador carga directamente para
+    //    ese salón completo (pantalla "Horario por salón").
+    // Si ambas tienen algo para el mismo día/franja, gana lo cargado
+    // directamente por el administrador (horario_salon).
+    const [resProfesor, resSalon] = await Promise.all([
+        supabase
+            .from("horario_profesor")
+            .select("dia, franja_id, texto, tipo, materia, salon, correo_profesor")
+            .eq("salon", salon),
+        supabase
+            .from("horario_salon")
+            .select("dia, franja_id, texto, tipo, materia, salon, correo_profesor")
+            .eq("salon", salon),
+    ]);
 
-    if (error) {
-        estadoHorario.textContent = "❌ Error al cargar el horario: " + error.message;
+    if (resProfesor.error && resSalon.error) {
+        estadoHorario.textContent = "❌ Error al cargar el horario: " + (resSalon.error.message || resProfesor.error.message);
         estadoHorario.className = "text-danger";
         return {};
     }
 
     const mapa = {};
-    (data || []).forEach((fila) => {
+    (resProfesor.data || []).forEach((fila) => {
+        mapa[claveDiaFranja(fila.dia, fila.franja_id)] = fila;
+    });
+    // horario_salon pisa lo anterior si hay choque en el mismo bloque.
+    (resSalon.data || []).forEach((fila) => {
         mapa[claveDiaFranja(fila.dia, fila.franja_id)] = fila;
     });
     return mapa;
