@@ -53,22 +53,88 @@ async function cargarSalonesDisponibles() {
     }
 
     grupoSalonesCheckboxes.innerHTML = salones.map((s) => `
-        <div class="form-check">
-            <input class="form-check-input check-salon" type="checkbox" value="${escapeHtml(s.codigo)}" id="sal-${escapeHtml(s.codigo)}">
-            <label class="form-check-label" for="sal-${escapeHtml(s.codigo)}">${escapeHtml(s.nombre_visible)}</label>
-        </div>
+        <input class="chip-check check-salon" type="checkbox" value="${escapeHtml(s.codigo)}" id="sal-${escapeHtml(s.codigo)}">
+        <label for="sal-${escapeHtml(s.codigo)}">${escapeHtml(s.nombre_visible)}</label>
     `).join("");
 }
+
+// =====================================================
+// PROFESORES: se cargan desde la tabla "profesores" para que el
+// admin elija de una lista en vez de escribir correo/nombre a mano
+// cada vez. Solo se piden los datos a mano si elige "Profesor nuevo".
+// =====================================================
+const selectProfesor = document.getElementById("selectProfesorAsignacion");
+const avisoProfesorNuevo = document.getElementById("avisoProfesorNuevo");
+
+let profesoresDisponibles = [];
+
+async function cargarProfesoresDisponibles() {
+    if (!selectProfesor) return;
+
+    const { data, error } = await supabase
+        .from("profesores")
+        .select("correo_profesor, nombre_profesor, telefono")
+        .order("nombre_profesor", { ascending: true });
+
+    if (error) {
+        selectProfesor.innerHTML = `<option value="">No se pudo cargar la lista de profesores</option>`;
+        return;
+    }
+
+    profesoresDisponibles = data || [];
+
+    selectProfesor.innerHTML =
+        `<option value="">Selecciona un profesor...</option>` +
+        `<option value="__nuevo__">➕ Profesor nuevo (no está en la lista)</option>` +
+        profesoresDisponibles.map((p) =>
+            `<option value="${escapeHtml(p.correo_profesor)}">${escapeHtml(p.nombre_profesor || p.correo_profesor)}</option>`
+        ).join("");
+}
+
+function ponerCamposProfesor({ correo, nombre, telefono, editable }) {
+    inputCorreo.value = correo || "";
+    inputNombre.value = nombre || "";
+    inputTelefono.value = telefono || "";
+
+    inputCorreo.disabled = !editable;
+    inputNombre.disabled = !editable;
+    // El teléfono siempre se puede editar/actualizar aquí mismo.
+    inputTelefono.disabled = false;
+
+    avisoProfesorNuevo.classList.toggle("d-none", !editable);
+}
+
+selectProfesor?.addEventListener("change", () => {
+    const valor = selectProfesor.value;
+
+    if (!valor) {
+        ponerCamposProfesor({ correo: "", nombre: "", telefono: "", editable: false });
+        return;
+    }
+
+    if (valor === "__nuevo__") {
+        ponerCamposProfesor({ correo: "", nombre: "", telefono: "", editable: true });
+        inputCorreo.focus();
+        return;
+    }
+
+    const prof = profesoresDisponibles.find((p) => p.correo_profesor === valor);
+    ponerCamposProfesor({
+        correo: prof?.correo_profesor,
+        nombre: prof?.nombre_profesor,
+        telefono: prof?.telefono,
+        editable: false,
+    });
+});
 
 const formAsignacion = document.getElementById("formAsignacion");
 const estadoAsignacion = document.getElementById("estadoAsignacion");
 const listadoProfesores = document.getElementById("listadoProfesores");
+const buscarListado = document.getElementById("buscarListado");
 const inputCorreo = document.getElementById("inputCorreoProfesor");
 const inputNombre = document.getElementById("inputNombreProfesor");
 const inputTelefono = document.getElementById("inputTelefonoProfesor");
 const checkWhatsapp = document.getElementById("checkWhatsapp");
-const selectDiaAsignacion = document.getElementById("selectDiaAsignacion");
-const inputHoraAsignacion = document.getElementById("inputHoraAsignacion");
 
 function formatearHora12(horaTexto) {
     if (!horaTexto) return "";
@@ -79,20 +145,31 @@ function formatearHora12(horaTexto) {
 }
 
 let correoOriginalEnEdicion = null;
+let datosListadoActual = [];
 
 function limpiarModoEdicion() {
     correoOriginalEnEdicion = null;
     formAsignacion.reset();
-    if (selectDiaAsignacion) selectDiaAsignacion.value = "";
+    if (selectProfesor) selectProfesor.value = "";
+    ponerCamposProfesor({ correo: "", nombre: "", telefono: "", editable: false });
     const aviso = document.getElementById("avisoEdicion");
     if (aviso) aviso.remove();
 }
 
 function entrarModoEdicion(prof) {
     correoOriginalEnEdicion = prof.correo;
-    inputCorreo.value = prof.correo;
-    inputNombre.value = prof.nombre;
-    if (prof.telefono) inputTelefono.value = prof.telefono;
+
+    // Si el profesor ya existe en la lista desplegable, lo seleccionamos ahí
+    // (así se ve de dónde viene el dato); si no está, lo tratamos como "nuevo".
+    const existeEnLista = profesoresDisponibles.some((p) => p.correo_profesor === prof.correo);
+    if (selectProfesor) selectProfesor.value = existeEnLista ? prof.correo : "__nuevo__";
+
+    ponerCamposProfesor({
+        correo: prof.correo,
+        nombre: prof.nombre,
+        telefono: prof.telefono,
+        editable: !existeEnLista,
+    });
 
     document.querySelectorAll(".check-materia").forEach((c) => (c.checked = false));
     document.querySelectorAll(".check-salon").forEach((c) => (c.checked = false));
@@ -135,13 +212,24 @@ async function cargarListado() {
     const telefonosPorCorreo = {};
     (dataProfesores || []).forEach((p) => { telefonosPorCorreo[p.correo_profesor] = p; });
 
-    if (!data || data.length === 0) {
+    datosListadoActual = data || [];
+
+    if (datosListadoActual.length === 0) {
         listadoProfesores.innerHTML = `<p class="text-muted">Todavía no hay asignaciones registradas.</p>`;
         return;
     }
 
+    pintarListado(datosListadoActual, telefonosPorCorreo);
+}
+
+function pintarListado(filas, telefonosPorCorreo) {
+    if (!filas || filas.length === 0) {
+        listadoProfesores.innerHTML = `<p class="text-muted">No hay asignaciones que coincidan con la búsqueda.</p>`;
+        return;
+    }
+
     const porProfesor = {};
-    data.forEach((fila) => {
+    filas.forEach((fila) => {
         const clave = fila.correo_profesor;
         if (!porProfesor[clave]) {
             porProfesor[clave] = {
@@ -159,7 +247,7 @@ async function cargarListado() {
         const filasMaterias = Object.entries(prof.materias).map(([materia, salones]) => `
             <div class="fila-materia">
                 <div>
-                    <strong>${escapeHtml(materia)}:</strong>
+                    <span class="etiqueta-materia">${escapeHtml(materia)}</span>
                     ${salones.map((s) => {
                         const horario = s.dia ? ` <span class="text-muted">(${escapeHtml(s.dia)}${s.hora ? " · " + escapeHtml(formatearHora12(s.hora)) : ""})</span>` : "";
                         return `${escapeHtml(s.salon)}${horario}`;
@@ -217,6 +305,24 @@ async function cargarListado() {
     });
 }
 
+buscarListado?.addEventListener("input", () => {
+    const texto = buscarListado.value.trim().toLowerCase();
+
+    if (!texto) {
+        pintarListado(datosListadoActual, {});
+        return;
+    }
+
+    const filtradas = datosListadoActual.filter((fila) =>
+        (fila.nombre_profesor || "").toLowerCase().includes(texto) ||
+        (fila.correo_profesor || "").toLowerCase().includes(texto) ||
+        (fila.materia || "").toLowerCase().includes(texto) ||
+        (fila.salon || "").toLowerCase().includes(texto)
+    );
+
+    pintarListado(filtradas, {});
+});
+
 formAsignacion?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -225,6 +331,11 @@ formAsignacion?.addEventListener("submit", async (e) => {
     const telefono = inputTelefono.value.trim();
     const whatsapp_activo = checkWhatsapp.checked;
 
+    if (!correo_profesor || !nombre_profesor) {
+        estadoAsignacion.textContent = "⚠️ Elige un profesor de la lista o completa correo y nombre del profesor nuevo.";
+        return;
+    }
+
     const materiasMarcadas = Array.from(document.querySelectorAll(".check-materia:checked")).map((c) => c.value);
     const otraMateria = document.getElementById("inputOtraMateria")?.value.trim();
     if (otraMateria) {
@@ -232,8 +343,6 @@ formAsignacion?.addEventListener("submit", async (e) => {
     }
 
     const salonesMarcados = Array.from(document.querySelectorAll(".check-salon:checked")).map((c) => c.value);
-    const diaSeleccionado = selectDiaAsignacion ? selectDiaAsignacion.value : "";
-    const horaSeleccionada = inputHoraAsignacion ? inputHoraAsignacion.value : "";
 
     const editando = !!correoOriginalEnEdicion;
     const soloCorrigiendoDatos = editando && materiasMarcadas.length === 0 && salonesMarcados.length === 0;
@@ -241,8 +350,6 @@ formAsignacion?.addEventListener("submit", async (e) => {
     if (!soloCorrigiendoDatos) {
         if (materiasMarcadas.length === 0) { estadoAsignacion.textContent = "⚠️ Marca al menos una materia."; return; }
         if (salonesMarcados.length === 0) { estadoAsignacion.textContent = "⚠️ Marca al menos un salón."; return; }
-        if (!diaSeleccionado) { estadoAsignacion.textContent = "⚠️ Selecciona el día de clase."; return; }
-        if (!horaSeleccionada) { estadoAsignacion.textContent = "⚠️ Selecciona la hora de clase."; return; }
     }
 
     estadoAsignacion.textContent = "Guardando...";
@@ -253,21 +360,39 @@ formAsignacion?.addEventListener("submit", async (e) => {
     );
 
     if (materiasMarcadas.length > 0 && salonesMarcados.length > 0) {
+        // El día/hora ya no se piden aquí (el profesor arma su horario en
+        // "Mi horario"), así que estas filas siempre quedan con dia/hora en
+        // null. Como una comparación de NULL contra NULL en la base de
+        // datos nunca cuenta como "igual", no podemos confiar en el upsert
+        // por conflicto para evitar duplicados: primero revisamos qué
+        // combinaciones materia+salón ya existen (sin día/hora) para este
+        // profesor, y solo insertamos las que faltan.
+        const { data: existentes } = await supabase
+            .from("profesor_materias")
+            .select("materia, salon")
+            .eq("correo_profesor", correo_profesor)
+            .is("dia", null)
+            .is("hora", null);
+
+        const yaExiste = new Set((existentes || []).map((e) => `${e.materia}|||${e.salon}`));
+
         const filasAInsertar = [];
         materiasMarcadas.forEach((materia) => {
             salonesMarcados.forEach((salon) => {
-                filasAInsertar.push({
-                    correo_profesor,
-                    nombre_profesor,
-                    materia,
-                    salon,
-                    dia: diaSeleccionado || null,
-                    hora: horaSeleccionada || null,
-                });
+                const clave = `${materia}|||${salon}`;
+                if (!yaExiste.has(clave)) {
+                    filasAInsertar.push({ correo_profesor, nombre_profesor, materia, salon, dia: null, hora: null });
+                }
             });
         });
 
-        await supabase.from("profesor_materias").upsert(filasAInsertar, { onConflict: "correo_profesor,materia,salon,dia,hora" });
+        if (filasAInsertar.length > 0) {
+            const { error: errInsertar } = await supabase.from("profesor_materias").insert(filasAInsertar);
+            if (errInsertar) {
+                estadoAsignacion.textContent = "❌ Error al guardar: " + errInsertar.message;
+                return;
+            }
+        }
     }
 
     estadoAsignacion.textContent = "✅ Guardado exitosamente.";
@@ -276,6 +401,7 @@ formAsignacion?.addEventListener("submit", async (e) => {
 });
 
 // BOTÓN PARA CARGAR EL HORARIO MASIVO DE SAMUEL ORTEGA
+// (esta carga sí trae día/hora reales porque viene de un horario ya fijo)
 document.getElementById("btnCargarHorarioSamuel")?.addEventListener("click", async () => {
     const correoMasivo = document.getElementById("inputCorreoMasivo")?.value.trim().toLowerCase();
     const estadoMasivo = document.getElementById("estadoMasivo");
@@ -357,5 +483,6 @@ document.getElementById("btnCargarHorarioSamuel")?.addEventListener("click", asy
     const ok = await verificarAdmin();
     if (!ok) return;
     await cargarSalonesDisponibles();
+    await cargarProfesoresDisponibles();
     cargarListado();
 })();
