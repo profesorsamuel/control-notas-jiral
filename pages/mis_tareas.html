@@ -48,7 +48,30 @@
         display: inline-block; background: #dc2626; color: #fff; font-size: .68rem; font-weight: bold;
         padding: 2px 8px; border-radius: 999px;
     }
+    .etiqueta-mia {
+        display: inline-block; background: #ede9fe; color: #5b21b6; font-size: .65rem; font-weight: bold;
+        padding: 2px 8px; border-radius: 999px; vertical-align: middle;
+    }
     #estadoTareas { text-align: center; padding: 6px 24px 16px; font-size: .85rem; min-height: 20px; }
+
+    /* ===== Aviso de tareas pendientes por fecha ===== */
+    .aviso-pendientes {
+        margin: 0 24px 14px; padding: 12px 16px; border-radius: 10px; font-size: .88rem;
+        display: none; gap: 4px; flex-direction: column;
+    }
+    .aviso-pendientes.mostrar { display: flex; }
+    .aviso-pendientes.nivel-vencida { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+    .aviso-pendientes.nivel-proxima { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
+    .aviso-pendientes strong { font-size: .95rem; }
+
+    /* ===== Formulario para agregar tarea (estudiante autorizado) ===== */
+    .zona-form { padding: 20px 24px; border-bottom: 1px solid #eee; display: none; }
+    .zona-form.mostrar { display: block; }
+    .zona-form label { font-size: .85rem; font-weight: 600; margin-top: 10px; display: block; }
+    .zona-form input, .zona-form select, .zona-form textarea {
+        width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #ddd; margin-top: 4px;
+    }
+    .acciones-form { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 </style>
 </head>
 <body>
@@ -60,6 +83,33 @@
 
     <div class="barra-acciones">
         <a href="estudiante.html" class="btn btn-outline-secondary btn-sm">↩️ Regresar a mis notas</a>
+        <button class="btn btn-primary btn-sm" id="btnMostrarFormEstudiante" style="display:none;">➕ Agregar tarea</button>
+    </div>
+
+    <div class="aviso-pendientes" id="avisoPendientes"></div>
+
+    <div class="zona-form" id="zonaFormEstudiante">
+        <label>Título</label>
+        <input type="text" id="inputTituloEst" placeholder="Ej: Investigación de ecosistemas">
+
+        <label>Materia</label>
+        <select id="inputMateriaEst">
+            <option value="">Cargando materias...</option>
+        </select>
+
+        <label>Descripción (opcional)</label>
+        <textarea id="inputDescripcionEst" rows="3" placeholder="Detalles de la tarea"></textarea>
+
+        <label>Fecha de entrega</label>
+        <input type="date" id="inputFechaEst">
+
+        <label>Hora de entrega (opcional)</label>
+        <input type="time" id="inputHoraEst">
+
+        <div class="acciones-form">
+            <button class="btn btn-sm btn-outline-secondary" id="btnCancelarFormEst">Cancelar</button>
+            <button class="btn btn-sm btn-primary" id="btnGuardarTareaEst">Guardar tarea</button>
+        </div>
     </div>
 
     <div class="lista-tareas" id="listaTareas">
