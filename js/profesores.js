@@ -9,6 +9,13 @@ function escapeHtml(str) {
         .replace(/'/g, "&#39;");
 }
 
+function iniciales(nombre) {
+    const partes = String(nombre ?? "").trim().split(/\s+/).filter(Boolean);
+    if (partes.length === 0) return "?";
+    if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+    return (partes[0][0] + partes[1][0]).toUpperCase();
+}
+
 // =====================================================
 // 0) VERIFICAR ADMIN (mismo patrón que asignaciones.js)
 // =====================================================
@@ -32,6 +39,7 @@ async function verificarAdmin() {
 
 const listaProfesores = document.getElementById("listaProfesores");
 const buscarProfesor = document.getElementById("buscarProfesor");
+const contadorProfesores = document.getElementById("contadorProfesores");
 
 // Campos de contacto que el admin puede editar aquí. correo_profesor
 // (el usuario de acceso) NO está en esta lista a propósito: ese se
@@ -88,6 +96,8 @@ async function cargarProfesores() {
 // 2) PINTAR TARJETAS
 // =====================================================
 function pintarLista(lista) {
+    contadorProfesores.textContent = `${profesoresCache.length} profesor${profesoresCache.length === 1 ? "" : "es"} en total`;
+
     if (!lista || lista.length === 0) {
         listaProfesores.innerHTML = `<p class="text-muted">No hay profesores que coincidan con la búsqueda.</p>`;
         return;
@@ -130,14 +140,23 @@ function pintarLista(lista) {
         }).join("");
 
         return `
-            <div class="tarjeta-profesor">
-                <h3>${escapeHtml(p.nombre_profesor || "(sin nombre)")}</h3>
-                <div class="small text-muted mb-2">
-                    Cédula: ${escapeHtml(p.cedula || "—")}
-                    &nbsp;·&nbsp;
-                    Usuario de acceso: ${escapeHtml(p.correo_profesor || "—")}
-                    &nbsp;·&nbsp;
-                    ${p.registrado ? `<span class="text-success">Cuenta activa</span>` : `<span class="text-warning">Todavía no se ha registrado</span>`}
+            <div class="tarjeta-profesor" data-correo="${escapeHtml(p.correo_profesor)}">
+                <div class="tarjeta-encabezado">
+                    <div class="avatar-profesor">${escapeHtml(iniciales(p.nombre_profesor))}</div>
+                    <div>
+                        <h3>${escapeHtml(p.nombre_profesor || "(sin nombre)")}</h3>
+                        <div class="small text-muted">
+                            Cédula: ${escapeHtml(p.cedula || "—")}
+                            &nbsp;·&nbsp;
+                            ${p.registrado ? `<span class="text-success">Cuenta activa</span>` : `<span class="text-warning">Sin registrar</span>`}
+                        </div>
+                        <div class="small text-muted">Usuario: ${escapeHtml(p.correo_profesor || "—")}</div>
+                    </div>
+                    <div class="tarjeta-acciones">
+                        <button type="button" class="btn-icono btn-eliminar-profesor" title="Eliminar profesor">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="mb-2">${camposHtml}</div>
@@ -154,6 +173,7 @@ function pintarLista(lista) {
     }).join("");
 
     activarEdicionDeCampos();
+    activarEliminarProfesor();
 }
 
 // =====================================================
@@ -230,7 +250,140 @@ function activarEdicionDeCampos() {
 }
 
 // =====================================================
-// 4) BÚSQUEDA (nombre, correo o materia)
+// 3.5) ELIMINAR PROFESOR
+// =====================================================
+function activarEliminarProfesor() {
+    listaProfesores.querySelectorAll(".btn-eliminar-profesor").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const tarjeta = btn.closest(".tarjeta-profesor");
+            const correo = tarjeta.dataset.correo;
+            const prof = profesoresCache.find((p) => p.correo_profesor === correo);
+            const nombre = prof?.nombre_profesor || correo;
+
+            const confirmar = confirm(
+                `¿Eliminar a "${nombre}" (${correo})?\n\n` +
+                `Esto borra su ficha de contacto y todas sus materias/salones asignados. ` +
+                `NO borra las notas que ya haya puesto, ni su cuenta de acceso (login) si ya se registró — ` +
+                `eso hay que revisarlo aparte con el administrador del sistema (Supabase).`
+            );
+            if (!confirmar) return;
+
+            btn.disabled = true;
+
+            const { error: errAsignaciones } = await supabase
+                .from("profesor_materias")
+                .delete()
+                .eq("correo_profesor", correo);
+
+            if (errAsignaciones) {
+                alert("No se pudieron quitar sus asignaciones: " + errAsignaciones.message);
+                btn.disabled = false;
+                return;
+            }
+
+            const { error: errProfesor } = await supabase
+                .from("profesores")
+                .delete()
+                .eq("correo_profesor", correo);
+
+            if (errProfesor) {
+                alert("No se pudo eliminar al profesor: " + errProfesor.message);
+                btn.disabled = false;
+                return;
+            }
+
+            cargarProfesores();
+        });
+    });
+}
+
+// =====================================================
+// 4) AGREGAR PROFESOR NUEVO (modal)
+// =====================================================
+const fondoModalProfesor = document.getElementById("fondoModalProfesor");
+const btnAbrirModalProfesor = document.getElementById("btnAbrirModalProfesor");
+const btnCancelarModalProfesor = document.getElementById("btnCancelarModalProfesor");
+const btnGuardarModalProfesor = document.getElementById("btnGuardarModalProfesor");
+const estadoModalProfesor = document.getElementById("estadoModalProfesor");
+
+const inputNuevoCorreo = document.getElementById("inputNuevoCorreo");
+const inputNuevoNombre = document.getElementById("inputNuevoNombre");
+const inputNuevoCedula = document.getElementById("inputNuevoCedula");
+const inputNuevoTelefono = document.getElementById("inputNuevoTelefono");
+const inputNuevoCorreoMeduca = document.getElementById("inputNuevoCorreoMeduca");
+const inputNuevoCorreoPersonal = document.getElementById("inputNuevoCorreoPersonal");
+
+function mostrarEstadoModal(texto, tipo = "danger") {
+    estadoModalProfesor.textContent = texto;
+    estadoModalProfesor.className = `small text-${tipo}`;
+}
+
+function abrirModalProfesor() {
+    [inputNuevoCorreo, inputNuevoNombre, inputNuevoCedula, inputNuevoTelefono, inputNuevoCorreoMeduca, inputNuevoCorreoPersonal]
+        .forEach((el) => (el.value = ""));
+    mostrarEstadoModal("", "muted");
+    fondoModalProfesor.classList.add("mostrar");
+    inputNuevoCorreo.focus();
+}
+
+function cerrarModalProfesor() {
+    fondoModalProfesor.classList.remove("mostrar");
+}
+
+btnAbrirModalProfesor?.addEventListener("click", abrirModalProfesor);
+btnCancelarModalProfesor?.addEventListener("click", cerrarModalProfesor);
+fondoModalProfesor?.addEventListener("click", (e) => {
+    if (e.target === fondoModalProfesor) cerrarModalProfesor();
+});
+
+btnGuardarModalProfesor?.addEventListener("click", async () => {
+    const correo_profesor = inputNuevoCorreo.value.trim().toLowerCase();
+    const nombre_profesor = inputNuevoNombre.value.trim();
+    const cedula = inputNuevoCedula.value.trim() || null;
+    const telefono = inputNuevoTelefono.value.trim() || null;
+    const correo_meduca = inputNuevoCorreoMeduca.value.trim() || null;
+    const correo_personal = inputNuevoCorreoPersonal.value.trim() || null;
+
+    if (!correo_profesor || !nombre_profesor) {
+        mostrarEstadoModal("⚠️ El correo de acceso y el nombre son obligatorios.");
+        return;
+    }
+
+    if (profesoresCache.some((p) => p.correo_profesor === correo_profesor)) {
+        mostrarEstadoModal("⚠️ Ya existe un profesor registrado con ese correo.");
+        return;
+    }
+
+    btnGuardarModalProfesor.disabled = true;
+    mostrarEstadoModal("Guardando...", "primary");
+
+    const { error } = await supabase.from("profesores").insert([{
+        correo_profesor,
+        nombre_profesor,
+        cedula,
+        telefono,
+        correo_meduca,
+        correo_personal,
+        actualizado_en: new Date().toISOString(),
+    }]);
+
+    btnGuardarModalProfesor.disabled = false;
+
+    if (error) {
+        mostrarEstadoModal(
+            error.code === "23505"
+                ? "⚠️ Ya existe un profesor con ese correo o cédula."
+                : "❌ No se pudo guardar: " + error.message
+        );
+        return;
+    }
+
+    cerrarModalProfesor();
+    cargarProfesores();
+});
+
+// =====================================================
+// 5) BÚSQUEDA (nombre, correo o materia)
 // =====================================================
 buscarProfesor?.addEventListener("input", () => {
     const texto = buscarProfesor.value.trim().toLowerCase();
