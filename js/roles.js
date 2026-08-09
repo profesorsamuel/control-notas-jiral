@@ -19,7 +19,7 @@ export async function obtenerRolesDeCuenta(authUserId, correo) {
     const correoNormalizado = (correo || "").trim().toLowerCase();
     const [{ data: perfil }, { data: consejeros }, { data: materias }] = await Promise.all([
         supabase.from("usuarios").select("rol").eq("auth_user_id", authUserId).maybeSingle(),
-        supabase.from("consejeros").select("correo, salon, nombre, rol"),
+        supabase.from("consejeros").select("correo, salon, nombre, rol, puede_editar_horario"),
         supabase.from("profesor_materias").select("id").eq("correo_profesor", correoNormalizado)
     ]);
     const esAdmin = !!(perfil && perfil.rol === "admin");
