@@ -11,6 +11,7 @@
 
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
+import { registrarSalida } from "./accesos.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
 
@@ -37,10 +38,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // =====================================================
     // VERIFICAR SESIÓN ACTIVA
-    // Si alguien entra a esta página sin haber iniciado sesión
-    // (por ejemplo escribiendo la URL directamente), las consultas
-    // a Supabase se harían como usuario anónimo y fallarían con
-    // "permission denied". Por eso se valida la sesión primero.
     // =====================================================
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -50,18 +47,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.location.href = "login.html";
         return;
     }
-
-    // =====================================================
-    // ¿A QUÉ SALÓN PERTENECE ESTE CONSEJERO(A)?
-    // Se busca en la tabla "consejeros" usando el correo con el
-    // que inició sesión. Si no aparece ahí, no tiene un salón
-    // asignado y no debe ver datos de ningún estudiante.
-    //
-    // La búsqueda es tolerante a espacios accidentales y a
-    // diferencias de mayúsculas/minúsculas, tanto en el correo
-    // como en el salón, y además valida que la cuenta tenga
-    // rol "consejero".
-    // =====================================================
 
     const correoSesion = (user.email || "").trim().toLowerCase();
 
@@ -95,14 +80,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    // Normaliza el salón (quita espacios extra y pone la letra en mayúscula,
-    // p. ej. " 9c " o "9 c" terminan siendo "9C") para que coincida sin
-    // problemas con lo que tengan guardado los estudiantes.
     const salonActual = (consejeroInfo.salon || "").trim().toUpperCase();
 
     console.log("✅ Consejero encontrado:", consejeroInfo, "| Salón normalizado:", salonActual);
 
-    // Encabezado y bienvenida dinámicos (ya no dicen "9C" fijo)
     const navbarSalonEl = document.getElementById("navbarSalon");
     if (navbarSalonEl) {
         navbarSalonEl.textContent = `C.E.B.G. EL JIRAL | Consejería ${salonActual}`;
@@ -114,8 +95,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // =====================================================
-    // CONTROL DE CONSULTAS DE NOTAS (quién ha revisado y si
-    // descargó el PDF, usando "Ver mis notas" con su cédula)
+    // CONTROL DE CONSULTAS DE NOTAS
     // =====================================================
 
     const btnVerConsultas = document.getElementById("btnVerConsultas");
@@ -150,14 +130,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const consultas = data || [];
 
-        // -------- Estadísticas resumidas --------
         const nombresQueConsultaron = new Set(
             consultas.filter((c) => c.encontrado && c.nombre).map((c) => c.nombre)
         );
         const totalConPdf = consultas.filter((c) => c.pdf_descargado).length;
 
-        // Cuántos del salón NUNCA han consultado (comparando contra la
-        // lista de estudiantes ya cargada en resumenEstudiantes)
         const nombresDelSalon = new Set(
             (resumenEstudiantes || []).map((e) => (e.nombre || "").trim())
         );
@@ -171,7 +148,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         statConPdf.textContent = totalConPdf;
         statSinConsultar.textContent = sinConsultar;
 
-        // -------- Tabla de consultas --------
         if (consultas.length === 0) {
             tablaConsultas.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Todavía no hay consultas registradas para este salón.</td></tr>`;
             return;
@@ -221,18 +197,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let trimestreActivo = "Trimestre 1";
     let resumenEstudiantes = [];
-    let correoDetalleAbierto = null; // para reabrir el modal tras marcar una falta
-    let maxCasillaGrupoGlobal = {}; // "materia|tipo" -> casilla más alta que el grupo ya trabajó (para el PDF)
-    let casillasGrupoConNotaGlobal = new Set(); // "materia|tipo|numero" que SÍ tienen al menos una nota real de alguien
+    let correoDetalleAbierto = null;
+    let maxCasillaGrupoGlobal = {};
+    let casillasGrupoConNotaGlobal = new Set();
 
     // =====================================================
     // CARGAR TRIMESTRE, ESTUDIANTES Y NOTAS
-    // (función reutilizable para refrescar después de marcar)
     // =====================================================
 
     async function cargarPanel() {
         try {
-            // -------- Trimestre activo --------
             const { data: cfg, error: errCfg } = await supabase
                 .from("configuracion")
                 .select("trimestre_activo")
@@ -247,10 +221,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 trimestreLabelEl.textContent = trimestreActivo;
             }
 
-            // -------- Estudiantes --------
-            // es_prueba = false: los estudiantes de prueba nunca aparecen
-            // en este panel, ni en el resumen, ni en los boletines
-            // individuales o masivos que salen de aquí.
             const { data: estudiantes, error: errEst } = await supabase
                 .from("estudiantes")
                 .select("id, codigo, nombre, correo")
@@ -264,12 +234,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            // -------- Correos de ESTE salón (para filtrar notas) --------
             const correosDelSalon = estudiantes
                 .map((e) => e.correo)
                 .filter((c) => !!c);
 
-            // -------- Notas del trimestre activo, solo de este salón --------
             let notas = [];
 
             if (correosDelSalon.length > 0) {
@@ -288,7 +256,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 notas = notasData || [];
             }
 
-            // -------- Agrupar notas por correo --------
             const notasPorCorreo = {};
 
             notas.forEach((n) => {
@@ -298,7 +265,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 notasPorCorreo[n.correo].push(n);
             });
 
-            // -------- Casilla más alta llenada por el grupo, por materia+tipo --------
             const maxCasillaGrupo = {};
             const casillasGrupoConNota = new Set();
 
@@ -310,36 +276,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                     maxCasillaGrupo[clave] = num;
                 }
 
-                // Casilla exacta (no solo "hasta dónde llegó el grupo"),
-                // para no marcar como pendiente una columna que existe
-                // pero que en realidad nadie ha llenado todavía.
                 casillasGrupoConNota.add(`${n.materia}|${n.tipo}|${num}`);
             });
 
-            // Se guarda también en la variable de afuera, para que el
-            // generador de PDF pueda armar filas de materias donde el
-            // grupo ya trabajó aunque este estudiante no tenga notas ahí.
             maxCasillaGrupoGlobal = maxCasillaGrupo;
             casillasGrupoConNotaGlobal = casillasGrupoConNota;
 
-            // -------- Construir resumen por estudiante --------
             resumenEstudiantes = estudiantes.map((est) => {
                 const tieneCuenta = !!est.correo;
                 const notasEst = tieneCuenta ? (notasPorCorreo[est.correo] || []) : [];
 
                 let pendientes = 0;
 
-                // Desglose por materia: cuántas casillas de Apreciación y de
-                // Ejercicio le faltan a este estudiante en cada materia,
-                // frente al máximo que ya trabajó el grupo. Se usa para
-                // mostrar el detalle en el boletín PDF (ALERTA PARA LOS PADRES).
                 const detallePendientes = {};
 
-                // Antes solo se revisaban las materias que el propio estudiante
-                // ya tenía registradas, así que alguien con 0 notas nunca
-                // aparecía con pendientes. Ahora se revisan TODAS las materias
-                // que el grupo ya trabajó (maxCasillaGrupo), incluyendo las que
-                // este estudiante todavía no ha tocado.
                 Object.keys(maxCasillaGrupo).forEach((clave) => {
                     const max = maxCasillaGrupo[clave];
                     const tiene = notasEst.filter((n) => `${n.materia}|${n.tipo}` === clave).length;
@@ -381,14 +331,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 };
             });
 
-            // -------- Ordenar: sin cuenta primero, luego más pendientes, luego menos notas --------
             resumenEstudiantes.sort((a, b) => {
                 if (a.tieneCuenta !== b.tieneCuenta) return a.tieneCuenta ? 1 : -1;
                 if (b.pendientes !== a.pendientes) return b.pendientes - a.pendientes;
                 return a.totalNotas - b.totalNotas;
             });
 
-            // -------- Tarjetas --------
             if (totalEstudiantesEl) totalEstudiantesEl.textContent = estudiantes.length;
             if (totalRegistradosEl) totalRegistradosEl.textContent = estudiantes.filter((e) => e.correo).length;
             if (totalNotasEl) totalNotasEl.textContent = notas.length;
@@ -438,9 +386,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ? `<button type="button" class="btn btn-sm btn-outline-primary" onclick="verDetalle('${escapeHtml(est.correo)}')">Ver detalle</button>`
                 : "";
 
-            // El PDF se puede generar aunque el estudiante NO tenga cuenta,
-            // porque justamente ese es uno de los casos en que se necesita
-            // avisar a los padres.
             const btnPdf = `<button type="button" class="btn btn-sm btn-outline-danger ms-1"
                 title="Generar boletín PDF"
                 onclick="generarPdfEstudiante('${escapeHtml(est.codigo)}')">
@@ -470,7 +415,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // =====================================================
-    // DETALLE POR MATERIA (al hacer clic en "Ver detalle")
+    // DETALLE POR MATERIA
     // =====================================================
 
     window.verDetalle = function (correo) {
@@ -485,13 +430,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         modalDetalleTitulo.textContent = `${est.nombre} — ${trimestreActivo}`;
 
-        // -------------------------------------------------------
-        // Recolectar TODAS las materias que el GRUPO ya trabajó
-        // en este trimestre (no solo las que este estudiante ya
-        // tiene). Así, si a un estudiante le faltan notas, el
-        // detalle muestra exactamente cuáles casillas le faltan
-        // en lugar de un mensaje genérico o un modal vacío.
-        // -------------------------------------------------------
         const materiasGrupo = new Set();
 
         resumenEstudiantes.forEach((e) => {
@@ -504,16 +442,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        // Preparar la estructura por materia (arranca vacía para
-        // todas las materias del grupo, aunque el estudiante no
-        // tenga ninguna nota propia todavía)
         const porMateria = {};
 
         materiasGrupo.forEach((materia) => {
             porMateria[materia] = { apreciacion: {}, ejercicio: {} };
         });
 
-        // Rellenar con las notas que este estudiante sí tiene
         est.notas.forEach((n) => {
             if (!porMateria[n.materia]) {
                 porMateria[n.materia] = { apreciacion: {}, ejercicio: {} };
@@ -535,9 +469,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             const bloqueApreciacion = renderBloqueTipo("Apreciación", porMateria[materia].apreciacion, materia, "apreciacion", correo);
             const bloqueEjercicio = renderBloqueTipo("Ejercicio", porMateria[materia].ejercicio, materia, "ejercicio", correo);
 
-            // Solo se muestra el encabezado de la materia si hay
-            // algún bloque con contenido (el grupo trabajó esa
-            // materia en apreciación y/o ejercicio)
             if (bloqueApreciacion || bloqueEjercicio) {
                 html += `<h6 class="mt-3">${escapeHtml(materia)}</h6>`;
                 html += bloqueApreciacion;
@@ -555,9 +486,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // =====================================================
     // CAMBIAR EL CORREO DE ACCESO DE UN ESTUDIANTE
-    // Llama a la Edge Function "cambiar-correo-estudiante",
-    // que valida que quien llama sea el consejero, cambia el
-    // correo en Auth y lo actualiza en las tablas del sistema.
     // =====================================================
 
     const URL_FUNCION_CAMBIAR_CORREO =
@@ -570,7 +498,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             `Déjalo en blanco si NO quieres cambiar el correo, solo la contraseña.`
         );
 
-        // Si presiona "Cancelar" en el primer prompt, se detiene todo
         if (nuevoCorreo === null) return;
 
         const nuevoCorreoLimpio = nuevoCorreo.trim().toLowerCase();
@@ -639,8 +566,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // Recalcula, para una materia+tipo, la casilla más alta que
-    // cualquier estudiante del grupo ya llenó en este trimestre.
     function maxCasillaDelGrupo(materia, tipo) {
         let max = 0;
 
@@ -667,7 +592,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             const item = casillasObj[i];
 
             if (item && item.estado === "Intencional") {
-                // Casilla marcada por el consejero: cuenta 0.0 pero se distingue visualmente
                 filas += `
                     <tr class="table-secondary">
                         <td>${i}</td>
@@ -685,7 +609,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     </tr>
                 `;
             } else if (item) {
-                // Nota normal registrada
                 filas += `
                     <tr>
                         <td>${i}</td>
@@ -694,7 +617,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     </tr>
                 `;
             } else {
-                // Casilla vacía: se puede marcar como falta intencional
                 filas += `
                     <tr class="table-warning">
                         <td>${i}</td>
@@ -749,7 +671,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 tipo,
                 numero,
                 tema: "Falta intencional",
-                actividad: "Falta intencional", // compatibilidad con registros/consultas viejas
+                actividad: "Falta intencional",
                 fecha: hoy,
                 nota: 0,
                 observacion: "Marcada por el consejero: el estudiante no presentó esta actividad.",
@@ -770,7 +692,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        // Refrescar tabla resumen y, si el modal estaba abierto, volver a abrirlo actualizado
         await cargarPanel();
 
         if (correoDetalleAbierto) {
@@ -780,7 +701,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // =====================================================
     // QUITAR MARCA DE FALTA INTENCIONAL
-    // (por si el consejero se equivocó al marcarla)
     // =====================================================
 
     window.quitarFaltaIntencional = async function (id) {
@@ -807,13 +727,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // =====================================================
     // ESCRIBIR EL BOLETÍN DE UN ESTUDIANTE EN UN DOCUMENTO PDF
-    // (función reutilizable: la usa tanto el botón individual
-    // como el botón de "generar boletines de todos")
     // =====================================================
 
     async function escribirBoletinEnDoc(doc, est) {
 
-        // -------- Datos personales (solo existen si tiene cuenta) --------
         let datosEstudiante = null;
 
         if (est.tieneCuenta) {
@@ -826,7 +743,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             datosEstudiante = data;
         }
 
-        // -------- Encabezado --------
         const fechaEmision = new Date().toLocaleDateString("es-PA");
         const anioEscolar = new Date().getFullYear();
 
@@ -846,7 +762,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         doc.setLineWidth(0.3);
         doc.line(20, 40, 190, 40);
 
-        // -------- Datos del estudiante --------
         doc.setFont(undefined, "bold");
         doc.setFontSize(11);
         doc.text("Datos del estudiante", 20, 48);
@@ -888,7 +803,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const startYTabla = yDatos + 4;
 
-        // -------- Tabla de notas --------
         let y;
 
         if (est.notas.length === 0 && Object.keys(maxCasillaGrupoGlobal).length === 0) {
@@ -917,11 +831,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
-            // Primero se agregan las materias donde el GRUPO ya trabajó
-            // (aunque este estudiante todavía no tenga ninguna nota ahí),
-            // usando maxCasillaGrupoGlobal para saber cuántas columnas
-            // mostrar. Así, esas materias también salen en el boletín,
-            // con "?" en cada casilla que le falte a este estudiante.
             Object.keys(maxCasillaGrupoGlobal).forEach((clave) => {
                 const separador = clave.lastIndexOf("|");
                 const materia = clave.slice(0, separador);
@@ -976,7 +885,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         huboCasillasSinRegistrar = true;
                         return "?";
                     }
-                    return ""; // nadie (ni siquiera otro estudiante) tiene nota ahí: no se marca como pendiente
+                    return "";
                 }
                 if (v.intencional) return "F*";
                 return v.nota.toFixed(1);
@@ -1045,13 +954,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             y = doc.lastAutoTable.finalY + 6;
 
-            // -------- Nota aclaratoria sobre las casillas vacías --------
-            // El sistema funciona con AUTO-registro: es el propio estudiante
-            // quien busca la nota con el docente y la escribe en la plataforma.
-            // Por eso, si aparece "-" en una casilla NO significa que el
-            // docente no haya calificado esa actividad, sino que el
-            // estudiante (quien ya tiene cuenta y ha usado la plataforma)
-            // todavía no ha ido a buscar esa nota para registrarla.
             if (huboCasillasSinRegistrar) {
                 doc.setFont(undefined, "italic");
                 doc.setFontSize(8);
@@ -1084,12 +986,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             doc.text(`Total de materias con notas: ${totalMaterias}`, 20, y);
             y += 10;
         }
-
-        // =================================================
-        // ALERTA PARA LOS PADRES
-        // Aparece si el estudiante no tiene cuenta creada,
-        // o si le faltan notas frente al resto del grupo.
-        // =================================================
 
         if (!est.tieneCuenta || est.pendientes > 0) {
 
@@ -1131,15 +1027,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             doc.text(textoAlerta, 20, y, { maxWidth: 170 });
             doc.setTextColor(0, 0, 0);
 
-            // Calcula cuántas líneas ocupó el párrafo para colocar lo
-            // siguiente justo debajo (en vez de un salto fijo).
             const lineasAlerta = doc.splitTextToSize(textoAlerta, 170);
             y += lineasAlerta.length * 5 + 4;
 
-            // -------- Detalle por materia --------
-            // Tabla chiquita mostrando, materia por materia, cuántas
-            // casillas de Apreciación y de Ejercicio le faltan al
-            // estudiante frente al resto del grupo.
             if (est.tieneCuenta && est.pendientes > 0 && est.detallePendientes &&
                 Object.keys(est.detallePendientes).length > 0) {
 
@@ -1169,16 +1059,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 y += 6;
             }
         }
-
-        // =================================================
-        // FIRMAS
-        // Siempre se incluyen, aunque la hoja quede casi
-        // vacía (sin cuenta / sin notas), para que quede un
-        // registro firmado de que se entregó y se notificó.
-        // Se colocan justo debajo del contenido (no al fondo
-        // de la página) para que siempre sean visibles sin
-        // necesidad de hacer scroll.
-        // =================================================
 
         y += 20;
 
@@ -1226,7 +1106,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // =====================================================
     // GENERAR BOLETINES DE TODOS LOS ESTUDIANTES
-    // (un solo PDF con una página por estudiante)
     // =====================================================
 
     const btnPdfTodos = document.getElementById("btnPdfTodos");
@@ -1278,11 +1157,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // =====================================================
     // LISTA DE ESTUDIANTES (todos los salones)
-    // Nota: agregar estudiantes ya NO se hace desde este panel;
-    // esa tarea le corresponde exclusivamente al administrador
-    // para evitar códigos/cédulas duplicados entre consejeros.
-    // Aquí solo se CONSULTA e imprime en PDF, por nombre, por
-    // cédula, por salón o todos los salones juntos.
     // =====================================================
 
     const buscarListadoEl = document.getElementById("buscarListado");
@@ -1292,14 +1166,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const btnPdfListado = document.getElementById("btnPdfListado");
     const seccionListadoEl = document.getElementById("seccionListado");
 
-    let todosLosEstudiantes = []; // { codigo, nombre, cedula, salon }
+    let todosLosEstudiantes = [];
     let listadoYaCargado = false;
 
     async function cargarListadoEstudiantes() {
         tablaListadoEl.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando...</td></tr>`;
 
-        // Se consultan TODOS los salones (no solo el propio), para que
-        // el consejero pueda ubicar a cualquier estudiante del colegio.
         const { data, error } = await supabase
             .from("estudiantes")
             .select("codigo, nombre, cedula, salon")
@@ -1317,14 +1189,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         todosLosEstudiantes = data || [];
 
-        // -------- Llenar el selector de salones con lo que realmente exista --------
         const salonesUnicos = [...new Set(todosLosEstudiantes.map((e) => e.salon).filter(Boolean))]
             .sort((a, b) => a.localeCompare(b, "es"));
 
         filtroSalonListadoEl.innerHTML = `<option value="">Todos los salones</option>` +
             salonesUnicos.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
 
-        // Por defecto se muestra el salón del propio consejero, si existe en la lista
         if (salonesUnicos.includes(salonActual)) {
             filtroSalonListadoEl.value = salonActual;
         }
@@ -1368,8 +1238,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (buscarListadoEl) buscarListadoEl.addEventListener("input", renderListado);
     if (filtroSalonListadoEl) filtroSalonListadoEl.addEventListener("change", renderListado);
 
-    // Carga la lista la primera vez que se entra a esta sección
-    // (patrón perezoso, igual que el bloque de consultas).
     if (seccionListadoEl) {
         const observer = new MutationObserver(() => {
             if (seccionListadoEl.style.display !== "none" && !listadoYaCargado) {
@@ -1380,7 +1248,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         observer.observe(seccionListadoEl, { attributes: true, attributeFilter: ["style"] });
     }
 
-    // -------- Descargar / imprimir la lista actual (filtrada) en PDF --------
     if (btnPdfListado) {
         btnPdfListado.addEventListener("click", () => {
             if (typeof window.jspdf === "undefined") {
@@ -1440,6 +1307,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (btnSalir) {
         btnSalir.addEventListener("click", async () => {
             try {
+                await registrarSalida();
+
                 const { error } = await supabase.auth.signOut();
 
                 if (error) {
