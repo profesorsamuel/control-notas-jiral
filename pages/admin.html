@@ -219,6 +219,13 @@
                     </button>
                 </div>
                 <div class="col">
+                    <button type="button" class="btn btn-outline-danger w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-consultas">
+                        <i class="fa-solid fa-magnifying-glass-chart fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Control de consultas</span>
+                        <span class="small text-muted d-none d-md-block">Quién revisó sus notas</span>
+                    </button>
+                </div>
+                <div class="col">
                     <a href="consulta.html" target="_blank" class="btn btn-outline-info w-100 h-100 py-4 px-2">
                         <i class="fa-solid fa-magnifying-glass fa-2x d-block mb-2" aria-hidden="true"></i>
                         <span class="fw-semibold d-block">Consulta</span>
@@ -564,6 +571,141 @@
         </section>
         </div>
 
+        <!-- ===================== CONTROL DE CONSULTAS DE NOTAS ===================== -->
+        <div id="panel-consultas" class="panel-seccion d-none">
+        <section class="card shadow border-danger border-2 mb-4">
+            <div class="card-header bg-danger text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-magnifying-glass-chart me-2" aria-hidden="true"></i>
+                    Control de consultas de notas
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Cada vez que alguien busca notas desde "Ver mis notas" con una cédula (tenga o no
+                    cuenta creada) queda registrado aquí, junto con si descargó el PDF y cuándo fue.
+                </p>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-6 col-md-3">
+                        <label for="consultasSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-secondary me-1"></i> Salón
+                        </label>
+                        <select id="consultasSalon" class="form-select">
+                            <option value="">Todos los salones</option>
+                            <option value="8A">8°A</option>
+                            <option value="8B">8°B</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label for="consultasOrden" class="form-label fw-semibold">
+                            <i class="fa-solid fa-arrow-down-wide-short text-secondary me-1"></i> Ordenar por
+                        </label>
+                        <select id="consultasOrden" class="form-select">
+                            <option value="fecha_desc">Visita más reciente primero</option>
+                            <option value="fecha_asc">Visita más antigua primero</option>
+                            <option value="nombre">Nombre (A-Z)</option>
+                            <option value="cantidad">Quién más consulta primero</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="consultasBuscar" class="form-label fw-semibold">
+                            <i class="fa-solid fa-magnifying-glass text-secondary me-1"></i> Buscar
+                        </label>
+                        <input type="text" id="consultasBuscar" class="form-control" placeholder="Nombre o cédula...">
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <button type="button" id="btnCargarConsultas" class="btn btn-danger w-100">
+                            <i class="fa-solid fa-rotate me-1"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasTotal">0</div>
+                            <div class="small text-muted">Consultas totales</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasDistintos">0</div>
+                            <div class="small text-muted">Estudiantes distintos</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasPdf">0</div>
+                            <div class="small text-muted">Descargaron PDF</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasSin">0</div>
+                            <div class="small text-muted">Nunca han revisado</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="h6 mb-3">
+                    <i class="fa-solid fa-trophy text-warning me-1"></i>
+                    Quiénes más revisan sus notas (top 5)
+                </h3>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Estudiante</th>
+                                <th id="thSalonTopConsultas" class="text-center" style="display:none;">Salón</th>
+                                <th class="text-center">Veces que revisó</th>
+                                <th class="text-center">Descargó PDF</th>
+                                <th class="text-center">Última visita</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaTopConsultas">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="h6 mb-3">
+                    <i class="fa-solid fa-list me-1"></i>
+                    Historial completo de consultas
+                </h3>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Estudiante</th>
+                                <th id="thSalonConsultas" class="text-center" style="display:none;">Salón</th>
+                                <th class="text-center">Cédula</th>
+                                <th class="text-center">Encontrado</th>
+                                <th class="text-center">Descargó PDF</th>
+                                <th>Fecha de la visita</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaConsultasAdmin">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">
+                                    Elegí un salón (o "Todos los salones") y tocá "Actualizar".
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
         <!-- ===================== PREGUNTAS DE SEGURIDAD ===================== -->
         <div id="panel-preguntas" class="panel-seccion d-none">
         <section class="card shadow border-warning border-2 mb-4">
@@ -860,6 +1002,10 @@
 
                 if (idPanel === "panel-estudiantes" && typeof window.cargarEstudiantesAdmin === "function") {
                     window.cargarEstudiantesAdmin();
+                }
+
+                if (idPanel === "panel-consultas" && typeof window.cargarConsultasAdmin === "function") {
+                    window.cargarConsultasAdmin();
                 }
             }
 
