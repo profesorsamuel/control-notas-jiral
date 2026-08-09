@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { registrarSalida } from "./accesos.js";
 
 // =====================================================
 // LISTA BASE DE MATERIAS
@@ -1200,6 +1201,7 @@ filtroTrimestre?.addEventListener("change", async () => {
 });
 
 document.getElementById("btnSalir")?.addEventListener("click", async () => {
+    await registrarSalida();
     await supabase.auth.signOut();
     window.location.href = "login.html";
 });
