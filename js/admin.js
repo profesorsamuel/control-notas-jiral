@@ -1820,7 +1820,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         tablaProfesoresAdmin.innerHTML = profesores.map((p) => `
             <tr>
                 <td>${escapeHtmlAdmin(p.nombre_profesor || "(sin nombre)")}</td>
-                <td class="small">${escapeHtmlAdmin(p.correo_profesor || "-")}</td>
+                <td class="small">
+                    <div class="d-flex align-items-center gap-2 profesor-correo-vista" data-correo-original="${escapeHtmlAdmin(p.correo_profesor)}">
+                        <span class="profesor-correo-texto">${escapeHtmlAdmin(p.correo_profesor || "-")}</span>
+                        <button type="button" class="btn btn-sm btn-link p-0 profesor-correo-editar" title="Editar correo">
+                            <i class="fa-solid fa-pen" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </td>
                 <td>
                     <select class="form-select form-select-sm profesor-salon-select" data-correo="${escapeHtmlAdmin(p.correo_profesor)}">
                         ${opcionesSalonProfesor(p.salon)}
@@ -1836,6 +1843,62 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </td>
             </tr>
         `).join("");
+
+        // -------- Editar correo --------
+        tablaProfesoresAdmin.querySelectorAll(".profesor-correo-editar").forEach((btnEditar) => {
+            btnEditar.addEventListener("click", () => {
+                const contenedor = btnEditar.closest(".profesor-correo-vista");
+                const correoOriginal = contenedor.dataset.correoOriginal;
+
+                contenedor.innerHTML = `
+                    <input type="email" class="form-control form-control-sm profesor-correo-input"
+                        value="${escapeHtmlAdmin(correoOriginal)}" style="max-width:220px;">
+                    <button type="button" class="btn btn-sm btn-success profesor-correo-guardar" title="Guardar">
+                        <i class="fa-solid fa-check" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary profesor-correo-cancelar" title="Cancelar">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
+                `;
+
+                const input = contenedor.querySelector(".profesor-correo-input");
+                input.focus();
+                input.select();
+
+                contenedor.querySelector(".profesor-correo-cancelar").addEventListener("click", () => {
+                    cargarProfesoresAdmin();
+                });
+
+                const guardarCorreo = async () => {
+                    const nuevoCorreo = input.value.trim().toLowerCase();
+
+                    if (!nuevoCorreo || !nuevoCorreo.includes("@")) {
+                        mostrarMensajeProfesores("Ingresá un correo válido.", "danger");
+                        return;
+                    }
+
+                    const { error: errUpdate } = await supabase
+                        .from("profesores")
+                        .update({ correo_profesor: nuevoCorreo })
+                        .eq("correo_profesor", correoOriginal);
+
+                    if (errUpdate) {
+                        console.error("❌ Error al actualizar correo del profesor:", errUpdate);
+                        mostrarMensajeProfesores("No se pudo guardar el correo: " + errUpdate.message, "danger");
+                        return;
+                    }
+
+                    mostrarMensajeProfesores(`Correo actualizado a ${nuevoCorreo}.`, "success");
+                    cargarProfesoresAdmin();
+                };
+
+                contenedor.querySelector(".profesor-correo-guardar").addEventListener("click", guardarCorreo);
+                input.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter") guardarCorreo();
+                    if (e.key === "Escape") cargarProfesoresAdmin();
+                });
+            });
+        });
 
         // -------- Cambiar salón --------
         tablaProfesoresAdmin.querySelectorAll(".profesor-salon-select").forEach((select) => {
