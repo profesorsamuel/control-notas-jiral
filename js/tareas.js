@@ -74,6 +74,12 @@ const detalleTitulo = document.getElementById("detalleTitulo");
 const detalleSubt = document.getElementById("detalleSubt");
 const detalleLista = document.getElementById("detalleLista");
 
+// Panel: qué estudiantes del salón pueden agregar tareas
+const btnMostrarPermisos = document.getElementById("btnMostrarPermisos");
+const zonaPermisos = document.getElementById("zonaPermisos");
+const listaPermisos = document.getElementById("listaPermisos");
+const estadoPermisos = document.getElementById("estadoPermisos");
+
 // =========================================================
 // 1) VERIFICAR SESIÓN (mismo patrón que mi_horario.js)
 // =========================================================
@@ -215,7 +221,7 @@ async function cargarTareas() {
 
         return `
         <div class="tarjeta-tarea" data-detalle="${tarea.id}" data-titulo="${escapeHtml(tarea.titulo)}">
-            <h3>${escapeHtml(tarea.titulo)}</h3>
+            <h3>${escapeHtml(tarea.titulo)} ${tarea.creado_por === "estudiante" ? `<span class="etiqueta-creador">🎓 Agregada por un estudiante</span>` : ""}</h3>
             <div class="meta">
                 📘 ${escapeHtml(tarea.materia || "sin materia")} ·
                 🏫 ${escapeHtml(tarea.salon || "sin salón")} ·
@@ -467,7 +473,92 @@ overlayDetalle.addEventListener("click", (ev) => {
 });
 
 // =========================================================
-// 7) INICIO
+// 7) PERMISOS: qué estudiantes del salón pueden agregar tareas
+//
+// Solo el profesor decide esto. Se administra por salón: se
+// elige un salón (el mismo <select> del formulario) y se marca
+// o desmarca a cada estudiante. El cambio se guarda al instante.
+// =========================================================
+
+function mostrarEstadoPermisos(mensaje, esError = false) {
+    estadoPermisos.textContent = mensaje;
+    estadoPermisos.style.color = esError ? "#c0392b" : "#2e7d32";
+    if (mensaje) {
+        setTimeout(() => { if (estadoPermisos.textContent === mensaje) estadoPermisos.textContent = ""; }, 3000);
+    }
+}
+
+async function cargarPermisosSalon() {
+    const salon = selectSalon.value;
+
+    if (!salon) {
+        listaPermisos.innerHTML = `<p class="text-center text-muted py-3">Elige un salón arriba (en "Salón") para ver a sus estudiantes.</p>`;
+        return;
+    }
+
+    listaPermisos.innerHTML = `<p class="text-center text-muted py-3">Cargando estudiantes de ${escapeHtml(salon)}...</p>`;
+
+    const { data: estudiantes, error } = await supabase
+        .from("estudiantes")
+        .select("id, nombre, puede_agregar_tareas")
+        .eq("salon", salon)
+        .eq("es_prueba", false)
+        .order("nombre", { ascending: true });
+
+    if (error) {
+        console.error("❌ Error al cargar estudiantes del salón:", error);
+        listaPermisos.innerHTML = `<p class="text-center text-danger py-3">Error al cargar estudiantes.</p>`;
+        return;
+    }
+
+    if (!estudiantes || estudiantes.length === 0) {
+        listaPermisos.innerHTML = `<p class="text-center text-muted py-3">No hay estudiantes registrados en ${escapeHtml(salon)}.</p>`;
+        return;
+    }
+
+    listaPermisos.innerHTML = estudiantes.map(e => `
+        <label class="fila-permiso">
+            <span>${escapeHtml(e.nombre)}</span>
+            <input type="checkbox" data-estudiante="${e.id}" ${e.puede_agregar_tareas ? "checked" : ""}>
+        </label>
+    `).join("");
+
+    listaPermisos.querySelectorAll("[data-estudiante]").forEach(chk => {
+        chk.addEventListener("change", () => guardarPermisoEstudiante(chk.dataset.estudiante, chk.checked, chk));
+    });
+}
+
+async function guardarPermisoEstudiante(estudianteId, valor, checkboxEl) {
+    checkboxEl.disabled = true;
+
+    const { error } = await supabase
+        .from("estudiantes")
+        .update({ puede_agregar_tareas: valor })
+        .eq("id", estudianteId);
+
+    checkboxEl.disabled = false;
+
+    if (error) {
+        console.error("❌ Error al guardar permiso:", error);
+        mostrarEstadoPermisos("❌ No se pudo guardar. Intenta de nuevo.", true);
+        checkboxEl.checked = !valor;
+        return;
+    }
+
+    mostrarEstadoPermisos("✅ Guardado.");
+}
+
+btnMostrarPermisos.addEventListener("click", () => {
+    zonaPermisos.classList.toggle("mostrar");
+    if (zonaPermisos.classList.contains("mostrar")) cargarPermisosSalon();
+});
+
+selectSalon.addEventListener("change", () => {
+    if (zonaPermisos.classList.contains("mostrar")) cargarPermisosSalon();
+});
+
+// =========================================================
+// 8) INICIO
 // =========================================================
 
 (async function iniciar() {
