@@ -440,8 +440,8 @@ export async function abrirSelectorModo({ materia, salon, trimestre, numeroAprec
     if (!el.modalEl) { alert("Falta el HTML del modal de Apreciación en la página."); return; }
 
     el.titulo.textContent = `Apreciación ${numeroApreciacion} — ¿Cómo la vas a registrar?`;
-    el.btnGuardar.style.display = "none";
-    el.btnCompletarManual.style.display = "none";
+    el.btnGuardar && (el.btnGuardar.style.display = "none");
+    el.btnCompletarManual && (el.btnCompletarManual.style.display = "none");
     el.estadoGuardado.textContent = "";
     el.cuerpo.innerHTML = `
         <p class="text-muted small">Elige una vez cómo quieres trabajar esta apreciación. Esta elección queda fija para la Apreciación ${numeroApreciacion}.</p>
@@ -466,7 +466,7 @@ export async function abrirSelectorModo({ materia, salon, trimestre, numeroAprec
     };
     document.getElementById("btnModoDetallado").onclick = async () => {
         await elegirModoApreciacion(materia, trimestre, numeroApreciacion, "detallado");
-        el.btnGuardar.style.display = "inline-block";
+        el.btnGuardar && (el.btnGuardar.style.display = "inline-block");
         onModoElegido?.("detallado");
         await abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado: "activa", estudiantes, correoProfesor });
     };
@@ -532,13 +532,13 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
     pintarModal(estado_);
     calcularYPintarNotasFinales(estado_);
 
-    el.btnGuardar.style.display = soloLectura ? "none" : "inline-block";
-    el.btnCompletarManual.style.display = soloLectura ? "none" : "inline-block";
+    el.btnGuardar && (el.btnGuardar.style.display = soloLectura ? "none" : "inline-block");
+    el.btnCompletarManual && (el.btnCompletarManual.style.display = soloLectura ? "none" : "inline-block");
     el.estadoGuardado.textContent = soloLectura
         ? "Esta apreciación ya está completada. Solo lectura."
         : "";
 
-    el.btnGuardar.onclick = async () => {
+    if (el.btnGuardar) el.btnGuardar.onclick = async () => {
         el.btnGuardar.disabled = true;
         el.estadoGuardado.textContent = "Guardando...";
 
@@ -569,7 +569,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
         }
     };
 
-    el.btnCompletarManual.onclick = async () => {
+    if (el.btnCompletarManual) el.btnCompletarManual.onclick = async () => {
         const ok = window.confirm(
             `¿Marcar la Apreciación ${numeroApreciacion} como completada? Esto activa la Apreciación ${numeroApreciacion + 1}, sin importar si a algún estudiante le falta nota. Antes de esto, asegúrate de haber presionado "💾 Guardar apreciación" para que las notas ya calculadas queden guardadas.`
         );
