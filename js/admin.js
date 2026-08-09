@@ -1884,7 +1884,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         tablaProfesoresAdmin.innerHTML = profesores.map((p) => `
             <tr>
-                <td>${escapeHtmlAdmin(p.nombre_profesor || "(sin nombre)")}</td>
+                <td>
+                    <a href="profesores.html?correo=${encodeURIComponent(p.correo_profesor || "")}" title="Ver en el directorio de profesores">
+                        ${escapeHtmlAdmin(p.nombre_profesor || "(sin nombre)")}
+                    </a>
+                </td>
                 <td class="small">${escapeHtmlAdmin(p.correo_profesor || "-")}</td>
                 <td style="min-width:190px;">
                     ${menuChecksSalones(p.correo_profesor, salonesPorCorreo[p.correo_profesor] || [])}
