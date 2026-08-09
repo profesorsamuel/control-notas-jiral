@@ -1,6 +1,6 @@
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
-import { calcularColumnasApreciacionesNuevas, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas } from "./apreciaciones.js";
+import { calcularColumnasApreciacionesNuevas, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas, reiniciarApreciacionActiva } from "./apreciaciones.js";
 
 // =========================================================
 // 0) UTILIDADES
@@ -899,9 +899,12 @@ function renderTabla() {
                 // Modo directo: se ve exactamente como una columna normal
                 // (Aprec. 1, 2, 3), solo que sin botón de eliminar (el
                 // sistema sigue controlando cuándo avanza a la siguiente).
+                // Si sigue activa, sí se puede reiniciar (↺) por si el
+                // docente quiere empezar de nuevo o cambiar de modo.
                 htmlCabecera += `
                     <th class="text-center small ${claveCasilla(c.tipo, c.numero) === claveSel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
                         <div>${iconoApreciacion(infoCol.estado)} ${etiquetaCasilla(c.tipo, c.numero)}</div>
+                        ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Reiniciar esta apreciación">↺</button>` : ""}
                     </th>`;
                 return;
             }
@@ -909,9 +912,10 @@ function renderTabla() {
                 <th class="text-center small" style="width:90px; cursor:${infoCol.estado === "bloqueada" ? "default" : "pointer"};">
                     <button type="button" class="btn btn-link btn-sm p-0 fw-bold btn-abrir-apreciacion-nueva text-decoration-none"
                         data-numero="${c.numero}" data-estado="${infoCol.estado}"
-                        style="color:${infoCol.estado === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"};">
+                        style="color:${infoCol.estado === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"}; white-space:nowrap;">
                         ${iconoApreciacion(infoCol.estado)} Aprec. ${c.numero}
                     </button>
+                    ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Reiniciar esta apreciación">↺</button>` : ""}
                 </th>`;
             return;
         }
@@ -1028,6 +1032,21 @@ function renderTabla() {
 
     cabeceraNotasGrupo.querySelectorAll(".btn-abrir-apreciacion-nueva").forEach((btn) => {
         btn.addEventListener("click", () => abrirDesdeApreciacionNueva(parseInt(btn.dataset.numero, 10), btn.dataset.estado));
+    });
+
+    cabeceraNotasGrupo.querySelectorAll(".btn-reiniciar-apreciacion").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const numeroApreciacion = parseInt(btn.dataset.numero, 10);
+            const ok = window.confirm(
+                `¿Reiniciar la Apreciación ${numeroApreciacion}? Esto borra las notas, comportamiento y actividades guardadas de esta apreciación (solo de esta, no toca Aprec. 1, 2 ni 3) y vuelve a preguntar el modo.`
+            );
+            if (!ok) return;
+            const materia = selectMateriaNota.value, trimestre = selectTrimestreNota.value;
+            const seReinicio = await reiniciarApreciacionActiva(materia, trimestre, numeroApreciacion);
+            if (!seReinicio) { alert("No se pudo reiniciar (puede que ya se haya completado)."); return; }
+            cargarSalon();
+        });
     });
 
     tablaNotasGrupo.querySelectorAll("[data-abrir-apreciacion]").forEach((td) => {
