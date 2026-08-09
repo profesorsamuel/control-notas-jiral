@@ -622,10 +622,13 @@ async function registrarEstudiante(salon, password) {
     // las va a encontrar: ese panel busca las notas comparando
     // "notas.correo" contra "estudiantes.correo", y ese campo
     // se queda vacío si no se actualiza aquí.
+    // También se guarda la cédula aquí: si el administrador no la
+    // había cargado antes, el panel de consejería la mostraba vacía
+    // aunque el estudiante ya la hubiera ingresado al registrarse.
     if (codigoSeleccionado) {
         const { error: errorEstudiante } = await supabase
             .from("estudiantes")
-            .update({ correo: emailInterno })
+            .update({ correo: emailInterno, cedula })
             .eq("codigo", codigoSeleccionado);
 
         if (errorEstudiante) {
