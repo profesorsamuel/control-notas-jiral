@@ -795,6 +795,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     // admin.html) pueda cargar los datos justo al abrir este panel.
     window.cargarConfigTrimestres = cargarConfigTrimestres;
 
+    // NOTA: "Informática" se agregó como materia real e independiente de
+    // "Contabilidad" (antes el sistema renombraba "Contabilidad" a
+    // "Informática" solo para el salón 8A, lo cual causaba que las notas
+    // de Informática guardadas en otros salones, como 8B, no se pudieran
+    // ver aquí). Ahora ambas son materias normales de la lista y se
+    // asignan a cada profesor(a)/salón desde la pantalla de Asignaciones,
+    // igual que cualquier otra materia.
     const MATERIAS_BASE = [
         "Español",
         "Matemática",
@@ -807,6 +814,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "Historia",
         "Educación Agropecuaria",
         "Contabilidad",
+        "Informática",
         "Geografía",
         "Orientación",
         "Cívica",
@@ -814,13 +822,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     ];
 
     function materiasParaSalon(salon) {
-        const lista = salon === "8A"
-            ? MATERIAS_BASE.map((m) => (m === "Contabilidad" ? "Informática" : m))
-            : MATERIAS_BASE;
-
-        return [...lista].sort((a, b) => a.localeCompare(b, "es"));
+        return [...MATERIAS_BASE].sort((a, b) => a.localeCompare(b, "es"));
     }
 
+    // Aviso: este mapa es solo un valor de respaldo para mostrar un nombre
+    // en el PDF/reportes cuando no se encuentra otro dato; no se actualiza
+    // solo cuando cambias algo en Asignaciones. Si un profesor cambia,
+    // hay que actualizarlo aquí a mano también.
     const MATERIA_A_PROFESOR = {
         "Español": "Yadira de Gracia",
         "Geografía": "Faustina Rodríguez",
@@ -833,6 +841,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "Educación Agropecuaria": "Alexis Del Mar",
         "Familia y Desarrollo Comunitario": "Erika Pimentel",
         "Contabilidad": "Alexis Del Mar",
+        "Informática": "Alexis Del Mar",
         "Orientación": "Willian Mitzi",
         "Religión, Moral y Valores": "Encelma Álvarez",
         "Música": "Miriam Valencia"
