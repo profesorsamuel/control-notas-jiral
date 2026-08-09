@@ -39,7 +39,7 @@ const VALOR_ASISTENCIA_DEFECTO = { presente: 5, tardanza: 3, ausente: 1, permiso
 export async function obtenerEstadoApreciaciones(materia, trimestre) {
     const { data, error } = await supabase
         .from("apreciaciones_estado")
-        .select("numero, estado")
+        .select("numero, estado, modo")
         .eq("materia", materia)
         .eq("trimestre", trimestre)
         .order("numero", { ascending: true });
@@ -78,9 +78,34 @@ export async function calcularColumnasApreciacionesNuevas(materia, trimestre) {
     const maximo = Math.max(...estados.map((e) => e.numero));
     const yaHayPreview = estados.some((e) => e.numero === maximo + 1);
     if (!yaHayPreview) {
-        estados = [...estados, { numero: maximo + 1, estado: "bloqueada" }];
+        estados = [...estados, { numero: maximo + 1, estado: "bloqueada", modo: null }];
     }
-    return estados; // [{numero, estado}, ...] ordenado
+    return estados; // [{numero, estado, modo}, ...] ordenado
+}
+
+export async function elegirModoApreciacion(materia, trimestre, numeroApreciacion, modo) {
+    const { error } = await supabase.from("apreciaciones_estado")
+        .update({ modo, updated_at: new Date().toISOString() })
+        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
+    if (error) console.error("No se pudo guardar el modo de la apreciación:", error);
+    return !error;
+}
+
+// Cuando el profesor eligió "modo directo", la nota se guarda como una
+// casilla normal (igual que Aprec. 1, 2, 3) usando el mismo flujo de
+// guardarNotas() de profesor.js. Esta función solo se encarga de la
+// parte que ese flujo NO sabe hacer: revisar si con esas notas la
+// apreciación quedó completa, y si es así, activar la siguiente.
+export async function revisarAvanceApreciacionesDirectas(materia, trimestre, numerosGuardados) {
+    let avanzoAlguna = false;
+    for (const numero of numerosGuardados) {
+        const { data: completada, error } = await supabase.rpc("completar_y_avanzar_apreciacion", {
+            p_materia: materia, p_trimestre: trimestre, p_numero: numero,
+        });
+        if (error) { console.error(error); continue; }
+        if (completada) avanzoAlguna = true;
+    }
+    return avanzoAlguna;
 }
 
 const ICONO_ESTADO = { completada: "✓", activa: "🟢", bloqueada: "🔒" };
@@ -299,6 +324,42 @@ function obtenerElementosModal() {
         estadoGuardado: document.getElementById("apreciacionModalEstadoGuardado"),
     };
     return elementosModal;
+}
+
+export async function abrirSelectorModo({ materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes, onModoElegido }) {
+    const el = obtenerElementosModal();
+    if (!el.modalEl) { alert("Falta el HTML del modal de Apreciación en la página."); return; }
+
+    el.titulo.textContent = `Apreciación ${numeroApreciacion} — ¿Cómo la vas a registrar?`;
+    el.btnGuardar.style.display = "none";
+    el.estadoGuardado.textContent = "";
+    el.cuerpo.innerHTML = `
+        <p class="text-muted small">Elige una vez cómo quieres trabajar esta apreciación. Esta elección queda fija para la Apreciación ${numeroApreciacion}.</p>
+        <div class="d-flex flex-column gap-3">
+            <button type="button" class="btn btn-outline-primary text-start p-3" id="btnModoDirecto">
+                <div class="fw-bold">📝 Casilla directa</div>
+                <div class="small text-muted">Igual que Aprec. 1, 2 y 3: escribes la nota final tú mismo, sin desglose.</div>
+            </button>
+            <button type="button" class="btn btn-outline-primary text-start p-3" id="btnModoDetallado">
+                <div class="fw-bold">🧩 Detalle completo</div>
+                <div class="small text-muted">Asistencia + Comportamiento + Actividades en clase + Actividades para la casa. La nota se calcula sola.</div>
+            </button>
+        </div>`;
+
+    const modalBootstrap = bootstrap.Modal.getOrCreateInstance(el.modalEl);
+    modalBootstrap.show();
+
+    document.getElementById("btnModoDirecto").onclick = async () => {
+        await elegirModoApreciacion(materia, trimestre, numeroApreciacion, "directo");
+        modalBootstrap.hide();
+        onModoElegido?.("directo");
+    };
+    document.getElementById("btnModoDetallado").onclick = async () => {
+        await elegirModoApreciacion(materia, trimestre, numeroApreciacion, "detallado");
+        el.btnGuardar.style.display = "inline-block";
+        onModoElegido?.("detallado");
+        await abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado: "activa", estudiantes, correoProfesor });
+    };
 }
 
 export async function abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado, estudiantes, correoProfesor }) {
