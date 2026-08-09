@@ -22,6 +22,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const trimestreLabelEl = document.getElementById("trimestreLabel");
     const tablaResumen = document.getElementById("tablaResumen");
     const btnSalir = document.getElementById("btnSalir");
+    const btnVolver = document.getElementById("btnVolver");
+    const navbarProfesorNombreEl = document.getElementById("navbarProfesorNombre");
+
+    if (btnVolver) {
+        btnVolver.addEventListener("click", () => {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = "inicio.html";
+            }
+        });
+    }
 
     const modalDetalle = new bootstrap.Modal(document.getElementById("modalDetalle"));
     const modalDetalleTitulo = document.getElementById("modalDetalleTitulo");
@@ -92,6 +104,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const bienvenidaEl = document.getElementById("bienvenidaConsejero");
     if (bienvenidaEl) {
         bienvenidaEl.textContent = `Bienvenido(a), ${consejeroInfo.nombre || "consejero(a)"}`;
+    }
+
+    if (navbarProfesorNombreEl) {
+        navbarProfesorNombreEl.textContent = consejeroInfo.nombre || "Consejero(a)";
     }
 
     // =====================================================
@@ -1176,7 +1192,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             .from("estudiantes")
             .select("codigo, nombre, cedula, salon")
             .eq("es_prueba", false)
-            .order("salon", { ascending: true })
+            .eq("salon", salonActual)
             .order("codigo", { ascending: true });
 
         if (error) {
@@ -1189,26 +1205,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         todosLosEstudiantes = data || [];
 
-        const salonesUnicos = [...new Set(todosLosEstudiantes.map((e) => e.salon).filter(Boolean))]
-            .sort((a, b) => a.localeCompare(b, "es"));
-
-        filtroSalonListadoEl.innerHTML = `<option value="">Todos los salones</option>` +
-            salonesUnicos.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
-
-        if (salonesUnicos.includes(salonActual)) {
-            filtroSalonListadoEl.value = salonActual;
-        }
-
         renderListado();
     }
 
     function renderListado() {
         const texto = (buscarListadoEl.value || "").trim().toLowerCase();
-        const salonElegido = filtroSalonListadoEl.value;
 
         const filtrados = todosLosEstudiantes.filter((e) => {
-            if (salonElegido && e.salon !== salonElegido) return false;
-
             if (!texto) return true;
 
             const nombre = (e.nombre || "").toLowerCase();
@@ -1236,7 +1239,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (buscarListadoEl) buscarListadoEl.addEventListener("input", renderListado);
-    if (filtroSalonListadoEl) filtroSalonListadoEl.addEventListener("change", renderListado);
 
     if (seccionListadoEl) {
         const observer = new MutationObserver(() => {
@@ -1256,10 +1258,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             const texto = (buscarListadoEl.value || "").trim().toLowerCase();
-            const salonElegido = filtroSalonListadoEl.value;
 
             const filtrados = todosLosEstudiantes.filter((e) => {
-                if (salonElegido && e.salon !== salonElegido) return false;
                 if (!texto) return true;
                 const nombre = (e.nombre || "").toLowerCase();
                 const cedula = (e.cedula || "").toLowerCase();
@@ -1274,7 +1274,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
-            const tituloSalon = salonElegido ? `Salón ${salonElegido}` : "Todos los salones";
             const fecha = new Date().toLocaleDateString("es-PA");
 
             doc.setFont(undefined, "bold");
@@ -1284,7 +1283,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             doc.text("LISTA DE ESTUDIANTES", 105, 22, { align: "center" });
             doc.setFont(undefined, "normal");
             doc.setFontSize(10);
-            doc.text(`${tituloSalon}`, 14, 30);
+            doc.text(`Salón ${salonActual}`, 14, 30);
             doc.text(`Fecha: ${fecha}`, 196, 30, { align: "right" });
 
             doc.autoTable({
@@ -1295,7 +1294,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 headStyles: { fillColor: [13, 110, 253] }
             });
 
-            const nombreArchivo = `Lista_estudiantes_${salonElegido || "TodosLosSalones"}_${new Date().toISOString().slice(0, 10)}.pdf`;
+            const nombreArchivo = `Lista_estudiantes_${salonActual}_${new Date().toISOString().slice(0, 10)}.pdf`;
             doc.save(nombreArchivo);
         });
     }
