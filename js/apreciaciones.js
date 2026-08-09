@@ -21,6 +21,35 @@ function escapeHtml(str) {
         .replace(/'/g, "&#39;");
 }
 
+// Mismas reglas que usa la tabla principal (Aprec. 1, 2, 3) para que
+// las notas de las actividades se comporten igual: mientras se
+// escribe, solo deja pasar dígitos y un único punto decimal, máximo
+// 1 dígito entero + 1 decimal (nunca letras, nunca "33").
+function sanitizarEntradaNota(valor) {
+    let v = valor.replace(",", ".").replace(/[^0-9.]/g, "");
+    const partes = v.split(".");
+    if (partes.length > 2) v = partes[0] + "." + partes.slice(1).join("");
+    let [entero, decimal] = v.split(".");
+    entero = (entero || "").slice(0, 1);
+    if (decimal !== undefined) {
+        decimal = decimal.slice(0, 1);
+        return `${entero}.${decimal}`;
+    }
+    return entero;
+}
+
+// Al salir de la casilla: "3" -> "3.0", ".6" -> "0.6", y siempre
+// dentro de 1.0–5.0 (nunca 0.5, nunca vacío de más de un decimal).
+function formatearNotaFinal(valor) {
+    const texto = (valor ?? "").trim();
+    if (texto === "" || texto === ".") return "";
+    let num = parseFloat(texto);
+    if (isNaN(num)) return "";
+    if (num < 1) num = 1;
+    if (num > 5) num = 5;
+    return num.toFixed(1);
+}
+
 // Valores fijos pedidos explícitamente en el punto 6 (Comportamiento):
 // buen comportamiento = 5, mal comportamiento = 1.
 const VALOR_COMPORTAMIENTO_BUENO = 5;
@@ -662,7 +691,8 @@ function pintarModal(estado_) {
 
         const filas = estudiantes.map((est) => {
             const celdas = lista.map((a) => {
-                const valor = a.notas[est.id] ?? "";
+                const crudo = a.notas[est.id];
+                const valor = (crudo === null || crudo === undefined) ? "" : formatearNotaFinal(String(crudo));
                 if (soloLectura) return `<td class="text-center">${valor === "" ? "–" : valor}</td>`;
                 return `<td>
                     <input type="text" inputmode="decimal" class="form-control form-control-sm input-nota-actividad"
@@ -763,9 +793,16 @@ function pintarModal(estado_) {
 
     // --- Listeners: Actividades ---
     el.cuerpo.querySelectorAll(".input-nota-actividad").forEach((input) => {
+        input.addEventListener("input", () => {
+            const alFinal = input.selectionEnd === input.value.length;
+            input.value = sanitizarEntradaNota(input.value);
+            if (alFinal) input.selectionStart = input.selectionEnd = input.value.length;
+        });
+
         input.addEventListener("change", async () => {
-            const valor = input.value.trim();
-            const nota = valor === "" ? null : Math.min(5, Math.max(1, parseFloat(valor)));
+            const formateado = formatearNotaFinal(input.value);
+            input.value = formateado;
+            const nota = formateado === "" ? null : parseFloat(formateado);
             const actividadId = input.dataset.actividadId;
             const estudianteId = input.dataset.estudianteId;
 
