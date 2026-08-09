@@ -594,15 +594,21 @@ function pintarModal(estado_) {
         if (soloLectura) {
             return `<p class="small text-muted">Del ${fechaInicio || "–"} al ${fechaFin || "–"}.</p>`;
         }
+        // Mientras el docente escribe una fecha pero todavía no presiona
+        // "Guardar rango", ese valor se guarda en un "borrador" para que
+        // no se borre si el modal se vuelve a dibujar por otra razón
+        // (por ejemplo, al agregar una columna de comportamiento).
+        const valorInicio = estado_.fechaInicioBorrador ?? fechaInicio ?? "";
+        const valorFin = estado_.fechaFinBorrador ?? fechaFin ?? "";
         return `
             <div class="d-flex align-items-end gap-2 flex-wrap mb-2">
                 <div>
                     <label class="small text-muted d-block">Desde</label>
-                    <input type="date" class="form-control form-control-sm" id="inputFechaInicioApreciacion" value="${fechaInicio || ""}">
+                    <input type="date" class="form-control form-control-sm" id="inputFechaInicioApreciacion" value="${valorInicio}">
                 </div>
                 <div>
                     <label class="small text-muted d-block">Hasta</label>
-                    <input type="date" class="form-control form-control-sm" id="inputFechaFinApreciacion" value="${fechaFin || ""}">
+                    <input type="date" class="form-control form-control-sm" id="inputFechaFinApreciacion" value="${valorFin}">
                 </div>
                 <button type="button" class="btn btn-sm btn-primary" id="btnGuardarRangoApreciacion">Guardar rango</button>
                 ${rangoDefinido ? `<span class="small text-success">✓ Definido</span>` : `<span class="small text-danger">Define el rango para ver la asistencia</span>`}
@@ -712,6 +718,7 @@ function pintarModal(estado_) {
     el.cuerpo.innerHTML = `
         <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">Rango de fechas de esta Apreciación</h6>
         ${bloqueRango()}
+        ${soloLectura ? "" : `<button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="btnVolverModoDirecto">↩️ Ya no quiero el detalle — usar casilla directa</button>`}
 
         <h6 class="fw-bold mt-3" style="color:var(--color-primario, #4f46e5);">1) Asistencia</h6>
         ${bloqueAsistencia()}
@@ -734,7 +741,30 @@ function pintarModal(estado_) {
 
     if (soloLectura) return;
 
+    document.getElementById("btnVolverModoDirecto")?.addEventListener("click", async () => {
+        const ok = window.confirm(
+            `¿Cambiar la Apreciación ${estado_.numeroApreciacion} a "casilla directa"? Vas a poder escribir la nota final tú mismo, como en Aprec. 1, 2 y 3. Lo que ya llenaste aquí (comportamiento, actividades) no se borra, solo deja de usarse para calcular la nota.`
+        );
+        if (!ok) return;
+
+        await elegirModoApreciacion(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, "directo");
+
+        const modalBootstrap = bootstrap.Modal.getInstance(document.getElementById("modalApreciacionDetalle"));
+        modalBootstrap?.hide();
+
+        if (typeof window.__recargarSalonProfesor === "function") {
+            await window.__recargarSalonProfesor();
+        }
+    });
+
     // --- Listeners: rango de fechas ---
+    document.getElementById("inputFechaInicioApreciacion")?.addEventListener("input", (e) => {
+        estado_.fechaInicioBorrador = e.target.value;
+    });
+    document.getElementById("inputFechaFinApreciacion")?.addEventListener("input", (e) => {
+        estado_.fechaFinBorrador = e.target.value;
+    });
+
     document.getElementById("btnGuardarRangoApreciacion")?.addEventListener("click", async () => {
         const inicio = document.getElementById("inputFechaInicioApreciacion").value;
         const fin = document.getElementById("inputFechaFinApreciacion").value;
@@ -744,6 +774,8 @@ function pintarModal(estado_) {
         await guardarRangoFechas(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, inicio, fin);
         estado_.fechaInicio = inicio;
         estado_.fechaFin = fin;
+        estado_.fechaInicioBorrador = null;
+        estado_.fechaFinBorrador = null;
 
         const asistenciaTabla = await obtenerAsistenciaPorRango(estado_.materia, estado_.salon, inicio, fin);
         estado_.asistenciaFechas = [...asistenciaTabla.fechas];
