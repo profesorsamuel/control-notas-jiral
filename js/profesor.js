@@ -1,6 +1,8 @@
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
-import { calcularColumnasApreciacionesNuevas, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas, reiniciarApreciacionActiva } from "./apreciaciones.js";
+import { calcularColumnasApreciacionesNuevas, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas, reiniciarApreciacionActiva, inicializarPanelPesosGlobal } from "./apreciaciones.js";
+
+inicializarPanelPesosGlobal();
 
 // =========================================================
 // 0) UTILIDADES
@@ -163,6 +165,7 @@ const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
 const listaChecksColumnas = document.getElementById("listaChecksColumnas");
 const btnColumnasSeleccionarTodas = document.getElementById("btnColumnasSeleccionarTodas");
 const btnColumnasSeleccionarNinguna = document.getElementById("btnColumnasSeleccionarNinguna");
+const btnOcultarColumnasCompletas = document.getElementById("btnOcultarColumnasCompletas");
 const btnToggleFiltroEstudiantes = document.getElementById("btnToggleFiltroEstudiantes");
 const bloqueFiltroEstudiantes = document.getElementById("bloqueFiltroEstudiantes");
 const listaChecksEstudiantes = document.getElementById("listaChecksEstudiantes");
@@ -764,6 +767,34 @@ btnColumnasSeleccionarNinguna?.addEventListener("click", () => {
     casillasTabla.forEach((c) => columnasOcultas.add(claveCasilla(c.tipo, c.numero)));
     PROMEDIOS_SELECCIONABLES.forEach((p) => columnasOcultas.add(p.clave));
     columnasOcultas.add(CLAVE_COL_NUMERO);
+    renderizarListaChecksColumnas();
+    renderTabla();
+});
+
+// Oculta cada columna donde TODOS los estudiantes visibles ya tienen
+// nota, dejando a la vista solo la(s) que todavía están vacías (o, en
+// el caso de Aprec. 4+, las que no están "completada"). Así, después
+// de elegir salón/materia, con un clic queda lista para seguir
+// metiendo notas sin distraerse con lo que ya está lleno.
+btnOcultarColumnasCompletas?.addEventListener("click", () => {
+    const estudiantesVisibles = grupoActual.filter((est) => !estudiantesOcultos.has(claveEstudiante(est)));
+
+    casillasTabla.forEach((c) => {
+        const clave = claveCasilla(c.tipo, c.numero);
+
+        if (c.tipo === "apreciacion" && c.numero >= 4) {
+            const infoCol = estadoApreciacionesNuevas[c.numero];
+            if (infoCol && infoCol.estado === "completada") columnasOcultas.add(clave);
+            return;
+        }
+
+        const todosTienenNota = estudiantesVisibles.length > 0 && estudiantesVisibles.every((est) => {
+            const n = (historiaPorEstudiante[claveEstudiante(est)] || {})[clave];
+            return n && n.nota !== null && n.nota !== undefined && n.nota !== "";
+        });
+        if (todosTienenNota) columnasOcultas.add(clave);
+    });
+
     renderizarListaChecksColumnas();
     renderTabla();
 });
