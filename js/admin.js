@@ -89,11 +89,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         bloqueOtroSalon.style.display = nuevoEstSalon.value === "__otro__" ? "block" : "none";
     });
 
+    // Cédula "marcador": cuando aún no se consigue la cédula real de un
+    // estudiante, se usa este texto como señal visual de "falta agregar".
+    // Se resalta en rojo junto con las cédulas vacías para que salte a la vista.
+    const CEDULA_PENDIENTE = "8-123-4567";
+
+    function cedulaEstaPendiente(valor) {
+        const limpio = (valor || "").trim();
+        return !limpio || limpio === CEDULA_PENDIENTE;
+    }
+
     function filaEstudianteHtml(est) {
         const registrado = !!est.correo;
         const chip = registrado
             ? `<span class="badge bg-success">Registrado</span>`
             : `<span class="badge bg-secondary">Sin registrar</span>`;
+        const pendiente = cedulaEstaPendiente(est.cedula);
 
         return `
             <tr data-id="${est.id}">
@@ -101,7 +112,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <input type="text" class="form-control form-control-sm campo-nombre" value="${escapeHtmlAdmin(est.nombre || "")}">
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm campo-cedula" value="${escapeHtmlAdmin(est.cedula || "")}" placeholder="8-123-4567">
+                    <input type="text" class="form-control form-control-sm campo-cedula${pendiente ? " border-danger text-danger fw-bold" : ""}" value="${escapeHtmlAdmin(est.cedula || "")}" placeholder="8-123-4567" title="${pendiente ? "Falta agregar la cédula real de este estudiante" : ""}">
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm campo-salon" value="${escapeHtmlAdmin(est.salon || "")}">
@@ -182,7 +193,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             inputNombre.addEventListener("blur", () => guardarCampo("nombre", inputNombre.value));
-            inputCedula.addEventListener("blur", () => guardarCampo("cedula", inputCedula.value));
+            inputCedula.addEventListener("blur", () => {
+                guardarCampo("cedula", inputCedula.value);
+                inputCedula.classList.toggle("border-danger", cedulaEstaPendiente(inputCedula.value));
+                inputCedula.classList.toggle("text-danger", cedulaEstaPendiente(inputCedula.value));
+                inputCedula.classList.toggle("fw-bold", cedulaEstaPendiente(inputCedula.value));
+                inputCedula.title = cedulaEstaPendiente(inputCedula.value)
+                    ? "Falta agregar la cédula real de este estudiante"
+                    : "";
+            });
             inputSalon.addEventListener("blur", () => guardarCampo("salon", inputSalon.value));
 
             btnBorrar.addEventListener("click", async () => {
@@ -2215,5 +2234,219 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (btnCargarVisitas) {
         btnCargarVisitas.addEventListener("click", cargarVisitas);
     }
+
+    // =================================================
+    // 9) CONTROL DE CONSULTAS DE NOTAS (¿quién revisó con su cédula?)
+    // =================================================
+    // Reutiliza la misma función que ya usa el panel del consejero
+    // (obtener_consultas_por_salon), pero la llama para cada salón y
+    // junta todo, para poder ver "Todos los salones" a la vez, filtrar,
+    // ordenar por fecha y ver quién consulta con más frecuencia.
+
+    const SALONES_CONSULTAS = ["8A", "8B", "9A", "9B", "9C"];
+
+    const consultasSalonEl = document.getElementById("consultasSalon");
+    const consultasOrdenEl = document.getElementById("consultasOrden");
+    const consultasBuscarEl = document.getElementById("consultasBuscar");
+    const btnCargarConsultas = document.getElementById("btnCargarConsultas");
+    const tablaConsultasAdmin = document.getElementById("tablaConsultasAdmin");
+    const tablaTopConsultas = document.getElementById("tablaTopConsultas");
+    const thSalonConsultas = document.getElementById("thSalonConsultas");
+    const thSalonTopConsultas = document.getElementById("thSalonTopConsultas");
+    const statConsultasTotal = document.getElementById("statConsultasTotal");
+    const statConsultasDistintos = document.getElementById("statConsultasDistintos");
+    const statConsultasPdf = document.getElementById("statConsultasPdf");
+    const statConsultasSin = document.getElementById("statConsultasSin");
+
+    let consultasCargadasAdmin = [];
+    let estudiantesScopeCache = [];
+    let consultasYaCargadasUnaVez = false;
+
+    function formatearFechaConsulta(iso) {
+        if (!iso) return "-";
+        return new Date(iso).toLocaleString("es-PA", {
+            day: "2-digit", month: "2-digit", year: "numeric",
+            hour: "2-digit", minute: "2-digit"
+        });
+    }
+
+    async function obtenerConsultasDeSalones(salones) {
+        const resultados = await Promise.all(salones.map(async (s) => {
+            const { data, error } = await supabase.rpc("obtener_consultas_por_salon", { p_salon: s });
+            if (error) {
+                console.error(`❌ Error al cargar consultas del salón ${s}:`, error);
+                return [];
+            }
+            // Por si la función no trae la columna "salon", se le agrega
+            // aquí mismo (ya sabemos con qué salón se consultó).
+            return (data || []).map((c) => ({ ...c, salon: c.salon || s }));
+        }));
+        return resultados.flat();
+    }
+
+    async function cargarConsultasAdmin() {
+        if (!tablaConsultasAdmin) return;
+
+        const salon = consultasSalonEl.value;
+        const salones = salon ? [salon] : SALONES_CONSULTAS;
+        const mostrarColumnaSalon = !salon;
+
+        if (thSalonConsultas) thSalonConsultas.style.display = mostrarColumnaSalon ? "" : "none";
+        if (thSalonTopConsultas) thSalonTopConsultas.style.display = mostrarColumnaSalon ? "" : "none";
+
+        const textoOriginal = btnCargarConsultas.innerHTML;
+        btnCargarConsultas.disabled = true;
+        btnCargarConsultas.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
+        tablaConsultasAdmin.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Cargando...</td></tr>`;
+        tablaTopConsultas.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Cargando...</td></tr>`;
+
+        try {
+            consultasCargadasAdmin = await obtenerConsultasDeSalones(salones);
+
+            // Total de estudiantes reales en el alcance elegido, para saber
+            // cuántos nunca han revisado sus notas.
+            let consultaEst = supabase
+                .from("estudiantes")
+                .select("nombre, salon, es_prueba")
+                .eq("es_prueba", false);
+            if (salon) consultaEst = consultaEst.eq("salon", salon);
+            const { data: estudiantesScope, error: errEst } = await consultaEst;
+            if (errEst) console.error("❌ Error al cargar estudiantes para el conteo:", errEst);
+            estudiantesScopeCache = estudiantesScope || [];
+
+            renderConsultasAdmin(estudiantesScopeCache);
+        } catch (err) {
+            console.error("❌ Error al cargar el control de consultas:", err);
+            tablaConsultasAdmin.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">No se pudo cargar la información.</td></tr>`;
+            tablaTopConsultas.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">No se pudo cargar la información.</td></tr>`;
+        } finally {
+            btnCargarConsultas.disabled = false;
+            btnCargarConsultas.innerHTML = textoOriginal;
+        }
+    }
+
+    function renderConsultasAdmin(estudiantesScope) {
+        const scope = estudiantesScope || estudiantesScopeCache;
+        const salon = consultasSalonEl.value;
+        const mostrarColumnaSalon = !salon;
+        const texto = (consultasBuscarEl.value || "").trim().toLowerCase();
+        const orden = consultasOrdenEl.value;
+        const colspan = mostrarColumnaSalon ? 6 : 5;
+
+        // ---- Conteo por estudiante (para el top y para "sin consultar") ----
+        const conteoPorNombre = {};
+        consultasCargadasAdmin.forEach((c) => {
+            if (!c.encontrado || !c.nombre) return;
+            if (!conteoPorNombre[c.nombre]) {
+                conteoPorNombre[c.nombre] = {
+                    nombre: c.nombre, salon: c.salon, cedula: c.cedula,
+                    cantidad: 0, conPdf: 0, ultima: null
+                };
+            }
+            const r = conteoPorNombre[c.nombre];
+            r.cantidad++;
+            if (c.pdf_descargado) r.conPdf++;
+            const fecha = new Date(c.creado_en);
+            if (!r.ultima || fecha > r.ultima) r.ultima = fecha;
+        });
+
+        const nombresQueConsultaron = new Set(Object.keys(conteoPorNombre));
+        const totalConPdf = consultasCargadasAdmin.filter((c) => c.pdf_descargado).length;
+
+        const nombresDelAlcance = new Set((scope || []).map((e) => (e.nombre || "").trim()));
+        let sinConsultar = 0;
+        nombresDelAlcance.forEach((n) => {
+            if (!nombresQueConsultaron.has(n)) sinConsultar++;
+        });
+
+        statConsultasTotal.textContent = consultasCargadasAdmin.length;
+        statConsultasDistintos.textContent = nombresQueConsultaron.size;
+        statConsultasPdf.textContent = totalConPdf;
+        statConsultasSin.textContent = sinConsultar;
+
+        // ---- Top 5: quiénes más revisan sus notas ----
+        const top = Object.values(conteoPorNombre)
+            .sort((a, b) => b.cantidad - a.cantidad)
+            .slice(0, 5);
+
+        tablaTopConsultas.innerHTML = top.length === 0
+            ? `<tr><td colspan="${colspan}" class="text-center text-muted py-3">Todavía no hay consultas registradas.</td></tr>`
+            : top.map((r, i) => `
+                <tr>
+                    <td class="text-center">${i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</td>
+                    <td>${escapeHtmlAdmin(r.nombre)}</td>
+                    ${mostrarColumnaSalon ? `<td class="text-center">${escapeHtmlAdmin(r.salon || "-")}</td>` : ""}
+                    <td class="text-center fw-bold">${r.cantidad}</td>
+                    <td class="text-center">${r.conPdf > 0 ? `<span class="badge bg-primary">${r.conPdf}</span>` : `<span class="badge bg-light text-muted border">0</span>`}</td>
+                    <td class="text-center">${formatearFechaConsulta(r.ultima)}</td>
+                </tr>
+            `).join("");
+
+        // ---- Historial completo, filtrado y ordenado ----
+        let filtradas = consultasCargadasAdmin.filter((c) => {
+            if (!texto) return true;
+            const nombre = (c.nombre || "").toLowerCase();
+            const cedula = (c.cedula || "").toLowerCase();
+            return nombre.includes(texto) || cedula.includes(texto);
+        });
+
+        filtradas = filtradas.slice().sort((a, b) => {
+            if (orden === "fecha_asc") return new Date(a.creado_en) - new Date(b.creado_en);
+            if (orden === "nombre") return (a.nombre || "").localeCompare(b.nombre || "", "es");
+            if (orden === "cantidad") {
+                const cantA = conteoPorNombre[a.nombre]?.cantidad || 0;
+                const cantB = conteoPorNombre[b.nombre]?.cantidad || 0;
+                return cantB - cantA;
+            }
+            // "fecha_desc" (por defecto): más reciente primero
+            return new Date(b.creado_en) - new Date(a.creado_en);
+        });
+
+        if (filtradas.length === 0) {
+            tablaConsultasAdmin.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted py-3">No hay consultas para este filtro.</td></tr>`;
+            return;
+        }
+
+        tablaConsultasAdmin.innerHTML = filtradas.map((c) => `
+            <tr>
+                <td>${escapeHtmlAdmin(c.nombre || "(cédula no encontrada)")}</td>
+                ${mostrarColumnaSalon ? `<td class="text-center">${escapeHtmlAdmin(c.salon || "-")}</td>` : ""}
+                <td class="text-center">${escapeHtmlAdmin(c.cedula || "-")}</td>
+                <td class="text-center">
+                    ${c.encontrado
+                        ? `<span class="badge bg-success">Sí</span>`
+                        : `<span class="badge bg-secondary">No</span>`}
+                </td>
+                <td class="text-center">
+                    ${c.pdf_descargado
+                        ? `<span class="badge bg-primary">Sí</span>`
+                        : `<span class="badge bg-light text-muted border">No</span>`}
+                </td>
+                <td>${formatearFechaConsulta(c.creado_en)}</td>
+            </tr>
+        `).join("");
+    }
+
+    if (btnCargarConsultas) {
+        btnCargarConsultas.addEventListener("click", cargarConsultasAdmin);
+    }
+    if (consultasSalonEl) {
+        consultasSalonEl.addEventListener("change", cargarConsultasAdmin);
+    }
+    if (consultasOrdenEl) {
+        consultasOrdenEl.addEventListener("change", () => renderConsultasAdmin());
+    }
+    if (consultasBuscarEl) {
+        consultasBuscarEl.addEventListener("input", () => renderConsultasAdmin());
+    }
+
+    // Se expone para que admin.html la llame la primera vez que se
+    // abre esta sección (igual que ya hace con estudiantes/profesores).
+    window.cargarConsultasAdmin = () => {
+        if (!consultasYaCargadasUnaVez) {
+            consultasYaCargadasUnaVez = true;
+            cargarConsultasAdmin();
+        }
+    };
 
 });
