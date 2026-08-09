@@ -2025,6 +2025,91 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.cargarProfesoresAdmin = cargarProfesoresAdmin;
 
     // =================================================
+    // 6.6) GESTIONAR CONSEJEROS (permiso para editar el
+    // horario de su propio salón). Cada consejero ya está
+    // ligado a un salón en la tabla "consejeros"; aquí solo
+    // se prende/apaga la casilla puede_editar_horario. Se
+    // guarda solo al marcar/desmarcar, igual que con profesores.
+    // =================================================
+
+    const tablaConsejerosAdmin = document.getElementById("tablaConsejerosAdmin");
+    const mensajeConsejeros = document.getElementById("mensajeConsejeros");
+
+    function mostrarMensajeConsejeros(texto, tipo) {
+        if (!mensajeConsejeros) return;
+        mensajeConsejeros.textContent = texto;
+        mensajeConsejeros.className = `alert alert-${tipo}`;
+        mensajeConsejeros.classList.remove("d-none");
+        setTimeout(() => mensajeConsejeros.classList.add("d-none"), 3000);
+    }
+
+    async function cargarConsejerosAdmin() {
+        if (!tablaConsejerosAdmin) return;
+
+        tablaConsejerosAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando consejeros...</td></tr>`;
+
+        const { data: consejeros, error } = await supabase
+            .from("consejeros")
+            .select("correo, nombre, salon, puede_editar_horario")
+            .order("salon", { ascending: true });
+
+        if (error) {
+            console.error("❌ Error al cargar consejeros:", error);
+            tablaConsejerosAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-3">No se pudieron cargar los consejeros.</td></tr>`;
+            return;
+        }
+
+        if (!consejeros || consejeros.length === 0) {
+            tablaConsejerosAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Todavía no hay consejeros registrados.</td></tr>`;
+            return;
+        }
+
+        tablaConsejerosAdmin.innerHTML = consejeros.map((c) => `
+            <tr>
+                <td>${escapeHtmlAdmin(c.nombre || "(sin nombre)")}</td>
+                <td class="small">${escapeHtmlAdmin(c.correo || "-")}</td>
+                <td>${escapeHtmlAdmin(c.salon || "-")}</td>
+                <td>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input consejero-permiso-switch" type="checkbox"
+                            role="switch"
+                            data-correo="${escapeHtmlAdmin(c.correo)}"
+                            ${c.puede_editar_horario ? "checked" : ""}>
+                    </div>
+                </td>
+            </tr>
+        `).join("");
+
+        tablaConsejerosAdmin.querySelectorAll(".consejero-permiso-switch").forEach((toggle) => {
+            toggle.addEventListener("change", async () => {
+                const correo = toggle.dataset.correo;
+                const nuevoValor = toggle.checked;
+
+                const { error: errUpdate } = await supabase
+                    .from("consejeros")
+                    .update({ puede_editar_horario: nuevoValor })
+                    .eq("correo", correo);
+
+                if (errUpdate) {
+                    console.error("❌ Error al actualizar permiso del consejero:", errUpdate);
+                    mostrarMensajeConsejeros("No se pudo guardar el permiso: " + errUpdate.message, "danger");
+                    toggle.checked = !nuevoValor;
+                    return;
+                }
+
+                mostrarMensajeConsejeros(
+                    nuevoValor
+                        ? `✅ ${correo} ahora puede editar el horario de su salón.`
+                        : `${correo} ya no puede editar el horario de su salón.`,
+                    "success"
+                );
+            });
+        });
+    }
+
+    window.cargarConsejerosAdmin = cargarConsejerosAdmin;
+
+    // =================================================
     // 7) PREGUNTAS DE SEGURIDAD DE UN ESTUDIANTE
     // =================================================
 
