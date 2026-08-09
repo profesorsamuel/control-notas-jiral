@@ -432,8 +432,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const notasSalon = document.getElementById("notasSalon");
     const notasMateria = document.getElementById("notasMateria");
-    const notasTipo = document.getElementById("notasTipo");
-    const notasNumero = document.getElementById("notasNumero");
     const notasTrimestre = document.getElementById("notasTrimestre");
     const btnCargarGrupo = document.getElementById("btnCargarGrupo");
     const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
@@ -443,8 +441,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let grupoActualNotas = [];
     let historiaPorEstudiante = {}; 
-    let casillasTabla = [];         
     let temasCasillasBD = {};       
+
+    // Casillas fijas: siempre las mismas 10 de Apreciación + 10 de
+    // Ejercicio por materia/trimestre, sin importar cuáles ya tengan nota.
+    const CASILLAS_FIJAS = [
+        ...Array.from({ length: 10 }, (_, i) => ({ tipo: "apreciacion", numero: i + 1 })),
+        ...Array.from({ length: 10 }, (_, i) => ({ tipo: "ejercicio", numero: i + 1 }))
+    ];
+    let casillasTabla = CASILLAS_FIJAS;
 
     function claveCasilla(tipo, numero) {
         return `${tipo}-${numero}`;
@@ -576,7 +581,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} eliminada correctamente.`;
             estadoGuardadoNotas.className = "small text-success";
 
-            btnCargarGrupo.click();
+            cargarGrupoNotas();
             cargarNotas();
 
         } catch (error) {
@@ -928,15 +933,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const claveSeleccionada = claveCasilla(notasTipo.value, parseInt(notasNumero.value, 10));
-
         let htmlCabecera = `<th style="width:45px;">#</th><th>Estudiante</th>`;
 
         casillasTabla.forEach((c) => {
-            const esSeleccionada = claveCasilla(c.tipo, c.numero) === claveSeleccionada;
-            const claseTh = esSeleccionada ? "table-primary text-primary" : "text-muted";
             htmlCabecera += `
-                <th class="text-center small ${claseTh}" style="width:90px;">
+                <th class="text-center small text-muted" style="width:90px;">
                     <div>${etiquetaCasilla(c.tipo, c.numero)}</div>
                     <button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna y sus notas">🗑️</button>
                 </th>`;
@@ -1070,131 +1071,120 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    if (btnCargarGrupo) {
+    async function cargarGrupoNotas() {
 
-        btnCargarGrupo.addEventListener("click", async () => {
+        const salon = notasSalon.value;
+        const materia = notasMateria.value.trim();
+        const trimestre = notasTrimestre.value;
 
-            const salon = notasSalon.value;
-            const materia = notasMateria.value.trim();
-            const tipo = notasTipo.value;
-            const numero = parseInt(notasNumero.value, 10);
-            const trimestre = notasTrimestre.value;
+        if (!salon) {
+            alert("Selecciona un salón.");
+            return;
+        }
 
-            if (!salon) {
-                alert("Selecciona un salón.");
-                return;
-            }
+        if (!materia) {
+            alert("Escribe el nombre de la materia.");
+            return;
+        }
 
-            if (!materia) {
-                alert("Escribe el nombre de la materia.");
-                return;
-            }
+        const textoOriginalBoton = btnCargarGrupo.innerHTML;
+        btnCargarGrupo.disabled = true;
+        btnCargarGrupo.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
 
-            const textoOriginalBoton = btnCargarGrupo.innerHTML;
-            btnCargarGrupo.disabled = true;
-            btnCargarGrupo.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
+        const { data: estudiantesSalon, error: errEst } = await supabase
+            .from("estudiantes")
+            .select("id, codigo, nombre, correo, es_prueba")
+            .eq("salon", salon)
+            .order("nombre", { ascending: true });
 
-            const { data: estudiantesSalon, error: errEst } = await supabase
-                .from("estudiantes")
-                .select("id, codigo, nombre, correo, es_prueba")
-                .eq("salon", salon)
-                .order("nombre", { ascending: true });
-
-            if (errEst) {
-                console.error("❌ Error al cargar estudiantes del salón:", errEst);
-                alert("Error al cargar estudiantes: " + errEst.message);
-                btnCargarGrupo.disabled = false;
-                btnCargarGrupo.innerHTML = textoOriginalBoton;
-                return;
-            }
-
-            grupoActualNotas = (estudiantesSalon || []).filter((e) => !e.es_prueba);
-
-            const correosDelGrupo = grupoActualNotas.map((e) => e.correo).filter(Boolean);
-            const idsSinCuenta = grupoActualNotas.filter((e) => !e.correo).map((e) => e.id);
-
-            historiaPorEstudiante = {};
-            const casillasEncontradas = new Set();
-
-            function registrarNotaEnHistorial(clave, n) {
-                if (!historiaPorEstudiante[clave]) historiaPorEstudiante[clave] = {};
-                const claveCas = claveCasilla(n.tipo, n.numero);
-                historiaPorEstudiante[clave][claveCas] = n;
-                casillasEncontradas.add(claveCas);
-            }
-
-            if (correosDelGrupo.length > 0) {
-                const { data: notasCorreo, error: errNotas } = await supabase
-                    .from("notas")
-                    .select("id, correo, tipo, numero, nota, tema")
-                    .eq("materia", materia)
-                    .eq("trimestre", trimestre)
-                    .in("correo", correosDelGrupo);
-
-                if (errNotas) {
-                    console.error("❌ Error al cargar historial de notas:", errNotas);
-                } else if (notasCorreo) {
-                    notasCorreo.forEach((n) => registrarNotaEnHistorial(`correo:${n.correo}`, n));
-                }
-            }
-
-            if (idsSinCuenta.length > 0) {
-                const { data: notasSinCuenta, error: errNotasSinCuenta } = await supabase
-                    .from("notas")
-                    .select("id, estudiante_id, tipo, numero, nota, tema")
-                    .eq("materia", materia)
-                    .eq("trimestre", trimestre)
-                    .in("estudiante_id", idsSinCuenta);
-
-                if (errNotasSinCuenta) {
-                    console.error("❌ Error al cargar historial de notas (sin cuenta):", errNotasSinCuenta);
-                } else if (notasSinCuenta) {
-                    notasSinCuenta.forEach((n) => registrarNotaEnHistorial(`id:${n.estudiante_id}`, n));
-                }
-            }
-
-            temasCasillasBD = {};
-
-            const { data: temasGuardados, error: errTemas } = await supabase
-                .from("temas_casillas")
-                .select("tipo, numero, tema")
-                .eq("salon", salon)
-                .eq("materia", materia)
-                .eq("trimestre", trimestre);
-
-            if (errTemas) {
-                console.error("❌ Error al cargar temas de casillas:", errTemas);
-            } else if (temasGuardados) {
-                temasGuardados.forEach((t) => {
-                    const claveCas = claveCasilla(t.tipo, t.numero);
-                    temasCasillasBD[claveCas] = t.tema || "";
-                    if (t.tema) casillasEncontradas.add(claveCas);
-                });
-            }
-
-            const claveActual = claveCasilla(tipo, numero);
-            casillasEncontradas.add(claveActual);
-
-            casillasTabla = [...casillasEncontradas]
-                .map((c) => {
-                    const separador = c.lastIndexOf("-");
-                    return {
-                        tipo: c.slice(0, separador),
-                        numero: parseInt(c.slice(separador + 1), 10)
-                    };
-                })
-                .sort((a, b) => {
-                    if (a.tipo !== b.tipo) return a.tipo === "apreciacion" ? -1 : 1;
-                    return a.numero - b.numero;
-                });
-
-            renderTablaNotasGrupo();
-            bloqueTablaNotas.style.display = "block";
-
+        if (errEst) {
+            console.error("❌ Error al cargar estudiantes del salón:", errEst);
+            alert("Error al cargar estudiantes: " + errEst.message);
             btnCargarGrupo.disabled = false;
             btnCargarGrupo.innerHTML = textoOriginalBoton;
-        });
+            return;
+        }
+
+        grupoActualNotas = (estudiantesSalon || []).filter((e) => !e.es_prueba);
+
+        const correosDelGrupo = grupoActualNotas.map((e) => e.correo).filter(Boolean);
+        const idsSinCuenta = grupoActualNotas.filter((e) => !e.correo).map((e) => e.id);
+
+        historiaPorEstudiante = {};
+
+        function registrarNotaEnHistorial(clave, n) {
+            if (!historiaPorEstudiante[clave]) historiaPorEstudiante[clave] = {};
+            historiaPorEstudiante[clave][claveCasilla(n.tipo, n.numero)] = n;
+        }
+
+        if (correosDelGrupo.length > 0) {
+            const { data: notasCorreo, error: errNotas } = await supabase
+                .from("notas")
+                .select("id, correo, tipo, numero, nota, tema")
+                .eq("materia", materia)
+                .eq("trimestre", trimestre)
+                .in("correo", correosDelGrupo);
+
+            if (errNotas) {
+                console.error("❌ Error al cargar historial de notas:", errNotas);
+            } else if (notasCorreo) {
+                notasCorreo.forEach((n) => registrarNotaEnHistorial(`correo:${n.correo}`, n));
+            }
+        }
+
+        if (idsSinCuenta.length > 0) {
+            const { data: notasSinCuenta, error: errNotasSinCuenta } = await supabase
+                .from("notas")
+                .select("id, estudiante_id, tipo, numero, nota, tema")
+                .eq("materia", materia)
+                .eq("trimestre", trimestre)
+                .in("estudiante_id", idsSinCuenta);
+
+            if (errNotasSinCuenta) {
+                console.error("❌ Error al cargar historial de notas (sin cuenta):", errNotasSinCuenta);
+            } else if (notasSinCuenta) {
+                notasSinCuenta.forEach((n) => registrarNotaEnHistorial(`id:${n.estudiante_id}`, n));
+            }
+        }
+
+        temasCasillasBD = {};
+
+        const { data: temasGuardados, error: errTemas } = await supabase
+            .from("temas_casillas")
+            .select("tipo, numero, tema")
+            .eq("salon", salon)
+            .eq("materia", materia)
+            .eq("trimestre", trimestre);
+
+        if (errTemas) {
+            console.error("❌ Error al cargar temas de casillas:", errTemas);
+        } else if (temasGuardados) {
+            temasGuardados.forEach((t) => {
+                temasCasillasBD[claveCasilla(t.tipo, t.numero)] = t.tema || "";
+            });
+        }
+
+        // Las columnas son siempre las mismas 20 casillas fijas.
+        casillasTabla = CASILLAS_FIJAS;
+
+        renderTablaNotasGrupo();
+        bloqueTablaNotas.style.display = "block";
+
+        btnCargarGrupo.disabled = false;
+        btnCargarGrupo.innerHTML = textoOriginalBoton;
     }
+
+    if (btnCargarGrupo) {
+        btnCargarGrupo.addEventListener("click", cargarGrupoNotas);
+    }
+
+    // Al elegir la materia (con salón ya elegido), cargar la lista sola,
+    // sin esperar a que toquen el botón.
+    notasMateria.addEventListener("change", () => {
+        if (notasSalon.value && notasMateria.value.trim()) {
+            cargarGrupoNotas();
+        }
+    });
 
     // =================================================
     // GUARDAR NOTAS
@@ -1336,7 +1326,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (!esAutomatico) {
-            btnCargarGrupo.click();
+            cargarGrupoNotas();
             cargarNotas();
         }
     }
