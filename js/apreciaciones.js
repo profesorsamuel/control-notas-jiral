@@ -194,6 +194,50 @@ export async function guardarConfigPesos({ peso_asistencia, peso_comportamiento,
     return { ok: !error, error };
 }
 
+// Llena y conecta el panel "⚙️ Fórmula de Apreciación 4+" que vive
+// arriba de todo en la hoja de Registrar notas (no dentro del modal).
+// Se llama una sola vez al cargar la página.
+export async function inicializarPanelPesosGlobal() {
+    const ids = {
+        asistencia: "pesoAsistenciaGlobal",
+        comportamiento: "pesoComportamientoGlobal",
+        actClase: "pesoActClaseGlobal",
+        actCasa: "pesoActCasaGlobal",
+    };
+    const inputAsistencia = document.getElementById(ids.asistencia);
+    if (!inputAsistencia) return; // esta página no tiene el panel (por ejemplo, otra pantalla)
+
+    const pesos = await obtenerConfigPesos();
+    document.getElementById(ids.asistencia).value = pesos.peso_asistencia;
+    document.getElementById(ids.comportamiento).value = pesos.peso_comportamiento;
+    document.getElementById(ids.actClase).value = pesos.peso_actividades_clase;
+    document.getElementById(ids.actCasa).value = pesos.peso_actividades_casa;
+
+    const actualizarSuma = () => {
+        const suma = Object.values(ids).reduce((acc, id) => acc + (parseFloat(document.getElementById(id)?.value) || 0), 0);
+        const indicador = document.getElementById("sumaPesosIndicadorGlobal");
+        if (!indicador) return;
+        indicador.textContent = `Suma actual: ${suma}%`;
+        indicador.className = "small " + (suma === 100 ? "text-success" : "text-danger");
+    };
+    document.querySelectorAll(".input-peso-global").forEach((input) => {
+        input.addEventListener("input", actualizarSuma);
+    });
+    actualizarSuma();
+
+    document.getElementById("btnGuardarPesosGlobal")?.addEventListener("click", async () => {
+        const nuevosPesos = {
+            peso_asistencia: parseFloat(document.getElementById(ids.asistencia).value) || 0,
+            peso_comportamiento: parseFloat(document.getElementById(ids.comportamiento).value) || 0,
+            peso_actividades_clase: parseFloat(document.getElementById(ids.actClase).value) || 0,
+            peso_actividades_casa: parseFloat(document.getElementById(ids.actCasa).value) || 0,
+        };
+        const resultado = await guardarConfigPesos(nuevosPesos);
+        if (!resultado.ok) { alert("❌ " + resultado.error.message); return; }
+        alert("✅ Porcentajes guardados. Se van a usar de aquí en adelante para todas las Apreciaciones 4+.");
+    });
+}
+
 // =========================================================
 // 3) ASISTENCIA — reutiliza el sistema de asistencia existente.
 // =========================================================
@@ -626,6 +670,103 @@ function calcularYPintarNotasFinales(estado_) {
     });
 }
 
+// =========================================================
+// 9) IMPRIMIR / PDF — reporte de la apreciación completa
+// =========================================================
+// Abre una ventana nueva con Asistencia + Comportamiento + Actividades
+// + Nota final, ya formateados para imprimir. Desde el diálogo de
+// impresión del navegador, el docente elige "Guardar como PDF".
+
+export function imprimirApreciacion(estado_) {
+    const {
+        materia, salon, trimestre, numeroApreciacion, estudiantes,
+        fechaInicio, fechaFin, asistenciaFechas, asistenciaPorFecha,
+        comportamientoFechas, comportamientoPorFecha, actividadesClase, actividadesCasa,
+    } = estado_;
+
+    const filaAsistencia = (est) => asistenciaFechas.map((f) => {
+        const v = asistenciaPorFecha[f]?.[est.id] || "—";
+        return `<td>${escapeHtml(v)}</td>`;
+    }).join("");
+
+    const filaComportamiento = (est) => comportamientoFechas.map((f) => {
+        const v = comportamientoPorFecha[f]?.[est.id];
+        return `<td>${v === 5 ? "Bueno" : v === 1 ? "Malo" : "—"}</td>`;
+    }).join("");
+
+    const filaActividades = (lista, est) => lista.map((a) => {
+        const v = a.notas[est.id];
+        return `<td>${(v === null || v === undefined) ? "—" : formatearNotaFinal(String(v))}</td>`;
+    }).join("");
+
+    const filasEstudiantes = estudiantes.map((est) => `
+        <tr>
+            <td class="nombre">${escapeHtml(est.nombre)}</td>
+            ${filaAsistencia(est)}
+            ${filaComportamiento(est)}
+            ${filaActividades(actividadesClase, est)}
+            ${filaActividades(actividadesCasa, est)}
+            <td class="final">${(() => { const n = calcularNotaFinalEstudiante(estado_, est.id); return n !== null ? n.toFixed(2) : "–"; })()}</td>
+        </tr>`).join("");
+
+    const colspanAsistencia = Math.max(asistenciaFechas.length, 1);
+    const colspanComportamiento = Math.max(comportamientoFechas.length, 1);
+    const colspanActClase = Math.max(actividadesClase.length, 1);
+    const colspanActCasa = Math.max(actividadesCasa.length, 1);
+
+    const th = (n) => `<th>${escapeHtml(n)}</th>`;
+
+    const html = `
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <title>Apreciación ${numeroApreciacion} — ${escapeHtml(materia)} — ${escapeHtml(salon)}</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; color: #1e293b; }
+                h1 { font-size: 18px; margin-bottom: 2px; }
+                p.sub { color: #555; margin-top: 0; font-size: 13px; }
+                table { border-collapse: collapse; width: 100%; margin-top: 14px; font-size: 11px; }
+                th, td { border: 1px solid #94a3b8; padding: 4px 6px; text-align: center; }
+                th.grupo { background: #4f46e5; color: #fff; }
+                td.nombre { text-align: left; font-weight: bold; white-space: nowrap; }
+                td.final { font-weight: bold; background: #ecfdf5; }
+                @media print { body { padding: 0; } }
+            </style>
+        </head>
+        <body>
+            <h1>Apreciación ${numeroApreciacion} — ${escapeHtml(materia)} — Salón ${escapeHtml(salon)} — ${escapeHtml(trimestre)}</h1>
+            <p class="sub">Rango de fechas: ${fechaInicio || "–"} al ${fechaFin || "–"}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th rowspan="2">Estudiante</th>
+                        <th class="grupo" colspan="${colspanAsistencia}">Asistencia</th>
+                        <th class="grupo" colspan="${colspanComportamiento}">Comportamiento</th>
+                        <th class="grupo" colspan="${colspanActClase}">Actividades en clase</th>
+                        <th class="grupo" colspan="${colspanActCasa}">Actividades para la casa</th>
+                        <th rowspan="2">Nota final</th>
+                    </tr>
+                    <tr>
+                        ${asistenciaFechas.length ? asistenciaFechas.map(th).join("") : "<th>—</th>"}
+                        ${comportamientoFechas.length ? comportamientoFechas.map(th).join("") : "<th>—</th>"}
+                        ${actividadesClase.length ? actividadesClase.map((a) => th(a.nombre)).join("") : "<th>—</th>"}
+                        ${actividadesCasa.length ? actividadesCasa.map((a) => th(a.nombre)).join("") : "<th>—</th>"}
+                    </tr>
+                </thead>
+                <tbody>${filasEstudiantes}</tbody>
+            </table>
+        </body>
+        </html>`;
+
+    const ventana = window.open("", "_blank");
+    if (!ventana) { alert("El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para este sitio."); return; }
+    ventana.document.write(html);
+    ventana.document.close();
+    ventana.focus();
+    setTimeout(() => ventana.print(), 400);
+}
+
 function pintarModal(estado_) {
     const el = obtenerElementosModal();
     const {
@@ -764,38 +905,8 @@ function pintarModal(estado_) {
             </table>`;
     };
 
-    const bloquePesos = () => {
-        if (soloLectura) return "";
-        return `
-            <details class="mb-3">
-                <summary class="fw-bold" style="color:var(--color-primario, #4f46e5); cursor:pointer;">⚙️ Cambiar los porcentajes de la fórmula</summary>
-                <div class="border rounded p-2 mt-2">
-                    <p class="small text-muted mb-2">Deben sumar 100%. Este cambio aplica para <strong>todas</strong> las apreciaciones 4+ (no solo esta).</p>
-                    <div class="d-flex flex-wrap gap-2 align-items-end mb-2">
-                        <div>
-                            <label class="small text-muted d-block">Asistencia %</label>
-                            <input type="number" min="0" max="100" class="form-control form-control-sm input-peso" id="pesoAsistencia" value="${pesos.peso_asistencia}" style="width:80px;">
-                        </div>
-                        <div>
-                            <label class="small text-muted d-block">Comportamiento %</label>
-                            <input type="number" min="0" max="100" class="form-control form-control-sm input-peso" id="pesoComportamiento" value="${pesos.peso_comportamiento}" style="width:80px;">
-                        </div>
-                        <div>
-                            <label class="small text-muted d-block">Act. en clase %</label>
-                            <input type="number" min="0" max="100" class="form-control form-control-sm input-peso" id="pesoActClase" value="${pesos.peso_actividades_clase}" style="width:80px;">
-                        </div>
-                        <div>
-                            <label class="small text-muted d-block">Act. en casa %</label>
-                            <input type="number" min="0" max="100" class="form-control form-control-sm input-peso" id="pesoActCasa" value="${pesos.peso_actividades_casa}" style="width:80px;">
-                        </div>
-                        <button type="button" class="btn btn-sm btn-primary" id="btnGuardarPesos">Guardar porcentajes</button>
-                    </div>
-                    <span class="small" id="sumaPesosIndicador"></span>
-                </div>
-            </details>`;
-    };
-
     el.cuerpo.innerHTML = `
+        <button type="button" class="btn btn-sm btn-outline-primary mb-2" id="btnImprimirApreciacion">🖨️ Imprimir / PDF de esta Apreciación</button>
         <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">Rango de fechas de esta Apreciación</h6>
         ${bloqueRango()}
         ${soloLectura ? "" : `<button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="btnVolverModoDirecto">↩️ Ya no quiero el detalle — usar casilla directa</button>`}
@@ -812,8 +923,6 @@ function pintarModal(estado_) {
         <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">4) Actividades para la casa</h6>
         ${bloqueActividades(actividadesCasa, "casa")}
 
-        ${bloquePesos()}
-
         <h6 class="fw-bold mt-4" style="color:var(--color-primario, #4f46e5);">Nota final de Apreciación ${numeroApreciacion}</h6>
         <table class="table table-sm table-bordered">
             <thead><tr><th class="small">Estudiante</th><th class="small text-center">Nota final</th></tr></thead>
@@ -821,36 +930,11 @@ function pintarModal(estado_) {
         </table>
     `;
 
+    document.getElementById("btnImprimirApreciacion")?.addEventListener("click", () => {
+        imprimirApreciacion(estado_);
+    });
+
     if (soloLectura) return;
-
-    // --- Listeners: pesos de la fórmula ---
-    const actualizarIndicadorSuma = () => {
-        const suma = ["pesoAsistencia", "pesoComportamiento", "pesoActClase", "pesoActCasa"]
-            .reduce((acc, id) => acc + (parseFloat(document.getElementById(id)?.value) || 0), 0);
-        const indicador = document.getElementById("sumaPesosIndicador");
-        if (!indicador) return;
-        indicador.textContent = `Suma actual: ${suma}%`;
-        indicador.className = "small " + (suma === 100 ? "text-success" : "text-danger");
-    };
-    el.cuerpo.querySelectorAll(".input-peso").forEach((input) => {
-        input.addEventListener("input", actualizarIndicadorSuma);
-    });
-    actualizarIndicadorSuma();
-
-    document.getElementById("btnGuardarPesos")?.addEventListener("click", async () => {
-        const nuevosPesos = {
-            peso_asistencia: parseFloat(document.getElementById("pesoAsistencia").value) || 0,
-            peso_comportamiento: parseFloat(document.getElementById("pesoComportamiento").value) || 0,
-            peso_actividades_clase: parseFloat(document.getElementById("pesoActClase").value) || 0,
-            peso_actividades_casa: parseFloat(document.getElementById("pesoActCasa").value) || 0,
-        };
-        const resultado = await guardarConfigPesos(nuevosPesos);
-        if (!resultado.ok) { alert("❌ " + resultado.error.message); return; }
-
-        estado_.pesos = nuevosPesos;
-        alert("✅ Porcentajes guardados. Se van a usar de aquí en adelante para todas las apreciaciones.");
-        calcularYPintarNotasFinales(estado_);
-    });
 
     document.getElementById("btnVolverModoDirecto")?.addEventListener("click", async () => {
         const ok = window.confirm(
