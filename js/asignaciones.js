@@ -1,488 +1,265 @@
-import { supabase } from "./supabase.js";
+<!DOCTYPE html>
+<html lang="es">
 
-function escapeHtml(str) {
-    return String(str ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-}
-
-async function verificarAdmin() {
-    const { data: { user }, error: errUser } = await supabase.auth.getUser();
-    if (errUser || !user) { window.location.href = "login.html"; return false; }
-
-    const { data: perfil, error: errPerfil } = await supabase
-        .from("usuarios")
-        .select("rol")
-        .eq("auth_user_id", user.id)
-        .single();
-
-    if (errPerfil || !perfil || perfil.rol !== "admin") {
-        alert("⛔ No tienes permisos de administrador.");
-        window.location.href = "login.html";
-        return false;
-    }
-    return true;
-}
-
-// =====================================================
-// SALONES: se cargan desde la tabla "salones" (administrable
-// en salones.html) en vez de venir fijos en el HTML.
-// =====================================================
-const grupoSalonesCheckboxes = document.getElementById("grupoSalones");
-
-async function cargarSalonesDisponibles() {
-    if (!grupoSalonesCheckboxes) return;
-
-    const { data: salones, error } = await supabase
-        .from("salones")
-        .select("codigo, nombre_visible")
-        .eq("activo", true)
-        .order("orden", { ascending: true });
-
-    if (error) {
-        grupoSalonesCheckboxes.innerHTML = `<span class="text-danger small">No se pudieron cargar los salones: ${escapeHtml(error.message)}</span>`;
-        return;
-    }
-
-    if (!salones || salones.length === 0) {
-        grupoSalonesCheckboxes.innerHTML = `<span class="text-muted small">Todavía no hay salones creados. <a href="salones.html">Crear el primero</a>.</span>`;
-        return;
-    }
-
-    grupoSalonesCheckboxes.innerHTML = salones.map((s) => `
-        <input class="chip-check check-salon" type="checkbox" value="${escapeHtml(s.codigo)}" id="sal-${escapeHtml(s.codigo)}">
-        <label for="sal-${escapeHtml(s.codigo)}">${escapeHtml(s.nombre_visible)}</label>
-    `).join("");
-}
-
-// =====================================================
-// PROFESORES: se cargan desde la tabla "profesores" para que el
-// admin elija de una lista en vez de escribir correo/nombre a mano
-// cada vez. Solo se piden los datos a mano si elige "Profesor nuevo".
-// =====================================================
-const selectProfesor = document.getElementById("selectProfesorAsignacion");
-const avisoProfesorNuevo = document.getElementById("avisoProfesorNuevo");
-
-let profesoresDisponibles = [];
-
-async function cargarProfesoresDisponibles() {
-    if (!selectProfesor) return;
-
-    const { data, error } = await supabase
-        .from("profesores")
-        .select("correo_profesor, nombre_profesor, telefono")
-        .order("nombre_profesor", { ascending: true });
-
-    if (error) {
-        selectProfesor.innerHTML = `<option value="">No se pudo cargar la lista de profesores</option>`;
-        return;
-    }
-
-    profesoresDisponibles = data || [];
-
-    selectProfesor.innerHTML =
-        `<option value="">Selecciona un profesor...</option>` +
-        `<option value="__nuevo__">➕ Profesor nuevo (no está en la lista)</option>` +
-        profesoresDisponibles.map((p) =>
-            `<option value="${escapeHtml(p.correo_profesor)}">${escapeHtml(p.nombre_profesor || p.correo_profesor)}</option>`
-        ).join("");
-}
-
-function ponerCamposProfesor({ correo, nombre, telefono, editable }) {
-    inputCorreo.value = correo || "";
-    inputNombre.value = nombre || "";
-    inputTelefono.value = telefono || "";
-
-    inputCorreo.disabled = !editable;
-    inputNombre.disabled = !editable;
-    // El teléfono siempre se puede editar/actualizar aquí mismo.
-    inputTelefono.disabled = false;
-
-    avisoProfesorNuevo.classList.toggle("d-none", !editable);
-}
-
-selectProfesor?.addEventListener("change", () => {
-    const valor = selectProfesor.value;
-
-    if (!valor) {
-        ponerCamposProfesor({ correo: "", nombre: "", telefono: "", editable: false });
-        return;
-    }
-
-    if (valor === "__nuevo__") {
-        ponerCamposProfesor({ correo: "", nombre: "", telefono: "", editable: true });
-        inputCorreo.focus();
-        return;
-    }
-
-    const prof = profesoresDisponibles.find((p) => p.correo_profesor === valor);
-    ponerCamposProfesor({
-        correo: prof?.correo_profesor,
-        nombre: prof?.nombre_profesor,
-        telefono: prof?.telefono,
-        editable: false,
-    });
-});
-
-const formAsignacion = document.getElementById("formAsignacion");
-const estadoAsignacion = document.getElementById("estadoAsignacion");
-const listadoProfesores = document.getElementById("listadoProfesores");
-const buscarListado = document.getElementById("buscarListado");
-const inputCorreo = document.getElementById("inputCorreoProfesor");
-const inputNombre = document.getElementById("inputNombreProfesor");
-const inputTelefono = document.getElementById("inputTelefonoProfesor");
-const checkWhatsapp = document.getElementById("checkWhatsapp");
-
-function formatearHora12(horaTexto) {
-    if (!horaTexto) return "";
-    const [h, m] = horaTexto.split(":");
-    const fecha = new Date();
-    fecha.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
-    return fecha.toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" });
-}
-
-let correoOriginalEnEdicion = null;
-let datosListadoActual = [];
-
-function limpiarModoEdicion() {
-    correoOriginalEnEdicion = null;
-    formAsignacion.reset();
-    if (selectProfesor) selectProfesor.value = "";
-    ponerCamposProfesor({ correo: "", nombre: "", telefono: "", editable: false });
-    const aviso = document.getElementById("avisoEdicion");
-    if (aviso) aviso.remove();
-}
-
-function entrarModoEdicion(prof) {
-    correoOriginalEnEdicion = prof.correo;
-
-    // Si el profesor ya existe en la lista desplegable, lo seleccionamos ahí
-    // (así se ve de dónde viene el dato); si no está, lo tratamos como "nuevo".
-    const existeEnLista = profesoresDisponibles.some((p) => p.correo_profesor === prof.correo);
-    if (selectProfesor) selectProfesor.value = existeEnLista ? prof.correo : "__nuevo__";
-
-    ponerCamposProfesor({
-        correo: prof.correo,
-        nombre: prof.nombre,
-        telefono: prof.telefono,
-        editable: !existeEnLista,
-    });
-
-    document.querySelectorAll(".check-materia").forEach((c) => (c.checked = false));
-    document.querySelectorAll(".check-salon").forEach((c) => (c.checked = false));
-
-    let aviso = document.getElementById("avisoEdicion");
-    if (!aviso) {
-        aviso = document.createElement("div");
-        aviso.id = "avisoEdicion";
-        aviso.className = "small ms-2 text-primary mt-2";
-        formAsignacion.appendChild(aviso);
-    }
-    aviso.innerHTML = `✎ Editando a <strong>${escapeHtml(prof.nombre)}</strong>. <a href="#" id="cancelarEdicion">Cancelar edición</a>`;
-
-    document.getElementById("cancelarEdicion")?.addEventListener("click", (e) => {
-        e.preventDefault();
-        limpiarModoEdicion();
-    });
-
-    formAsignacion.scrollIntoView({ behavior: "smooth" });
-}
-
-async function cargarListado() {
-    if (!listadoProfesores) return;
-    listadoProfesores.innerHTML = "Cargando...";
-
-    const { data, error } = await supabase
-        .from("profesor_materias")
-        .select("id, correo_profesor, nombre_profesor, materia, salon, dia, hora")
-        .order("nombre_profesor", { ascending: true });
-
-    if (error) {
-        listadoProfesores.innerHTML = `<p class="text-danger">Error al cargar: ${escapeHtml(error.message)}</p>`;
-        return;
-    }
-
-    const { data: dataProfesores } = await supabase
-        .from("profesores")
-        .select("correo_profesor, telefono, whatsapp_activo");
-
-    const telefonosPorCorreo = {};
-    (dataProfesores || []).forEach((p) => { telefonosPorCorreo[p.correo_profesor] = p; });
-
-    datosListadoActual = data || [];
-
-    if (datosListadoActual.length === 0) {
-        listadoProfesores.innerHTML = `<p class="text-muted">Todavía no hay asignaciones registradas.</p>`;
-        return;
-    }
-
-    pintarListado(datosListadoActual, telefonosPorCorreo);
-}
-
-function pintarListado(filas, telefonosPorCorreo) {
-    if (!filas || filas.length === 0) {
-        listadoProfesores.innerHTML = `<p class="text-muted">No hay asignaciones que coincidan con la búsqueda.</p>`;
-        return;
-    }
-
-    const porProfesor = {};
-    filas.forEach((fila) => {
-        const clave = fila.correo_profesor;
-        if (!porProfesor[clave]) {
-            porProfesor[clave] = {
-                nombre: fila.nombre_profesor,
-                correo: fila.correo_profesor,
-                telefono: telefonosPorCorreo[clave]?.telefono || "",
-                materias: {},
-            };
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asignaciones de Profesores</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primario: #1f4e79;
+            --color-primario-oscuro: #163a5a;
+            --color-primario-claro: #e8ecfb;
+            --color-acento: #198754;
+            --color-fondo: #eef1f6;
         }
-        if (!porProfesor[clave].materias[fila.materia]) porProfesor[clave].materias[fila.materia] = [];
-        porProfesor[clave].materias[fila.materia].push({ salon: fila.salon, id: fila.id, dia: fila.dia, hora: fila.hora });
-    });
 
-    listadoProfesores.innerHTML = Object.values(porProfesor).map((prof) => {
-        const filasMaterias = Object.entries(prof.materias).map(([materia, salones]) => `
-            <div class="fila-materia">
-                <div>
-                    <span class="etiqueta-materia">${escapeHtml(materia)}</span>
-                    ${salones.map((s) => {
-                        const horario = s.dia ? ` <span class="text-muted">(${escapeHtml(s.dia)}${s.hora ? " · " + escapeHtml(formatearHora12(s.hora)) : ""})</span>` : "";
-                        return `${escapeHtml(s.salon)}${horario}`;
-                    }).join(", ")}
-                </div>
-                <div>
-                    ${salones.map((s) => `<button class="btn btn-sm btn-outline-danger btn-eliminar-asignacion" data-id="${s.id}" title="Quitar ${escapeHtml(s.salon)}">✕ ${escapeHtml(s.salon)}</button>`).join(" ")}
-                </div>
-            </div>
-        `).join("");
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            padding: 0 16px 60px;
+            background: var(--color-fondo);
+        }
 
-        return `
-            <div class="tarjeta-profesor" data-correo="${escapeHtml(prof.correo)}">
-                <div class="d-flex justify-content-between align-items-start flex-wrap">
-                    <h3>${escapeHtml(prof.nombre)} <span class="text-muted small">(${escapeHtml(prof.correo)})</span></h3>
-                    <div>
-                        <button class="btn btn-sm btn-outline-primary btn-editar-profesor">✎ Editar</button>
-                        <button class="btn btn-sm btn-outline-danger btn-eliminar-profesor">🗑 Eliminar profesor</button>
+        h1, h2 { font-family: 'Baloo 2', 'Inter', Arial, sans-serif; }
+
+        /* ---- Encabezado moderno tipo banner ---- */
+        .banner-superior {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+            color: #fff;
+            border-radius: 0 0 20px 20px;
+            padding: 28px 26px 22px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 24px rgba(31, 78, 121, .25);
+        }
+
+        .banner-superior .eyebrow {
+            font-size: 12px; font-weight: 700; letter-spacing: 1.5px;
+            text-transform: uppercase; color: #c7d7ef; margin: 0 0 4px;
+        }
+
+        .banner-superior h1 {
+            font-size: 1.7rem; font-weight: 800; margin: 0 0 8px; color: #fff;
+        }
+
+        .banner-superior .enlaces-nav a {
+            color: #dbe7fa; text-decoration: none; font-weight: 600; font-size: .87rem;
+        }
+        .banner-superior .enlaces-nav a:hover { color: #fff; text-decoration: underline; }
+
+        .contenedor { max-width: 1000px; margin: 0 auto; }
+
+        .panel-blanco {
+            background: white;
+            padding: 22px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 14px rgba(20, 40, 70, .08);
+        }
+
+        .panel-titulo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--color-primario);
+            margin-bottom: 4px;
+        }
+
+        .panel-icono {
+            width: 34px; height: 34px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; flex-shrink: 0;
+            background: var(--color-primario-claro); color: #2f3ea3;
+        }
+
+        .panel-subtexto { color: #6c757d; font-size: .85rem; margin-bottom: 16px; }
+
+        .subtitulo-campo {
+            font-weight: 700; font-size: .88rem; margin-bottom: 8px; display: block;
+            color: #333;
+        }
+
+        /* ---- Chips para materias / salones ---- */
+        .grupo-chips {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            padding: 12px; border-radius: 10px; background: #f6f8fb;
+            border: 1px solid #e3e8ef;
+        }
+
+        .chip-check { position: absolute; opacity: 0; width: 0; height: 0; }
+
+        .chip-check + label {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 7px 14px; border-radius: 20px;
+            border: 1.5px solid #d7dee6; background: #fff;
+            font-size: .85rem; color: #444; cursor: pointer; user-select: none;
+            transition: all .15s ease; margin: 0;
+        }
+
+        .chip-check + label:hover { border-color: #9fb4d6; }
+
+        .chip-materias .chip-check:checked + label {
+            background: var(--color-primario); border-color: var(--color-primario); color: #fff;
+        }
+
+        .chip-salones .chip-check:checked + label {
+            background: var(--color-acento); border-color: var(--color-acento); color: #fff;
+        }
+
+        /* ---- Tarjeta del profesor activo (viene de la URL) ---- */
+        .tarjeta-profesor-activo {
+            display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+            background: var(--color-primario-claro); border-radius: 12px;
+            padding: 14px 16px; margin-bottom: 18px;
+        }
+
+        .avatar-profesor-activo {
+            flex: none; width: 46px; height: 46px; border-radius: 50%;
+            background: var(--color-primario); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 1.05rem; font-family: 'Baloo 2', sans-serif;
+        }
+
+        .tarjeta-profesor-activo .nombre-activo { font-weight: 700; color: var(--color-primario); font-size: 1.02rem; }
+        .tarjeta-profesor-activo .detalle-activo { font-size: .82rem; color: #4a5a72; }
+
+        .tarjeta-profesor-activo .cambiar-profesor {
+            margin-left: auto; font-size: .82rem; font-weight: 600;
+            color: var(--color-primario); text-decoration: none;
+        }
+        .tarjeta-profesor-activo .cambiar-profesor:hover { text-decoration: underline; }
+
+        .campo-telefono-activo { max-width: 220px; }
+
+        /* ---- Estado vacío (sin ?correo en la URL) ---- */
+        .estado-vacio {
+            text-align: center; padding: 40px 20px; color: #6c757d;
+        }
+        .estado-vacio .icono-vacio { font-size: 2.4rem; margin-bottom: 10px; }
+
+        /* ---- Listado de asignaciones del profesor activo ---- */
+        .fila-materia {
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 6px;
+            padding: 9px 0; border-bottom: 1px solid #f2f3f6;
+        }
+        .fila-materia:last-child { border-bottom: none; }
+
+        .etiqueta-materia {
+            display: inline-block; background: #eef1fa; color: var(--color-primario);
+            font-weight: 700; font-size: .8rem; padding: 3px 10px; border-radius: 8px;
+            margin-right: 6px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="banner-superior">
+        <p class="eyebrow">Panel de administración</p>
+        <h1>📋 Asignaciones de Profesores</h1>
+        <div class="enlaces-nav">
+            <a href="admin.html">&larr; Volver al panel de administración</a>
+            &nbsp;·&nbsp;
+            <a href="profesores.html"><i class="fa-solid fa-address-book"></i> Ver directorio completo de profesores</a>
+        </div>
+    </div>
+
+    <div class="contenedor">
+
+        <div id="bloqueSinProfesor" class="panel-blanco estado-vacio" style="display:none;">
+            <div class="icono-vacio">👥</div>
+            <p><strong>Elige un profesor(a) primero.</strong></p>
+            <p class="small">Entra al directorio de profesores y presiona "Editar materias/salones en Asignaciones" en la tarjeta del profesor(a) que quieras editar.</p>
+            <a href="profesores.html" class="btn btn-primary btn-sm mt-2">
+                <i class="fa-solid fa-address-book me-1"></i> Ir al directorio de profesores
+            </a>
+        </div>
+
+        <div id="bloqueFormulario" style="display:none;">
+
+            <!-- FORMULARIO DE ASIGNACIÓN -->
+            <div class="panel-blanco panel-manual">
+                <div class="panel-titulo"><span class="panel-icono">➕</span> Agregar asignación</div>
+                <p class="panel-subtexto">Marca las materias que dicta y en qué salones. El horario exacto (día/hora) lo arma el profesor(a) en su propia pantalla de "Mi horario".</p>
+
+                <form id="formAsignacion">
+
+                    <div class="tarjeta-profesor-activo" id="tarjetaProfesorActivo">
+                        <div class="avatar-profesor-activo" id="avatarProfesorActivo">—</div>
+                        <div>
+                            <div class="nombre-activo" id="nombreProfesorActivo">Cargando...</div>
+                            <div class="detalle-activo" id="correoProfesorActivo"></div>
+                        </div>
+                        <div>
+                            <label class="form-label small fw-bold mb-1">Teléfono (WhatsApp)</label>
+                            <input type="tel" id="inputTelefonoProfesor" class="form-control form-control-sm campo-telefono-activo" placeholder="6123-4567">
+                        </div>
+                        <a href="profesores.html" class="cambiar-profesor">Cambiar profesor →</a>
                     </div>
-                </div>
-                ${filasMaterias}
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="checkWhatsapp">
+                        <label class="form-check-label" for="checkWhatsapp">
+                            <i class="fa-brands fa-whatsapp text-success"></i>
+                            Activar para WhatsApp (permite generar un enlace directo para escribirle)
+                        </label>
+                    </div>
+
+                    <label class="subtitulo-campo">Materias que dicta (puedes marcar varias)</label>
+                    <div class="grupo-chips chip-materias mb-2" id="grupoMaterias">
+                        <input class="chip-check" type="checkbox" value="Español" id="mat-espanol"><label for="mat-espanol">Español</label>
+                        <input class="chip-check" type="checkbox" value="Matemática" id="mat-matematica"><label for="mat-matematica">Matemática</label>
+                        <input class="chip-check" type="checkbox" value="Ciencias Naturales" id="mat-ciencias"><label for="mat-ciencias">Ciencias Naturales</label>
+                        <input class="chip-check" type="checkbox" value="Inglés" id="mat-ingles"><label for="mat-ingles">Inglés</label>
+                        <input class="chip-check" type="checkbox" value="Expresión Artística" id="mat-expresion-artistica"><label for="mat-expresion-artistica">Expresión Artística</label>
+                        <input class="chip-check" type="checkbox" value="Música" id="mat-musica"><label for="mat-musica">Música</label>
+                        <input class="chip-check" type="checkbox" value="Educación Física" id="mat-fisica"><label for="mat-fisica">Educación Física</label>
+                        <input class="chip-check" type="checkbox" value="Familia y Desarrollo Comunitario" id="mat-familia"><label for="mat-familia">Familia y Desarrollo Comunitario</label>
+                        <input class="chip-check" type="checkbox" value="Historia" id="mat-historia"><label for="mat-historia">Historia</label>
+                        <input class="chip-check" type="checkbox" value="Educación Agropecuaria" id="mat-agropecuaria"><label for="mat-agropecuaria">Educación Agropecuaria</label>
+                        <input class="chip-check" type="checkbox" value="Contabilidad" id="mat-contabilidad"><label for="mat-contabilidad">Contabilidad</label>
+                        <input class="chip-check" type="checkbox" value="Informática" id="mat-informatica"><label for="mat-informatica">Informática</label>
+                        <input class="chip-check" type="checkbox" value="Geografía" id="mat-geografia"><label for="mat-geografia">Geografía</label>
+                        <input class="chip-check" type="checkbox" value="Orientación" id="mat-orientacion"><label for="mat-orientacion">Orientación</label>
+                        <input class="chip-check" type="checkbox" value="Cívica" id="mat-civica"><label for="mat-civica">Cívica</label>
+                        <input class="chip-check" type="checkbox" value="Religión, Moral y Valores" id="mat-religion"><label for="mat-religion">Religión, Moral y Valores</label>
+                    </div>
+                    <input type="text" id="inputOtraMateria" class="form-control mb-3" placeholder="¿Otra materia que no está en la lista? Escríbela aquí (raro, revisar con administración)">
+
+                    <label class="subtitulo-campo">
+                        Salones donde da clase (puedes marcar varios)
+                        &nbsp;·&nbsp;
+                        <a href="salones.html" class="small">Administrar lista de salones</a>
+                    </label>
+                    <div class="grupo-chips chip-salones mb-3" id="grupoSalones">
+                        <span class="text-muted small">Cargando salones...</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i> Guardar asignación</button>
+                    <span id="estadoAsignacion" class="small ms-2"></span>
+                </form>
             </div>
-        `;
-    }).join("");
 
-    listadoProfesores.querySelectorAll(".btn-eliminar-asignacion").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-            if (!confirm("¿Quitar esta asignación?")) return;
-            const { error: errDel } = await supabase.from("profesor_materias").delete().eq("id", btn.dataset.id);
-            if (errDel) { alert("Error al eliminar: " + errDel.message); return; }
-            cargarListado();
-        });
-    });
+            <!-- LISTADO DE LO YA ASIGNADO A ESTE PROFESOR -->
+            <div class="panel-blanco panel-listado">
+                <div class="panel-titulo"><span class="panel-icono">📚</span> Ya asignado a este profesor(a)</div>
+                <div id="listadoAsignacionesActivo">Cargando...</div>
+            </div>
 
-    listadoProfesores.querySelectorAll(".btn-editar-profesor").forEach((btn) => {
-        btn.addEventListener("click", () => {
-            const correo = btn.closest(".tarjeta-profesor").dataset.correo;
-            const prof = porProfesor[correo];
-            entrarModoEdicion(prof);
-        });
-    });
+        </div>
 
-    listadoProfesores.querySelectorAll(".btn-eliminar-profesor").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-            const correo = btn.closest(".tarjeta-profesor").dataset.correo;
-            const prof = porProfesor[correo];
-            if (!confirm(`¿Eliminar por completo a "${prof.nombre}" (${correo})?`)) return;
+    </div>
 
-            await supabase.from("profesor_materias").delete().eq("correo_profesor", correo);
-            await supabase.from("profesores").delete().eq("correo_profesor", correo);
+    <script type="module" src="../js/asignaciones.js"></script>
 
-            if (correoOriginalEnEdicion === correo) limpiarModoEdicion();
-            cargarListado();
-        });
-    });
-}
+</body>
 
-buscarListado?.addEventListener("input", () => {
-    const texto = buscarListado.value.trim().toLowerCase();
-
-    if (!texto) {
-        pintarListado(datosListadoActual, {});
-        return;
-    }
-
-    const filtradas = datosListadoActual.filter((fila) =>
-        (fila.nombre_profesor || "").toLowerCase().includes(texto) ||
-        (fila.correo_profesor || "").toLowerCase().includes(texto) ||
-        (fila.materia || "").toLowerCase().includes(texto) ||
-        (fila.salon || "").toLowerCase().includes(texto)
-    );
-
-    pintarListado(filtradas, {});
-});
-
-formAsignacion?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const correo_profesor = inputCorreo.value.trim().toLowerCase();
-    const nombre_profesor = inputNombre.value.trim();
-    const telefono = inputTelefono.value.trim();
-    const whatsapp_activo = checkWhatsapp.checked;
-
-    if (!correo_profesor || !nombre_profesor) {
-        estadoAsignacion.textContent = "⚠️ Elige un profesor de la lista o completa correo y nombre del profesor nuevo.";
-        return;
-    }
-
-    const materiasMarcadas = Array.from(document.querySelectorAll(".check-materia:checked")).map((c) => c.value);
-    const otraMateria = document.getElementById("inputOtraMateria")?.value.trim();
-    if (otraMateria) {
-        otraMateria.split(",").map((m) => m.trim()).filter(Boolean).forEach((m) => materiasMarcadas.push(m));
-    }
-
-    const salonesMarcados = Array.from(document.querySelectorAll(".check-salon:checked")).map((c) => c.value);
-
-    const editando = !!correoOriginalEnEdicion;
-    const soloCorrigiendoDatos = editando && materiasMarcadas.length === 0 && salonesMarcados.length === 0;
-
-    if (!soloCorrigiendoDatos) {
-        if (materiasMarcadas.length === 0) { estadoAsignacion.textContent = "⚠️ Marca al menos una materia."; return; }
-        if (salonesMarcados.length === 0) { estadoAsignacion.textContent = "⚠️ Marca al menos un salón."; return; }
-    }
-
-    estadoAsignacion.textContent = "Guardando...";
-
-    await supabase.from("profesores").upsert(
-        [{ correo_profesor, nombre_profesor, telefono, whatsapp_activo, actualizado_en: new Date().toISOString() }],
-        { onConflict: "correo_profesor" }
-    );
-
-    if (materiasMarcadas.length > 0 && salonesMarcados.length > 0) {
-        // El día/hora ya no se piden aquí (el profesor arma su horario en
-        // "Mi horario"), así que estas filas siempre quedan con dia/hora en
-        // null. Como una comparación de NULL contra NULL en la base de
-        // datos nunca cuenta como "igual", no podemos confiar en el upsert
-        // por conflicto para evitar duplicados: primero revisamos qué
-        // combinaciones materia+salón ya existen (sin día/hora) para este
-        // profesor, y solo insertamos las que faltan.
-        const { data: existentes } = await supabase
-            .from("profesor_materias")
-            .select("materia, salon")
-            .eq("correo_profesor", correo_profesor)
-            .is("dia", null)
-            .is("hora", null);
-
-        const yaExiste = new Set((existentes || []).map((e) => `${e.materia}|||${e.salon}`));
-
-        const filasAInsertar = [];
-        materiasMarcadas.forEach((materia) => {
-            salonesMarcados.forEach((salon) => {
-                const clave = `${materia}|||${salon}`;
-                if (!yaExiste.has(clave)) {
-                    filasAInsertar.push({ correo_profesor, nombre_profesor, materia, salon, dia: null, hora: null });
-                }
-            });
-        });
-
-        if (filasAInsertar.length > 0) {
-            const { error: errInsertar } = await supabase.from("profesor_materias").insert(filasAInsertar);
-            if (errInsertar) {
-                estadoAsignacion.textContent = "❌ Error al guardar: " + errInsertar.message;
-                return;
-            }
-        }
-    }
-
-    estadoAsignacion.textContent = "✅ Guardado exitosamente.";
-    limpiarModoEdicion();
-    cargarListado();
-});
-
-// BOTÓN PARA CARGAR EL HORARIO MASIVO DE SAMUEL ORTEGA
-// (esta carga sí trae día/hora reales porque viene de un horario ya fijo)
-document.getElementById("btnCargarHorarioSamuel")?.addEventListener("click", async () => {
-    const correoMasivo = document.getElementById("inputCorreoMasivo")?.value.trim().toLowerCase();
-    const estadoMasivo = document.getElementById("estadoMasivo");
-
-    if (!correoMasivo) {
-        alert("Escribe primero el correo del profesor Samuel Ortega.");
-        return;
-    }
-
-    if (!confirm(`¿Cargar todo el horario de la imagen para el correo ${correoMasivo}?`)) return;
-
-    estadoMasivo.textContent = "Cargando horario completo...";
-    estadoMasivo.className = "small text-primary";
-
-    const nombre_profesor = "Samuel Ortega";
-
-    await supabase.from("profesores").upsert(
-        [{ correo_profesor: correoMasivo, nombre_profesor, actualizado_en: new Date().toISOString() }],
-        { onConflict: "correo_profesor" }
-    );
-
-    const horarioSamuel = [
-        // Lunes
-        { materia: "Formación Ciudadana", salon: "9C", dia: "Lunes", hora: "12:20" },
-        { materia: "Ciencias Naturales", salon: "9C", dia: "Lunes", hora: "12:55" },
-        { materia: "Ciencias Naturales", salon: "8A", dia: "Lunes", hora: "14:05" },
-        { materia: "Ciencias Naturales", salon: "9B", dia: "Lunes", hora: "15:35" },
-        // Martes
-        { materia: "Ciencias Naturales", salon: "9C", dia: "Martes", hora: "12:20" },
-        { materia: "Ciencias Naturales", salon: "8A", dia: "Martes", hora: "13:30" },
-        { materia: "Ciencias Naturales", salon: "8A", dia: "Martes", hora: "14:05" },
-        { materia: "Ciencias Naturales", salon: "9A", dia: "Martes", hora: "15:35" },
-        { materia: "Ciencias Naturales", salon: "9A", dia: "Martes", hora: "16:10" },
-        // Miércoles
-        { materia: "Ciencias Naturales", salon: "9C", dia: "Miércoles", hora: "12:20" },
-        { materia: "Ciencias Naturales", salon: "9C", dia: "Miércoles", hora: "12:55" },
-        { materia: "Ciencias Naturales", salon: "9B", dia: "Miércoles", hora: "14:05" },
-        { materia: "Ciencias Naturales", salon: "8A", dia: "Miércoles", hora: "15:00" },
-        { materia: "Ciencias Naturales", salon: "9A", dia: "Miércoles", hora: "16:45" },
-        // Jueves
-        { materia: "Ciencias Naturales", salon: "9A", dia: "Jueves", hora: "12:20" },
-        { materia: "Informática", salon: "8A", dia: "Jueves", hora: "13:30" },
-        { materia: "Informática", salon: "8A", dia: "Jueves", hora: "14:05" },
-        { materia: "Ciencias Naturales", salon: "9B", dia: "Jueves", hora: "16:10" },
-        { materia: "Ciencias Naturales", salon: "9B", dia: "Jueves", hora: "16:45" },
-        // Viernes
-        { materia: "Ciencias Naturales", salon: "9A", dia: "Viernes", hora: "12:55" },
-        { materia: "Informática", salon: "8B", dia: "Viernes", hora: "13:30" },
-        { materia: "Informática", salon: "8B", dia: "Viernes", hora: "14:05" },
-        { materia: "Ciencias Naturales", salon: "9B", dia: "Viernes", hora: "15:35" },
-        { materia: "Ciencias Naturales", salon: "8A", dia: "Viernes", hora: "16:10" },
-        { materia: "Ciencias Naturales", salon: "9C", dia: "Viernes", hora: "16:45" }
-    ];
-
-    const filasAInsertar = horarioSamuel.map(b => ({
-        correo_profesor: correoMasivo,
-        nombre_profesor,
-        materia: b.materia,
-        salon: b.salon,
-        dia: b.dia,
-        hora: b.hora
-    }));
-
-    const { error } = await supabase
-        .from("profesor_materias")
-        .upsert(filasAInsertar, { onConflict: "correo_profesor,materia,salon,dia,hora" });
-
-    if (error) {
-        estadoMasivo.textContent = "❌ Error: " + error.message;
-        estadoMasivo.className = "small text-danger";
-    } else {
-        estadoMasivo.textContent = "✅ ¡Horario completo de Samuel Ortega cargado con éxito!";
-        estadoMasivo.className = "small text-success";
-        cargarListado();
-    }
-});
-
-(async function init() {
-    const ok = await verificarAdmin();
-    if (!ok) return;
-    await cargarSalonesDisponibles();
-    await cargarProfesoresDisponibles();
-    cargarListado();
-})();
+</html>
