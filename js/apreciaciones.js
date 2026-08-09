@@ -202,7 +202,7 @@ export async function guardarRangoFechas(materia, trimestre, numeroApreciacion, 
         .update({ fecha_inicio: fechaInicio, fecha_fin: fechaFin, updated_at: new Date().toISOString() })
         .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
     if (error) console.error("No se pudo guardar el rango de fechas:", error);
-    return !error;
+    return { ok: !error, error };
 }
 
 export async function obtenerAsistenciaPorRango(materia, salon, fechaInicio, fechaFin) {
@@ -768,10 +768,15 @@ function pintarModal(estado_) {
     document.getElementById("btnGuardarRangoApreciacion")?.addEventListener("click", async () => {
         const inicio = document.getElementById("inputFechaInicioApreciacion").value;
         const fin = document.getElementById("inputFechaFinApreciacion").value;
-        if (!inicio || !fin) { alert("Elige ambas fechas."); return; }
+        if (!inicio || !fin) { alert("Elige ambas fechas (revisa que el día, mes y año estén completos)."); return; }
         if (inicio > fin) { alert("La fecha 'Desde' no puede ser posterior a 'Hasta'."); return; }
 
-        await guardarRangoFechas(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, inicio, fin);
+        const resultado = await guardarRangoFechas(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, inicio, fin);
+        if (!resultado.ok) {
+            alert("❌ No se pudo guardar el rango de fechas.\n\nMotivo: " + (resultado.error?.message || "desconocido"));
+            return;
+        }
+
         estado_.fechaInicio = inicio;
         estado_.fechaFin = fin;
         estado_.fechaInicioBorrador = null;
