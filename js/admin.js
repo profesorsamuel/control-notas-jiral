@@ -989,7 +989,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const columnasNotas = casillasTabla.map((c, colIndex) => {
                 const claveCas = claveCasilla(c.tipo, c.numero);
                 const n = historialEst[claveCas];
-                const valor = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
+                const valor = (n && n.nota !== null && n.nota !== undefined) ? Number(n.nota).toFixed(1) : "";
 
                 return `
                     <td>
@@ -1121,12 +1121,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         historiaPorEstudiante = {};
         const casillasEncontradas = new Set();
 
-        // Siempre se muestran las 10 casillas de Apreciación y las 10 de Ejercicio,
-        // aunque todavía no tengan ninguna nota registrada.
-        for (let n = 1; n <= 10; n++) {
-            casillasEncontradas.add(claveCasilla("apreciacion", n));
-            casillasEncontradas.add(claveCasilla("ejercicio", n));
-        }
+        // Solo se muestran las casillas que ya tienen alguna nota o un
+        // tema asignado (antes se forzaban siempre las 10 de Apreciación
+        // y las 10 de Ejercicio, aunque estuvieran vacías).
 
         function registrarNotaEnHistorial(clave, n) {
             if (!historiaPorEstudiante[clave]) historiaPorEstudiante[clave] = {};
@@ -1205,6 +1202,130 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     window.cargarGrupoNotas = cargarGrupoNotas;
+
+    // =================================================
+    // IMPRIMIR / EXPORTAR NOTAS EN PDF
+    // =================================================
+
+    const btnImprimirPDF = document.getElementById("btnImprimirPDF");
+
+    function formatearFechaImpresion() {
+        const ahora = new Date();
+        const fecha = ahora.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "numeric" });
+        const hora = ahora.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+        return `${fecha}, ${hora}`;
+    }
+
+    function calcularPromediosFila(historialEst) {
+        const aprValores = casillasTabla
+            .filter((c) => c.tipo === "apreciacion")
+            .map((c) => historialEst[claveCasilla(c.tipo, c.numero)])
+            .filter((n) => n && n.nota !== null && n.nota !== undefined)
+            .map((n) => Number(n.nota));
+
+        const ejeValores = casillasTabla
+            .filter((c) => c.tipo === "ejercicio")
+            .map((c) => historialEst[claveCasilla(c.tipo, c.numero)])
+            .filter((n) => n && n.nota !== null && n.nota !== undefined)
+            .map((n) => Number(n.nota));
+
+        const promApr = aprValores.length > 0 ? aprValores.reduce((a, b) => a + b, 0) / aprValores.length : null;
+        const promEje = ejeValores.length > 0 ? ejeValores.reduce((a, b) => a + b, 0) / ejeValores.length : null;
+
+        let promFinal = null;
+        if (promApr !== null && promEje !== null) promFinal = (promApr + promEje) / 2;
+        else if (promApr !== null) promFinal = promApr;
+        else if (promEje !== null) promFinal = promEje;
+
+        return { promApr, promEje, promFinal };
+    }
+
+    function imprimirPDFGrupo() {
+        if (!grupoActualNotas || grupoActualNotas.length === 0) {
+            alert("⚠️ Primero elige un salón y una materia con estudiantes cargados.");
+            return;
+        }
+
+        if (typeof window.jspdf === "undefined") {
+            alert("⚠️ No se pudo cargar la librería de PDF. Revisa tu conexión e intenta de nuevo.");
+            return;
+        }
+
+        const salon = notasSalon.value;
+        const materia = notasMateria.value.trim();
+        const trimestre = notasTrimestre.value;
+
+        const etiquetaSalon = ETIQUETAS_SALON[salon] || salon;
+        const nombreDocente = MATERIA_A_PROFESOR[materia] || "—";
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: "landscape" });
+
+        doc.setFontSize(14);
+        doc.text("Reporte de notas", 14, 15);
+
+        doc.setFontSize(10);
+        doc.text(`Salón: ${etiquetaSalon}`, 14, 23);
+        doc.text(`Materia: ${materia}`, 14, 29);
+        doc.text(`Profesor(a): ${nombreDocente}`, 14, 35);
+        doc.text(`Trimestre: ${trimestre || "—"}`, 14, 41);
+        doc.text(`Fecha de impresión: ${formatearFechaImpresion()}`, 14, 47);
+
+        const columnas = [
+            "#",
+            "Estudiante",
+            ...casillasTabla.map((c) => etiquetaCasilla(c.tipo, c.numero)),
+            "Prom. Aprec.",
+            "Prom. Ejer.",
+            "Prom. Final"
+        ];
+
+        const filas = grupoActualNotas.map((est, i) => {
+            const historialEst = historiaPorEstudiante[claveEstudiante(est)] || {};
+
+            const valoresCasillas = casillasTabla.map((c) => {
+                const n = historialEst[claveCasilla(c.tipo, c.numero)];
+                return (n && n.nota !== null && n.nota !== undefined) ? Number(n.nota).toFixed(1) : "–";
+            });
+
+            const { promApr, promEje, promFinal } = calcularPromediosFila(historialEst);
+
+            return [
+                i + 1,
+                est.nombre,
+                ...valoresCasillas,
+                promApr !== null ? promApr.toFixed(1) : "–",
+                promEje !== null ? promEje.toFixed(1) : "–",
+                promFinal !== null ? promFinal.toFixed(1) : "–"
+            ];
+        });
+
+        doc.autoTable({
+            head: [columnas],
+            body: filas,
+            startY: 53,
+            styles: { fontSize: 8, halign: "center", cellPadding: 2 },
+            headStyles: { fillColor: [13, 110, 253] },
+            columnStyles: { 1: { halign: "left" } },
+            didParseCell: (data) => {
+                // Resalta en rojo el promedio final de quien está reprobando
+                if (data.section === "body" && data.column.index === columnas.length - 1) {
+                    const valor = parseFloat(data.cell.raw);
+                    if (!isNaN(valor) && valor < PROMEDIO_MINIMO_APROBAR) {
+                        data.cell.styles.textColor = [220, 53, 69];
+                        data.cell.styles.fontStyle = "bold";
+                    }
+                }
+            }
+        });
+
+        const nombreArchivo = `Notas_${etiquetaSalon.replace("°", "")}_${materia.replace(/\s+/g, "_")}_${(trimestre || "").replace(/\s+/g, "_")}.pdf`;
+        doc.save(nombreArchivo);
+    }
+
+    if (btnImprimirPDF) {
+        btnImprimirPDF.addEventListener("click", imprimirPDFGrupo);
+    }
 
     // =================================================
     // GUARDAR NOTAS
