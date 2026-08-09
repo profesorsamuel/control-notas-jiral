@@ -1208,6 +1208,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderListado();
     }
 
+    // Misma cédula "marcador" usada en el panel de admin para señalar
+    // que a un estudiante todavía le falta conseguir su cédula real.
+    const CEDULA_PENDIENTE = "8-123-4567";
+
+    function cedulaEstaPendiente(valor) {
+        const limpio = (valor || "").trim();
+        return !limpio || limpio === CEDULA_PENDIENTE;
+    }
+
     function renderListado() {
         const texto = (buscarListadoEl.value || "").trim().toLowerCase();
 
@@ -1228,14 +1237,21 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        tablaListadoEl.innerHTML = filtrados.map((e) => `
+        tablaListadoEl.innerHTML = filtrados.map((e) => {
+            const pendiente = cedulaEstaPendiente(e.cedula);
+            const celdaCedula = pendiente
+                ? `<td class="text-danger fw-bold" title="Falta conseguir la cédula real">${escapeHtml(e.cedula || "-")}</td>`
+                : `<td>${escapeHtml(e.cedula || "-")}</td>`;
+
+            return `
             <tr>
                 <td>${escapeHtml(e.salon || "-")}</td>
                 <td>${escapeHtml(e.codigo)}</td>
-                <td>${escapeHtml(e.cedula || "-")}</td>
+                ${celdaCedula}
                 <td>${escapeHtml(e.nombre)}</td>
             </tr>
-        `).join("");
+        `;
+        }).join("");
     }
 
     if (buscarListadoEl) buscarListadoEl.addEventListener("input", renderListado);
