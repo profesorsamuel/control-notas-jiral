@@ -1,364 +1,337 @@
-<!DOCTYPE html>
-<html lang="es">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Iniciar sesión | Control de Notas</title>
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="../img/login-favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="../img/login-favicon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../img/login-favicon-16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../img/login-apple-touch-icon.png">
-
-    <!-- Vista previa al compartir el enlace -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Iniciar sesión | Control de Notas - C.E.B.G. El Jiral">
-    <meta property="og:description" content="Accede al sistema de Control de Notas con tu cédula (estudiantes) o correo (consejero).">
-    <meta property="og:image" content="https://notasjiral.netlify.app/img/login-og-image.jpg">
-    <meta property="og:url" content="https://notasjiral.netlify.app/pages/login.html">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://notasjiral.netlify.app/img/login-og-image.jpg">
-
-    <!-- Bootstrap -->
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-    >
-
-    <!-- Font Awesome -->
-    <link
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-        rel="stylesheet"
-    >
-
-    <!-- CSS del proyecto -->
-    <link rel="stylesheet" href="../css/style.css">
-
-</head>
-
-<body class="bg-light">
-
-    <main class="container min-vh-100 d-flex justify-content-center align-items-center py-4">
-
-        <div
-            class="card shadow-lg border-0 p-4 p-md-5"
-            style="max-width: 500px; width: 100%;"
-        >
-
-            <!-- VOLVER A LA PÁGINA PRINCIPAL -->
-            <div class="mb-3">
-                <a href="../pages/inicio.html" class="text-decoration-none">
-                    <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i>
-                    Volver a la página principal
-                </a>
-            </div>
-
-            <!-- ENCABEZADO -->
-            <div class="text-center mb-4">
-
-                <i
-                    class="fa-solid fa-user-lock fa-3x text-primary"
-                    aria-hidden="true"
-                ></i>
-
-                <h1 class="h2 mt-3" id="tituloLogin">
-                    Iniciar sesión
-                </h1>
-
-                <p class="text-muted mb-1" id="subtituloLogin">
-                    Sistema de Control de Notas
-                </p>
-
-                <p class="fw-bold mb-0" id="tituloInstitucion">
-                    C.E.B.G. El Jiral
-                </p>
-
-            </div>
-
-
-            <!-- MENSAJE DE LOGIN -->
-            <div
-                id="mensajeLogin"
-                class="alert d-none"
-                role="alert"
-            ></div>
-
-
-            <!-- FORMULARIO DE LOGIN -->
-            <form id="loginForm">
-
-                <!-- CÉDULA O CORREO -->
-                <div class="mb-3">
-
-                    <label
-                        for="correo"
-                        class="form-label"
-                    >
-                        Cédula
-                    </label>
-
-                    <div class="input-group">
-
-                        <span class="input-group-text">
-                            <i
-                                class="fa-solid fa-id-card"
-                                aria-hidden="true"
-                            ></i>
-                        </span>
-
-                        <input
-                            type="text"
-                            id="correo"
-                            name="correo"
-                            class="form-control"
-                            placeholder="0-000-000"
-                            autocomplete="username"
-                            required
-                        >
-
-                    </div>
-
-                </div>
-
-
-                <!-- CONTRASEÑA -->
-                <div class="mb-3">
-
-                    <label
-                        for="password"
-                        class="form-label"
-                    >
-                        Contraseña
-                    </label>
-
-                    <div class="input-group">
-
-                        <span class="input-group-text">
-                            <i
-                                class="fa-solid fa-lock"
-                                aria-hidden="true"
-                            ></i>
-                        </span>
-
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            class="form-control"
-                            placeholder="Escriba su contraseña"
-                            autocomplete="current-password"
-                            minlength="6"
-                            required
-                        >
-
-                        <button
-                            id="btnMostrarPassword"
-                            type="button"
-                            class="btn btn-outline-secondary"
-                            title="Mostrar u ocultar contraseña"
-                            aria-label="Mostrar u ocultar contraseña"
-                        >
-                            <i
-                                id="iconoPassword"
-                                class="fa-solid fa-eye"
-                                aria-hidden="true"
-                            ></i>
-                        </button>
-
-                    </div>
-
-                </div>
-
-
-                <!-- BOTÓN INGRESAR -->
-                <button
-                    id="btnIngresar"
-                    type="submit"
-                    class="btn btn-primary w-100"
-                >
-
-                    <i
-                        class="fa-solid fa-right-to-bracket me-1"
-                        aria-hidden="true"
-                    ></i>
-
-                    Ingresar
-
-                </button>
-
-            </form>
-
-            <p class="text-center mt-3 mb-0">
-                <a href="#" id="linkOlvidoPassword" class="btn btn-warning btn-sm fw-bold text-decoration-none px-3">
-                    <i class="fa-solid fa-key me-1" aria-hidden="true"></i>
-                    ¿Olvidaste tu contraseña?
-                </a>
-            </p>
-
-
-            <!-- PIE -->
-            <p class="text-center text-muted small mt-4 mb-0">
-                Acceso autorizado para usuarios registrados.
-            </p>
-
-        </div>
-
-    </main>
-
-
-    <!-- MODAL: RECUPERAR CONTRASEÑA -->
-    <div class="modal fade" id="modalOlvidoPassword" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Recuperar contraseña</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                </div>
-
-                <!-- PASO 1: pedir cédula (estudiante) o correo (consejero/profesor) -->
-                <form id="formOlvidoPaso1">
-                    <div class="modal-body">
-                        <p class="text-muted">
-                            Si sos <strong>estudiante</strong>, escribí tu cédula.
-                            Si sos <strong>consejero(a) o profesor(a)</strong>, escribí tu correo.
-                        </p>
-                        <div class="mb-3">
-                            <label for="identificadorRecuperar" class="form-label">Cédula o correo</label>
-                            <input type="text" id="identificadorRecuperar" class="form-control" required>
-                        </div>
-                        <div id="mensajeOlvidoPaso1" class="alert d-none" role="alert"></div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" id="btnContinuarRecuperar" class="btn btn-primary">Continuar</button>
-                    </div>
-                </form>
-
-                <!-- PASO 2 (solo estudiantes): preguntas de seguridad -->
-                <form id="formOlvidoPreguntas" class="d-none">
-                    <div class="modal-body">
-                        <p class="text-muted">Responde tus 3 preguntas de seguridad.</p>
-
-                        <div class="mb-3">
-                            <label class="form-label">📚 ¿Cuál es tu materia favorita?</label>
-                            <input type="text" id="respuesta1" class="form-control" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">🔬 ¿Cuál es tu científico(a) favorito(a)?</label>
-                            <input type="text" id="respuesta2" class="form-control" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">🌍 ¿Cuál es tu país favorito?</label>
-                            <input type="text" id="respuesta3" class="form-control" required>
-                        </div>
-
-                        <hr>
-
-                        <div class="mb-3">
-                            <label for="nuevaPasswordPreguntas" class="form-label">Nueva contraseña</label>
-                            <input type="password" id="nuevaPasswordPreguntas" class="form-control" minlength="6" required autocomplete="new-password">
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="confirmarPasswordPreguntas" class="form-label">Confirmar contraseña</label>
-                            <input type="password" id="confirmarPasswordPreguntas" class="form-control" minlength="6" required autocomplete="new-password">
-                        </div>
-
-                        <div id="mensajeOlvidoPreguntas" class="alert d-none" role="alert"></div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" id="btnCambiarPasswordPreguntas" class="btn btn-primary">Cambiar contraseña</button>
-                    </div>
-                </form>
-
-            </div>
-        </div>
-    </div>
-
-
-    <!-- MODAL: ELEGIR ROL (cuando el correo es admin y consejero a la vez) -->
-    <div class="modal fade" id="modalElegirRol" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">¿Cómo deseas ingresar?</h5>
-                </div>
-                <div class="modal-body">
-                    <p class="text-muted">
-                        Esta cuenta tiene acceso a más de un panel. Elige con cuál
-                        quieres entrar ahora (puedes cambiar de panel más tarde sin
-                        cerrar sesión, desde el botón "Cambiar de panel" arriba en cada pantalla).
-                    </p>
-                    <div class="d-grid gap-2">
-                        <button type="button" id="btnEntrarComoAdmin" class="btn btn-outline-primary">
-                            <i class="fa-solid fa-user-shield me-2"></i>
-                            Entrar como Administrador
-                        </button>
-                        <button type="button" id="btnEntrarComoConsejero" class="btn btn-outline-primary">
-                            <i class="fa-solid fa-chalkboard-user me-2"></i>
-                            Entrar como Consejero(a)
-                            <span id="salonConsejeroBtn"></span>
-                        </button>
-                        <button type="button" id="btnEntrarComoProfesor" class="btn btn-outline-primary">
-                            <i class="fa-solid fa-chalkboard me-2"></i>
-                            Entrar como Profesor(a)
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- ==================================================
-         JAVASCRIPT
-         ==================================================
-
-         IMPORTANTE:
-         login.js importa automáticamente supabase.js.
-
-         NO colocar aquí:
-         - supabase.js
-         - CDN de Supabase
-
-         porque login.js trabaja con módulos ES6.
-    -->
-
-    <!-- Bootstrap JS (necesario para el modal de "olvidé mi contraseña") -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script type="module" src="../js/login.js"></script>
-
-    <!-- Personaliza el saludo cuando se llega desde el botón "DOCENTE" de la página de inicio -->
-    <script>
-        (function () {
-            const parametros = new URLSearchParams(window.location.search);
-            if (parametros.get("rol") !== "profesor") return;
-
-            const titulo = document.getElementById("tituloLogin");
-            const subtitulo = document.getElementById("subtituloLogin");
-            const labelCedula = document.querySelector('label[for="correo"]');
-            const inputCedula = document.getElementById("correo");
-            const linkOlvido = document.getElementById("linkOlvidoPassword");
-            const textoOlvido = document.querySelector("p.text-center.mt-3.mb-0");
-
-            if (titulo) titulo.textContent = "Bienvenido Profesor";
-            if (subtitulo) subtitulo.textContent = "Introduzca su cédula y contraseña";
-            if (labelCedula) labelCedula.textContent = "Cédula";
-            if (inputCedula) inputCedula.placeholder = "0-000-0000";
-            if (linkOlvido) {
-                linkOlvido.innerHTML =
-                    '<i class="fa-solid fa-key me-1" aria-hidden="true"></i> ¿Olvidaste tu cédula o contraseña?';
+import { supabase } from "./supabase.js";
+import { usuarioAEmail } from "./utils.js";
+import { obtenerRolesDeCuenta } from "./roles.js";
+import { registrarEntrada } from "./accesos.js";
+
+// =================================================
+// SELECTOR DE ROL (cuentas con más de una función)
+// =================================================
+//
+// Se muestra cuando el correo que inició sesión tiene más de
+// uno de estos roles: administrador, consejero(a), profesor(a).
+// El usuario elige con cuál panel quiere trabajar en esta sesión.
+// Cada botón se muestra u oculta según los roles que sí tenga.
+
+function mostrarSelectorDeRol({ esAdmin, consejeroInfo, esProfesor, correo }) {
+
+    const modalEl = document.getElementById("modalElegirRol");
+    const btnAdmin = document.getElementById("btnEntrarComoAdmin");
+    const btnConsejero = document.getElementById("btnEntrarComoConsejero");
+    const btnProfesor = document.getElementById("btnEntrarComoProfesor");
+    const salonSpan = document.getElementById("salonConsejeroBtn");
+
+    if (!modalEl || !btnAdmin || !btnConsejero || !btnProfesor) {
+        // Si por alguna razón el modal no existe en el HTML,
+        // se cae al primer rol disponible como comportamiento por defecto.
+        if (esAdmin) { sessionStorage.setItem("rolActivo", "admin"); registrarEntrada(correo, "admin"); window.location.href = "admin.html"; }
+        else if (consejeroInfo) { sessionStorage.setItem("rolActivo", "consejero"); registrarEntrada(correo, "consejero"); window.location.href = "consejero.html"; }
+        else { sessionStorage.setItem("rolActivo", "profesor"); registrarEntrada(correo, "profesor"); window.location.href = "profesor.html"; }
+        return;
+    }
+
+    btnAdmin.classList.toggle("d-none", !esAdmin);
+    btnConsejero.classList.toggle("d-none", !consejeroInfo);
+    btnProfesor.classList.toggle("d-none", !esProfesor);
+
+    if (salonSpan && consejeroInfo && consejeroInfo.salon) {
+        salonSpan.textContent = ` (${consejeroInfo.salon})`;
+    }
+
+    const modal = new bootstrap.Modal(modalEl);
+
+    btnAdmin.addEventListener("click", () => {
+        sessionStorage.setItem("rolActivo", "admin");
+        registrarEntrada(correo, "admin");
+        window.location.href = "admin.html";
+    }, { once: true });
+
+    btnConsejero.addEventListener("click", () => {
+        sessionStorage.setItem("rolActivo", "consejero");
+        registrarEntrada(correo, "consejero");
+        window.location.href = "consejero.html";
+    }, { once: true });
+
+    btnProfesor.addEventListener("click", () => {
+        sessionStorage.setItem("rolActivo", "profesor");
+        registrarEntrada(correo, "profesor");
+        window.location.href = "profesor.html";
+    }, { once: true });
+
+    modal.show();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    const loginForm = document.getElementById("loginForm");
+
+    if (!loginForm) {
+        console.error("❌ No existe el formulario con id='loginForm'");
+        return;
+    }
+
+    // =================================================
+    // LLEGA DESDE "Ver mis notas" (?cedula=...)
+    // =================================================
+    //
+    // Si el enlace ya trae la cédula (por ejemplo desde
+    // consulta.html), se rellena y se bloquea ese campo, se
+    // pone el foco directo en la contraseña, y arriba se
+    // muestra el nombre del estudiante en vez del texto fijo
+    // "C.E.B.G. El Jiral".
+    (async () => {
+        const parametrosUrl = new URLSearchParams(window.location.search);
+        const cedulaDesdeEnlace = parametrosUrl.get("cedula");
+        if (!cedulaDesdeEnlace) return;
+
+        const correoInput = document.getElementById("correo");
+        const passwordInput = document.getElementById("password");
+        const tituloInstitucion = document.getElementById("tituloInstitucion");
+
+        if (correoInput) {
+            correoInput.value = cedulaDesdeEnlace;
+            correoInput.readOnly = true;
+        }
+
+        if (passwordInput) {
+            passwordInput.focus();
+        }
+
+        try {
+            const { data, error } = await supabase.rpc("obtener_estudiante_por_cedula", { p_cedula: cedulaDesdeEnlace });
+            const encontrado = Array.isArray(data) ? data[0] : data;
+
+            if (!error && encontrado?.nombre && tituloInstitucion) {
+                tituloInstitucion.textContent = encontrado.nombre;
             }
-        })();
-    </script>
+        } catch (err) {
+            console.warn("⚠️ No se pudo obtener el nombre del estudiante para el saludo:", err);
+        }
+    })();
 
-</body>
+    loginForm.addEventListener("submit", async (event) => {
 
-</html>
+        event.preventDefault();
+
+        const correoInput = document.getElementById("correo");
+        const passwordInput = document.getElementById("password");
+
+        if (!correoInput || !passwordInput) {
+            console.error("❌ No se encontraron los campos correo/password");
+            alert("❌ Error: faltan campos del formulario.");
+            return;
+        }
+
+        const valorIngresado = correoInput.value.trim();
+        const password = passwordInput.value;
+
+        if (valorIngresado === "" || password === "") {
+            alert("⚠️ Escribe tu cédula (o correo) y tu contraseña.");
+            return;
+        }
+
+        // =================================================
+        // DETECTAR SI ES CÉDULA, USUARIO DE CONSEJERO(A), O CORREO
+        // =================================================
+        //
+        // - Si contiene "@" se asume que es un correo real
+        //   (por ejemplo, la cuenta de un consejero/profesor
+        //   que todavía usa su correo real).
+        // - Si no contiene "@", puede ser:
+        //     (a) una cédula de estudiante, o
+        //     (b) el "usuario" de un consejero(a), ej. "JUANA2026".
+        //   Se prueba primero como cédula; si no se encuentra,
+        //   se prueba como usuario de consejero(a).
+
+        const esCorreoReal = valorIngresado.includes("@");
+
+        let correo;
+
+        if (esCorreoReal) {
+
+            correo = valorIngresado.toLowerCase();
+
+        } else {
+
+            // 1) Se intenta primero como cédula de estudiante
+            const { data: correoEncontrado, error: errBusqueda } =
+                await supabase.rpc("obtener_correo_login", {
+                    p_cedula: valorIngresado
+                });
+
+            if (!errBusqueda && correoEncontrado) {
+
+                correo = correoEncontrado;
+
+            } else {
+
+                // 2) No fue una cédula de estudiante conocida: se revisa
+                // si es la cédula de un profesor(a) ya registrado(a).
+                const { data: profesorPorCedula } = await supabase
+                    .from("profesores")
+                    .select("correo_profesor")
+                    .eq("cedula", valorIngresado)
+                    .maybeSingle();
+
+                if (profesorPorCedula?.correo_profesor) {
+
+                    correo = profesorPorCedula.correo_profesor;
+
+                } else {
+
+                    // 3) Tampoco: se revisa si es el usuario de un
+                    // consejero(a) ya registrado (ej. "JUANA2026").
+                    const { data: consejeroPorUsuario } = await supabase
+                        .from("consejeros")
+                        .select("correo")
+                        .eq("usuario", valorIngresado.toUpperCase())
+                        .maybeSingle();
+
+                    correo = consejeroPorUsuario?.correo
+                        ? consejeroPorUsuario.correo
+                        : usuarioAEmail(valorIngresado); // respaldo por si acaso
+                }
+            }
+        }
+
+        try {
+
+            console.log("🔄 Intentando iniciar sesión...");
+            console.log(
+                esCorreoReal ? "📧 Correo:" : "🪪 Cédula:",
+                valorIngresado
+            );
+
+            const { data, error } =
+                await supabase.auth.signInWithPassword({
+                    email: correo,
+                    password: password
+                });
+
+            if (error) {
+
+                console.error("❌ ERROR DE SUPABASE:");
+                console.error(error);
+
+                alert("❌ " + error.message);
+
+                return;
+            }
+
+            console.log("✅ Inicio de sesión correcto");
+            console.log("👤 Usuario:", data.user);
+
+            /*
+             * ¿QUÉ ROLES TIENE ESTA CUENTA?
+             * Una misma cuenta puede ser admin, consejero(a) y
+             * profesor(a) a la vez (cada rol vive en su propia
+             * tabla: usuarios / consejeros / profesor_materias).
+             * Se revisan los tres antes de decidir a dónde ir.
+             */
+            const { esAdmin, consejeroInfo, esProfesor } =
+                await obtenerRolesDeCuenta(data.user.id, correo);
+
+            console.log("🛡️ Roles detectados:", { esAdmin, consejeroInfo, esProfesor });
+
+            const cantidadRoles = [esAdmin, !!consejeroInfo, esProfesor].filter(Boolean).length;
+
+            /*
+             * DECISIÓN FINAL
+             * - Si tiene MÁS DE UN rol, se le muestra un modal
+             *   para que elija con cuál entrar esta vez.
+             * - Si solo tiene uno, se manda directo a ese panel.
+             * - Si no tiene ninguno, se asume estudiante.
+             */
+            if (cantidadRoles > 1) {
+
+                console.log("🔀 Esta cuenta tiene varios roles. Mostrando selector...");
+
+                mostrarSelectorDeRol({ esAdmin, consejeroInfo, esProfesor, correo });
+
+            } else if (esAdmin) {
+
+                console.log("🛡️ Acceso como administrador");
+
+                sessionStorage.setItem("rolActivo", "admin");
+                registrarEntrada(correo, "admin");
+                window.location.href = "admin.html";
+
+            } else if (consejeroInfo) {
+
+                console.log("👨‍🏫 Acceso como consejero(a) de", consejeroInfo.salon);
+
+                sessionStorage.setItem("rolActivo", "consejero");
+                registrarEntrada(correo, "consejero");
+                window.location.href = "consejero.html";
+
+            } else if (esProfesor) {
+
+                console.log("📝 Acceso como profesor(a)");
+
+                sessionStorage.setItem("rolActivo", "profesor");
+                registrarEntrada(correo, "profesor");
+                window.location.href = "profesor.html";
+
+            } else {
+
+                console.log("👨‍🎓 Acceso como estudiante");
+
+                registrarEntrada(correo, "estudiante");
+
+                const parametrosUrl = new URLSearchParams(window.location.search);
+                const siguientePagina = parametrosUrl.get("next");
+                const destinosPermitidos = ["estudiante.html", "datos.html"];
+
+                window.location.href = destinosPermitidos.includes(siguientePagina)
+                    ? siguientePagina
+                    : "estudiante.html";
+            }
+
+        } catch (error) {
+
+            console.error("❌ ERROR INESPERADO:");
+            console.error(error);
+
+            alert(
+                "❌ Error al iniciar sesión: " +
+                (error.message || "Error desconocido")
+            );
+        }
+
+    });
+
+    // =================================================
+    // RECUPERAR CONTRASEÑA (¿Olvidaste tu contraseña?)
+    // =================================================
+    //
+    // Dos caminos posibles, según lo que la persona escriba
+    // en el Paso 1:
+    //   - Si escribe un CORREO (contiene "@"): se asume que es
+    //     consejero(a)/profesor(a) y se manda el enlace de
+    //     Supabase por correo (como ya funcionaba antes).
+    //   - Si escribe una CÉDULA (sin "@"): se asume estudiante,
+    //     se le muestran sus 3 preguntas de seguridad y, si las
+    //     responde bien, puede escribir una contraseña nueva ahí
+    //     mismo (sin necesitar correo real).
+
+    const linkOlvido = document.getElementById("linkOlvidoPassword");
+    const modalEl = document.getElementById("modalOlvidoPassword");
+
+    const formPaso1 = document.getElementById("formOlvidoPaso1");
+    const inputIdentificador = document.getElementById("identificadorRecuperar");
+    const mensajePaso1 = document.getElementById("mensajeOlvidoPaso1");
+    const btnContinuarRecuperar = document.getElementById("btnContinuarRecuperar");
+
+    const formPreguntas = document.getElementById("formOlvidoPreguntas");
+    const mensajePreguntas = document.getElementById("mensajeOlvidoPreguntas");
+    const btnCambiarPasswordPreguntas = document.getElementById("btnCambiarPasswordPreguntas");
+
+    let modalOlvido = null;
+    let correoParaPreguntas = null; // se guarda entre el paso 1 y el paso 2
+
+    function mostrarMensaje(elemento, texto, tipo) {
+        elemento.textContent = texto;
+        elemento.className = `alert alert-${tipo}`;
+    }
+
+    function volverAlPaso1() {
+        formPreguntas.classList.add("d-none");
