@@ -38,14 +38,40 @@
     .lista-tareas { padding: 16px 24px; }
     .tarjeta-tarea {
         border: 1px solid #eee; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
-        display: flex; flex-direction: column; gap: 6px;
+        display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: box-shadow .15s;
     }
+    .tarjeta-tarea:hover { box-shadow: 0 4px 14px rgba(0,0,0,.12); }
     .tarjeta-tarea h3 { font-size: 1.02rem; margin: 0; color: #2f3ea3; }
     .tarjeta-tarea .meta { font-size: .82rem; color: #666; }
     .barra-progreso { background: #eee; border-radius: 6px; overflow: hidden; height: 10px; margin-top: 4px; }
     .barra-progreso .relleno { background: #28a745; height: 100%; }
     .fila-acciones-tarea { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
     #estadoTareas { text-align: center; padding: 6px 24px 16px; font-size: .85rem; min-height: 20px; }
+
+    /* ===== Modal de detalle ===== */
+    .overlay-detalle {
+        display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+        align-items: center; justify-content: center; z-index: 1000; padding: 16px;
+    }
+    .overlay-detalle.mostrar { display: flex; }
+    .caja-detalle {
+        background: #fff; border-radius: 16px; max-width: 560px; width: 100%;
+        max-height: 85vh; overflow-y: auto; padding: 20px 22px;
+    }
+    .caja-detalle h2 { font-size: 1.1rem; color: #2f3ea3; margin-bottom: 4px; }
+    .caja-detalle .subt { font-size: .82rem; color: #666; margin-bottom: 14px; }
+    .fila-estudiante {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        padding: 8px 0; border-bottom: 1px solid #f0f0f0;
+    }
+    .fila-estudiante .nombre { font-size: .9rem; }
+    .fila-estudiante select {
+        padding: 4px 8px; border-radius: 8px; border: 1px solid #ddd; font-size: .82rem;
+    }
+    .badge-pendiente { color: #b8860b; }
+    .badge-en_progreso { color: #2f7bd1; }
+    .badge-terminada { color: #28a745; }
+    .cerrar-detalle { float: right; }
 </style>
 </head>
 <body>
@@ -94,6 +120,19 @@
     </div>
 
     <div id="estadoTareas"></div>
+</div>
+
+<!-- ===== Modal de detalle por tarea ===== -->
+<div class="overlay-detalle" id="overlayDetalle">
+    <div class="caja-detalle">
+        <button class="btn btn-sm btn-outline-secondary cerrar-detalle" id="btnCerrarDetalle">✕ Cerrar</button>
+        <h2 id="detalleTitulo">Tarea</h2>
+        <div class="subt" id="detalleSubt"></div>
+        <div id="detalleLista">
+            <p class="text-center text-muted py-3">Cargando estudiantes...</p>
+        </div>
+        <div id="estadoDetalle" style="text-align:center; padding-top:8px; font-size:.85rem;"></div>
+    </div>
 </div>
 
 <script type="module" src="../js/tareas.js"></script>
