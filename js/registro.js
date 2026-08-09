@@ -775,6 +775,7 @@ async function registrarProfesor(password) {
     const correoPendiente = nombreProfesorSelect.selectedOptions?.[0]?.dataset?.correo || "";
     const cedula = document.getElementById("cedulaProfesor").value.trim();
     const telefono = document.getElementById("telefonoProfesor").value.trim();
+    const fechaNacimiento = document.getElementById("fechaNacimientoProfesor").value || null;
     const correoMeduca = document.getElementById("correoMeducaProfesor").value.trim().toLowerCase();
     const correoPersonal = document.getElementById("correoPersonalProfesor").value.trim().toLowerCase();
 
@@ -847,6 +848,7 @@ async function registrarProfesor(password) {
             nombre_profesor: nombre,
             cedula,
             telefono: telefono || null,
+            fecha_nacimiento: fechaNacimiento,
             correo_meduca: correoMeduca || null,
             correo_personal: correoPersonal || null,
             registrado: true,
