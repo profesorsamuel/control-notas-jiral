@@ -1,167 +1,361 @@
-<!DOCTYPE html>
-<html lang="es">
+import { supabase } from "./supabase.js";
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asignaciones de Profesores</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f7fa; }
-        h1 { color: #1f4e79; }
-        .panel-blanco { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
-        .tarjeta-profesor { background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-        .tarjeta-profesor h3 { font-size: 1.05rem; color: #1f4e79; margin-bottom: 8px; }
-        .fila-materia { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
-        .fila-materia:last-child { border-bottom: none; }
-        .grupo-checks { display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 10px 12px; border: 1px solid #dee2e6; border-radius: 6px; background: #fafbfc; }
-        .grupo-checks .form-check { margin-bottom: 0; }
-        .subtitulo-campo { font-weight: bold; font-size: .9rem; margin-bottom: 6px; display: block; }
-    </style>
-</head>
+function escapeHtml(str) {
+    return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
 
-<body>
+async function verificarAdmin() {
+    const { data: { user }, error: errUser } = await supabase.auth.getUser();
+    if (errUser || !user) { window.location.href = "login.html"; return false; }
 
-    <h1>📋 Asignaciones de Profesores</h1>
-    <p>
-        <a href="admin.html">&larr; Volver al panel de administración</a>
-        &nbsp;·&nbsp;
-        <a href="profesores.html"><i class="fa-solid fa-address-book"></i> Ver directorio completo de profesores</a>
-    </p>
+    const { data: perfil, error: errPerfil } = await supabase
+        .from("usuarios")
+        .select("rol")
+        .eq("auth_user_id", user.id)
+        .single();
 
-    <!-- CARGA RÁPIDA DE HORARIO COMPLETO (SAMUEL ORTEGA Y OTROS) -->
-    <div class="panel-blanco border-start border-4 border-primary">
-        <h2 class="h5" style="color:#1f4e79;"><i class="fa-solid fa-bolt text-warning me-1"></i> Cargar Horario Masivo</h2>
-        <p class="small text-muted">Carga automáticamente las 24 horas semanales de un docente de forma rápida.</p>
-        <div class="row g-2 align-items-end">
-            <div class="col-md-5">
-                <label class="form-label small fw-bold">Correo del profesor en el sistema</label>
-                <input type="email" id="inputCorreoMasivo" class="form-control" placeholder="ejemplo@jiral.edu.pa">
-            </div>
-            <div class="col-md-4">
-                <button type="button" id="btnCargarHorarioSamuel" class="btn btn-success w-100">
-                    <i class="fa-solid fa-calendar-check me-1"></i> Cargar Horario de Samuel Ortega
-                </button>
-            </div>
+    if (errPerfil || !perfil || perfil.rol !== "admin") {
+        alert("⛔ No tienes permisos de administrador.");
+        window.location.href = "login.html";
+        return false;
+    }
+    return true;
+}
+
+// =====================================================
+// SALONES: se cargan desde la tabla "salones" (administrable
+// en salones.html) en vez de venir fijos en el HTML.
+// =====================================================
+const grupoSalonesCheckboxes = document.getElementById("grupoSalones");
+
+async function cargarSalonesDisponibles() {
+    if (!grupoSalonesCheckboxes) return;
+
+    const { data: salones, error } = await supabase
+        .from("salones")
+        .select("codigo, nombre_visible")
+        .eq("activo", true)
+        .order("orden", { ascending: true });
+
+    if (error) {
+        grupoSalonesCheckboxes.innerHTML = `<span class="text-danger small">No se pudieron cargar los salones: ${escapeHtml(error.message)}</span>`;
+        return;
+    }
+
+    if (!salones || salones.length === 0) {
+        grupoSalonesCheckboxes.innerHTML = `<span class="text-muted small">Todavía no hay salones creados. <a href="salones.html">Crear el primero</a>.</span>`;
+        return;
+    }
+
+    grupoSalonesCheckboxes.innerHTML = salones.map((s) => `
+        <div class="form-check">
+            <input class="form-check-input check-salon" type="checkbox" value="${escapeHtml(s.codigo)}" id="sal-${escapeHtml(s.codigo)}">
+            <label class="form-check-label" for="sal-${escapeHtml(s.codigo)}">${escapeHtml(s.nombre_visible)}</label>
         </div>
-        <div id="estadoMasivo" class="small mt-2"></div>
-    </div>
+    `).join("");
+}
 
-    <!-- FORMULARIO INDIVIDUAL EXISTENTE -->
-    <div class="panel-blanco">
-        <h2 class="h5" style="color:#1f4e79;">Agregar asignación manual</h2>
-        <form id="formAsignacion">
+const formAsignacion = document.getElementById("formAsignacion");
+const estadoAsignacion = document.getElementById("estadoAsignacion");
+const listadoProfesores = document.getElementById("listadoProfesores");
+const inputCorreo = document.getElementById("inputCorreoProfesor");
+const inputNombre = document.getElementById("inputNombreProfesor");
+const inputTelefono = document.getElementById("inputTelefonoProfesor");
+const checkWhatsapp = document.getElementById("checkWhatsapp");
+const selectDiaAsignacion = document.getElementById("selectDiaAsignacion");
+const inputHoraAsignacion = document.getElementById("inputHoraAsignacion");
 
-            <div class="row g-2">
-                <div class="col-md-4">
-                    <label class="form-label small fw-bold">Correo del profesor</label>
-                    <input type="email" id="inputCorreoProfesor" class="form-control" placeholder="profesor@ejemplo.com" required>
+function formatearHora12(horaTexto) {
+    if (!horaTexto) return "";
+    const [h, m] = horaTexto.split(":");
+    const fecha = new Date();
+    fecha.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+    return fecha.toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" });
+}
+
+let correoOriginalEnEdicion = null;
+
+function limpiarModoEdicion() {
+    correoOriginalEnEdicion = null;
+    formAsignacion.reset();
+    if (selectDiaAsignacion) selectDiaAsignacion.value = "";
+    const aviso = document.getElementById("avisoEdicion");
+    if (aviso) aviso.remove();
+}
+
+function entrarModoEdicion(prof) {
+    correoOriginalEnEdicion = prof.correo;
+    inputCorreo.value = prof.correo;
+    inputNombre.value = prof.nombre;
+    if (prof.telefono) inputTelefono.value = prof.telefono;
+
+    document.querySelectorAll(".check-materia").forEach((c) => (c.checked = false));
+    document.querySelectorAll(".check-salon").forEach((c) => (c.checked = false));
+
+    let aviso = document.getElementById("avisoEdicion");
+    if (!aviso) {
+        aviso = document.createElement("div");
+        aviso.id = "avisoEdicion";
+        aviso.className = "small ms-2 text-primary mt-2";
+        formAsignacion.appendChild(aviso);
+    }
+    aviso.innerHTML = `✎ Editando a <strong>${escapeHtml(prof.nombre)}</strong>. <a href="#" id="cancelarEdicion">Cancelar edición</a>`;
+
+    document.getElementById("cancelarEdicion")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        limpiarModoEdicion();
+    });
+
+    formAsignacion.scrollIntoView({ behavior: "smooth" });
+}
+
+async function cargarListado() {
+    if (!listadoProfesores) return;
+    listadoProfesores.innerHTML = "Cargando...";
+
+    const { data, error } = await supabase
+        .from("profesor_materias")
+        .select("id, correo_profesor, nombre_profesor, materia, salon, dia, hora")
+        .order("nombre_profesor", { ascending: true });
+
+    if (error) {
+        listadoProfesores.innerHTML = `<p class="text-danger">Error al cargar: ${escapeHtml(error.message)}</p>`;
+        return;
+    }
+
+    const { data: dataProfesores } = await supabase
+        .from("profesores")
+        .select("correo_profesor, telefono, whatsapp_activo");
+
+    const telefonosPorCorreo = {};
+    (dataProfesores || []).forEach((p) => { telefonosPorCorreo[p.correo_profesor] = p; });
+
+    if (!data || data.length === 0) {
+        listadoProfesores.innerHTML = `<p class="text-muted">Todavía no hay asignaciones registradas.</p>`;
+        return;
+    }
+
+    const porProfesor = {};
+    data.forEach((fila) => {
+        const clave = fila.correo_profesor;
+        if (!porProfesor[clave]) {
+            porProfesor[clave] = {
+                nombre: fila.nombre_profesor,
+                correo: fila.correo_profesor,
+                telefono: telefonosPorCorreo[clave]?.telefono || "",
+                materias: {},
+            };
+        }
+        if (!porProfesor[clave].materias[fila.materia]) porProfesor[clave].materias[fila.materia] = [];
+        porProfesor[clave].materias[fila.materia].push({ salon: fila.salon, id: fila.id, dia: fila.dia, hora: fila.hora });
+    });
+
+    listadoProfesores.innerHTML = Object.values(porProfesor).map((prof) => {
+        const filasMaterias = Object.entries(prof.materias).map(([materia, salones]) => `
+            <div class="fila-materia">
+                <div>
+                    <strong>${escapeHtml(materia)}:</strong>
+                    ${salones.map((s) => {
+                        const horario = s.dia ? ` <span class="text-muted">(${escapeHtml(s.dia)}${s.hora ? " · " + escapeHtml(formatearHora12(s.hora)) : ""})</span>` : "";
+                        return `${escapeHtml(s.salon)}${horario}`;
+                    }).join(", ")}
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label small fw-bold">Nombre del profesor</label>
-                    <input type="text" id="inputNombreProfesor" class="form-control" placeholder="Samuel Ortega" required>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label small fw-bold">Teléfono (WhatsApp)</label>
-                    <input type="tel" id="inputTelefonoProfesor" class="form-control" placeholder="6123-4567">
+                <div>
+                    ${salones.map((s) => `<button class="btn btn-sm btn-outline-danger btn-eliminar-asignacion" data-id="${s.id}" title="Quitar ${escapeHtml(s.salon)}">✕ ${escapeHtml(s.salon)}</button>`).join(" ")}
                 </div>
             </div>
+        `).join("");
 
-            <div class="form-check mt-2">
-                <input class="form-check-input" type="checkbox" id="checkWhatsapp">
-                <label class="form-check-label" for="checkWhatsapp">
-                    <i class="fa-brands fa-whatsapp text-success"></i>
-                    Activar para WhatsApp (permite generar un enlace directo para escribirle)
-                </label>
+        return `
+            <div class="tarjeta-profesor" data-correo="${escapeHtml(prof.correo)}">
+                <div class="d-flex justify-content-between align-items-start flex-wrap">
+                    <h3>${escapeHtml(prof.nombre)} <span class="text-muted small">(${escapeHtml(prof.correo)})</span></h3>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary btn-editar-profesor">✎ Editar</button>
+                        <button class="btn btn-sm btn-outline-danger btn-eliminar-profesor">🗑 Eliminar profesor</button>
+                    </div>
+                </div>
+                ${filasMaterias}
             </div>
+        `;
+    }).join("");
 
-            <hr>
+    listadoProfesores.querySelectorAll(".btn-eliminar-asignacion").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            if (!confirm("¿Quitar esta asignación?")) return;
+            const { error: errDel } = await supabase.from("profesor_materias").delete().eq("id", btn.dataset.id);
+            if (errDel) { alert("Error al eliminar: " + errDel.message); return; }
+            cargarListado();
+        });
+    });
 
-            <label class="subtitulo-campo">Materias que dicta (puedes marcar varias)</label>
-            <div class="grupo-checks mb-2" id="grupoMaterias">
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Español" id="mat-espanol">
-                    <label class="form-check-label" for="mat-espanol">Español</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Matemática" id="mat-matematica">
-                    <label class="form-check-label" for="mat-matematica">Matemática</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Ciencias Naturales" id="mat-ciencias">
-                    <label class="form-check-label" for="mat-ciencias">Ciencias Naturales</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Estudios Sociales" id="mat-sociales">
-                    <label class="form-check-label" for="mat-sociales">Estudios Sociales</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Inglés" id="mat-ingles">
-                    <label class="form-check-label" for="mat-ingles">Inglés</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Informática" id="mat-informatica">
-                    <label class="form-check-label" for="mat-informatica">Informática</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Educación Física" id="mat-fisica">
-                    <label class="form-check-label" for="mat-fisica">Educación Física</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Educación Artística" id="mat-artistica">
-                    <label class="form-check-label" for="mat-artistica">Educación Artística</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Formación Ciudadana" id="mat-ciudadana">
-                    <label class="form-check-label" for="mat-ciudadana">Formación Ciudadana</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Religión" id="mat-religion">
-                    <label class="form-check-label" for="mat-religion">Religión, Moral y Valores</label>
-                </div>
-            </div>
-            <input type="text" id="inputOtraMateria" class="form-control mb-3" placeholder="¿Otra materia que no está en la lista? Escríbela aquí">
+    listadoProfesores.querySelectorAll(".btn-editar-profesor").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const correo = btn.closest(".tarjeta-profesor").dataset.correo;
+            const prof = porProfesor[correo];
+            entrarModoEdicion(prof);
+        });
+    });
 
-            <div class="row g-2 mb-3">
-                <div class="col-md-4">
-                    <label class="form-label small fw-bold">Día de clase</label>
-                    <select id="selectDiaAsignacion" class="form-select">
-                        <option value="">Seleccione un día</option>
-                        <option value="Lunes">Lunes</option>
-                        <option value="Martes">Martes</option>
-                        <option value="Miércoles">Miércoles</option>
-                        <option value="Jueves">Jueves</option>
-                        <option value="Viernes">Viernes</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label small fw-bold">Hora de clase</label>
-                    <input type="time" id="inputHoraAsignacion" class="form-control">
-                </div>
-            </div>
+    listadoProfesores.querySelectorAll(".btn-eliminar-profesor").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const correo = btn.closest(".tarjeta-profesor").dataset.correo;
+            const prof = porProfesor[correo];
+            if (!confirm(`¿Eliminar por completo a "${prof.nombre}" (${correo})?`)) return;
 
-            <label class="subtitulo-campo">
-                Salones donde da clase (puedes marcar varios)
-                &nbsp;·&nbsp;
-                <a href="salones.html" class="small">Administrar lista de salones</a>
-            </label>
-            <div class="grupo-checks mb-3" id="grupoSalones">
-                <span class="text-muted small">Cargando salones...</span>
-            </div>
+            await supabase.from("profesor_materias").delete().eq("correo_profesor", correo);
+            await supabase.from("profesores").delete().eq("correo_profesor", correo);
 
-            <button type="submit" class="btn btn-primary">➕ Guardar asignación</button>
-            <span id="estadoAsignacion" class="small ms-2"></span>
-        </form>
-    </div>
+            if (correoOriginalEnEdicion === correo) limpiarModoEdicion();
+            cargarListado();
+        });
+    });
+}
 
-    <div class="panel-blanco">
-        <h2 class="h5" style="color:#1f4e79;">Listado por profesor</h2>
-        <div id="listadoProfesores">Cargando...</div>
-    </div>
+formAsignacion?.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-    <script type="module" src="../js/asignaciones.js"></script>
+    const correo_profesor = inputCorreo.value.trim().toLowerCase();
+    const nombre_profesor = inputNombre.value.trim();
+    const telefono = inputTelefono.value.trim();
+    const whatsapp_activo = checkWhatsapp.checked;
 
-</body>
+    const materiasMarcadas = Array.from(document.querySelectorAll(".check-materia:checked")).map((c) => c.value);
+    const otraMateria = document.getElementById("inputOtraMateria")?.value.trim();
+    if (otraMateria) {
+        otraMateria.split(",").map((m) => m.trim()).filter(Boolean).forEach((m) => materiasMarcadas.push(m));
+    }
 
-</html>
+    const salonesMarcados = Array.from(document.querySelectorAll(".check-salon:checked")).map((c) => c.value);
+    const diaSeleccionado = selectDiaAsignacion ? selectDiaAsignacion.value : "";
+    const horaSeleccionada = inputHoraAsignacion ? inputHoraAsignacion.value : "";
+
+    const editando = !!correoOriginalEnEdicion;
+    const soloCorrigiendoDatos = editando && materiasMarcadas.length === 0 && salonesMarcados.length === 0;
+
+    if (!soloCorrigiendoDatos) {
+        if (materiasMarcadas.length === 0) { estadoAsignacion.textContent = "⚠️ Marca al menos una materia."; return; }
+        if (salonesMarcados.length === 0) { estadoAsignacion.textContent = "⚠️ Marca al menos un salón."; return; }
+        if (!diaSeleccionado) { estadoAsignacion.textContent = "⚠️ Selecciona el día de clase."; return; }
+        if (!horaSeleccionada) { estadoAsignacion.textContent = "⚠️ Selecciona la hora de clase."; return; }
+    }
+
+    estadoAsignacion.textContent = "Guardando...";
+
+    await supabase.from("profesores").upsert(
+        [{ correo_profesor, nombre_profesor, telefono, whatsapp_activo, actualizado_en: new Date().toISOString() }],
+        { onConflict: "correo_profesor" }
+    );
+
+    if (materiasMarcadas.length > 0 && salonesMarcados.length > 0) {
+        const filasAInsertar = [];
+        materiasMarcadas.forEach((materia) => {
+            salonesMarcados.forEach((salon) => {
+                filasAInsertar.push({
+                    correo_profesor,
+                    nombre_profesor,
+                    materia,
+                    salon,
+                    dia: diaSeleccionado || null,
+                    hora: horaSeleccionada || null,
+                });
+            });
+        });
+
+        await supabase.from("profesor_materias").upsert(filasAInsertar, { onConflict: "correo_profesor,materia,salon,dia,hora" });
+    }
+
+    estadoAsignacion.textContent = "✅ Guardado exitosamente.";
+    limpiarModoEdicion();
+    cargarListado();
+});
+
+// BOTÓN PARA CARGAR EL HORARIO MASIVO DE SAMUEL ORTEGA
+document.getElementById("btnCargarHorarioSamuel")?.addEventListener("click", async () => {
+    const correoMasivo = document.getElementById("inputCorreoMasivo")?.value.trim().toLowerCase();
+    const estadoMasivo = document.getElementById("estadoMasivo");
+
+    if (!correoMasivo) {
+        alert("Escribe primero el correo del profesor Samuel Ortega.");
+        return;
+    }
+
+    if (!confirm(`¿Cargar todo el horario de la imagen para el correo ${correoMasivo}?`)) return;
+
+    estadoMasivo.textContent = "Cargando horario completo...";
+    estadoMasivo.className = "small text-primary";
+
+    const nombre_profesor = "Samuel Ortega";
+
+    await supabase.from("profesores").upsert(
+        [{ correo_profesor: correoMasivo, nombre_profesor, actualizado_en: new Date().toISOString() }],
+        { onConflict: "correo_profesor" }
+    );
+
+    const horarioSamuel = [
+        // Lunes
+        { materia: "Formación Ciudadana", salon: "9C", dia: "Lunes", hora: "12:20" },
+        { materia: "Ciencias Naturales", salon: "9C", dia: "Lunes", hora: "12:55" },
+        { materia: "Ciencias Naturales", salon: "8A", dia: "Lunes", hora: "14:05" },
+        { materia: "Ciencias Naturales", salon: "9B", dia: "Lunes", hora: "15:35" },
+        // Martes
+        { materia: "Ciencias Naturales", salon: "9C", dia: "Martes", hora: "12:20" },
+        { materia: "Ciencias Naturales", salon: "8A", dia: "Martes", hora: "13:30" },
+        { materia: "Ciencias Naturales", salon: "8A", dia: "Martes", hora: "14:05" },
+        { materia: "Ciencias Naturales", salon: "9A", dia: "Martes", hora: "15:35" },
+        { materia: "Ciencias Naturales", salon: "9A", dia: "Martes", hora: "16:10" },
+        // Miércoles
+        { materia: "Ciencias Naturales", salon: "9C", dia: "Miércoles", hora: "12:20" },
+        { materia: "Ciencias Naturales", salon: "9C", dia: "Miércoles", hora: "12:55" },
+        { materia: "Ciencias Naturales", salon: "9B", dia: "Miércoles", hora: "14:05" },
+        { materia: "Ciencias Naturales", salon: "8A", dia: "Miércoles", hora: "15:00" },
+        { materia: "Ciencias Naturales", salon: "9A", dia: "Miércoles", hora: "16:45" },
+        // Jueves
+        { materia: "Ciencias Naturales", salon: "9A", dia: "Jueves", hora: "12:20" },
+        { materia: "Informática", salon: "8A", dia: "Jueves", hora: "13:30" },
+        { materia: "Informática", salon: "8A", dia: "Jueves", hora: "14:05" },
+        { materia: "Ciencias Naturales", salon: "9B", dia: "Jueves", hora: "16:10" },
+        { materia: "Ciencias Naturales", salon: "9B", dia: "Jueves", hora: "16:45" },
+        // Viernes
+        { materia: "Ciencias Naturales", salon: "9A", dia: "Viernes", hora: "12:55" },
+        { materia: "Informática", salon: "8B", dia: "Viernes", hora: "13:30" },
+        { materia: "Informática", salon: "8B", dia: "Viernes", hora: "14:05" },
+        { materia: "Ciencias Naturales", salon: "9B", dia: "Viernes", hora: "15:35" },
+        { materia: "Ciencias Naturales", salon: "8A", dia: "Viernes", hora: "16:10" },
+        { materia: "Ciencias Naturales", salon: "9C", dia: "Viernes", hora: "16:45" }
+    ];
+
+    const filasAInsertar = horarioSamuel.map(b => ({
+        correo_profesor: correoMasivo,
+        nombre_profesor,
+        materia: b.materia,
+        salon: b.salon,
+        dia: b.dia,
+        hora: b.hora
+    }));
+
+    const { error } = await supabase
+        .from("profesor_materias")
+        .upsert(filasAInsertar, { onConflict: "correo_profesor,materia,salon,dia,hora" });
+
+    if (error) {
+        estadoMasivo.textContent = "❌ Error: " + error.message;
+        estadoMasivo.className = "small text-danger";
+    } else {
+        estadoMasivo.textContent = "✅ ¡Horario completo de Samuel Ortega cargado con éxito!";
+        estadoMasivo.className = "small text-success";
+        cargarListado();
+    }
+});
+
+(async function init() {
+    const ok = await verificarAdmin();
+    if (!ok) return;
+    await cargarSalonesDisponibles();
+    cargarListado();
+})();
