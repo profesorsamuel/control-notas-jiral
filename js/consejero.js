@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const { data: consejerosData, error: errConsejero } = await supabase
         .from("consejeros")
-        .select("salon, nombre, correo, rol");
+        .select("salon, nombre, correo, rol, puede_editar_horario");
 
     console.log("📋 Consejeros encontrados en la tabla:", consejerosData, "Error:", errConsejero);
 
@@ -108,6 +108,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (navbarProfesorNombreEl) {
         navbarProfesorNombreEl.textContent = consejeroInfo.nombre || "Consejero(a)";
+    }
+
+    const enlaceHorarioSalonEl = document.getElementById("enlaceHorarioSalonConsejero");
+    if (enlaceHorarioSalonEl && consejeroInfo.puede_editar_horario) {
+        enlaceHorarioSalonEl.innerHTML =
+            `<a href="horario_salon.html" class="btn btn-outline-primary btn-sm">
+                <i class="fa-solid fa-calendar-week me-1"></i> Horario de ${escapeHtml(salonActual)}
+            </a>`;
     }
 
     // =====================================================
