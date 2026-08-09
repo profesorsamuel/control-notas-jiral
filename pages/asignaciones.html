@@ -8,156 +8,250 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f7fa; }
-        h1 { color: #1f4e79; }
-        .panel-blanco { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
-        .tarjeta-profesor { background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-        .tarjeta-profesor h3 { font-size: 1.05rem; color: #1f4e79; margin-bottom: 8px; }
-        .fila-materia { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            padding: 24px 16px 60px;
+            background: #eef1f6;
+        }
+
+        .encabezado-pagina {
+            max-width: 1000px;
+            margin: 0 auto 20px;
+        }
+
+        .encabezado-pagina h1 {
+            color: #1f4e79;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .encabezado-pagina .enlaces-nav a {
+            color: #1f4e79;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: .9rem;
+        }
+
+        .encabezado-pagina .enlaces-nav a:hover { text-decoration: underline; }
+
+        .contenedor { max-width: 1000px; margin: 0 auto; }
+
+        .panel-blanco {
+            background: white;
+            padding: 22px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 14px rgba(20, 40, 70, .08);
+        }
+
+        .panel-titulo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1f4e79;
+            margin-bottom: 4px;
+        }
+
+        .panel-icono {
+            width: 34px; height: 34px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; flex-shrink: 0;
+        }
+
+        .panel-masivo .panel-icono { background: #fff3cd; color: #b8860b; }
+        .panel-manual .panel-icono { background: #e8ecfb; color: #2f3ea3; }
+        .panel-listado .panel-icono { background: #e3f3ea; color: #198754; }
+
+        .panel-subtexto { color: #6c757d; font-size: .85rem; margin-bottom: 16px; }
+
+        .subtitulo-campo {
+            font-weight: 700; font-size: .88rem; margin-bottom: 8px; display: block;
+            color: #333;
+        }
+
+        /* ---- Chips para materias / salones ---- */
+        .grupo-chips {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            padding: 12px; border-radius: 10px; background: #f6f8fb;
+            border: 1px solid #e3e8ef;
+        }
+
+        .chip-check { position: absolute; opacity: 0; width: 0; height: 0; }
+
+        .chip-check + label {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 7px 14px; border-radius: 20px;
+            border: 1.5px solid #d7dee6; background: #fff;
+            font-size: .85rem; color: #444; cursor: pointer; user-select: none;
+            transition: all .15s ease; margin: 0;
+        }
+
+        .chip-check + label:hover { border-color: #9fb4d6; }
+
+        .chip-materias .chip-check:checked + label {
+            background: #1f4e79; border-color: #1f4e79; color: #fff;
+        }
+
+        .chip-salones .chip-check:checked + label {
+            background: #198754; border-color: #198754; color: #fff;
+        }
+
+        /* ---- Selector de profesor ---- */
+        .caja-profesor {
+            background: #f6f8fb; border: 1px solid #e3e8ef; border-radius: 10px;
+            padding: 14px; margin-bottom: 16px;
+        }
+
+        .input-autofill:disabled, .input-autofill[readonly] {
+            background: #eef2f7; color: #444;
+        }
+
+        .aviso-profesor-nuevo {
+            font-size: .78rem; color: #a0631a; margin-top: 4px;
+        }
+
+        /* ---- Listado ---- */
+        .tarjeta-profesor {
+            background: #fff; padding: 16px 18px; border-radius: 12px;
+            margin-bottom: 12px; border: 1px solid #eef0f4;
+            box-shadow: 0 1px 5px rgba(20, 40, 70, .05);
+        }
+
+        .tarjeta-profesor h3 { font-size: 1.05rem; color: #1f4e79; margin-bottom: 2px; }
+
+        .fila-materia {
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 6px;
+            padding: 7px 0; border-bottom: 1px solid #f2f3f6;
+        }
+
         .fila-materia:last-child { border-bottom: none; }
-        .grupo-checks { display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 10px 12px; border: 1px solid #dee2e6; border-radius: 6px; background: #fafbfc; }
-        .grupo-checks .form-check { margin-bottom: 0; }
-        .subtitulo-campo { font-weight: bold; font-size: .9rem; margin-bottom: 6px; display: block; }
+
+        .etiqueta-materia {
+            display: inline-block; background: #eef1fa; color: #1f4e79;
+            font-weight: 700; font-size: .8rem; padding: 3px 10px; border-radius: 8px;
+            margin-right: 6px;
+        }
+
+        #buscarListado { max-width: 340px; }
     </style>
 </head>
 
 <body>
 
-    <h1>📋 Asignaciones de Profesores</h1>
-    <p>
-        <a href="admin.html">&larr; Volver al panel de administración</a>
-        &nbsp;·&nbsp;
-        <a href="profesores.html"><i class="fa-solid fa-address-book"></i> Ver directorio completo de profesores</a>
-    </p>
-
-    <!-- CARGA RÁPIDA DE HORARIO COMPLETO (SAMUEL ORTEGA Y OTROS) -->
-    <div class="panel-blanco border-start border-4 border-primary">
-        <h2 class="h5" style="color:#1f4e79;"><i class="fa-solid fa-bolt text-warning me-1"></i> Cargar Horario Masivo</h2>
-        <p class="small text-muted">Carga automáticamente las 24 horas semanales de un docente de forma rápida.</p>
-        <div class="row g-2 align-items-end">
-            <div class="col-md-5">
-                <label class="form-label small fw-bold">Correo del profesor en el sistema</label>
-                <input type="email" id="inputCorreoMasivo" class="form-control" placeholder="ejemplo@jiral.edu.pa">
-            </div>
-            <div class="col-md-4">
-                <button type="button" id="btnCargarHorarioSamuel" class="btn btn-success w-100">
-                    <i class="fa-solid fa-calendar-check me-1"></i> Cargar Horario de Samuel Ortega
-                </button>
-            </div>
+    <div class="encabezado-pagina">
+        <h1>📋 Asignaciones de Profesores</h1>
+        <div class="enlaces-nav">
+            <a href="admin.html">&larr; Volver al panel de administración</a>
+            &nbsp;·&nbsp;
+            <a href="profesores.html"><i class="fa-solid fa-address-book"></i> Ver directorio completo de profesores</a>
         </div>
-        <div id="estadoMasivo" class="small mt-2"></div>
     </div>
 
-    <!-- FORMULARIO INDIVIDUAL EXISTENTE -->
-    <div class="panel-blanco">
-        <h2 class="h5" style="color:#1f4e79;">Agregar asignación manual</h2>
-        <form id="formAsignacion">
+    <div class="contenedor">
 
-            <div class="row g-2">
-                <div class="col-md-4">
-                    <label class="form-label small fw-bold">Correo del profesor</label>
-                    <input type="email" id="inputCorreoProfesor" class="form-control" placeholder="profesor@ejemplo.com" required>
+        <!-- CARGA RÁPIDA DE HORARIO COMPLETO (SAMUEL ORTEGA Y OTROS) -->
+        <div class="panel-blanco panel-masivo">
+            <div class="panel-titulo"><span class="panel-icono">⚡</span> Cargar Horario Masivo</div>
+            <p class="panel-subtexto">Carga automáticamente las 24 horas semanales de un docente de forma rápida.</p>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label small fw-bold">Correo del profesor en el sistema</label>
+                    <input type="email" id="inputCorreoMasivo" class="form-control" placeholder="ejemplo@jiral.edu.pa">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label small fw-bold">Nombre del profesor</label>
-                    <input type="text" id="inputNombreProfesor" class="form-control" placeholder="Samuel Ortega" required>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label small fw-bold">Teléfono (WhatsApp)</label>
-                    <input type="tel" id="inputTelefonoProfesor" class="form-control" placeholder="6123-4567">
+                    <button type="button" id="btnCargarHorarioSamuel" class="btn btn-success w-100">
+                        <i class="fa-solid fa-calendar-check me-1"></i> Cargar Horario de Samuel Ortega
+                    </button>
                 </div>
             </div>
+            <div id="estadoMasivo" class="small mt-2"></div>
+        </div>
 
-            <div class="form-check mt-2">
-                <input class="form-check-input" type="checkbox" id="checkWhatsapp">
-                <label class="form-check-label" for="checkWhatsapp">
-                    <i class="fa-brands fa-whatsapp text-success"></i>
-                    Activar para WhatsApp (permite generar un enlace directo para escribirle)
-                </label>
-            </div>
+        <!-- FORMULARIO INDIVIDUAL -->
+        <div class="panel-blanco panel-manual">
+            <div class="panel-titulo"><span class="panel-icono">➕</span> Agregar asignación</div>
+            <p class="panel-subtexto">Elige un profesor, marca las materias que dicta y en qué salones. El horario exacto (día/hora) lo arma cada profesor(a) en su propia pantalla de "Mi horario".</p>
 
-            <hr>
+            <form id="formAsignacion">
 
-            <label class="subtitulo-campo">Materias que dicta (puedes marcar varias)</label>
-            <div class="grupo-checks mb-2" id="grupoMaterias">
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Español" id="mat-espanol">
-                    <label class="form-check-label" for="mat-espanol">Español</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Matemática" id="mat-matematica">
-                    <label class="form-check-label" for="mat-matematica">Matemática</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Ciencias Naturales" id="mat-ciencias">
-                    <label class="form-check-label" for="mat-ciencias">Ciencias Naturales</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Estudios Sociales" id="mat-sociales">
-                    <label class="form-check-label" for="mat-sociales">Estudios Sociales</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Inglés" id="mat-ingles">
-                    <label class="form-check-label" for="mat-ingles">Inglés</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Informática" id="mat-informatica">
-                    <label class="form-check-label" for="mat-informatica">Informática</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Educación Física" id="mat-fisica">
-                    <label class="form-check-label" for="mat-fisica">Educación Física</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Educación Artística" id="mat-artistica">
-                    <label class="form-check-label" for="mat-artistica">Educación Artística</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Formación Ciudadana" id="mat-ciudadana">
-                    <label class="form-check-label" for="mat-ciudadana">Formación Ciudadana</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input check-materia" type="checkbox" value="Religión" id="mat-religion">
-                    <label class="form-check-label" for="mat-religion">Religión, Moral y Valores</label>
-                </div>
-            </div>
-            <input type="text" id="inputOtraMateria" class="form-control mb-3" placeholder="¿Otra materia que no está en la lista? Escríbela aquí">
-
-            <div class="row g-2 mb-3">
-                <div class="col-md-4">
-                    <label class="form-label small fw-bold">Día de clase</label>
-                    <select id="selectDiaAsignacion" class="form-select">
-                        <option value="">Seleccione un día</option>
-                        <option value="Lunes">Lunes</option>
-                        <option value="Martes">Martes</option>
-                        <option value="Miércoles">Miércoles</option>
-                        <option value="Jueves">Jueves</option>
-                        <option value="Viernes">Viernes</option>
+                <div class="caja-profesor">
+                    <label class="subtitulo-campo">Profesor</label>
+                    <select id="selectProfesorAsignacion" class="form-select mb-2">
+                        <option value="">Cargando profesores...</option>
                     </select>
+
+                    <div class="row g-2">
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Correo del profesor</label>
+                            <input type="email" id="inputCorreoProfesor" class="form-control input-autofill" placeholder="profesor@ejemplo.com" disabled>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Nombre del profesor</label>
+                            <input type="text" id="inputNombreProfesor" class="form-control input-autofill" placeholder="Samuel Ortega" disabled>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Teléfono (WhatsApp)</label>
+                            <input type="tel" id="inputTelefonoProfesor" class="form-control" placeholder="6123-4567" disabled>
+                        </div>
+                    </div>
+                    <div class="aviso-profesor-nuevo d-none" id="avisoProfesorNuevo">
+                        ✏️ Escribe el correo, nombre y teléfono del profesor(a) nuevo(a).
+                    </div>
+
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="checkWhatsapp">
+                        <label class="form-check-label" for="checkWhatsapp">
+                            <i class="fa-brands fa-whatsapp text-success"></i>
+                            Activar para WhatsApp (permite generar un enlace directo para escribirle)
+                        </label>
+                    </div>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label small fw-bold">Hora de clase</label>
-                    <input type="time" id="inputHoraAsignacion" class="form-control">
+
+                <label class="subtitulo-campo">Materias que dicta (puedes marcar varias)</label>
+                <div class="grupo-chips chip-materias mb-2" id="grupoMaterias">
+                    <input class="chip-check" type="checkbox" value="Español" id="mat-espanol"><label for="mat-espanol">Español</label>
+                    <input class="chip-check" type="checkbox" value="Matemática" id="mat-matematica"><label for="mat-matematica">Matemática</label>
+                    <input class="chip-check" type="checkbox" value="Ciencias Naturales" id="mat-ciencias"><label for="mat-ciencias">Ciencias Naturales</label>
+                    <input class="chip-check" type="checkbox" value="Inglés" id="mat-ingles"><label for="mat-ingles">Inglés</label>
+                    <input class="chip-check" type="checkbox" value="Expresión Artística" id="mat-expresion-artistica"><label for="mat-expresion-artistica">Expresión Artística</label>
+                    <input class="chip-check" type="checkbox" value="Música" id="mat-musica"><label for="mat-musica">Música</label>
+                    <input class="chip-check" type="checkbox" value="Educación Física" id="mat-fisica"><label for="mat-fisica">Educación Física</label>
+                    <input class="chip-check" type="checkbox" value="Familia y Desarrollo Comunitario" id="mat-familia"><label for="mat-familia">Familia y Desarrollo Comunitario</label>
+                    <input class="chip-check" type="checkbox" value="Historia" id="mat-historia"><label for="mat-historia">Historia</label>
+                    <input class="chip-check" type="checkbox" value="Educación Agropecuaria" id="mat-agropecuaria"><label for="mat-agropecuaria">Educación Agropecuaria</label>
+                    <input class="chip-check" type="checkbox" value="Contabilidad" id="mat-contabilidad"><label for="mat-contabilidad">Contabilidad</label>
+                    <input class="chip-check" type="checkbox" value="Informática" id="mat-informatica"><label for="mat-informatica">Informática</label>
+                    <input class="chip-check" type="checkbox" value="Geografía" id="mat-geografia"><label for="mat-geografia">Geografía</label>
+                    <input class="chip-check" type="checkbox" value="Orientación" id="mat-orientacion"><label for="mat-orientacion">Orientación</label>
+                    <input class="chip-check" type="checkbox" value="Cívica" id="mat-civica"><label for="mat-civica">Cívica</label>
+                    <input class="chip-check" type="checkbox" value="Religión, Moral y Valores" id="mat-religion"><label for="mat-religion">Religión, Moral y Valores</label>
                 </div>
-            </div>
+                <input type="text" id="inputOtraMateria" class="form-control mb-3" placeholder="¿Otra materia que no está en la lista? Escríbela aquí (raro, revisar con administración)">
 
-            <label class="subtitulo-campo">
-                Salones donde da clase (puedes marcar varios)
-                &nbsp;·&nbsp;
-                <a href="salones.html" class="small">Administrar lista de salones</a>
-            </label>
-            <div class="grupo-checks mb-3" id="grupoSalones">
-                <span class="text-muted small">Cargando salones...</span>
-            </div>
+                <label class="subtitulo-campo">
+                    Salones donde da clase (puedes marcar varios)
+                    &nbsp;·&nbsp;
+                    <a href="salones.html" class="small">Administrar lista de salones</a>
+                </label>
+                <div class="grupo-chips chip-salones mb-3" id="grupoSalones">
+                    <span class="text-muted small">Cargando salones...</span>
+                </div>
 
-            <button type="submit" class="btn btn-primary">➕ Guardar asignación</button>
-            <span id="estadoAsignacion" class="small ms-2"></span>
-        </form>
-    </div>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i> Guardar asignación</button>
+                <span id="estadoAsignacion" class="small ms-2"></span>
+            </form>
+        </div>
 
-    <div class="panel-blanco">
-        <h2 class="h5" style="color:#1f4e79;">Listado por profesor</h2>
-        <div id="listadoProfesores">Cargando...</div>
+        <div class="panel-blanco panel-listado">
+            <div class="panel-titulo"><span class="panel-icono">👥</span> Listado por profesor</div>
+            <input type="text" id="buscarListado" class="form-control form-control-sm mb-3" placeholder="🔍 Buscar profesor, materia o salón...">
+            <div id="listadoProfesores">Cargando...</div>
+        </div>
+
     </div>
 
     <script type="module" src="../js/asignaciones.js"></script>
