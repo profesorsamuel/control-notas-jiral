@@ -1,372 +1,266 @@
-<!DOCTYPE html>
-<html lang="es">
+import { supabase } from "./supabase.js";
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel del Docente</title>
+function escapeHtml(str) {
+    return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
 
-    <link rel="icon" type="image/x-icon" href="../img/profesor-favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="../img/profesor-favicon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../img/profesor-favicon-16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="../img/profesor-apple-touch-icon.png">
+// =====================================================
+// 0) VERIFICAR ADMIN (mismo patrón que asignaciones.js)
+// =====================================================
+async function verificarAdmin() {
+    const { data: { user }, error: errUser } = await supabase.auth.getUser();
+    if (errUser || !user) { window.location.href = "login.html"; return false; }
 
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Panel del Docente | Control de Notas - C.E.B.G. El Jiral">
-    <meta property="og:description" content="Registra y edita las notas de tus estudiantes por salón y materia.">
-    <meta property="og:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
-    <meta property="og:url" content="https://notasjiral.netlify.app/pages/profesor.html">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
+    const { data: perfil, error: errPerfil } = await supabase
+        .from("usuarios")
+        .select("rol")
+        .eq("auth_user_id", user.id)
+        .single();
 
-    <!-- Bootstrap: necesario para las clases usadas en la tabla de notas (form-control, badge, table-danger, etc.) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    if (errPerfil || !perfil || perfil.rol !== "admin") {
+        alert("⛔ No tienes permisos de administrador.");
+        window.location.href = "login.html";
+        return false;
+    }
+    return true;
+}
 
-    <!-- Tipografía propia: Baloo 2 para títulos (cálida, redondeada, con
-         aire escolar) + Inter para datos y texto de la tabla (legible en
-         tamaños chicos). Reemplaza el Arial genérico de antes. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+const listaProfesores = document.getElementById("listaProfesores");
+const buscarProfesor = document.getElementById("buscarProfesor");
 
-    <!-- Necesarias para exportar el reporte de notas a PDF y JPG -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+// Campos de contacto que el admin puede editar aquí. correo_profesor
+// (el usuario de acceso) NO está en esta lista a propósito: ese se
+// genera solo a partir de la cédula al registrarse y no debe tocarse
+// desde esta pantalla o se le rompe el login al profesor(a).
+const CAMPOS_EDITABLES = [
+    { clave: "telefono", etiqueta: "📞 Teléfono", tipo: "tel", placeholder: "6000-0000" },
+    { clave: "correo_meduca", etiqueta: "📧 Correo Meduca", tipo: "email", placeholder: "nombre@meduca.gob.pa" },
+    { clave: "correo_personal", etiqueta: "📧 Correo personal", tipo: "email", placeholder: "nombre@correo.com" },
+    { clave: "fecha_nacimiento", etiqueta: "🎂 Fecha de nacimiento", tipo: "date", placeholder: "" },
+];
 
-    <style>
-        /* Candado general: nada en la página (ni siquiera el contenedor
-           que se arma fuera de pantalla para exportar PDF/JPG) puede
-           hacer que el ancho total se salga del celular. */
-        html, body {
-            max-width: 100%;
-            overflow-x: hidden;
-        }
+function formatearFecha(fechaISO) {
+    if (!fechaISO) return "";
+    const [anio, mes, dia] = fechaISO.split("-");
+    if (!anio || !mes || !dia) return fechaISO;
+    return `${dia}/${mes}/${anio}`;
+}
 
-        /* ============ Paleta propia (verde pizarra + dorado) ============
-           En vez del azul marino genérico de Bootstrap: un verde pizarra
-           profundo como color principal (evoca el salón de clases, sin
-           ser negro-azulado plano) y un dorado cálido como color de
-           acción, sobre un fondo crema tipo cuaderno. */
-        :root {
-            --color-fondo: #faf6ee;
-            --color-panel: #ffffff;
-            --color-primario: #2f6f62;
-            --color-primario-oscuro: #234f45;
-            --color-primario-claro: #e3efec;
-            --color-acento: #cf8b2c;
-            --color-acento-oscuro: #a86f1f;
-            --color-texto: #2c2620;
-        }
+let profesoresCache = [];
+let asignacionesPorCorreo = {};
 
-        body {
-            font-family: 'Inter', Arial, sans-serif;
-            padding: 20px;
-            background: var(--color-fondo);
-            color: var(--color-texto);
-        }
+// =====================================================
+// 1) CARGAR PROFESORES + SUS ASIGNACIONES (materia/salón)
+// =====================================================
+async function cargarProfesores() {
+    listaProfesores.innerHTML = "Cargando...";
 
-        h1, h2 {
-            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
-        }
-        h1 { color: var(--color-primario); font-weight: 700; }
-        h2 { color: var(--color-primario); font-size: 1.2rem; margin-top: 30px; font-weight: 600; }
+    const { data: profesores, error } = await supabase
+        .from("profesores")
+        .select("correo_profesor, nombre_profesor, cedula, telefono, correo_meduca, correo_personal, fecha_nacimiento, registrado")
+        .order("nombre_profesor", { ascending: true });
 
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #ddd4c4; padding: 8px; text-align: center; }
-        th { background: var(--color-primario); color: white; font-family: 'Inter', Arial, sans-serif; }
+    if (error) {
+        listaProfesores.innerHTML = `<p class="text-danger">No se pudieron cargar los profesores: ${escapeHtml(error.message)}</p>`;
+        return;
+    }
 
-        .resumen, .trimestre-panel, .panel-blanco {
-            background: white;
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
-        }
+    const { data: materias } = await supabase
+        .from("profesor_materias")
+        .select("correo_profesor, materia, salon");
 
-        .trimestre-panel {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
+    asignacionesPorCorreo = {};
+    (materias || []).forEach((m) => {
+        if (!asignacionesPorCorreo[m.correo_profesor]) asignacionesPorCorreo[m.correo_profesor] = [];
+        asignacionesPorCorreo[m.correo_profesor].push(m);
+    });
 
-        .trimestre-panel label { font-weight: bold; color: var(--color-primario); }
+    profesoresCache = profesores || [];
+    pintarLista(profesoresCache);
+}
 
-        #selectTrimestre {
-            padding: 8px 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
-            font-weight: bold;
-        }
+// =====================================================
+// 2) PINTAR TARJETAS
+// =====================================================
+function pintarLista(lista) {
+    if (!lista || lista.length === 0) {
+        listaProfesores.innerHTML = `<p class="text-muted">No hay profesores que coincidan con la búsqueda.</p>`;
+        return;
+    }
 
-        #btnGuardarTrimestre {
-            padding: 8px 16px;
-            background: var(--color-acento);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-        }
+    listaProfesores.innerHTML = lista.map((p) => {
+        const asignaciones = asignacionesPorCorreo[p.correo_profesor] || [];
 
-        #btnGuardarTrimestre:hover { background: var(--color-acento-oscuro); }
-        #estadoTrimestre { font-size: 13px; color: #1f5c3d; }
+        const salonesUnicos = [...new Set(asignaciones.map((a) => a.salon))];
+        const materiasUnicas = [...new Set(asignaciones.map((a) => a.materia))];
 
-        .form-notas-fila {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            align-items: flex-end;
-        }
+        const badgesMaterias = materiasUnicas.length
+            ? materiasUnicas.map((m) => `<span class="badge badge-materia me-1 mb-1">${escapeHtml(m)}</span>`).join("")
+            : `<span class="text-muted small">Sin materias asignadas todavía</span>`;
 
-        .form-notas-fila > div { display: flex; flex-direction: column; gap: 4px; }
-        .form-notas-fila label { font-size: 13px; font-weight: bold; color: var(--color-primario); }
-        .form-notas-fila select, .form-notas-fila input {
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
-        }
+        const badgesSalones = salonesUnicos.length
+            ? salonesUnicos.map((s) => `<span class="badge badge-salon me-1 mb-1">${escapeHtml(s)}</span>`).join("")
+            : "";
 
-        #btnCargarSalon, #btnGuardarNotasGrupo {
-            padding: 8px 16px;
-            background: var(--color-acento);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            height: 38px;
-        }
+        const camposHtml = CAMPOS_EDITABLES.map((campo) => {
+            const valorCrudo = p[campo.clave] || "";
+            const valorMostrado = campo.tipo === "date" ? (formatearFecha(valorCrudo) || "—") : (valorCrudo || "—");
 
-        #btnGuardarNotasGrupo { background: var(--color-primario); margin-top: 15px; }
+            return `
+                <div class="campo-editable d-flex align-items-center gap-2 mb-1" data-campo="${campo.clave}" data-correo="${escapeHtml(p.correo_profesor)}">
+                    <span class="small text-muted" style="min-width:150px;">${campo.etiqueta}:</span>
+                    <span class="valor-campo small">${escapeHtml(valorMostrado)}</span>
+                    <input
+                        type="${campo.tipo}"
+                        class="form-control form-control-sm input-campo d-none"
+                        style="max-width:220px;"
+                        value="${escapeHtml(valorCrudo)}"
+                        placeholder="${campo.placeholder}"
+                    >
+                    <button type="button" class="btn btn-link btn-sm p-0 btn-editar-campo" title="Editar">✎</button>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-success btn-guardar-campo d-none" title="Guardar">✓</button>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-danger btn-cancelar-campo d-none" title="Cancelar">✕</button>
+                </div>
+            `;
+        }).join("");
 
-        /* Paleta pastel: fondos suaves con letra oscura, y las casillas
-           de nota siempre en blanco para que se lean bien encima. */
-        .table-danger, tr.table-danger > td, tr.table-danger > th {
-            background-color: #fbe2e2 !important;
-            color: #7a2e2e !important;
-        }
-        .table-warning, tr.table-warning > td, tr.table-warning > th {
-            background-color: #fdf3d6 !important;
-            color: #6b5100 !important;
-        }
-        .table-success, td.table-success {
-            background-color: var(--color-primario-claro) !important;
-            color: var(--color-primario-oscuro) !important;
-        }
-        .text-danger { color: #c0575a !important; }
-        .badge.bg-warning { background-color: #fdf3d6 !important; color: #6b5100 !important; }
+        return `
+            <div class="tarjeta-profesor">
+                <h3>${escapeHtml(p.nombre_profesor || "(sin nombre)")}</h3>
+                <div class="small text-muted mb-2">
+                    Cédula: ${escapeHtml(p.cedula || "—")}
+                    &nbsp;·&nbsp;
+                    Usuario de acceso: ${escapeHtml(p.correo_profesor || "—")}
+                    &nbsp;·&nbsp;
+                    ${p.registrado ? `<span class="text-success">Cuenta activa</span>` : `<span class="text-warning">Todavía no se ha registrado</span>`}
+                </div>
 
-        /* Columna actualmente seleccionada en el formulario de arriba:
-           antes era el azul genérico de Bootstrap (table-primary), ahora
-           usa el dorado de acento para que combine con el resto. */
-        .table-primary, th.table-primary { background-color: #f7e6c4 !important; }
-        .text-primary { color: var(--color-acento-oscuro) !important; }
+                <div class="mb-2">${camposHtml}</div>
 
-        .input-nota-grupo, .input-tema-columna {
-            background-color: #fff !important;
-            color: #222 !important;
-        }
-
-        /* Ancho mínimo fijo para que un valor como "3.5" siempre quepa
-           completo dentro de la casilla, incluso en pantallas angostas
-           de celular (antes se podía recortar o quedar dentro de un
-           campo demasiado angosto que requería scroll para leerse). */
-        td.celda-nota {
-            width: var(--ancho-celda-nota, 68px);
-            min-width: var(--ancho-celda-nota, 68px);
-        }
-        .input-nota-grupo {
-            width: 100%;
-            min-width: calc(var(--ancho-celda-nota, 68px) - 8px);
-            box-sizing: border-box;
-            text-align: center;
-            padding: 6px 1px;
-            font-size: var(--tamano-texto-nota, 14px);
-        }
-
-        #tablaScroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
-        #tablaScroll table { border-collapse: separate; border-spacing: 0; }
-        #tablaScroll th, #tablaScroll td { border: 1px solid #ddd4c4; }
-
-        /* Que cada columna (excepto las fijas de # y Estudiante) quede
-           "trabada" completa al terminar de deslizar en celular, en vez
-           de poder quedar cortada a la mitad justo en el borde de la
-           pantalla. */
-        #tablaScroll th:not(.col-fija), #tablaScroll td:not(.col-fija) {
-            scroll-snap-align: start;
-        }
-
-        /* Columnas fijas: # y Estudiante quedan pegadas a la izquierda
-           mientras el resto de la tabla se desliza por debajo. */
-        .col-fija {
-            position: sticky;
-            background: #fff;
-            z-index: 1;
-        }
-        .col-fija-num { left: 0; width: 34px; min-width: 34px; }
-        .col-fija-nombre {
-            left: 34px;
-            width: 120px;
-            min-width: 120px;
-            max-width: 120px;
-            text-align: left;
-            white-space: normal;
-            box-shadow: 2px 0 4px rgba(0, 0, 0, .12);
-        }
-        thead .col-fija { background: var(--color-primario); color: #fff; z-index: 2; }
-        tr.table-warning td.col-fija { background-color: #fdf3d6; }
-        tr.table-danger td.col-fija { background-color: #fbe2e2; }
-
-        /* Bootstrap pinta ".text-muted" en gris oscuro, que sobre el verde
-           del encabezado casi no se ve. Lo aclaramos solo dentro de la tabla. */
-        #tablaScroll thead .text-muted { color: #cfe3dd !important; }
-        #tablaScroll thead .btn-eliminar-columna { color: #ffb199 !important; }
-
-        /* Celular: menos relleno alrededor y campos del formulario a todo
-           el ancho, para que no quede tanto espacio vacío. */
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-            .resumen, .trimestre-panel, .panel-blanco { padding: 12px; }
-            h1 { font-size: 1.25rem; }
-            .form-notas-fila { flex-direction: column; align-items: stretch; gap: 10px; }
-            .form-notas-fila > div { width: 100%; }
-            .form-notas-fila select, .form-notas-fila input { width: 100%; box-sizing: border-box; }
-            #btnCargarSalon { width: 100%; }
-            #buscarCorreo { width: 100%; box-sizing: border-box; }
-            .trimestre-panel { flex-direction: column; align-items: stretch; }
-            #selectTrimestre, #btnGuardarTrimestre { width: 100%; box-sizing: border-box; }
-        }
-
-        #buscarCorreo {
-            width: 350px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-    </style>
-</head>
-
-<body>
-
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h1>👨‍🏫 Panel del Docente</h1>
-        <span id="navCambiarPanel"></span>
-    </div>
-
-    <!-- Selector de trimestre activo (configuración global del sistema) -->
-    <div class="trimestre-panel">
-        <label for="selectTrimestre">📅 Trimestre activo:</label>
-        <select id="selectTrimestre">
-            <option value="Trimestre 1">Trimestre 1</option>
-            <option value="Trimestre 2">Trimestre 2</option>
-            <option value="Trimestre 3">Trimestre 3</option>
-        </select>
-        <button type="button" id="btnGuardarTrimestre">💾 Guardar</button>
-        <span id="estadoTrimestre"></span>
-    </div>
-
-    <!-- ================= REGISTRAR / EDITAR NOTAS ================= -->
-    <h2>📝 Registrar notas</h2>
-
-    <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc3545;">
-        Todavía no tienes materias ni salones asignados. Pídele al administrador que te
-        agregue en la pantalla de "Asignaciones de profesores".
-    </div>
-
-    <div class="panel-blanco">
-        <div class="form-notas-fila">
-            <div>
-                <label for="selectSalonNota">Salón</label>
-                <select id="selectSalonNota"><option value="">Cargando...</option></select>
+                <div class="mt-2">
+                    ${badgesMaterias}
+                    ${badgesSalones}
+                </div>
+                <div class="small mt-1">
+                    <a href="asignaciones.html">Editar materias/salones en Asignaciones</a>
+                </div>
             </div>
-            <div>
-                <label for="selectMateriaNota">Materia</label>
-                <select id="selectMateriaNota" disabled><option value="">Seleccione primero un salón</option></select>
-            </div>
-            <div>
-                <label for="selectTipoNota">Tipo</label>
-                <select id="selectTipoNota">
-                    <option value="apreciacion">Apreciación</option>
-                    <option value="ejercicio">Ejercicio</option>
-                    <option value="examen">Examen</option>
-                </select>
-            </div>
-            <div>
-                <label for="inputNumeroNota">Número de casilla</label>
-                <input type="number" id="inputNumeroNota" min="1" max="10" value="1" style="width:90px;">
-            </div>
-            <div>
-                <label for="selectTrimestreNota">Trimestre</label>
-                <select id="selectTrimestreNota">
-                    <option value="Trimestre 1">Trimestre 1</option>
-                    <option value="Trimestre 2">Trimestre 2</option>
-                    <option value="Trimestre 3">Trimestre 3</option>
-                </select>
-            </div>
-            <div>
-                <button type="button" id="btnCargarSalon">📋 Cargar salón</button>
-            </div>
-        </div>
-        <div class="mt-3 form-check">
-            <input type="checkbox" class="form-check-input" id="checkBloqueoEstudiantes">
-            <label class="form-check-label small" for="checkBloqueoEstudiantes">
-                🔒 No permitir que los estudiantes agreguen o modifiquen notas de esta materia/salón
-                (siempre podrás editar tú aunque esté activado)
-            </label>
-        </div>
-    </div>
+        `;
+    }).join("");
 
-    <div id="bloqueTablaNotas" class="panel-blanco" style="display:none;">
-        <div class="mb-2 small">
-            <div style="font-weight:bold; color:var(--color-primario); margin-bottom:6px;">
-                🧩 Elegir columnas para ver (marca las que quieras, incluidos los promedios):
-            </div>
-            <div style="margin-bottom:6px;">
-                <button type="button" id="btnColumnasSeleccionarTodas" class="btn btn-link btn-sm p-0 me-3" style="text-decoration:none;">Seleccionar todas</button>
-                <button type="button" id="btnColumnasSeleccionarNinguna" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Ninguna</button>
-            </div>
-            <div id="listaChecksColumnas" style="display:flex; flex-wrap:wrap; gap:10px; padding:10px; background:#f7f5ef; border-radius:6px;"></div>
-            <p style="font-size:11px; color:#888; margin:8px 0 0;">
-                Los promedios se calculan solos a partir de las casillas de nota; no se
-                escriben directamente ahí. Para meter una nota de Examen, elige "Examen" en
-                Tipo arriba, pon un número de casilla, y aparecerá aquí como una columna
-                más para marcar y escribir.
-            </p>
-        </div>
-        <div class="mb-2 small" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <label for="rangoAnchoCasilla" style="font-weight:bold; color:var(--color-primario);">↔️ Ancho de las casillas:</label>
-            <input type="range" id="rangoAnchoCasilla" min="50" max="110" value="68" style="flex:1; min-width:120px; max-width:220px;">
-            <span id="valorAnchoCasilla" style="min-width:38px;">68px</span>
-        </div>
-        <div id="tablaScroll">
-            <table>
-                <thead>
-                    <tr id="cabeceraNotasGrupo"></tr>
-                    <tr id="cabeceraTemasGrupo"></tr>
-                </thead>
-                <tbody id="tablaNotasGrupo"></tbody>
-            </table>
-        </div>
-        <button type="button" id="btnGuardarNotasGrupo" style="display:none;">💾 Guardar notas</button>
-        <span id="estadoGuardadoNotas" class="small" style="margin-left:0;"></span>
-        <p style="font-size:12px; color:#888; margin-top:8px;">
-            ✅ Cada nota se guarda sola apenas sales de la casilla (no hace falta presionar nada).
-            Escribe la casilla arriba (tipo + número) que quieras usar y presiona "Cargar salón";
-            si ya existe se editará, si no, se crea al escribir la primera nota. Puedes escribir un
-            texto en "Tema de cada casilla" para describir de qué se trata esa nota.
-        </p>
-        <div class="mt-2">
-            <button type="button" id="btnExportarPdf" class="btn btn-outline-primary btn-sm">📄 Descargar PDF</button>
-            <button type="button" id="btnExportarJpg" class="btn btn-outline-primary btn-sm">🖼️ Descargar JPG</button>
-        </div>
-    </div>
+    activarEdicionDeCampos();
+}
 
-    <script type="module" src="../js/profesor.js"></script>
+// =====================================================
+// 3) EDICIÓN "EN LÍNEA" DE CADA CAMPO (lápiz -> guardar/cancelar)
+// =====================================================
+function activarEdicionDeCampos() {
+    listaProfesores.querySelectorAll(".campo-editable").forEach((contenedor) => {
+        const valorSpan = contenedor.querySelector(".valor-campo");
+        const input = contenedor.querySelector(".input-campo");
+        const btnEditar = contenedor.querySelector(".btn-editar-campo");
+        const btnGuardar = contenedor.querySelector(".btn-guardar-campo");
+        const btnCancelar = contenedor.querySelector(".btn-cancelar-campo");
+        const valorOriginal = input.value;
 
-</body>
+        function entrarEdicion() {
+            valorSpan.classList.add("d-none");
+            input.classList.remove("d-none");
+            btnEditar.classList.add("d-none");
+            btnGuardar.classList.remove("d-none");
+            btnCancelar.classList.remove("d-none");
+            input.focus();
+        }
 
-</html>
+        function salirEdicion() {
+            valorSpan.classList.remove("d-none");
+            input.classList.add("d-none");
+            btnEditar.classList.remove("d-none");
+            btnGuardar.classList.add("d-none");
+            btnCancelar.classList.add("d-none");
+        }
+
+        btnEditar.addEventListener("click", entrarEdicion);
+
+        btnCancelar.addEventListener("click", () => {
+            input.value = valorOriginal;
+            salirEdicion();
+        });
+
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") { e.preventDefault(); btnGuardar.click(); }
+            if (e.key === "Escape") { btnCancelar.click(); }
+        });
+
+        btnGuardar.addEventListener("click", async () => {
+            const correo = contenedor.dataset.correo;
+            const campo = contenedor.dataset.campo;
+            const nuevoValor = input.value.trim() || null;
+
+            btnGuardar.disabled = true;
+
+            const { error } = await supabase
+                .from("profesores")
+                .update({ [campo]: nuevoValor, actualizado_en: new Date().toISOString() })
+                .eq("correo_profesor", correo);
+
+            btnGuardar.disabled = false;
+
+            if (error) {
+                alert("No se pudo guardar: " + error.message);
+                return;
+            }
+
+            const mostrarComoFecha = campo === "fecha_nacimiento";
+            valorSpan.textContent = nuevoValor ? (mostrarComoFecha ? formatearFecha(nuevoValor) : nuevoValor) : "—";
+
+            // Actualiza también la copia en memoria para que la búsqueda
+            // no pierda este cambio si se vuelve a filtrar sin recargar.
+            const prof = profesoresCache.find((p) => p.correo_profesor === correo);
+            if (prof) prof[campo] = nuevoValor;
+
+            salirEdicion();
+        });
+    });
+}
+
+// =====================================================
+// 4) BÚSQUEDA (nombre, correo o materia)
+// =====================================================
+buscarProfesor?.addEventListener("input", () => {
+    const texto = buscarProfesor.value.trim().toLowerCase();
+
+    if (!texto) {
+        pintarLista(profesoresCache);
+        return;
+    }
+
+    const filtrados = profesoresCache.filter((p) => {
+        const asignaciones = asignacionesPorCorreo[p.correo_profesor] || [];
+        const materias = asignaciones.map((a) => a.materia).join(" ").toLowerCase();
+
+        return (
+            (p.nombre_profesor || "").toLowerCase().includes(texto) ||
+            (p.correo_profesor || "").toLowerCase().includes(texto) ||
+            (p.correo_meduca || "").toLowerCase().includes(texto) ||
+            (p.correo_personal || "").toLowerCase().includes(texto) ||
+            materias.includes(texto)
+        );
+    });
+
+    pintarLista(filtrados);
+});
+
+// =====================================================
+// INICIO
+// =====================================================
+(async function init() {
+    const ok = await verificarAdmin();
+    if (!ok) return;
+    cargarProfesores();
+})();
