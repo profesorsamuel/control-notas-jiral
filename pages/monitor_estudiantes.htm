@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor de estudiantes · Centro Básico General El Jiral</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+    body { background: #f1f5f9; padding: 24px 12px; font-family: "Segoe UI", Arial, sans-serif; }
+    .tarjeta-principal { max-width: 1100px; margin: 0 auto; }
+    .encabezado {
+        background: linear-gradient(90deg, #1e3a8a, #1f4e79); color: #fff;
+        padding: 18px 24px; border-radius: 16px; margin-bottom: 18px;
+        display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    }
+    .encabezado h1 { font-size: 1.25rem; margin: 0; font-weight: 700; }
+    .tarjeta { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,.06); padding: 18px 22px; margin-bottom: 18px; }
+    .barra-selector { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+    .barra-selector select { padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; min-width: 160px; }
+    #textoActualizado { font-size: .78rem; color: #94a3b8; margin-top: 4px; }
+    iframe#iframeHorario { width: 100%; border: none; min-height: 520px; border-radius: 10px; }
+    .lista-tareas { margin-top: 12px; }
+    .tarjeta-tarea {
+        border: 1px solid #eee; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
+        display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: box-shadow .15s;
+    }
+    .tarjeta-tarea:hover { box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+    .tarjeta-tarea h3 { font-size: 1.02rem; margin: 0; color: #2f3ea3; }
+    .tarjeta-tarea .meta { font-size: .82rem; color: #666; }
+    .barra-progreso { background: #eee; border-radius: 6px; overflow: hidden; height: 10px; margin-top: 4px; }
+    .barra-progreso .relleno { background: #28a745; height: 100%; }
+
+    .overlay-detalle {
+        display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+        align-items: center; justify-content: center; z-index: 1000; padding: 16px;
+    }
+    .overlay-detalle.mostrar { display: flex; }
+    .caja-detalle {
+        background: #fff; border-radius: 16px; max-width: 560px; width: 100%;
+        max-height: 85vh; overflow-y: auto; padding: 20px 22px;
+    }
+    .caja-detalle h2 { font-size: 1.1rem; color: #2f3ea3; margin-bottom: 4px; }
+    .caja-detalle .subt { font-size: .82rem; color: #666; margin-bottom: 14px; }
+    .fila-estudiante {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        padding: 8px 0; border-bottom: 1px solid #f0f0f0;
+    }
+    .fila-estudiante .nombre { font-size: .9rem; }
+    .fila-estudiante select { padding: 4px 8px; border-radius: 8px; border: 1px solid #ddd; font-size: .82rem; }
+    .cerrar-detalle { float: right; }
+</style>
+</head>
+<body>
+
+<div class="tarjeta-principal">
+
+    <div class="encabezado">
+        <h1><i class="fa-solid fa-eye me-2"></i>Monitor de estudiantes</h1>
+        <a href="admin.html" class="btn btn-outline-light btn-sm">↩️ Regresar a Admin</a>
+    </div>
+
+    <div class="tarjeta">
+        <div class="barra-selector">
+            <label for="selectSalon" class="fw-bold">Salón:</label>
+            <select id="selectSalon">
+                <option value="">Cargando salones...</option>
+            </select>
+            <button class="btn btn-outline-primary btn-sm" id="btnActualizar">🔄 Actualizar ahora</button>
+        </div>
+        <div id="textoActualizado"></div>
+    </div>
+
+    <div class="tarjeta">
+        <h5 class="mb-3">📅 Horario semanal del salón</h5>
+        <iframe id="iframeHorario"></iframe>
+    </div>
+
+    <div class="tarjeta">
+        <h5 class="mb-1">📝 Tareas asignadas a este salón</h5>
+        <p class="text-muted small mb-0">Se actualiza solo cada 30 segundos. Haz clic en una tarea para ver el detalle por estudiante.</p>
+        <div class="lista-tareas" id="listaTareas">
+            <p class="text-center text-muted py-4">Elige un salón arriba.</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- ===== Modal de detalle por tarea ===== -->
+<div class="overlay-detalle" id="overlayDetalle">
+    <div class="caja-detalle">
+        <button class="btn btn-sm btn-outline-secondary cerrar-detalle" id="btnCerrarDetalle">✕ Cerrar</button>
+        <h2 id="detalleTitulo">Tarea</h2>
+        <div class="subt" id="detalleSubt"></div>
+        <div id="detalleLista">
+            <p class="text-center text-muted py-3">Cargando estudiantes...</p>
+        </div>
+        <div id="estadoDetalle" style="text-align:center; padding-top:8px; font-size:.85rem;"></div>
+    </div>
+</div>
+
+<script type="module" src="../js/monitor_estudiantes.js"></script>
+</body>
+</html>
