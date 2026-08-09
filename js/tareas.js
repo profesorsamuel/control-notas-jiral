@@ -33,6 +33,7 @@ function formatearFecha(fechaTexto) {
 // =========================================================
 
 let correoProfesor = "";
+let misMateriasSalones = []; // [{materia, salon}, ...]
 
 // =========================================================
 // ELEMENTOS
@@ -110,6 +111,47 @@ async function cargarSalones() {
 }
 
 // =========================================================
+// 2b) CARGAR MIS MATERIAS (desde profesor_materias existente)
+// =========================================================
+
+async function cargarMisMaterias() {
+    const { data, error } = await supabase
+        .from("profesor_materias")
+        .select("materia, salon")
+        .eq("correo_profesor", correoProfesor);
+
+    if (error) {
+        console.error("❌ Error al cargar materias:", error);
+        inputMateria.innerHTML = `<option value="">Error al cargar</option>`;
+        return;
+    }
+
+    const vistos = new Set();
+    misMateriasSalones = (data || []).filter(m => {
+        if (!m.materia || vistos.has(m.materia)) return false;
+        vistos.add(m.materia);
+        return true;
+    });
+
+    if (misMateriasSalones.length === 0) {
+        inputMateria.innerHTML = `<option value="">No tienes materias asignadas</option>`;
+        return;
+    }
+
+    inputMateria.innerHTML = `<option value="">Selecciona una materia</option>` +
+        misMateriasSalones.map(m => `<option value="${escapeHtml(m.materia)}">${escapeHtml(m.materia)}</option>`).join("");
+}
+
+// Al elegir la materia, sugiere automáticamente el salón asociado (si existe)
+inputMateria.addEventListener("change", () => {
+    const encontrada = misMateriasSalones.find(m => m.materia === inputMateria.value);
+    if (encontrada && encontrada.salon) {
+        const existeOpcion = [...selectSalon.options].some(o => o.value === encontrada.salon);
+        if (existeOpcion) selectSalon.value = encontrada.salon;
+    }
+});
+
+// =========================================================
 // 3) CARGAR Y PINTAR TAREAS
 // =========================================================
 
@@ -177,7 +219,7 @@ async function cargarTareas() {
 
 async function guardarTarea() {
     const titulo = inputTitulo.value.trim();
-    const materia = inputMateria.value.trim();
+    const materia = inputMateria.value;
     const salon = selectSalon.value;
     const descripcion = inputDescripcion.value.trim();
     const fecha = inputFecha.value;
@@ -295,5 +337,6 @@ btnGuardarTarea.addEventListener("click", guardarTarea);
     if (!ok) return;
 
     await cargarSalones();
+    await cargarMisMaterias();
     await cargarTareas();
 })();
