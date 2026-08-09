@@ -947,7 +947,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         casillasTabla.forEach((c) => {
             const claseTh = "text-muted";
             htmlCabecera += `
-                <th class="text-center small ${claseTh}" style="width:90px;">
+                <th class="text-center small ${claseTh}" style="width:100px;">
                     <div>${etiquetaCasilla(c.tipo, c.numero)}</div>
                     <button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna y sus notas">🗑️</button>
                 </th>`;
