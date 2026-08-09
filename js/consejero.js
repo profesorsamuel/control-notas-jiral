@@ -1,1999 +1,1458 @@
+// =====================================================
+// consejero.js
+// Panel de SEGUIMIENTO para el consejero.
+// Muestra qué estudiantes van al día y a cuáles les faltan
+// casillas frente al resto del grupo, solo para el trimestre
+// activo. Además permite marcar una casilla vacía como
+// "Falta intencional" (el estudiante decidió no presentarla),
+// lo cual cuenta como 0.0 en el promedio pero se distingue
+// visualmente de una nota normal.
+// =====================================================
+
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
-import { registrarSalida } from "./accesos.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
 
-    pintarCambiarPanel("admin");
-
-    const mensajeAdmin = document.getElementById("mensajeAdmin");
-    const nombreAdmin = document.getElementById("nombreAdmin");
-    const btnCerrarSesion = document.getElementById("btnCerrarSesion");
-    const btnRecargarUsuarios = document.getElementById("btnRecargarUsuarios");
-    const btnRecargarNotas = document.getElementById("btnRecargarNotas");
-
-    function mostrarMensaje(texto, tipo = "danger") {
-        mensajeAdmin.textContent = texto;
-        mensajeAdmin.className = `alert alert-${tipo}`;
-    }
-
-    // =================================================
-    // 1) VERIFICAR SESIÓN Y ROL DE ADMIN
-    // =================================================
-
-    const { data: { user }, error: errUser } = await supabase.auth.getUser();
-
-    if (errUser || !user) {
-        window.location.href = "login.html";
-        return;
-    }
-
-    const { data: perfil, error: errPerfil } = await supabase
-        .from("usuarios")
-        .select("correo, rol")
-        .eq("auth_user_id", user.id)
-        .single();
-
-    if (errPerfil || !perfil || perfil.rol !== "admin") {
-        console.error("❌ Acceso denegado, no es admin:", errPerfil);
-        alert("⛔ No tienes permisos de administrador.");
-        window.location.href = "login.html";
-        return;
-    }
-
-    nombreAdmin.textContent = perfil.correo;
-
-    // =================================================
-    // 2) CERRAR SESIÓN
-    // =================================================
-
-    btnCerrarSesion.addEventListener("click", async () => {
-        await registrarSalida();
-        await supabase.auth.signOut();
-        window.location.href = "login.html";
-    });
-
-    // =================================================
-    // 2.5) GESTIONAR ESTUDIANTES (nombre, cédula, salón)
-    // =================================================
-
-    const estFiltroSalon = document.getElementById("estFiltroSalon");
-    const tablaEstudiantesAdmin = document.getElementById("tablaEstudiantesAdmin");
-    const estadoGuardadoEstudiantes = document.getElementById("estadoGuardadoEstudiantes");
-    const nuevoEstNombre = document.getElementById("nuevoEstNombre");
-    const nuevoEstCedula = document.getElementById("nuevoEstCedula");
-    const nuevoEstSalon = document.getElementById("nuevoEstSalon");
-    const nuevoEstSalonOtro = document.getElementById("nuevoEstSalonOtro");
-    const bloqueOtroSalon = document.getElementById("bloqueOtroSalon");
-    const btnAgregarEstudiante = document.getElementById("btnAgregarEstudiante");
-    const mensajeEstudiantesAdmin = document.getElementById("mensajeEstudiantesAdmin");
-
-    function mostrarMensajeEstudiantes(texto, tipo = "danger") {
-        mensajeEstudiantesAdmin.textContent = texto;
-        mensajeEstudiantesAdmin.className = `alert alert-${tipo} mt-3 mb-0`;
-    }
-
-    function ocultarMensajeEstudiantes() {
-        mensajeEstudiantesAdmin.className = "alert d-none mt-3 mb-0";
-    }
-
-    function avisoGuardado(texto, esError = false) {
-        estadoGuardadoEstudiantes.textContent = texto;
-        estadoGuardadoEstudiantes.className = `small ${esError ? "text-danger" : "text-success"}`;
-        setTimeout(() => {
-            estadoGuardadoEstudiantes.textContent = "";
-        }, 2000);
-    }
-
-    nuevoEstSalon.addEventListener("change", () => {
-        bloqueOtroSalon.style.display = nuevoEstSalon.value === "__otro__" ? "block" : "none";
-    });
-
-    function filaEstudianteHtml(est) {
-        const registrado = !!est.correo;
-        const chip = registrado
-            ? `<span class="badge bg-success">Registrado</span>`
-            : `<span class="badge bg-secondary">Sin registrar</span>`;
-
-        return `
-            <tr data-id="${est.id}">
-                <td>
-                    <input type="text" class="form-control form-control-sm campo-nombre" value="${escapeHtmlAdmin(est.nombre || "")}">
-                </td>
-                <td>
-                    <input type="text" class="form-control form-control-sm campo-cedula" value="${escapeHtmlAdmin(est.cedula || "")}" placeholder="8-123-4567">
-                </td>
-                <td>
-                    <input type="text" class="form-control form-control-sm campo-salon" value="${escapeHtmlAdmin(est.salon || "")}">
-                </td>
-                <td>${chip}</td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-sm btn-outline-danger btn-borrar-estudiante" title="Eliminar estudiante">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-    }
-
-    // (usa la función escapeHtmlAdmin ya definida más abajo en este archivo)
-
-    async function cargarEstudiantesAdmin() {
-        tablaEstudiantesAdmin.innerHTML = `
-            <tr><td colspan="5" class="text-center text-muted py-3">Cargando...</td></tr>
-        `;
-
-        let consulta = supabase
-            .from("estudiantes")
-            .select("id, codigo, nombre, cedula, salon, correo, es_prueba")
-            .eq("es_prueba", false)
-            .order("salon", { ascending: true })
-            .order("nombre", { ascending: true });
-
-        if (estFiltroSalon.value) {
-            consulta = consulta.eq("salon", estFiltroSalon.value);
-        }
-
-        const { data, error } = await consulta;
-
-        if (error) {
-            console.error("❌ Error al cargar estudiantes:", error);
-            tablaEstudiantesAdmin.innerHTML = `
-                <tr><td colspan="5" class="text-center text-danger py-3">No se pudo cargar la lista.</td></tr>
-            `;
-            return;
-        }
-
-        if (!data || data.length === 0) {
-            tablaEstudiantesAdmin.innerHTML = `
-                <tr><td colspan="5" class="text-center text-muted py-3">No hay estudiantes en este salón todavía.</td></tr>
-            `;
-            return;
-        }
-
-        tablaEstudiantesAdmin.innerHTML = data.map(filaEstudianteHtml).join("");
-
-        // Guardar nombre/cédula/salón al salir de la casilla (blur)
-        tablaEstudiantesAdmin.querySelectorAll("tr[data-id]").forEach((fila) => {
-            const id = fila.dataset.id;
-            const inputNombre = fila.querySelector(".campo-nombre");
-            const inputCedula = fila.querySelector(".campo-cedula");
-            const inputSalon = fila.querySelector(".campo-salon");
-            const btnBorrar = fila.querySelector(".btn-borrar-estudiante");
-
-            async function guardarCampo(campo, valor) {
-                const cambios = { [campo]: valor.trim() || null };
-                const { error: errGuardar } = await supabase
-                    .from("estudiantes")
-                    .update(cambios)
-                    .eq("id", id);
-
-                if (errGuardar) {
-                    console.error(`❌ Error al guardar ${campo}:`, errGuardar);
-                    avisoGuardado(
-                        errGuardar.code === "23505"
-                            ? "⚠️ Esa cédula ya está en uso por otro estudiante."
-                            : "❌ No se pudo guardar",
-                        true
-                    );
-                    return;
-                }
-                avisoGuardado("✅ Guardado");
-            }
-
-            inputNombre.addEventListener("blur", () => guardarCampo("nombre", inputNombre.value));
-            inputCedula.addEventListener("blur", () => guardarCampo("cedula", inputCedula.value));
-            inputSalon.addEventListener("blur", () => guardarCampo("salon", inputSalon.value));
-
-            btnBorrar.addEventListener("click", async () => {
-                const nombreActual = inputNombre.value || "este estudiante";
-                if (!confirm(`¿Eliminar a ${nombreActual}? Esto no borra sus notas, solo su ficha de estudiante.`)) return;
-
-                const { error: errBorrar } = await supabase
-                    .from("estudiantes")
-                    .delete()
-                    .eq("id", id);
-
-                if (errBorrar) {
-                    console.error("❌ Error al eliminar estudiante:", errBorrar);
-                    avisoGuardado("❌ No se pudo eliminar", true);
-                    return;
-                }
-
-                fila.remove();
-            });
-        });
-    }
-
-    estFiltroSalon.addEventListener("change", cargarEstudiantesAdmin);
-
-    // Se expone por si el script de navegación del menú (en admin.html)
-    // necesita volver a llamarla, pero ya no depende de eso: la cargamos
-    // ahora mismo para que la tabla nunca se quede en "Cargando...".
-    window.cargarEstudiantesAdmin = cargarEstudiantesAdmin;
-    cargarEstudiantesAdmin();
-
-    btnAgregarEstudiante.addEventListener("click", async () => {
-        ocultarMensajeEstudiantes();
-
-        const nombre = nuevoEstNombre.value.trim();
-        const cedula = nuevoEstCedula.value.trim();
-        const salon = nuevoEstSalon.value === "__otro__"
-            ? nuevoEstSalonOtro.value.trim()
-            : nuevoEstSalon.value;
-
-        if (!nombre || !salon) {
-            mostrarMensajeEstudiantes("Por favor completa al menos el nombre y el salón.", "warning");
-            return;
-        }
-
-        btnAgregarEstudiante.disabled = true;
-        const textoOriginalBoton = btnAgregarEstudiante.innerHTML;
-        btnAgregarEstudiante.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
-
-        try {
-            // -------- 1) Verificar que la cédula no exista ya (si se dio una) --------
-            if (cedula) {
-                const { data: existente, error: errBuscar } = await supabase
-                    .from("estudiantes")
-                    .select("id")
-                    .eq("cedula", cedula)
-                    .maybeSingle();
-
-                if (errBuscar) {
-                    throw new Error("No se pudo verificar la cédula: " + errBuscar.message);
-                }
-                if (existente) {
-                    mostrarMensajeEstudiantes("⚠️ Esa cédula ya está en uso por otro estudiante.", "warning");
-                    return;
-                }
-            }
-
-            // -------- 2) Calcular el siguiente código dentro de ese salón --------
-            // "codigo" es un número entero en la base de datos, así que no puede
-            // ser un texto tipo "EST-...". Se calcula como el siguiente número
-            // disponible dentro del salón (1, 2, 3...).
-            const { data: ultimoCodigo, error: errCodigo } = await supabase
-                .from("estudiantes")
-                .select("codigo")
-                .eq("salon", salon)
-                .order("codigo", { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-            if (errCodigo) {
-                throw new Error("No se pudo calcular el código: " + errCodigo.message);
-            }
-
-            const siguienteCodigo = ultimoCodigo ? (Number(ultimoCodigo.codigo) + 1) : 1;
-
-            // -------- 3) Insertar el estudiante --------
-            const { error } = await supabase
-                .from("estudiantes")
-                .insert([{
-                    codigo: siguienteCodigo,
-                    nombre,
-                    cedula: cedula || null,
-                    salon,
-                    es_prueba: false
-                }]);
-
-            if (error) {
-                // 23505 = cédula o (salón, código) duplicado
-                if (error.code === "23505") {
-                    throw new Error("⚠️ Esa cédula ya está en uso, o hubo un choque de código. Intenta de nuevo.");
-                }
-                // 42501 = RLS bloqueó el insert (sin permiso)
-                if (error.code === "42501") {
-                    throw new Error("No tienes permiso para agregar estudiantes en este salón.");
-                }
-                throw new Error(error.message);
-            }
-
-            mostrarMensajeEstudiantes(`✅ ${nombre} fue agregado(a) a ${salon} con el código ${siguienteCodigo}.`, "success");
-            nuevoEstNombre.value = "";
-            nuevoEstCedula.value = "";
-            nuevoEstSalonOtro.value = "";
-
-            // Si el salón filtrado coincide (o está en "Todos"), refresca la tabla
-            if (!estFiltroSalon.value || estFiltroSalon.value === salon) {
-                await cargarEstudiantesAdmin();
-            }
-
-        } catch (err) {
-            console.error("❌ Error al agregar estudiante:", err);
-            mostrarMensajeEstudiantes(err.message || "❌ No se pudo agregar el estudiante.", "danger");
-        } finally {
-            btnAgregarEstudiante.disabled = false;
-            btnAgregarEstudiante.innerHTML = textoOriginalBoton;
-        }
-    });
-
-    // =================================================
-    // 3) CARGAR USUARIOS REGISTRADOS
-    // =================================================
-
-    async function cargarUsuarios() {
-
-        const tablaUsuarios = document.getElementById("tablaUsuarios");
-        tablaUsuarios.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">Cargando usuarios...</td></tr>`;
-
-        const { data, error } = await supabase
-            .from("usuarios")
-            .select("correo, rol, activo, created_at")
-            .order("created_at", { ascending: false });
-
-        if (error) {
-            console.error("❌ Error al cargar usuarios:", error);
-            tablaUsuarios.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Error: ${error.message}</td></tr>`;
-            return;
-        }
-
-        if (!data || data.length === 0) {
-            tablaUsuarios.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>`;
-            return;
-        }
-
-        tablaUsuarios.innerHTML = "";
-
-        data.forEach((u) => {
-
-            const fila = document.createElement("tr");
-
-            const fecha = u.created_at
-                ? new Date(u.created_at).toLocaleString("es-PA")
-                : "-";
-
-            const btnInspeccionar = u.correo 
-                ? `<a href="estudiante.html?correo=${encodeURIComponent(u.correo)}" target="_blank" class="btn btn-sm btn-outline-primary py-0">👁️ Ver Boletín</a>`
-                : '-';
-
-            fila.innerHTML = `
-                <td>${u.correo ?? "-"}</td>
-                <td><span class="badge bg-secondary">${u.rol ?? "-"}</span></td>
-                <td>${u.activo ? "✅" : "❌"}</td>
-                <td>${fecha}</td>
-                <td>${btnInspeccionar}</td>
-            `;
-
-            tablaUsuarios.appendChild(fila);
-        });
-    }
-
-    // =================================================
-    // 4) CARGAR NOTAS DE TODOS LOS ESTUDIANTES
-    // =================================================
-
-    async function cargarNotas() {
-
-        const cabeceraNotas = document.getElementById("cabeceraNotas");
-        const tablaNotas = document.getElementById("tablaNotas");
-
-        tablaNotas.innerHTML = `<tr><td class="text-center text-muted py-4">Cargando notas...</td></tr>`;
-        cabeceraNotas.innerHTML = "";
-
-        const { data, error } = await supabase
-            .from("notas")
-            .select("*")
-            .order("id", { ascending: false });
-
-        if (error) {
-            console.error("❌ Error al cargar notas:", error);
-            tablaNotas.innerHTML = `<tr><td class="text-center text-danger py-4">Error: ${error.message}</td></tr>`;
-            return;
-        }
-
-        if (!data || data.length === 0) {
-            tablaNotas.innerHTML = `<tr><td class="text-center text-muted py-4">No hay notas registradas.</td></tr>`;
-            return;
-        }
-
-        const columnas = Object.keys(data[0]);
-
-        const filaCabecera = document.createElement("tr");
-        columnas.forEach((col) => {
-            const th = document.createElement("th");
-            th.textContent = col;
-            filaCabecera.appendChild(th);
-        });
-        filaCabecera.innerHTML += `<th>Acción</th>`;
-        cabeceraNotas.appendChild(filaCabecera);
-
-        tablaNotas.innerHTML = "";
-
-        data.forEach((registro) => {
-            const fila = document.createElement("tr");
-            columnas.forEach((col) => {
-                const td = document.createElement("td");
-                td.textContent = registro[col] ?? "-";
-                fila.appendChild(td);
-            });
-
-            const tdAccion = document.createElement("td");
-            tdAccion.innerHTML = registro.correo 
-                ? `<a href="estudiante.html?correo=${encodeURIComponent(registro.correo)}" target="_blank" class="btn btn-sm btn-outline-primary py-0">👁️ Ver</a>`
-                : '-';
-            fila.appendChild(tdAccion);
-
-            tablaNotas.appendChild(fila);
-        });
-    }
-
-    // =================================================
-    // 5) AGREGAR NOTAS POR SECCIÓN
-    // =================================================
-
-    function escapeHtmlAdmin(str) {
+    pintarCambiarPanel("consejero");
+    const totalEstudiantesEl = document.getElementById("totalEstudiantes");
+    const totalRegistradosEl = document.getElementById("totalRegistrados");
+    const totalNotasEl = document.getElementById("totalNotas");
+    const trimestreLabelEl = document.getElementById("trimestreLabel");
+    const tablaResumen = document.getElementById("tablaResumen");
+    const btnSalir = document.getElementById("btnSalir");
+
+    const modalDetalle = new bootstrap.Modal(document.getElementById("modalDetalle"));
+    const modalDetalleTitulo = document.getElementById("modalDetalleTitulo");
+    const modalDetalleContenido = document.getElementById("modalDetalleContenido");
+
+    const escapeHtml = (str) => {
         return String(str ?? "")
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#39;");
-    }
-
-    const notasSalon = document.getElementById("notasSalon");
-    const notasMateria = document.getElementById("notasMateria");
-    const notasTrimestre = document.getElementById("notasTrimestre");
-    const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
-    const tablaNotasGrupo = document.getElementById("tablaNotasGrupo");
-    const btnGuardarNotasGrupo = document.getElementById("btnGuardarNotasGrupo");
-    const estadoGuardadoNotas = document.getElementById("estadoGuardadoNotas");
-
-    let grupoActualNotas = [];
-    let historiaPorEstudiante = {}; 
-    let casillasTabla = [];         
-    let temasCasillasBD = {};       
-
-    function claveCasilla(tipo, numero) {
-        return `${tipo}-${numero}`;
-    }
-
-    function etiquetaCasilla(tipo, numero) {
-        return `${tipo === "apreciacion" ? "Aprec." : "Ejer."} ${numero}`;
-    }
-
-    function claveEstudiante(est) {
-        return est.correo ? `correo:${est.correo}` : `id:${est.id}`;
-    }
-
-    function obtenerTemaCasilla(tipo, numero) {
-        const clave = claveCasilla(tipo, numero);
-
-        if (temasCasillasBD[clave]) return temasCasillasBD[clave];
-
-        for (const claveEst in historiaPorEstudiante) {
-            const nota = historiaPorEstudiante[claveEst][clave];
-            if (nota && nota.tema) return nota.tema;
-        }
-
-        return "";
-    }
-
-    async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
-
-        const salon = notasSalon.value;
-        const materia = notasMateria.value.trim();
-        const trimestre = notasTrimestre.value;
-        const valorGuardar = nuevoTema || null;
-
-        const { error: errorTemaTabla } = await supabase
-            .from("temas_casillas")
-            .upsert(
-                {
-                    salon,
-                    materia,
-                    trimestre,
-                    tipo,
-                    numero,
-                    tema: valorGuardar,
-                    updated_at: new Date().toISOString()
-                },
-                { onConflict: "salon,materia,trimestre,tipo,numero" }
-            );
-
-        if (errorTemaTabla) {
-            console.error("❌ Error al guardar el tema de la casilla:", errorTemaTabla);
-            estadoGuardadoNotas.textContent = `⚠️ No se pudo guardar el tema de ${etiquetaCasilla(tipo, numero)}.`;
-            estadoGuardadoNotas.className = "small text-danger";
-            return;
-        }
-
-        temasCasillasBD[claveCasilla(tipo, numero)] = valorGuardar || "";
-
-        const correosDelGrupo = grupoActualNotas.map((e) => e.correo).filter(Boolean);
-        const idsSinCuenta = grupoActualNotas.filter((e) => !e.correo).map((e) => e.id);
-
-        if (correosDelGrupo.length > 0) {
-            await supabase
-                .from("notas")
-                .update({ tema: valorGuardar })
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .eq("tipo", tipo)
-                .eq("numero", numero)
-                .in("correo", correosDelGrupo);
-        }
-
-        if (idsSinCuenta.length > 0) {
-            await supabase
-                .from("notas")
-                .update({ tema: valorGuardar })
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .eq("tipo", tipo)
-                .eq("numero", numero)
-                .in("estudiante_id", idsSinCuenta);
-        }
-
-        const clave = claveCasilla(tipo, numero);
-        Object.keys(historiaPorEstudiante).forEach((claveEst) => {
-            if (historiaPorEstudiante[claveEst][clave]) {
-                historiaPorEstudiante[claveEst][clave].tema = valorGuardar;
-            }
-        });
-
-        estadoGuardadoNotas.textContent = `✅ Tema de "${etiquetaCasilla(tipo, numero)}" actualizado.`;
-        estadoGuardadoNotas.className = "small text-success";
-    }
-
-    async function eliminarColumnaCasilla(tipo, numero) {
-        const salon = notasSalon.value;
-        const materia = notasMateria.value.trim();
-        const trimestre = notasTrimestre.value;
-        const etiqueta = etiquetaCasilla(tipo, numero);
-
-        const confirmar = confirm(`¿Estás seguro de que deseas eliminar permanentemente la casilla "${etiqueta}" (${materia} - ${salon}) y TODAS las notas registradas en ella?`);
-        if (!confirmar) return;
-
-        estadoGuardadoNotas.textContent = `Eliminando columna ${etiqueta}...`;
-        estadoGuardadoNotas.className = "small text-primary";
-
-        try {
-            await supabase.from("notas")
-                .delete()
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .eq("tipo", tipo)
-                .eq("numero", numero);
-
-            await supabase.from("temas_casillas")
-                .delete()
-                .eq("salon", salon)
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .eq("tipo", tipo)
-                .eq("numero", numero);
-
-            await supabase.from("columnas_materia")
-                .delete()
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .eq("tipo", tipo)
-                .eq("numero", numero);
-
-            estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} eliminada correctamente.`;
-            estadoGuardadoNotas.className = "small text-success";
-
-            cargarGrupoNotas();
-            cargarNotas();
-
-        } catch (error) {
-            console.error("❌ Error al eliminar casilla:", error);
-            estadoGuardadoNotas.textContent = `⚠️ Error al eliminar la casilla: ${error.message || String(error)}`;
-            estadoGuardadoNotas.className = "small text-danger";
-        }
-    }
-
-    (async function precargarTrimestreActivo() {
-        const { data: cfg } = await supabase
-            .from("configuracion")
-            .select("trimestre_activo")
-            .maybeSingle();
-
-        if (cfg?.trimestre_activo && notasTrimestre) {
-            notasTrimestre.value = cfg.trimestre_activo;
-        }
-    })();
-
-    // =================================================
-    // 2.6) TRIMESTRES: FECHAS Y CÁLCULO DEL TRIMESTRE ACTIVO
-    // =================================================
-    // El admin define fecha de inicio y de fin de cada trimestre.
-    // A partir de esas fechas, el sistema calcula solo cuál trimestre
-    // corresponde según el día de hoy, y lo guarda en
-    // configuracion.trimestre_activo (columna que ya usan tanto este
-    // panel como el del docente para precargar el selector de notas).
-
-    const t1Inicio = document.getElementById("t1Inicio");
-    const t1Fin = document.getElementById("t1Fin");
-    const t2Inicio = document.getElementById("t2Inicio");
-    const t2Fin = document.getElementById("t2Fin");
-    const t3Inicio = document.getElementById("t3Inicio");
-    const t3Fin = document.getElementById("t3Fin");
-    const btnGuardarTrimestres = document.getElementById("btnGuardarTrimestres");
-    const mensajeTrimestres = document.getElementById("mensajeTrimestres");
-    const estadoGuardadoTrimestres = document.getElementById("estadoGuardadoTrimestres");
-    const trimestreActivoCalculado = document.getElementById("trimestreActivoCalculado");
-    const trimestreActivoDetalle = document.getElementById("trimestreActivoDetalle");
-
-    function mostrarMensajeTrimestres(texto, tipo = "danger") {
-        if (!mensajeTrimestres) return;
-        mensajeTrimestres.textContent = texto;
-        mensajeTrimestres.className = `alert alert-${tipo}`;
-    }
-
-    function ocultarMensajeTrimestres() {
-        if (!mensajeTrimestres) return;
-        mensajeTrimestres.className = "alert d-none";
-    }
-
-    // Recibe las 3 parejas de fechas (strings "YYYY-MM-DD") y devuelve
-    // "Trimestre 1" / "Trimestre 2" / "Trimestre 3", o null si la fecha
-    // de hoy no cae dentro de ningún rango configurado.
-    function calcularTrimestreActivo(fechas) {
-        const hoy = new Date().toISOString().slice(0, 10);
-        const rangos = [
-            { nombre: "Trimestre 1", inicio: fechas.t1Inicio, fin: fechas.t1Fin },
-            { nombre: "Trimestre 2", inicio: fechas.t2Inicio, fin: fechas.t2Fin },
-            { nombre: "Trimestre 3", inicio: fechas.t3Inicio, fin: fechas.t3Fin }
-        ];
-
-        for (const rango of rangos) {
-            if (!rango.inicio || !rango.fin) continue;
-            if (hoy >= rango.inicio && hoy <= rango.fin) return rango.nombre;
-        }
-        return null;
-    }
-
-    function formatearFechaCorta(fechaIso) {
-        if (!fechaIso) return "?";
-        const [anio, mes, dia] = fechaIso.split("-");
-        return `${dia}/${mes}/${anio}`;
-    }
-
-    function actualizarTrimestreActivoUI(fechas) {
-        const activo = calcularTrimestreActivo(fechas);
-
-        if (activo) {
-            trimestreActivoCalculado.textContent = activo;
-            trimestreActivoCalculado.className = "fw-bold text-success";
-        } else {
-            trimestreActivoCalculado.textContent = "Ninguno (fuera de rango)";
-            trimestreActivoCalculado.className = "fw-bold text-danger";
-        }
-
-        if (trimestreActivoDetalle) {
-            const partes = [];
-            if (fechas.t1Inicio && fechas.t1Fin) partes.push(`T1: ${formatearFechaCorta(fechas.t1Inicio)}–${formatearFechaCorta(fechas.t1Fin)}`);
-            if (fechas.t2Inicio && fechas.t2Fin) partes.push(`T2: ${formatearFechaCorta(fechas.t2Inicio)}–${formatearFechaCorta(fechas.t2Fin)}`);
-            if (fechas.t3Inicio && fechas.t3Fin) partes.push(`T3: ${formatearFechaCorta(fechas.t3Inicio)}–${formatearFechaCorta(fechas.t3Fin)}`);
-            trimestreActivoDetalle.textContent = partes.join("   ·   ");
-        }
-
-        return activo;
-    }
-
-    async function cargarConfigTrimestres() {
-        ocultarMensajeTrimestres();
-
-        const { data: cfg, error } = await supabase
-            .from("configuracion")
-            .select("t1_inicio, t1_fin, t2_inicio, t2_fin, t3_inicio, t3_fin, trimestre_activo")
-            .eq("id", 1)
-            .maybeSingle();
-
-        if (error) {
-            console.error("❌ Error al cargar fechas de trimestres:", error);
-            mostrarMensajeTrimestres("No se pudieron cargar las fechas de los trimestres.");
-            return;
-        }
-
-        if (t1Inicio) t1Inicio.value = cfg?.t1_inicio || "";
-        if (t1Fin) t1Fin.value = cfg?.t1_fin || "";
-        if (t2Inicio) t2Inicio.value = cfg?.t2_inicio || "";
-        if (t2Fin) t2Fin.value = cfg?.t2_fin || "";
-        if (t3Inicio) t3Inicio.value = cfg?.t3_inicio || "";
-        if (t3Fin) t3Fin.value = cfg?.t3_fin || "";
-
-        actualizarTrimestreActivoUI({
-            t1Inicio: cfg?.t1_inicio, t1Fin: cfg?.t1_fin,
-            t2Inicio: cfg?.t2_inicio, t2Fin: cfg?.t2_fin,
-            t3Inicio: cfg?.t3_inicio, t3Fin: cfg?.t3_fin
-        });
-    }
-
-    async function guardarConfigTrimestres() {
-        ocultarMensajeTrimestres();
-
-        const fechas = {
-            t1Inicio: t1Inicio.value || null, t1Fin: t1Fin.value || null,
-            t2Inicio: t2Inicio.value || null, t2Fin: t2Fin.value || null,
-            t3Inicio: t3Inicio.value || null, t3Fin: t3Fin.value || null
-        };
-
-        // Validaciones básicas: cada trimestre con inicio y fin en orden,
-        // y que no se pisen entre sí (el fin de uno antes del inicio del siguiente).
-        const pares = [
-            ["Trimestre 1", fechas.t1Inicio, fechas.t1Fin],
-            ["Trimestre 2", fechas.t2Inicio, fechas.t2Fin],
-            ["Trimestre 3", fechas.t3Inicio, fechas.t3Fin]
-        ];
-
-        for (const [nombre, inicio, fin] of pares) {
-            if (inicio && fin && inicio > fin) {
-                mostrarMensajeTrimestres(`⚠️ En ${nombre}, la fecha de inicio no puede ser después de la fecha de fin.`);
-                return;
-            }
-        }
-
-        if (fechas.t1Fin && fechas.t2Inicio && fechas.t1Fin >= fechas.t2Inicio) {
-            mostrarMensajeTrimestres("⚠️ El Trimestre 1 se pisa con el Trimestre 2. Revisa las fechas.");
-            return;
-        }
-        if (fechas.t2Fin && fechas.t3Inicio && fechas.t2Fin >= fechas.t3Inicio) {
-            mostrarMensajeTrimestres("⚠️ El Trimestre 2 se pisa con el Trimestre 3. Revisa las fechas.");
-            return;
-        }
-
-        const trimestreCalculado = calcularTrimestreActivo(fechas);
-
-        btnGuardarTrimestres.disabled = true;
-        estadoGuardadoTrimestres.textContent = "Guardando...";
-        estadoGuardadoTrimestres.className = "small text-muted";
-
-        const cambios = {
-            t1_inicio: fechas.t1Inicio, t1_fin: fechas.t1Fin,
-            t2_inicio: fechas.t2Inicio, t2_fin: fechas.t2Fin,
-            t3_inicio: fechas.t3Inicio, t3_fin: fechas.t3Fin
-        };
-
-        // Si las fechas ya determinan un trimestre activo, lo actualizamos
-        // de una vez para que el resto del sistema (precarga en este panel
-        // y, en el panel del docente, la próxima vez que se conecte al
-        // sistema) quede al día sin pasos manuales extra.
-        if (trimestreCalculado) {
-            cambios.trimestre_activo = trimestreCalculado;
-        }
-
-        const { error } = await supabase
-            .from("configuracion")
-            .update(cambios)
-            .eq("id", 1);
-
-        btnGuardarTrimestres.disabled = false;
-
-        if (error) {
-            console.error("❌ Error al guardar fechas de trimestres:", error);
-            estadoGuardadoTrimestres.textContent = "❌ Error al guardar";
-            estadoGuardadoTrimestres.className = "small text-danger";
-            return;
-        }
-
-        estadoGuardadoTrimestres.textContent = "✅ Guardado";
-        estadoGuardadoTrimestres.className = "small text-success";
-        setTimeout(() => { estadoGuardadoTrimestres.textContent = ""; }, 2500);
-
-        actualizarTrimestreActivoUI(fechas);
-
-        if (trimestreCalculado && notasTrimestre) {
-            notasTrimestre.value = trimestreCalculado;
-        }
-    }
-
-    if (btnGuardarTrimestres) {
-        btnGuardarTrimestres.addEventListener("click", guardarConfigTrimestres);
-    }
-
-    // Se expone para que el script de navegación del menú (al final de
-    // admin.html) pueda cargar los datos justo al abrir este panel.
-    window.cargarConfigTrimestres = cargarConfigTrimestres;
-
-    const MATERIAS_BASE = [
-        "Español",
-        "Matemática",
-        "Ciencias Naturales",
-        "Inglés",
-        "Expresión Artística",
-        "Música",
-        "Educación Física",
-        "Familia y Desarrollo Comunitario",
-        "Historia",
-        "Educación Agropecuaria",
-        "Contabilidad",
-        "Geografía",
-        "Orientación",
-        "Cívica",
-        "Religión, Moral y Valores"
-    ];
-
-    function materiasParaSalon(salon) {
-        const lista = salon === "8A"
-            ? MATERIAS_BASE.map((m) => (m === "Contabilidad" ? "Informática" : m))
-            : MATERIAS_BASE;
-
-        return [...lista].sort((a, b) => a.localeCompare(b, "es"));
-    }
-
-    const MATERIA_A_PROFESOR = {
-        "Español": "Yadira de Gracia",
-        "Geografía": "Faustina Rodríguez",
-        "Inglés": "Wendy Warren",
-        "Matemática": "Juana Browns",
-        "Ciencias Naturales": "Samuel Ortega",
-        "Cívica": "Juana Browns",
-        "Educación Física": "Guiliam Barría",
-        "Expresión Artística": "Miriam Valencia",
-        "Educación Agropecuaria": "Alexis Del Mar",
-        "Familia y Desarrollo Comunitario": "Erika Pimentel",
-        "Contabilidad": "Alexis Del Mar",
-        "Orientación": "Willian Mitzi",
-        "Religión, Moral y Valores": "Encelma Álvarez",
-        "Música": "Miriam Valencia"
     };
 
-    const ETIQUETAS_SALON = { "8A": "8°A", "9A": "9°A", "9B": "9°B", "9C": "9°C" };
-    const PROMEDIO_MINIMO_APROBAR = 3.0;
+    // =====================================================
+    // VERIFICAR SESIÓN ACTIVA
+    // Si alguien entra a esta página sin haber iniciado sesión
+    // (por ejemplo escribiendo la URL directamente), las consultas
+    // a Supabase se harían como usuario anónimo y fallarían con
+    // "permission denied". Por eso se valida la sesión primero.
+    // =====================================================
 
-    function actualizarOpcionesMateria() {
-        const salon = notasSalon.value;
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-        bloqueTablaNotas.style.display = "none";
-
-        if (!salon) {
-            notasMateria.innerHTML = `<option value="">Seleccione primero un salón</option>`;
-            notasMateria.disabled = true;
-            return;
-        }
-
-        const materias = materiasParaSalon(salon);
-
-        notasMateria.innerHTML =
-            `<option value="">Seleccione una materia</option>` +
-            materias.map((m) => `<option value="${escapeHtmlAdmin(m)}">${escapeHtmlAdmin(m)}</option>`).join("");
-
-        notasMateria.disabled = false;
+    if (userError || !user) {
+        alert("Debes iniciar sesión para ver el panel del consejero.");
+        window.location.href = "login.html";
+        return;
     }
 
-    notasSalon.addEventListener("change", actualizarOpcionesMateria);
-    notasMateria.addEventListener("change", () => {
-        if (notasMateria.value.trim()) {
-            cargarGrupoNotas();
-        } else {
-            bloqueTablaNotas.style.display = "none";
-        }
-    });
+    // =====================================================
+    // ¿A QUÉ SALÓN PERTENECE ESTE CONSEJERO(A)?
+    // Se busca en la tabla "consejeros" usando el correo con el
+    // que inició sesión. Si no aparece ahí, no tiene un salón
+    // asignado y no debe ver datos de ningún estudiante.
+    //
+    // La búsqueda es tolerante a espacios accidentales y a
+    // diferencias de mayúsculas/minúsculas, tanto en el correo
+    // como en el salón, y además valida que la cuenta tenga
+    // rol "consejero".
+    // =====================================================
 
-    function recalcularPromedios() {
-        tablaNotasGrupo.querySelectorAll("tr").forEach((tr) => {
+    const correoSesion = (user.email || "").trim().toLowerCase();
 
-            const inputsFila = tr.querySelectorAll(".input-nota-grupo");
-            if (inputsFila.length === 0) return;
+    console.log("🔎 Buscando consejero con correo:", correoSesion);
 
-            const aprValores = [];
-            const ejeValores = [];
+    const { data: consejerosData, error: errConsejero } = await supabase
+        .from("consejeros")
+        .select("salon, nombre, correo, rol");
 
-            inputsFila.forEach((input) => {
-                const valor = input.value.trim();
-                if (valor === "") return;
+    console.log("📋 Consejeros encontrados en la tabla:", consejerosData, "Error:", errConsejero);
 
-                const num = parseFloat(valor);
-                if (isNaN(num)) return;
+    let consejeroInfo = null;
 
-                if (input.dataset.tipo === "apreciacion") aprValores.push(num);
-                else if (input.dataset.tipo === "ejercicio") ejeValores.push(num);
-            });
-
-            const promApr = aprValores.length > 0
-                ? aprValores.reduce((a, b) => a + b, 0) / aprValores.length
-                : null;
-
-            const promEje = ejeValores.length > 0
-                ? ejeValores.reduce((a, b) => a + b, 0) / ejeValores.length
-                : null;
-
-            let promFinal = null;
-            if (promApr !== null && promEje !== null) {
-                promFinal = (promApr + promEje) / 2;
-            } else if (promApr !== null) {
-                promFinal = promApr;
-            } else if (promEje !== null) {
-                promFinal = promEje;
-            }
-
-            const celdaApr = tr.querySelector(".celda-prom-apr");
-            const celdaEje = tr.querySelector(".celda-prom-eje");
-            const celdaFinal = tr.querySelector(".celda-prom-final");
-
-            if (celdaApr) celdaApr.textContent = promApr !== null ? promApr.toFixed(1) : "–";
-            if (celdaEje) celdaEje.textContent = promEje !== null ? promEje.toFixed(1) : "–";
-
-            if (celdaFinal) {
-                celdaFinal.textContent = promFinal !== null ? promFinal.toFixed(1) : "–";
-
-                const enRiesgo = promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR;
-
-                if (enRiesgo) {
-                    tr.classList.add("table-danger");
-                    celdaFinal.classList.add("text-danger");
-                } else {
-                    tr.classList.remove("table-danger");
-                    celdaFinal.classList.remove("text-danger");
-                }
-            }
-        });
+    if (!errConsejero && Array.isArray(consejerosData)) {
+        consejeroInfo = consejerosData.find((c) => {
+            const correoBD = (c.correo || "").trim().toLowerCase();
+            return correoBD === correoSesion;
+        }) || null;
     }
 
-    function renderTablaNotasGrupo() {
+    if (errConsejero || !consejeroInfo) {
+        alert("Esta cuenta no tiene un salón asignado. Contacta al administrador del sistema.");
+        window.location.href = "login.html";
+        return;
+    }
 
-        const cabecera = document.getElementById("cabeceraNotasGrupo");
-        const cabeceraTemas = document.getElementById("cabeceraTemasGrupo");
+    if (consejeroInfo.rol && consejeroInfo.rol.trim().toLowerCase() !== "consejero") {
+        console.warn("⚠️ La cuenta existe en 'consejeros' pero su rol no es 'consejero':", consejeroInfo.rol);
+        alert("Esta cuenta no tiene permiso de consejero(a). Contacta al administrador del sistema.");
+        window.location.href = "login.html";
+        return;
+    }
 
-        if (grupoActualNotas.length === 0) {
-            cabecera.innerHTML = `<th style="width:45px;">#</th><th>Estudiante</th>`;
-            cabeceraTemas.innerHTML = "";
-            tablaNotasGrupo.innerHTML = `<tr><td colspan="2" class="text-center text-muted py-3">Este salón aún no tiene estudiantes cargados.</td></tr>`;
-            return;
-        }
+    // Normaliza el salón (quita espacios extra y pone la letra en mayúscula,
+    // p. ej. " 9c " o "9 c" terminan siendo "9C") para que coincida sin
+    // problemas con lo que tengan guardado los estudiantes.
+    const salonActual = (consejeroInfo.salon || "").trim().toUpperCase();
 
-        let htmlCabecera = `<th style="width:45px;">#</th><th>Estudiante</th>`;
+    console.log("✅ Consejero encontrado:", consejeroInfo, "| Salón normalizado:", salonActual);
 
-        casillasTabla.forEach((c) => {
-            const claseTh = "text-muted";
-            htmlCabecera += `
-                <th class="text-center small ${claseTh}" style="width:90px;">
-                    <div>${etiquetaCasilla(c.tipo, c.numero)}</div>
-                    <button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna y sus notas">🗑️</button>
-                </th>`;
-        });
+    // Encabezado y bienvenida dinámicos (ya no dicen "9C" fijo)
+    const navbarSalonEl = document.getElementById("navbarSalon");
+    if (navbarSalonEl) {
+        navbarSalonEl.textContent = `C.E.B.G. EL JIRAL | Consejería ${salonActual}`;
+    }
 
-        htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Aprec.</th>`;
-        htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Ejer.</th>`;
-        htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
-        htmlCabecera += `<th style="width:160px;">Estado</th>`;
-        cabecera.innerHTML = htmlCabecera;
+    const bienvenidaEl = document.getElementById("bienvenidaConsejero");
+    if (bienvenidaEl) {
+        bienvenidaEl.textContent = `Bienvenido(a), ${consejeroInfo.nombre || "consejero(a)"}`;
+    }
 
-        let htmlTemas = `<th></th><th class="small text-muted fw-normal">Tema de cada casilla:</th>`;
+    // =====================================================
+    // CONTROL DE CONSULTAS DE NOTAS (quién ha revisado y si
+    // descargó el PDF, usando "Ver mis notas" con su cédula)
+    // =====================================================
 
-        casillasTabla.forEach((c) => {
-            const temaActual = obtenerTemaCasilla(c.tipo, c.numero);
-            htmlTemas += `
-                <th style="padding:2px 4px;">
-                    <input
-                        type="text"
-                        class="form-control form-control-sm input-tema-columna"
-                        data-tipo="${c.tipo}"
-                        data-numero="${c.numero}"
-                        data-tema-guardado="${escapeHtmlAdmin(temaActual)}"
-                        value="${escapeHtmlAdmin(temaActual)}"
-                        placeholder="Ej: Prueba corta"
-                        style="font-size:11px; font-weight:normal;"
-                    >
-                </th>
-            `;
-        });
+    const btnVerConsultas = document.getElementById("btnVerConsultas");
+    const bloqueConsultas = document.getElementById("bloqueConsultas");
+    const tablaConsultas = document.getElementById("tablaConsultas");
+    const statTotalConsultas = document.getElementById("statTotalConsultas");
+    const statEstudiantesDistintos = document.getElementById("statEstudiantesDistintos");
+    const statConPdf = document.getElementById("statConPdf");
+    const statSinConsultar = document.getElementById("statSinConsultar");
 
-        htmlTemas += `<th></th><th></th><th></th><th></th>`; 
-        cabeceraTemas.innerHTML = htmlTemas;
-
-        tablaNotasGrupo.innerHTML = grupoActualNotas.map((est, i) => {
-            const sinCuenta = !est.correo;
-            const historialEst = historiaPorEstudiante[claveEstudiante(est)] || {};
-
-            const columnasNotas = casillasTabla.map((c, colIndex) => {
-                const claveCas = claveCasilla(c.tipo, c.numero);
-                const n = historialEst[claveCas];
-                const valor = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
-
-                return `
-                    <td>
-                        <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="5"
-                            class="form-control form-control-sm input-nota-grupo"
-                            data-col="${colIndex}"
-                            data-correo="${sinCuenta ? "" : escapeHtmlAdmin(est.correo)}"
-                            data-estudiante-id="${sinCuenta ? escapeHtmlAdmin(est.id) : ""}"
-                            data-nota-id="${n ? n.id : ""}"
-                            data-tipo="${c.tipo}"
-                            data-numero="${c.numero}"
-                            data-ultimo-valor-guardado="${valor}"
-                            value="${valor}"
-                            placeholder="–"
-                        >
-                    </td>
-                `;
-            }).join("");
-
-            const nombreEnlace = est.correo
-                ? `<a href="estudiante.html?correo=${encodeURIComponent(est.correo)}" target="_blank" class="fw-bold text-decoration-none text-primary" title="Hacer clic para ver/editar las notas individuales de este estudiante">${escapeHtmlAdmin(est.nombre)} 👁️</a>`
-                : escapeHtmlAdmin(est.nombre);
-
-            const badge = sinCuenta
-                ? `<span class="badge bg-warning text-dark">Sin cuenta</span>`
-                : `<a href="estudiante.html?correo=${encodeURIComponent(est.correo)}" target="_blank" class="badge bg-primary text-decoration-none">👁️ Ver Boletín</a>`;
-
-            return `
-                <tr class="${sinCuenta ? "table-warning" : ""}">
-                    <td>${i + 1}</td>
-                    <td>${nombreEnlace}</td>
-                    ${columnasNotas}
-                    <td class="celda-prom-apr text-center fw-bold">–</td>
-                    <td class="celda-prom-eje text-center fw-bold">–</td>
-                    <td class="celda-prom-final text-center fw-bold table-success bg-opacity-25">–</td>
-                    <td>${badge}</td>
-                </tr>
-            `;
-        }).join("");
-
-        recalcularPromedios();
-
-        cabecera.querySelectorAll(".btn-eliminar-columna").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                eliminarColumnaCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10));
-            });
-        });
-
-        tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna").forEach((input) => {
-            input.addEventListener("blur", async () => {
-                const nuevoValor = input.value.trim();
-                if (nuevoValor === input.dataset.temaGuardado) return;
-                await actualizarTemaCasilla(input.dataset.tipo, parseInt(input.dataset.numero, 10), nuevoValor);
-                input.dataset.temaGuardado = nuevoValor;
-            });
-        });
-
-        const todosLosInputs = Array.from(tablaNotasGrupo.querySelectorAll(".input-nota-grupo"));
-        const inputsPorColumna = {};
-
-        todosLosInputs.forEach((input) => {
-            const col = input.dataset.col;
-            if (!inputsPorColumna[col]) inputsPorColumna[col] = [];
-            inputsPorColumna[col].push(input);
-        });
-
-        todosLosInputs.forEach((input) => {
-
-            input.addEventListener("input", recalcularPromedios);
-
-            input.addEventListener("keydown", (e) => {
-                if (e.key === "Enter") {
-                    e.preventDefault();
-
-                    const listaColumna = inputsPorColumna[input.dataset.col] || [];
-                    const posicion = listaColumna.indexOf(input);
-                    const siguiente = listaColumna[posicion + 1];
-
-                    if (siguiente) {
-                        siguiente.focus();
-                        siguiente.select();
-                    }
-                }
-            });
+    function formatearFecha(iso) {
+        if (!iso) return "-";
+        const d = new Date(iso);
+        return d.toLocaleString("es-PA", {
+            day: "2-digit", month: "2-digit", year: "numeric",
+            hour: "2-digit", minute: "2-digit"
         });
     }
 
-    async function cargarGrupoNotas() {
+    let consultasYaCargadas = false;
 
-        const salon = notasSalon.value;
-        const materia = notasMateria.value.trim();
-        const trimestre = notasTrimestre.value;
+    async function cargarConsultas() {
+        tablaConsultas.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando...</td></tr>`;
 
-        if (!salon || !materia) {
-            bloqueTablaNotas.style.display = "none";
-            return;
-        }
-
-        bloqueTablaNotas.style.display = "block";
-        tablaNotasGrupo.innerHTML = `<tr><td colspan="2" class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm me-2"></span>Cargando estudiantes...</td></tr>`;
-
-        const { data: estudiantesSalon, error: errEst } = await supabase
-            .from("estudiantes")
-            .select("id, codigo, nombre, correo, es_prueba")
-            .eq("salon", salon)
-            .order("nombre", { ascending: true });
-
-        if (errEst) {
-            console.error("❌ Error al cargar estudiantes del salón:", errEst);
-            estadoGuardadoNotas.textContent = "⚠️ Error al cargar estudiantes: " + errEst.message;
-            estadoGuardadoNotas.className = "small text-danger";
-            return;
-        }
-
-        grupoActualNotas = (estudiantesSalon || []).filter((e) => !e.es_prueba);
-
-        const correosDelGrupo = grupoActualNotas.map((e) => e.correo).filter(Boolean);
-        const idsSinCuenta = grupoActualNotas.filter((e) => !e.correo).map((e) => e.id);
-
-        historiaPorEstudiante = {};
-        const casillasEncontradas = new Set();
-
-        // Siempre se muestran las 10 casillas de Apreciación y las 10 de Ejercicio,
-        // aunque todavía no tengan ninguna nota registrada.
-        for (let n = 1; n <= 10; n++) {
-            casillasEncontradas.add(claveCasilla("apreciacion", n));
-            casillasEncontradas.add(claveCasilla("ejercicio", n));
-        }
-
-        function registrarNotaEnHistorial(clave, n) {
-            if (!historiaPorEstudiante[clave]) historiaPorEstudiante[clave] = {};
-            const claveCas = claveCasilla(n.tipo, n.numero);
-            historiaPorEstudiante[clave][claveCas] = n;
-            casillasEncontradas.add(claveCas);
-        }
-
-        if (correosDelGrupo.length > 0) {
-            const { data: notasCorreo, error: errNotas } = await supabase
-                .from("notas")
-                .select("id, correo, tipo, numero, nota, tema")
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .in("correo", correosDelGrupo);
-
-            if (errNotas) {
-                console.error("❌ Error al cargar historial de notas:", errNotas);
-            } else if (notasCorreo) {
-                notasCorreo.forEach((n) => registrarNotaEnHistorial(`correo:${n.correo}`, n));
-            }
-        }
-
-        if (idsSinCuenta.length > 0) {
-            const { data: notasSinCuenta, error: errNotasSinCuenta } = await supabase
-                .from("notas")
-                .select("id, estudiante_id, tipo, numero, nota, tema")
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .in("estudiante_id", idsSinCuenta);
-
-            if (errNotasSinCuenta) {
-                console.error("❌ Error al cargar historial de notas (sin cuenta):", errNotasSinCuenta);
-            } else if (notasSinCuenta) {
-                notasSinCuenta.forEach((n) => registrarNotaEnHistorial(`id:${n.estudiante_id}`, n));
-            }
-        }
-
-        temasCasillasBD = {};
-
-        const { data: temasGuardados, error: errTemas } = await supabase
-            .from("temas_casillas")
-            .select("tipo, numero, tema")
-            .eq("salon", salon)
-            .eq("materia", materia)
-            .eq("trimestre", trimestre);
-
-        if (errTemas) {
-            console.error("❌ Error al cargar temas de casillas:", errTemas);
-        } else if (temasGuardados) {
-            temasGuardados.forEach((t) => {
-                const claveCas = claveCasilla(t.tipo, t.numero);
-                temasCasillasBD[claveCas] = t.tema || "";
-                if (t.tema) casillasEncontradas.add(claveCas);
-            });
-        }
-
-        casillasTabla = [...casillasEncontradas]
-            .map((c) => {
-                const separador = c.lastIndexOf("-");
-                return {
-                    tipo: c.slice(0, separador),
-                    numero: parseInt(c.slice(separador + 1), 10)
-                };
-            })
-            .sort((a, b) => {
-                if (a.tipo !== b.tipo) return a.tipo === "apreciacion" ? -1 : 1;
-                return a.numero - b.numero;
-            });
-
-        renderTablaNotasGrupo();
-        bloqueTablaNotas.style.display = "block";
-    }
-
-    window.cargarGrupoNotas = cargarGrupoNotas;
-
-    // =================================================
-    // GUARDAR NOTAS
-    // =================================================
-
-    async function guardarNotasGrupo(esAutomatico = false) {
-
-        const materia = notasMateria.value.trim();
-        const trimestre = notasTrimestre.value;
-        const hoy = new Date().toISOString().slice(0, 10);
-
-        const inputsTema = Array.from(tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna"));
-        const temaPorCasilla = {};
-        for (const inputTema of inputsTema) {
-            const valorActual = inputTema.value.trim();
-            temaPorCasilla[claveCasilla(inputTema.dataset.tipo, parseInt(inputTema.dataset.numero, 10))] = valorActual || null;
-            if (valorActual !== inputTema.dataset.temaGuardado) {
-                await actualizarTemaCasilla(inputTema.dataset.tipo, parseInt(inputTema.dataset.numero, 10), valorActual);
-                inputTema.dataset.temaGuardado = valorActual;
-            }
-        }
-
-        const inputs = tablaNotasGrupo.querySelectorAll(".input-nota-grupo");
-        const aGuardar = [];
-
-        inputs.forEach((input) => {
-            const valor = input.value.trim();
-            if (valor === "") return;
-
-            const notaNum = parseFloat(valor);
-            if (isNaN(notaNum)) return;
-
-            if (esAutomatico && input.dataset.ultimoValorGuardado === valor) return;
-
-            aGuardar.push({
-                input,
-                correo: input.dataset.correo || null,
-                estudianteId: input.dataset.estudianteId || null,
-                notaId: input.dataset.notaId || null,
-                tipo: input.dataset.tipo,
-                numero: parseInt(input.dataset.numero, 10),
-                nota: notaNum
-            });
-        });
-
-        if (aGuardar.length === 0) {
-            if (!esAutomatico) alert("No escribiste ninguna nota para guardar.");
-            return;
-        }
-
-        if (!esAutomatico) btnGuardarNotasGrupo.disabled = true;
-
-        estadoGuardadoNotas.textContent = esAutomatico
-            ? "Autoguardando..."
-            : `Guardando 0 / ${aGuardar.length}...`;
-        estadoGuardadoNotas.className = "small text-primary";
-
-        let exitosas = 0;
-        let fallidas = 0;
-
-        for (let i = 0; i < aGuardar.length; i++) {
-
-            const item = aGuardar[i];
-
-            if (item.notaId) {
-
-                const { error } = await supabase
-                    .from("notas")
-                    .update({
-                        nota: item.nota,
-                        fecha: hoy
-                    })
-                    .eq("id", item.notaId);
-
-                if (error) {
-                    console.error("❌ Error al actualizar nota:", item, error);
-                    fallidas++;
-                } else {
-                    exitosas++;
-                    item.input.dataset.ultimoValorGuardado = String(item.nota);
-                }
-
-            } else {
-
-                const { data: insertado, error } = await supabase
-                    .from("notas")
-                    .insert([{
-                        correo: item.correo,
-                        estudiante_id: item.estudianteId,
-                        materia,
-                        tipo: item.tipo,
-                        numero: item.numero,
-                        tema: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || null,
-                        actividad: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || `${item.tipo === "apreciacion" ? "Apreciación" : "Ejercicio"} ${item.numero}`,
-                        fecha: hoy,
-                        nota: item.nota,
-                        observacion: item.correo
-                            ? "Agregada por el administrador"
-                            : "Agregada por el administrador (estudiante aún sin cuenta)",
-                        trimestre,
-                        estado: "Activa"
-                    }])
-                    .select("id");
-
-                if (error) {
-                    console.error("❌ Error al insertar nota:", item, error);
-                    fallidas++;
-                } else {
-                    exitosas++;
-                    item.input.dataset.ultimoValorGuardado = String(item.nota);
-
-                    if (insertado && insertado[0]) {
-                        item.input.dataset.notaId = insertado[0].id;
-                    }
-                }
-            }
-
-            if (!esAutomatico) {
-                estadoGuardadoNotas.textContent = `Guardando ${i + 1} / ${aGuardar.length}...`;
-            }
-        }
-
-        if (!esAutomatico) btnGuardarNotasGrupo.disabled = false;
-
-        const horaActual = new Date().toLocaleTimeString("es-PA", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit"
-        });
-
-        if (fallidas === 0) {
-            estadoGuardadoNotas.textContent = esAutomatico
-                ? `✅ Autoguardado (${exitosas}) a las ${horaActual}`
-                : `✅ ${exitosas} nota(s) guardada(s) correctamente.`;
-            estadoGuardadoNotas.className = "small text-success";
-        } else {
-            estadoGuardadoNotas.textContent = `⚠️ ${exitosas} guardada(s), ${fallidas} con error.`;
-            estadoGuardadoNotas.className = "small text-danger";
-        }
-
-        if (!esAutomatico) {
-            cargarGrupoNotas();
-            cargarNotas();
-        }
-    }
-
-    if (btnGuardarNotasGrupo) {
-        btnGuardarNotasGrupo.addEventListener("click", () => guardarNotasGrupo(false));
-    }
-
-    setInterval(() => {
-        if (bloqueTablaNotas && bloqueTablaNotas.style.display !== "none") {
-            guardarNotasGrupo(true);
-        }
-    }, 30000);
-
-    // =================================================
-    // 5.5) VISTA GENERAL POR SALÓN
-    // =================================================
-
-    const vistaGeneralSalon = document.getElementById("vistaGeneralSalon");
-    const vistaGeneralTrimestre = document.getElementById("vistaGeneralTrimestre");
-    const btnCargarVistaGeneral = document.getElementById("btnCargarVistaGeneral");
-    const vistaGeneralContenedor = document.getElementById("vistaGeneralContenedor");
-    const vistaGeneralFiltroMateria = document.getElementById("vistaGeneralFiltroMateria");
-
-    let datosVistaGeneral = null;
-
-    function claveCasillaVG(tipo, numero) {
-        return `${tipo}|${numero}`;
-    }
-
-    async function construirDatosVistaGeneral(salon, trimestre) {
-        const { data: estudiantesSalon, error: errEst } = await supabase
-            .from("estudiantes")
-            .select("id, codigo, nombre, correo, es_prueba")
-            .eq("salon", salon)
-            .order("nombre", { ascending: true });
-
-        if (errEst) throw errEst;
-
-        const estudiantes = (estudiantesSalon || []).filter((e) => !e.es_prueba);
-        if (estudiantes.length === 0) return { estudiantes: [], materias: [] };
-
-        const correosConCuenta = estudiantes.map((e) => e.correo).filter(Boolean);
-        const idsSinCuenta = estudiantes.filter((e) => !e.correo).map((e) => e.id);
-
-        let notas = [];
-
-        if (correosConCuenta.length > 0) {
-            const { data, error } = await supabase
-                .from("notas")
-                .select("correo, estudiante_id, materia, tipo, numero, nota, tema, estado")
-                .eq("trimestre", trimestre)
-                .in("correo", correosConCuenta);
-            if (error) throw error;
-            notas = notas.concat(data || []);
-        }
-
-        if (idsSinCuenta.length > 0) {
-            const { data, error } = await supabase
-                .from("notas")
-                .select("correo, estudiante_id, materia, tipo, numero, nota, tema, estado")
-                .eq("trimestre", trimestre)
-                .in("estudiante_id", idsSinCuenta);
-            if (error) throw error;
-            notas = notas.concat(data || []);
-        }
-
-        const [{ data: columnasDef }, { data: temasCasillas }] = await Promise.all([
-            supabase.from("columnas_materia").select("materia, tipo, numero").eq("trimestre", trimestre),
-            supabase.from("temas_casillas").select("materia, tipo, numero, tema").eq("trimestre", trimestre).eq("salon", salon)
-        ]);
-
-        const columnasPorMateria = {};
-        const temaPorCasilla = {};
-
-        function agregarCol(materia, tipo, numero) {
-            if (!materia || !tipo || !numero) return;
-            if (!columnasPorMateria[materia]) columnasPorMateria[materia] = { apreciacion: new Set(), ejercicio: new Set() };
-            if (columnasPorMateria[materia][tipo]) columnasPorMateria[materia][tipo].add(numero);
-        }
-
-        function guardarTemaSiFalta(materia, tipo, numero, tema) {
-            if (!tema || !tema.trim()) return;
-            if (!temaPorCasilla[materia]) temaPorCasilla[materia] = {};
-            const clave = claveCasillaVG(tipo, numero);
-            if (!temaPorCasilla[materia][clave]) temaPorCasilla[materia][clave] = tema.trim();
-        }
-
-        (columnasDef || []).forEach((c) => agregarCol(c.materia, c.tipo, c.numero));
-        (temasCasillas || []).forEach((c) => {
-            agregarCol(c.materia, c.tipo, c.numero);
-            guardarTemaSiFalta(c.materia, c.tipo, c.numero, c.tema);
-        });
-
-        notas.forEach((n) => {
-            const tipoNorm = (n.tipo || "").toLowerCase();
-            if (tipoNorm === "apreciacion" || tipoNorm === "ejercicio") {
-                agregarCol(n.materia, tipoNorm, n.numero);
-                guardarTemaSiFalta(n.materia, tipoNorm, n.numero, n.tema);
-            }
-        });
-
-        const claveEstudianteVG = (n) => n.correo ? `correo:${n.correo}` : `id:${n.estudiante_id}`;
-        const notasPorEstudianteMateria = {};
-
-        notas.forEach((n) => {
-            const claveEst = claveEstudianteVG(n);
-            if (!notasPorEstudianteMateria[claveEst]) notasPorEstudianteMateria[claveEst] = {};
-            if (!notasPorEstudianteMateria[claveEst][n.materia]) notasPorEstudianteMateria[claveEst][n.materia] = {};
-            notasPorEstudianteMateria[claveEst][n.materia][claveCasillaVG(n.tipo, n.numero)] = n;
-        });
-
-        const materiasOrdenadas = materiasParaSalon(salon);
-        const materias = [];
-
-        materiasOrdenadas.forEach((materia) => {
-            const cols = columnasPorMateria[materia];
-            if (!cols) return;
-
-            const apr = [...cols.apreciacion].sort((a, b) => a - b);
-            const eje = [...cols.ejercicio].sort((a, b) => a - b);
-            const temas = temaPorCasilla[materia] || {};
-
-            const filas = estudiantes.map((est) => {
-                const claveEst = est.correo ? `correo:${est.correo}` : `id:${est.id}`;
-                const notasEstMateria = notasPorEstudianteMateria[claveEst]?.[materia] || {};
-
-                const celdasApr = apr.map((n) => notasEstMateria[claveCasillaVG("apreciacion", n)] || null);
-                const celdasEje = eje.map((n) => notasEstMateria[claveCasillaVG("ejercicio", n)] || null);
-
-                const valoresApr = celdasApr.filter((n) => n && n.estado !== "Intencional");
-                const valoresEje = celdasEje.filter((n) => n && n.estado !== "Intencional");
-
-                const promApr = valoresApr.length > 0
-                    ? valoresApr.reduce((a, b) => a + Number(b.nota), 0) / valoresApr.length : null;
-                const promEje = valoresEje.length > 0
-                    ? valoresEje.reduce((a, b) => a + Number(b.nota), 0) / valoresEje.length : null;
-
-                let promFinal = null;
-                if (promApr !== null && promEje !== null) promFinal = (promApr + promEje) / 2;
-                else if (promApr !== null) promFinal = promApr;
-                else if (promEje !== null) promFinal = promEje;
-
-                return {
-                    nombre: est.nombre,
-                    correo: est.correo,
-                    sinCuenta: !est.correo,
-                    celdasApr, celdasEje,
-                    promApr, promEje, promFinal
-                };
-            });
-
-            const tieneNotasReales = filas.some((f) => 
-                f.celdasApr.some((n) => n !== null && n.nota !== null && n.nota !== undefined) || 
-                f.celdasEje.some((n) => n !== null && n.nota !== null && n.nota !== undefined)
-            );
-
-            if (tieneNotasReales) {
-                materias.push({ materia, apr, eje, temas, filas });
-            }
-        });
-
-        return { estudiantes, materias };
-    }
-
-    function renderVistaGeneralHTML(datos, salon, trimestre, filtroMateria) {
-        if (datos.materias.length === 0) {
-            vistaGeneralContenedor.innerHTML = `<p class="text-muted">Todavía no hay ninguna nota registrada para este salón en ${escapeHtmlAdmin(trimestre)}.</p>`;
-            return;
-        }
-
-        const materiasAMostrar = filtroMateria
-            ? datos.materias.filter((m) => m.materia === filtroMateria)
-            : datos.materias;
-
-        let html = `<h4 class="mb-3">${ETIQUETAS_SALON[salon] || salon} — ${escapeHtmlAdmin(trimestre)}</h4>`;
-
-        materiasAMostrar.forEach(({ materia, apr, eje, temas, filas }) => {
-            const profesor = MATERIA_A_PROFESOR[materia] || "(sin asignar)";
-
-            let filaEncabezado = `<tr><th style="min-width:160px;">Estudiante</th>`;
-            apr.forEach((n) => { filaEncabezado += `<th class="text-center">Apr.${n}</th>`; });
-            if (apr.length > 0) filaEncabezado += `<th class="text-center fw-bold">Prom.Apr.</th>`;
-            eje.forEach((n) => { filaEncabezado += `<th class="text-center">Eje.${n}</th>`; });
-            if (eje.length > 0) filaEncabezado += `<th class="text-center fw-bold">Prom.Eje.</th>`;
-            filaEncabezado += `<th class="text-center fw-bold table-success">Prom.Final</th></tr>`;
-
-            let filaTemas = `<tr class="table-light"><th class="small text-muted fw-normal">Tema:</th>`;
-            apr.forEach((n) => {
-                const tema = temas[claveCasillaVG("apreciacion", n)] || "-";
-                filaTemas += `<th class="small text-muted fw-normal fst-italic">${escapeHtmlAdmin(tema)}</th>`;
-            });
-            if (apr.length > 0) filaTemas += `<th></th>`;
-            eje.forEach((n) => {
-                const tema = temas[claveCasillaVG("ejercicio", n)] || "-";
-                filaTemas += `<th class="small text-muted fw-normal fst-italic">${escapeHtmlAdmin(tema)}</th>`;
-            });
-            if (eje.length > 0) filaTemas += `<th></th>`;
-            filaTemas += `<th></th></tr>`;
-
-            const celdaHtml = (n) => {
-                if (!n) return `<td class="text-center text-muted">—</td>`;
-                if (n.estado === "Intencional") return `<td class="text-center" title="Falta intencional">⚠️</td>`;
-                return `<td class="text-center">${escapeHtmlAdmin(Number(n.nota).toFixed(1))}</td>`;
-            };
-
-            let filasCuerpo = "";
-            filas.forEach((fila) => {
-                const enRiesgo = fila.promFinal !== null && fila.promFinal < PROMEDIO_MINIMO_APROBAR;
-
-                const nombreClickeable = fila.correo
-                    ? `<a href="estudiante.html?correo=${encodeURIComponent(fila.correo)}" target="_blank" class="fw-bold text-decoration-none text-primary" title="Hacer clic para abrir y editar el boletín de este estudiante">${escapeHtmlAdmin(fila.nombre)} 👁️</a>`
-                    : escapeHtmlAdmin(fila.nombre);
-
-                filasCuerpo += `<tr class="${enRiesgo ? "table-danger" : (fila.sinCuenta ? "table-warning" : "")}">`;
-                filasCuerpo += `<td>${nombreClickeable}${fila.sinCuenta ? ' <span class="badge bg-warning text-dark">sin cuenta</span>' : ""}</td>`;
-                fila.celdasApr.forEach((n) => { filasCuerpo += celdaHtml(n); });
-                if (apr.length > 0) filasCuerpo += `<td class="text-center fw-bold">${fila.promApr !== null ? fila.promApr.toFixed(1) : "-"}</td>`;
-                fila.celdasEje.forEach((n) => { filasCuerpo += celdaHtml(n); });
-                if (eje.length > 0) filasCuerpo += `<td class="text-center fw-bold">${fila.promEje !== null ? fila.promEje.toFixed(1) : "-"}</td>`;
-                filasCuerpo += `<td class="text-center fw-bold ${enRiesgo ? "text-danger" : ""}">${fila.promFinal !== null ? fila.promFinal.toFixed(1) : "-"}</td>`;
-                filasCuerpo += `</tr>`;
-            });
-
-            html += `
-                <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
-                    <h6 class="m-0 font-weight-bold">${escapeHtmlAdmin(materia)}</h6>
-                    <span class="small text-muted"><strong>Profesor(a):</strong> ${escapeHtmlAdmin(profesor)}</span>
-                </div>
-                <div class="table-responsive mb-2">
-                    <table class="table table-sm table-bordered align-middle">
-                        <thead class="table-light">${filaEncabezado}${filaTemas}</thead>
-                        <tbody>${filasCuerpo}</tbody>
-                    </table>
-                </div>
-            `;
-        });
-
-        vistaGeneralContenedor.innerHTML = html;
-    }
-
-    async function cargarVistaGeneral() {
-        const salon = vistaGeneralSalon.value;
-        const trimestre = vistaGeneralTrimestre.value;
-
-        if (!salon) {
-            alert("Selecciona un salón.");
-            return;
-        }
-
-        const textoOriginal = btnCargarVistaGeneral.innerHTML;
-        btnCargarVistaGeneral.disabled = true;
-        btnCargarVistaGeneral.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
-        vistaGeneralContenedor.innerHTML = "";
-
-        try {
-            datosVistaGeneral = await construirDatosVistaGeneral(salon, trimestre);
-            datosVistaGeneral.salon = salon;
-            datosVistaGeneral.trimestre = trimestre;
-
-            vistaGeneralFiltroMateria.innerHTML = `<option value="">Todas las materias</option>` +
-                datosVistaGeneral.materias.map((m) => `<option value="${escapeHtmlAdmin(m.materia)}">${escapeHtmlAdmin(m.materia)}</option>`).join("");
-
-            const materiaSeleccionada = vistaGeneralFiltroMateria.value;
-            vistaGeneralFiltroMateria.disabled = datosVistaGeneral.materias.length === 0;
-
-            renderVistaGeneralHTML(datosVistaGeneral, salon, trimestre, materiaSeleccionada);
-
-        } catch (error) {
-            console.error("❌ Error al cargar la vista general:", error);
-            vistaGeneralContenedor.innerHTML = `<p class="text-danger">Error al cargar: ${escapeHtmlAdmin(error.message || String(error))}</p>`;
-        } finally {
-            btnCargarVistaGeneral.disabled = false;
-            btnCargarVistaGeneral.innerHTML = textoOriginal;
-        }
-    }
-
-    if (btnCargarVistaGeneral) {
-        btnCargarVistaGeneral.addEventListener("click", cargarVistaGeneral);
-    }
-
-    if (vistaGeneralFiltroMateria) {
-        vistaGeneralFiltroMateria.addEventListener("change", () => {
-            if (!datosVistaGeneral) return;
-            renderVistaGeneralHTML(datosVistaGeneral, datosVistaGeneral.salon, datosVistaGeneral.trimestre, vistaGeneralFiltroMateria.value);
-        });
-    }
-
-    // =================================================
-    // 6) BOTONES DE RECARGA
-    // =================================================
-
-    btnRecargarUsuarios.addEventListener("click", cargarUsuarios);
-    btnRecargarNotas.addEventListener("click", cargarNotas);
-
-    // =================================================
-    // 6.5) GESTIONAR PROFESORES (salón + permiso para
-    // agregar estudiantes). Se guarda solo al cambiar
-    // cada campo, sin necesidad de un botón "Guardar".
-    // =================================================
-
-    const tablaProfesoresAdmin = document.getElementById("tablaProfesoresAdmin");
-    const mensajeProfesores = document.getElementById("mensajeProfesores");
-
-    const SALONES_DISPONIBLES = ["8A", "8B", "9A", "9B", "9C"];
-
-    function mostrarMensajeProfesores(texto, tipo) {
-        if (!mensajeProfesores) return;
-        mensajeProfesores.textContent = texto;
-        mensajeProfesores.className = `alert alert-${tipo}`;
-        mensajeProfesores.classList.remove("d-none");
-        setTimeout(() => mensajeProfesores.classList.add("d-none"), 3000);
-    }
-
-    function opcionesSalonProfesor(salonActualDelProfesor) {
-        const opciones = ["", ...SALONES_DISPONIBLES];
-        // Si el profesor ya tiene un salón que no está en la lista fija,
-        // se agrega igual para no perder el dato al mostrarlo.
-        if (salonActualDelProfesor && !opciones.includes(salonActualDelProfesor)) {
-            opciones.push(salonActualDelProfesor);
-        }
-        return opciones.map((s) => {
-            const seleccionado = s === (salonActualDelProfesor || "") ? "selected" : "";
-            const etiqueta = s === "" ? "-- Sin asignar --" : s;
-            return `<option value="${escapeHtmlAdmin(s)}" ${seleccionado}>${escapeHtmlAdmin(etiqueta)}</option>`;
-        }).join("");
-    }
-
-    async function cargarProfesoresAdmin() {
-        if (!tablaProfesoresAdmin) return;
-
-        tablaProfesoresAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando profesores...</td></tr>`;
-
-        const { data: profesores, error } = await supabase
-            .from("profesores")
-            .select("correo_profesor, nombre_profesor, salon, puede_agregar_estudiantes")
-            .order("nombre_profesor", { ascending: true });
+        const { data, error } = await supabase.rpc("obtener_consultas_por_salon", { p_salon: salonActual });
 
         if (error) {
-            console.error("❌ Error al cargar profesores:", error);
-            tablaProfesoresAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-3">No se pudieron cargar los profesores.</td></tr>`;
+            console.error("❌ Error al cargar consultas:", error);
+            tablaConsultas.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-3">No se pudo cargar la información.</td></tr>`;
             return;
         }
 
-        if (!profesores || profesores.length === 0) {
-            tablaProfesoresAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Todavía no hay profesores registrados.</td></tr>`;
+        const consultas = data || [];
+
+        // -------- Estadísticas resumidas --------
+        const nombresQueConsultaron = new Set(
+            consultas.filter((c) => c.encontrado && c.nombre).map((c) => c.nombre)
+        );
+        const totalConPdf = consultas.filter((c) => c.pdf_descargado).length;
+
+        // Cuántos del salón NUNCA han consultado (comparando contra la
+        // lista de estudiantes ya cargada en resumenEstudiantes)
+        const nombresDelSalon = new Set(
+            (resumenEstudiantes || []).map((e) => (e.nombre || "").trim())
+        );
+        let sinConsultar = 0;
+        nombresDelSalon.forEach((n) => {
+            if (!nombresQueConsultaron.has(n)) sinConsultar++;
+        });
+
+        statTotalConsultas.textContent = consultas.length;
+        statEstudiantesDistintos.textContent = nombresQueConsultaron.size;
+        statConPdf.textContent = totalConPdf;
+        statSinConsultar.textContent = sinConsultar;
+
+        // -------- Tabla de consultas --------
+        if (consultas.length === 0) {
+            tablaConsultas.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Todavía no hay consultas registradas para este salón.</td></tr>`;
             return;
         }
 
-        tablaProfesoresAdmin.innerHTML = profesores.map((p) => `
+        tablaConsultas.innerHTML = consultas.map((c) => `
             <tr>
-                <td>${escapeHtmlAdmin(p.nombre_profesor || "(sin nombre)")}</td>
-                <td class="small">${escapeHtmlAdmin(p.correo_profesor || "-")}</td>
-                <td>
-                    <select class="form-select form-select-sm profesor-salon-select" data-correo="${escapeHtmlAdmin(p.correo_profesor)}">
-                        ${opcionesSalonProfesor(p.salon)}
-                    </select>
+                <td>${escapeHtml(c.nombre || "(cédula no encontrada)")}</td>
+                <td class="text-center">
+                    ${c.encontrado
+                        ? `<span class="badge bg-success">Sí</span>`
+                        : `<span class="badge bg-secondary">No</span>`}
                 </td>
-                <td>
-                    <div class="form-check form-switch mb-0">
-                        <input class="form-check-input profesor-permiso-switch" type="checkbox"
-                            role="switch"
-                            data-correo="${escapeHtmlAdmin(p.correo_profesor)}"
-                            ${p.puede_agregar_estudiantes ? "checked" : ""}>
-                    </div>
+                <td class="text-center">
+                    ${c.pdf_descargado
+                        ? `<span class="badge bg-primary">Sí</span>`
+                        : `<span class="badge bg-light text-muted border">No</span>`}
                 </td>
+                <td>${formatearFecha(c.creado_en)}</td>
             </tr>
         `).join("");
-
-        // -------- Cambiar salón --------
-        tablaProfesoresAdmin.querySelectorAll(".profesor-salon-select").forEach((select) => {
-            select.addEventListener("change", async () => {
-                const correo = select.dataset.correo;
-                const nuevoSalon = select.value || null;
-
-                const { error: errUpdate } = await supabase
-                    .from("profesores")
-                    .update({ salon: nuevoSalon })
-                    .eq("correo_profesor", correo);
-
-                if (errUpdate) {
-                    console.error("❌ Error al actualizar salón del profesor:", errUpdate);
-                    mostrarMensajeProfesores("No se pudo guardar el salón: " + errUpdate.message, "danger");
-                    return;
-                }
-
-                mostrarMensajeProfesores(`Salón actualizado para ${correo}.`, "success");
-            });
-        });
-
-        // -------- Cambiar permiso de agregar estudiantes --------
-        tablaProfesoresAdmin.querySelectorAll(".profesor-permiso-switch").forEach((toggle) => {
-            toggle.addEventListener("change", async () => {
-                const correo = toggle.dataset.correo;
-                const nuevoValor = toggle.checked;
-
-                const { error: errUpdate } = await supabase
-                    .from("profesores")
-                    .update({ puede_agregar_estudiantes: nuevoValor })
-                    .eq("correo_profesor", correo);
-
-                if (errUpdate) {
-                    console.error("❌ Error al actualizar permiso del profesor:", errUpdate);
-                    mostrarMensajeProfesores("No se pudo guardar el permiso: " + errUpdate.message, "danger");
-                    // Revertir el switch visualmente si falló el guardado
-                    toggle.checked = !nuevoValor;
-                    return;
-                }
-
-                mostrarMensajeProfesores(
-                    nuevoValor
-                        ? `✅ ${correo} ahora puede agregar estudiantes.`
-                        : `${correo} ya no puede agregar estudiantes.`,
-                    "success"
-                );
-            });
-        });
     }
 
-    // Se expone para que el script de navegación del menú (en admin.html)
-    // pueda cargar la tabla la primera vez que se abre esta sección.
-    window.cargarProfesoresAdmin = cargarProfesoresAdmin;
+    if (btnVerConsultas) {
+        btnVerConsultas.addEventListener("click", async () => {
+            const abierto = bloqueConsultas.style.display !== "none";
 
-    // =================================================
-    // 7) PREGUNTAS DE SEGURIDAD DE UN ESTUDIANTE
-    // =================================================
-
-    const pregSalon = document.getElementById("pregSalon");
-    const pregEstudiante = document.getElementById("pregEstudiante");
-    const mensajePregSeguridad = document.getElementById("mensajePregSeguridad");
-
-    function mostrarMensajePreg(texto, tipo) {
-        mensajePregSeguridad.textContent = texto;
-        mensajePregSeguridad.className = `alert alert-${tipo} mt-2 mb-0`;
-    }
-
-    if (pregSalon) {
-        pregSalon.addEventListener("change", async () => {
-            const salon = pregSalon.value;
-
-            pregEstudiante.innerHTML = `<option value="">Cargando...</option>`;
-            pregEstudiante.disabled = true;
-
-            const bloqueEnlace = document.getElementById("bloqueEnlaceRecuperacion");
-            if (bloqueEnlace) bloqueEnlace.style.display = "none";
-            mensajePregSeguridad.className = "alert d-none";
-
-            if (!salon) {
-                pregEstudiante.innerHTML = `<option value="">Seleccione primero un salón</option>`;
+            if (abierto) {
+                bloqueConsultas.style.display = "none";
+                btnVerConsultas.innerHTML = `<i class="fa-solid fa-chart-simple me-1"></i> Ver estadísticas`;
                 return;
             }
 
-            const { data: estudiantesSalon, error } = await supabase
-                .from("estudiantes")
-                .select("correo, nombre, es_prueba")
-                .eq("salon", salon)
-                .order("nombre", { ascending: true });
+            bloqueConsultas.style.display = "block";
+            btnVerConsultas.innerHTML = `<i class="fa-solid fa-chevron-up me-1"></i> Ocultar estadísticas`;
 
-            if (error) {
-                console.error("❌ Error al cargar estudiantes:", error);
-                pregEstudiante.innerHTML = `<option value="">Error al cargar</option>`;
-                return;
-            }
-
-            const lista = (estudiantesSalon || []).filter((e) => !e.es_prueba && e.correo);
-
-            if (lista.length === 0) {
-                pregEstudiante.innerHTML = `<option value="">No hay estudiantes en este salón</option>`;
-                return;
-            }
-
-            pregEstudiante.innerHTML =
-                `<option value="">Seleccione...</option>` +
-                lista.map((e) => `<option value="${e.correo}">${escapeHtmlAdmin(e.nombre || e.correo)}</option>`).join("");
-
-            pregEstudiante.disabled = false;
-        });
-    }
-
-    if (pregEstudiante) {
-        pregEstudiante.addEventListener("change", () => {
-            mensajePregSeguridad.className = "alert d-none";
-
-            const bloqueEnlace = document.getElementById("bloqueEnlaceRecuperacion");
-            const inputEnlace = document.getElementById("enlaceRecuperacion");
-            const btnWhatsapp = document.getElementById("btnEnviarWhatsapp");
-
-            if (pregEstudiante.value) {
-                const url = `${window.location.origin}/pages/login.html?recuperarCorreo=${encodeURIComponent(pregEstudiante.value)}`;
-                const nombreEst = pregEstudiante.options[pregEstudiante.selectedIndex].text;
-
-                inputEnlace.value = url;
-
-                const mensajeWa = encodeURIComponent(
-                    `Hola ${nombreEst}, para poner una contraseña nueva en el sistema de notas, ` +
-                    `entrá a este enlace y respondé tus 3 preguntas de seguridad:\n${url}`
-                );
-                btnWhatsapp.href = `https://wa.me/?text=${mensajeWa}`;
-
-                bloqueEnlace.style.display = "block";
-            } else {
-                bloqueEnlace.style.display = "none";
+            if (!consultasYaCargadas) {
+                consultasYaCargadas = true;
+                await cargarConsultas();
             }
         });
     }
 
-    document.getElementById("btnCopiarEnlace")?.addEventListener("click", async () => {
-        const inputEnlace = document.getElementById("enlaceRecuperacion");
-        if (!inputEnlace.value) return;
+    // =====================================================
+    // VARIABLES GLOBALES
+    // =====================================================
 
+    let trimestreActivo = "Trimestre 1";
+    let resumenEstudiantes = [];
+    let correoDetalleAbierto = null; // para reabrir el modal tras marcar una falta
+    let maxCasillaGrupoGlobal = {}; // "materia|tipo" -> casilla más alta que el grupo ya trabajó (para el PDF)
+    let casillasGrupoConNotaGlobal = new Set(); // "materia|tipo|numero" que SÍ tienen al menos una nota real de alguien
+
+    // =====================================================
+    // CARGAR TRIMESTRE, ESTUDIANTES Y NOTAS
+    // (función reutilizable para refrescar después de marcar)
+    // =====================================================
+
+    async function cargarPanel() {
         try {
-            await navigator.clipboard.writeText(inputEnlace.value);
-        } catch (err) {
-            inputEnlace.select();
-            document.execCommand("copy");
-        }
+            // -------- Trimestre activo --------
+            const { data: cfg, error: errCfg } = await supabase
+                .from("configuracion")
+                .select("trimestre_activo")
+                .limit(1)
+                .single();
 
-        mostrarMensajePreg("🔗 Enlace copiado al portapapeles.", "success");
-    });
-
-    // =================================================
-    // 8) ACTIVIDAD DE ESTUDIANTES (VISITAS A LA PLATAFORMA)
-    // =================================================
-
-    const visitasSalon = document.getElementById("visitasSalon");
-    const btnCargarVisitas = document.getElementById("btnCargarVisitas");
-    const tablaVisitas = document.getElementById("tablaVisitas");
-    const thSalonVisitas = document.getElementById("thSalonVisitas");
-
-    function formatearDuracion(segundosTotales) {
-        const segundos = Math.max(0, Math.round(segundosTotales));
-        const horas = Math.floor(segundos / 3600);
-        const minutos = Math.floor((segundos % 3600) / 60);
-        if (horas > 0) return `${horas}h ${minutos}min`;
-        if (minutos > 0) return `${minutos}min`;
-        return `${segundos}seg`;
-    }
-
-    async function cargarVisitas() {
-        const salon = visitasSalon.value;
-        const mostrarColumnaSalon = !salon;
-        const colspanActual = mostrarColumnaSalon ? 7 : 6;
-
-        if (thSalonVisitas) {
-            thSalonVisitas.style.display = mostrarColumnaSalon ? "" : "none";
-        }
-
-        const textoOriginal = btnCargarVisitas.innerHTML;
-        btnCargarVisitas.disabled = true;
-        btnCargarVisitas.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
-
-        tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-center text-muted py-3">Cargando...</td></tr>`;
-
-        let consultaEstudiantes = supabase
-            .from("estudiantes")
-            .select("correo, nombre, es_prueba, salon")
-            .order("nombre", { ascending: true });
-
-        if (salon) {
-            consultaEstudiantes = consultaEstudiantes.eq("salon", salon);
-        }
-
-        const { data: estudiantesSalon, error: errEst } = await consultaEstudiantes;
-
-        btnCargarVisitas.disabled = false;
-        btnCargarVisitas.innerHTML = textoOriginal;
-
-        if (errEst) {
-            console.error("❌ Error al cargar estudiantes:", errEst);
-            tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-danger text-center py-3">Error al cargar estudiantes.</td></tr>`;
-            return;
-        }
-
-        const estudiantesReales = (estudiantesSalon || []).filter((e) => !e.es_prueba && e.correo);
-
-        if (estudiantesReales.length === 0) {
-            const mensaje = salon ? "No hay estudiantes en este salón." : "No hay estudiantes registrados.";
-            tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-center text-muted py-3">${mensaje}</td></tr>`;
-            return;
-        }
-
-        const correos = estudiantesReales.map((e) => e.correo);
-
-        const { data: visitas, error: errVis } = await supabase
-            .from("visitas")
-            .select("correo, inicio, ultima_actividad")
-            .in("correo", correos);
-
-        if (errVis) {
-            console.error("❌ Error al cargar visitas:", errVis);
-            tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-danger text-center py-3">Error al cargar las visitas.</td></tr>`;
-            return;
-        }
-
-        const resumenPorCorreo = {};
-
-        (visitas || []).forEach((v) => {
-            if (!resumenPorCorreo[v.correo]) {
-                resumenPorCorreo[v.correo] = {
-                    totalVisitas: 0,
-                    tiempoTotalSeg: 0,
-                    primeraVisita: null,
-                    ultimaVisita: null,
-                    diasDistintos: new Set()
-                };
+            if (!errCfg && cfg?.trimestre_activo) {
+                trimestreActivo = cfg.trimestre_activo;
             }
 
-            const r = resumenPorCorreo[v.correo];
-            const inicio = new Date(v.inicio);
-            const fin = new Date(v.ultima_actividad || v.inicio);
-            const duracionSeg = Math.max(0, (fin - inicio) / 1000);
+            if (trimestreLabelEl) {
+                trimestreLabelEl.textContent = trimestreActivo;
+            }
 
-            r.totalVisitas++;
-            r.tiempoTotalSeg += duracionSeg;
-            r.diasDistintos.add(inicio.toISOString().slice(0, 10));
+            // -------- Estudiantes --------
+            // es_prueba = false: los estudiantes de prueba nunca aparecen
+            // en este panel, ni en el resumen, ni en los boletines
+            // individuales o masivos que salen de aquí.
+            const { data: estudiantes, error: errEst } = await supabase
+                .from("estudiantes")
+                .select("id, codigo, nombre, correo")
+                .eq("salon", salonActual)
+                .eq("es_prueba", false)
+                .order("codigo", { ascending: true });
 
-            if (!r.primeraVisita || inicio < r.primeraVisita) r.primeraVisita = inicio;
-            if (!r.ultimaVisita || fin > r.ultimaVisita) r.ultimaVisita = fin;
-        });
+            if (errEst) {
+                console.error("Error cargando estudiantes:", errEst);
+                alert("No se pudieron cargar los estudiantes: " + errEst.message);
+                return;
+            }
 
-        const opcionesFecha = { day: "2-digit", month: "2-digit", year: "numeric" };
-        const opcionesFechaHora = { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" };
+            // -------- Correos de ESTE salón (para filtrar notas) --------
+            const correosDelSalon = estudiantes
+                .map((e) => e.correo)
+                .filter((c) => !!c);
 
-        const filas = estudiantesReales.map((est) => {
-            const r = resumenPorCorreo[est.correo];
-            const celdaSalon = mostrarColumnaSalon
-                ? `<td class="text-center">${escapeHtmlAdmin(est.salon || "—")}</td>`
+            // -------- Notas del trimestre activo, solo de este salón --------
+            let notas = [];
+
+            if (correosDelSalon.length > 0) {
+                const { data: notasData, error: errNotas } = await supabase
+                    .from("notas")
+                    .select("id, correo, materia, tipo, numero, tema, nota, fecha, estado, observacion")
+                    .eq("trimestre", trimestreActivo)
+                    .in("correo", correosDelSalon);
+
+                if (errNotas) {
+                    console.error("Error cargando notas:", errNotas);
+                    alert("No se pudieron cargar las notas: " + errNotas.message);
+                    return;
+                }
+
+                notas = notasData || [];
+            }
+
+            // -------- Agrupar notas por correo --------
+            const notasPorCorreo = {};
+
+            notas.forEach((n) => {
+                if (!notasPorCorreo[n.correo]) {
+                    notasPorCorreo[n.correo] = [];
+                }
+                notasPorCorreo[n.correo].push(n);
+            });
+
+            // -------- Casilla más alta llenada por el grupo, por materia+tipo --------
+            const maxCasillaGrupo = {};
+            const casillasGrupoConNota = new Set();
+
+            notas.forEach((n) => {
+                const clave = `${n.materia}|${n.tipo}`;
+                const num = Number(n.numero) || 0;
+
+                if (!maxCasillaGrupo[clave] || num > maxCasillaGrupo[clave]) {
+                    maxCasillaGrupo[clave] = num;
+                }
+
+                // Casilla exacta (no solo "hasta dónde llegó el grupo"),
+                // para no marcar como pendiente una columna que existe
+                // pero que en realidad nadie ha llenado todavía.
+                casillasGrupoConNota.add(`${n.materia}|${n.tipo}|${num}`);
+            });
+
+            // Se guarda también en la variable de afuera, para que el
+            // generador de PDF pueda armar filas de materias donde el
+            // grupo ya trabajó aunque este estudiante no tenga notas ahí.
+            maxCasillaGrupoGlobal = maxCasillaGrupo;
+            casillasGrupoConNotaGlobal = casillasGrupoConNota;
+
+            // -------- Construir resumen por estudiante --------
+            resumenEstudiantes = estudiantes.map((est) => {
+                const tieneCuenta = !!est.correo;
+                const notasEst = tieneCuenta ? (notasPorCorreo[est.correo] || []) : [];
+
+                let pendientes = 0;
+
+                // Desglose por materia: cuántas casillas de Apreciación y de
+                // Ejercicio le faltan a este estudiante en cada materia,
+                // frente al máximo que ya trabajó el grupo. Se usa para
+                // mostrar el detalle en el boletín PDF (ALERTA PARA LOS PADRES).
+                const detallePendientes = {};
+
+                // Antes solo se revisaban las materias que el propio estudiante
+                // ya tenía registradas, así que alguien con 0 notas nunca
+                // aparecía con pendientes. Ahora se revisan TODAS las materias
+                // que el grupo ya trabajó (maxCasillaGrupo), incluyendo las que
+                // este estudiante todavía no ha tocado.
+                Object.keys(maxCasillaGrupo).forEach((clave) => {
+                    const max = maxCasillaGrupo[clave];
+                    const tiene = notasEst.filter((n) => `${n.materia}|${n.tipo}` === clave).length;
+
+                    if (max > tiene) {
+                        const faltan = max - tiene;
+                        pendientes += faltan;
+
+                        const separador = clave.lastIndexOf("|");
+                        const materiaClave = clave.slice(0, separador);
+                        const tipoClave = clave.slice(separador + 1);
+
+                        if (!detallePendientes[materiaClave]) {
+                            detallePendientes[materiaClave] = { apreciacion: 0, ejercicio: 0 };
+                        }
+
+                        if (tipoClave === "apreciacion") {
+                            detallePendientes[materiaClave].apreciacion += faltan;
+                        } else if (tipoClave === "ejercicio") {
+                            detallePendientes[materiaClave].ejercicio += faltan;
+                        }
+                    }
+                });
+
+                const ultimaFecha = notasEst.length > 0
+                    ? notasEst.reduce((max, n) => (n.fecha > max ? n.fecha : max), notasEst[0].fecha)
+                    : null;
+
+                return {
+                    codigo: est.codigo,
+                    nombre: est.nombre,
+                    correo: est.correo,
+                    tieneCuenta,
+                    totalNotas: notasEst.length,
+                    pendientes,
+                    detallePendientes,
+                    ultimaFecha,
+                    notas: notasEst
+                };
+            });
+
+            // -------- Ordenar: sin cuenta primero, luego más pendientes, luego menos notas --------
+            resumenEstudiantes.sort((a, b) => {
+                if (a.tieneCuenta !== b.tieneCuenta) return a.tieneCuenta ? 1 : -1;
+                if (b.pendientes !== a.pendientes) return b.pendientes - a.pendientes;
+                return a.totalNotas - b.totalNotas;
+            });
+
+            // -------- Tarjetas --------
+            if (totalEstudiantesEl) totalEstudiantesEl.textContent = estudiantes.length;
+            if (totalRegistradosEl) totalRegistradosEl.textContent = estudiantes.filter((e) => e.correo).length;
+            if (totalNotasEl) totalNotasEl.textContent = notas.length;
+
+            renderTabla(resumenEstudiantes);
+
+        } catch (error) {
+            console.error("Error inesperado cargando el panel:", error);
+            alert("Ocurrió un error inesperado cargando el panel.");
+        }
+    }
+
+    await cargarPanel();
+
+    // =====================================================
+    // RENDER DE LA TABLA RESUMEN
+    // =====================================================
+
+    function renderTabla(lista) {
+        if (!tablaResumen) return;
+
+        if (lista.length === 0) {
+            tablaResumen.innerHTML = `<tr><td colspan="7" class="text-center">No hay estudiantes registrados.</td></tr>`;
+            return;
+        }
+
+        tablaResumen.innerHTML = lista.map((est) => {
+            let estadoBadge;
+
+            if (!est.tieneCuenta) {
+                estadoBadge = `<span class="badge bg-secondary">Sin cuenta creada</span>`;
+            } else if (est.totalNotas === 0 && est.pendientes > 0) {
+                estadoBadge = `<span class="badge bg-danger">❗ Le faltan ${est.pendientes} nota(s)</span>`;
+            } else if (est.pendientes > 0) {
+                estadoBadge = `<span class="badge bg-warning text-dark">⚠️ ${est.pendientes} pendiente(s)</span>`;
+            } else if (est.totalNotas === 0) {
+                estadoBadge = `<span class="badge bg-secondary">Sin notas aún</span>`;
+            } else {
+                estadoBadge = `<span class="badge bg-success">Al día</span>`;
+            }
+
+            const ultimaFechaTexto = est.ultimaFecha
+                ? new Date(est.ultimaFecha + "T00:00:00").toLocaleDateString("es-PA")
+                : "-";
+
+            const btnDetalle = est.tieneCuenta
+                ? `<button type="button" class="btn btn-sm btn-outline-primary" onclick="verDetalle('${escapeHtml(est.correo)}')">Ver detalle</button>`
                 : "";
 
-            if (!r) {
-                return `
-                    <tr class="table-light">
-                        <td>${escapeHtmlAdmin(est.nombre || est.correo)}</td>
-                        ${celdaSalon}
-                        <td class="text-center">0</td>
-                        <td class="text-center">—</td>
-                        <td class="text-center">—</td>
-                        <td class="text-center">—</td>
-                        <td class="text-center text-muted">Nunca entró</td>
-                    </tr>
-                `;
-            }
+            // El PDF se puede generar aunque el estudiante NO tenga cuenta,
+            // porque justamente ese es uno de los casos en que se necesita
+            // avisar a los padres.
+            const btnPdf = `<button type="button" class="btn btn-sm btn-outline-danger ms-1"
+                title="Generar boletín PDF"
+                onclick="generarPdfEstudiante('${escapeHtml(est.codigo)}')">
+                <i class="fa-solid fa-file-pdf"></i>
+            </button>`;
+
+            const btnCambiarCorreo = est.tieneCuenta
+                ? `<button type="button" class="btn btn-sm btn-outline-secondary ms-1"
+                    title="Restablecer correo y/o contraseña"
+                    onclick="cambiarCorreoEstudiante('${escapeHtml(est.correo)}', '${escapeHtml(est.nombre)}')">
+                    <i class="fa-solid fa-envelope"></i>
+                </button>`
+                : "";
 
             return `
                 <tr>
-                    <td>${escapeHtmlAdmin(est.nombre || est.correo)}</td>
-                    ${celdaSalon}
-                    <td class="text-center fw-bold">${r.totalVisitas}</td>
-                    <td class="text-center">${r.diasDistintos.size}</td>
-                    <td class="text-center">${formatearDuracion(r.tiempoTotalSeg)}</td>
-                    <td class="text-center">${r.primeraVisita.toLocaleDateString("es-PA", opcionesFecha)}</td>
-                    <td class="text-center">${r.ultimaVisita.toLocaleString("es-PA", opcionesFechaHora)}</td>
+                    <td>${est.codigo}</td>
+                    <td>${escapeHtml(est.nombre)}</td>
+                    <td>${estadoBadge}</td>
+                    <td>${est.totalNotas}</td>
+                    <td>${est.tieneCuenta ? est.pendientes : "-"}</td>
+                    <td>${ultimaFechaTexto}</td>
+                    <td>${btnDetalle}${btnCambiarCorreo}${btnPdf}</td>
                 </tr>
             `;
+        }).join("");
+    }
+
+    // =====================================================
+    // DETALLE POR MATERIA (al hacer clic en "Ver detalle")
+    // =====================================================
+
+    window.verDetalle = function (correo) {
+        const est = resumenEstudiantes.find((e) => e.correo === correo);
+
+        if (!est) {
+            alert("No se encontró información de este estudiante.");
+            return;
+        }
+
+        correoDetalleAbierto = correo;
+
+        modalDetalleTitulo.textContent = `${est.nombre} — ${trimestreActivo}`;
+
+        // -------------------------------------------------------
+        // Recolectar TODAS las materias que el GRUPO ya trabajó
+        // en este trimestre (no solo las que este estudiante ya
+        // tiene). Así, si a un estudiante le faltan notas, el
+        // detalle muestra exactamente cuáles casillas le faltan
+        // en lugar de un mensaje genérico o un modal vacío.
+        // -------------------------------------------------------
+        const materiasGrupo = new Set();
+
+        resumenEstudiantes.forEach((e) => {
+            e.notas.forEach((n) => materiasGrupo.add(n.materia));
         });
 
-        tablaVisitas.innerHTML = filas.join("");
+        if (materiasGrupo.size === 0) {
+            modalDetalleContenido.innerHTML = `<p>Aún no hay notas registradas por el grupo en este trimestre.</p>`;
+            modalDetalle.show();
+            return;
+        }
+
+        // Preparar la estructura por materia (arranca vacía para
+        // todas las materias del grupo, aunque el estudiante no
+        // tenga ninguna nota propia todavía)
+        const porMateria = {};
+
+        materiasGrupo.forEach((materia) => {
+            porMateria[materia] = { apreciacion: {}, ejercicio: {} };
+        });
+
+        // Rellenar con las notas que este estudiante sí tiene
+        est.notas.forEach((n) => {
+            if (!porMateria[n.materia]) {
+                porMateria[n.materia] = { apreciacion: {}, ejercicio: {} };
+            }
+
+            const tipoNorm = (n.tipo || "").toLowerCase();
+            const casilla = Number(n.numero);
+
+            if (tipoNorm === "apreciacion") {
+                porMateria[n.materia].apreciacion[casilla] = n;
+            } else if (tipoNorm === "ejercicio") {
+                porMateria[n.materia].ejercicio[casilla] = n;
+            }
+        });
+
+        let html = "";
+
+        Object.keys(porMateria).sort().forEach((materia) => {
+            const bloqueApreciacion = renderBloqueTipo("Apreciación", porMateria[materia].apreciacion, materia, "apreciacion", correo);
+            const bloqueEjercicio = renderBloqueTipo("Ejercicio", porMateria[materia].ejercicio, materia, "ejercicio", correo);
+
+            // Solo se muestra el encabezado de la materia si hay
+            // algún bloque con contenido (el grupo trabajó esa
+            // materia en apreciación y/o ejercicio)
+            if (bloqueApreciacion || bloqueEjercicio) {
+                html += `<h6 class="mt-3">${escapeHtml(materia)}</h6>`;
+                html += bloqueApreciacion;
+                html += bloqueEjercicio;
+            }
+        });
+
+        if (!html) {
+            html = `<p>Este estudiante aún no ha registrado notas en este trimestre.</p>`;
+        }
+
+        modalDetalleContenido.innerHTML = html;
+        modalDetalle.show();
+    };
+
+    // =====================================================
+    // CAMBIAR EL CORREO DE ACCESO DE UN ESTUDIANTE
+    // Llama a la Edge Function "cambiar-correo-estudiante",
+    // que valida que quien llama sea el consejero, cambia el
+    // correo en Auth y lo actualiza en las tablas del sistema.
+    // =====================================================
+
+    const URL_FUNCION_CAMBIAR_CORREO =
+        "https://luewrpzgetqslxqmdcxv.functions.supabase.co/cambiar-correo-estudiante";
+
+    window.cambiarCorreoEstudiante = async function (correoActual, nombre) {
+        const nuevoCorreo = prompt(
+            `Nuevo correo real para ${nombre}\n\n` +
+            `(Correo interno actual: ${correoActual})\n\n` +
+            `Déjalo en blanco si NO quieres cambiar el correo, solo la contraseña.`
+        );
+
+        // Si presiona "Cancelar" en el primer prompt, se detiene todo
+        if (nuevoCorreo === null) return;
+
+        const nuevoCorreoLimpio = nuevoCorreo.trim().toLowerCase();
+
+        if (nuevoCorreoLimpio && !nuevoCorreoLimpio.includes("@")) {
+            alert("Escribe un correo válido, por ejemplo: nombre@gmail.com");
+            return;
+        }
+
+        const nuevaPassword = prompt(
+            `Nueva contraseña para ${nombre}\n\n` +
+            `Déjalo en blanco si NO quieres cambiar la contraseña, solo el correo.\n` +
+            `(Mínimo 6 caracteres si la escribes)`
+        );
+
+        if (nuevaPassword === null) return;
+
+        const nuevaPasswordLimpia = nuevaPassword.trim();
+
+        if (!nuevoCorreoLimpio && !nuevaPasswordLimpia) {
+            alert("No escribiste ningún cambio. Operación cancelada.");
+            return;
+        }
+
+        if (nuevaPasswordLimpia && nuevaPasswordLimpia.length < 6) {
+            alert("La contraseña debe tener al menos 6 caracteres.");
+            return;
+        }
+
+        let resumenCambios = `¿Confirmas estos cambios para ${nombre}?\n\n`;
+        if (nuevoCorreoLimpio) resumenCambios += `📧 Correo: ${correoActual} → ${nuevoCorreoLimpio}\n`;
+        if (nuevaPasswordLimpia) resumenCambios += `🔑 Contraseña nueva: ${nuevaPasswordLimpia}\n`;
+
+        const confirmar = confirm(resumenCambios);
+        if (!confirmar) return;
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+
+            const respuesta = await fetch(URL_FUNCION_CAMBIAR_CORREO, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({
+                    correoActual,
+                    correoNuevo: nuevoCorreoLimpio || null,
+                    nuevaPassword: nuevaPasswordLimpia || null
+                })
+            });
+
+            const resultado = await respuesta.json();
+
+            if (!respuesta.ok) {
+                alert("❌ " + (resultado.error || "No se pudo actualizar la cuenta."));
+                return;
+            }
+
+            alert("✅ Cuenta actualizada correctamente.");
+            await cargarPanel();
+
+        } catch (error) {
+            console.error("❌ Error actualizando la cuenta:", error);
+            alert("❌ Ocurrió un error inesperado: " + error.message);
+        }
+    };
+
+    // Recalcula, para una materia+tipo, la casilla más alta que
+    // cualquier estudiante del grupo ya llenó en este trimestre.
+    function maxCasillaDelGrupo(materia, tipo) {
+        let max = 0;
+
+        resumenEstudiantes.forEach((est) => {
+            est.notas.forEach((n) => {
+                if (n.materia === materia && (n.tipo || "").toLowerCase() === tipo) {
+                    const num = Number(n.numero) || 0;
+                    if (num > max) max = num;
+                }
+            });
+        });
+
+        return max;
     }
 
-    if (btnCargarVisitas) {
-        btnCargarVisitas.addEventListener("click", cargarVisitas);
+    function renderBloqueTipo(etiqueta, casillasObj, materia, tipo, correo) {
+        const max = maxCasillaDelGrupo(materia, tipo);
+
+        if (max === 0) return "";
+
+        let filas = "";
+
+        for (let i = 1; i <= max; i++) {
+            const item = casillasObj[i];
+
+            if (item && item.estado === "Intencional") {
+                // Casilla marcada por el consejero: cuenta 0.0 pero se distingue visualmente
+                filas += `
+                    <tr class="table-secondary">
+                        <td>${i}</td>
+                        <td title="Falta marcada por el consejero (cuenta como 0.0 en el promedio)">
+                            ⚠️ 0.0 <span class="text-muted small">(intencional)</span>
+                        </td>
+                        <td>
+                            ${escapeHtml(item.observacion || "-")}
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-2"
+                                title="Quitar marca de falta intencional"
+                                onclick="quitarFaltaIntencional('${item.id}')">
+                                <i class="fa-solid fa-rotate-left"></i> Quitar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            } else if (item) {
+                // Nota normal registrada
+                filas += `
+                    <tr>
+                        <td>${i}</td>
+                        <td class="text-success"><i class="fa-solid fa-check"></i> ${item.nota}</td>
+                        <td>${escapeHtml(item.tema || "-")}</td>
+                    </tr>
+                `;
+            } else {
+                // Casilla vacía: se puede marcar como falta intencional
+                filas += `
+                    <tr class="table-warning">
+                        <td>${i}</td>
+                        <td class="text-danger"><i class="fa-solid fa-xmark"></i> Falta</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-dark"
+                                title="Marcar como falta intencional (cuenta como 0.0 en el promedio)"
+                                onclick="marcarFaltaIntencional('${escapeHtml(correo)}', '${escapeHtml(materia)}', '${tipo}', ${i})">
+                                ⚠️ Marcar intencional
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        return `
+            <table class="table table-sm table-bordered mb-3">
+                <thead>
+                    <tr>
+                        <th colspan="3">${etiqueta}</th>
+                    </tr>
+                    <tr>
+                        <th style="width:60px;">N°</th>
+                        <th style="width:160px;">Nota</th>
+                        <th>Tema / Observación</th>
+                    </tr>
+                </thead>
+                <tbody>${filas}</tbody>
+            </table>
+        `;
     }
 
+    // =====================================================
+    // MARCAR CASILLA COMO FALTA INTENCIONAL
+    // =====================================================
+
+    window.marcarFaltaIntencional = async function (correo, materia, tipo, numero) {
+        const confirmar = confirm(
+            `¿Marcar la casilla ${numero} (${tipo === "apreciacion" ? "Apreciación" : "Ejercicio"}) de "${materia}" ` +
+            `como falta intencional?\n\nEsto contará como 0.0 en el promedio del estudiante.`
+        );
+        if (!confirmar) return;
+
+        const hoy = new Date().toISOString().slice(0, 10);
+
+        const { error } = await supabase
+            .from("notas")
+            .insert([{
+                correo,
+                materia,
+                tipo,
+                numero,
+                tema: "Falta intencional",
+                actividad: "Falta intencional", // compatibilidad con registros/consultas viejas
+                fecha: hoy,
+                nota: 0,
+                observacion: "Marcada por el consejero: el estudiante no presentó esta actividad.",
+                trimestre: trimestreActivo,
+                estado: "Intencional"
+            }]);
+
+        if (error) {
+            console.error("❌ Error al marcar falta intencional:", error);
+
+            if (error.code === "23505") {
+                alert("Ya existe una nota en esa casilla. No se puede marcar sobre una nota existente.");
+            } else if (error.code === "23514") {
+                alert("Datos inválidos: revisa que el número esté entre 1 y 10 y el tipo sea válido.");
+            } else {
+                alert("No se pudo marcar la falta: " + error.message);
+            }
+            return;
+        }
+
+        // Refrescar tabla resumen y, si el modal estaba abierto, volver a abrirlo actualizado
+        await cargarPanel();
+
+        if (correoDetalleAbierto) {
+            window.verDetalle(correoDetalleAbierto);
+        }
+    };
+
+    // =====================================================
+    // QUITAR MARCA DE FALTA INTENCIONAL
+    // (por si el consejero se equivocó al marcarla)
+    // =====================================================
+
+    window.quitarFaltaIntencional = async function (id) {
+        const confirmar = confirm("¿Quitar la marca de falta intencional en esta casilla?");
+        if (!confirmar) return;
+
+        const { error } = await supabase
+            .from("notas")
+            .delete()
+            .eq("id", id);
+
+        if (error) {
+            console.error("❌ Error al quitar la marca:", error);
+            alert("No se pudo quitar la marca: " + error.message);
+            return;
+        }
+
+        await cargarPanel();
+
+        if (correoDetalleAbierto) {
+            window.verDetalle(correoDetalleAbierto);
+        }
+    };
+
+    // =====================================================
+    // ESCRIBIR EL BOLETÍN DE UN ESTUDIANTE EN UN DOCUMENTO PDF
+    // (función reutilizable: la usa tanto el botón individual
+    // como el botón de "generar boletines de todos")
+    // =====================================================
+
+    async function escribirBoletinEnDoc(doc, est) {
+
+        // -------- Datos personales (solo existen si tiene cuenta) --------
+        let datosEstudiante = null;
+
+        if (est.tieneCuenta) {
+            const { data } = await supabase
+                .from("datos_estudiante")
+                .select("*")
+                .eq("correo", est.correo)
+                .maybeSingle();
+
+            datosEstudiante = data;
+        }
+
+        // -------- Encabezado --------
+        const fechaEmision = new Date().toLocaleDateString("es-PA");
+        const anioEscolar = new Date().getFullYear();
+
+        doc.setFont(undefined, "bold");
+        doc.setFontSize(14);
+        doc.text("CENTRO EDUCATIVO BASICO GENERAL EL JIRAL", 105, 18, { align: "center" });
+
+        doc.setFontSize(12);
+        doc.text("RESUMEN DE CALIFICACIONES", 105, 26, { align: "center" });
+
+        doc.setFont(undefined, "normal");
+        doc.setFontSize(10);
+        doc.text(`Año escolar: ${anioEscolar}`, 20, 36);
+        doc.text(`Trimestre: ${trimestreActivo}`, 105, 36, { align: "center" });
+        doc.text(`Fecha de emisión: ${fechaEmision}`, 150, 36);
+
+        doc.setLineWidth(0.3);
+        doc.line(20, 40, 190, 40);
+
+        // -------- Datos del estudiante --------
+        doc.setFont(undefined, "bold");
+        doc.setFontSize(11);
+        doc.text("Datos del estudiante", 20, 48);
+        doc.setFont(undefined, "normal");
+        doc.setFontSize(10);
+
+        let yDatos = 55;
+
+        doc.text(`Nombre: ${est.nombre}`, 20, yDatos);
+        yDatos += 6;
+        doc.text(`Código: ${est.codigo}`, 20, yDatos);
+        yDatos += 6;
+
+        if (datosEstudiante) {
+            doc.text(`Cédula: ${datosEstudiante.cedula || "-"}`, 20, yDatos);
+
+            const fechaNac = datosEstudiante.fecha_nacimiento
+                ? new Date(datosEstudiante.fecha_nacimiento + "T00:00:00").toLocaleDateString("es-PA")
+                : "-";
+
+            doc.text(`Fecha de nacimiento: ${fechaNac}`, 120, yDatos);
+            yDatos += 6;
+
+            doc.setFont(undefined, "bold");
+            doc.text("Datos del acudiente", 20, yDatos);
+            doc.setFont(undefined, "normal");
+            yDatos += 6;
+
+            doc.text(`Nombre: ${datosEstudiante.nombre_padre_acudiente || "-"}`, 20, yDatos);
+            yDatos += 6;
+
+            doc.text(`Tel. 1: ${datosEstudiante.celular_acudiente1 || "-"}`, 20, yDatos);
+            doc.text(`Tel. 2: ${datosEstudiante.telefono_acudiente2 || "-"}`, 100, yDatos);
+            yDatos += 8;
+        } else {
+            doc.text("El estudiante aún no ha completado sus datos personales de contacto.", 20, yDatos);
+            yDatos += 8;
+        }
+
+        const startYTabla = yDatos + 4;
+
+        // -------- Tabla de notas --------
+        let y;
+
+        if (est.notas.length === 0 && Object.keys(maxCasillaGrupoGlobal).length === 0) {
+
+            doc.setFont(undefined, "italic");
+
+            const mensajeSinNotas = est.tieneCuenta
+                ? "El estudiante ya tiene cuenta en la plataforma, pero aun no ha buscado ni registrado " +
+                  "ninguna nota de este trimestre."
+                : "Este estudiante no tiene notas registradas en este trimestre.";
+
+            doc.text(mensajeSinNotas, 20, startYTabla, { maxWidth: 170 });
+            doc.setFont(undefined, "normal");
+
+            y = startYTabla + 12;
+
+        } else {
+
+            const materiasMap = {};
+            let maxApreciacion = 0;
+            let maxEjercicio = 0;
+
+            function asegurarMateria(mat) {
+                if (!materiasMap[mat]) {
+                    materiasMap[mat] = { apreciacion: {}, ejercicio: {} };
+                }
+            }
+
+            // Primero se agregan las materias donde el GRUPO ya trabajó
+            // (aunque este estudiante todavía no tenga ninguna nota ahí),
+            // usando maxCasillaGrupoGlobal para saber cuántas columnas
+            // mostrar. Así, esas materias también salen en el boletín,
+            // con "?" en cada casilla que le falte a este estudiante.
+            Object.keys(maxCasillaGrupoGlobal).forEach((clave) => {
+                const separador = clave.lastIndexOf("|");
+                const materia = clave.slice(0, separador);
+                const tipo = clave.slice(separador + 1);
+                const max = maxCasillaGrupoGlobal[clave];
+
+                asegurarMateria(materia);
+
+                if (tipo === "apreciacion" && max > maxApreciacion) maxApreciacion = max;
+                if (tipo === "ejercicio" && max > maxEjercicio) maxEjercicio = max;
+            });
+
+            est.notas.forEach((item) => {
+                const mat = item.materia || "Sin Materia";
+                asegurarMateria(mat);
+
+                const tipoNorm = (item.tipo || "").toLowerCase();
+                const casilla = Number(item.numero);
+
+                if (!casilla || casilla < 1) return;
+
+                const valor = {
+                    nota: Number(item.nota),
+                    intencional: item.estado === "Intencional"
+                };
+
+                if (tipoNorm === "apreciacion") {
+                    materiasMap[mat].apreciacion[casilla] = valor;
+                    if (casilla > maxApreciacion) maxApreciacion = casilla;
+                } else if (tipoNorm === "ejercicio") {
+                    materiasMap[mat].ejercicio[casilla] = valor;
+                    if (casilla > maxEjercicio) maxEjercicio = casilla;
+                }
+            });
+
+            const head = [["Materia"]];
+            for (let i = 1; i <= maxApreciacion; i++) head[0].push(`Apr. ${i}`);
+            if (maxApreciacion > 0) head[0].push("Prom. Apr.");
+            for (let i = 1; i <= maxEjercicio; i++) head[0].push(`Eje. ${i}`);
+            if (maxEjercicio > 0) head[0].push("Prom. Eje.");
+            head[0].push("Prom. Final");
+
+            const body = [];
+            let sumaPromedios = 0;
+            let totalMaterias = 0;
+
+            let huboCasillasSinRegistrar = false;
+
+            const celdaTexto = (v, algunOtroTiene) => {
+                if (v === null || v === undefined) {
+                    if (algunOtroTiene) {
+                        huboCasillasSinRegistrar = true;
+                        return "?";
+                    }
+                    return ""; // nadie (ni siquiera otro estudiante) tiene nota ahí: no se marca como pendiente
+                }
+                if (v.intencional) return "F*";
+                return v.nota.toFixed(1);
+            };
+
+            Object.keys(materiasMap).sort().forEach((materia) => {
+                const apr = [];
+                for (let i = 1; i <= maxApreciacion; i++) {
+                    apr.push({
+                        valor: materiasMap[materia].apreciacion[i] ?? null,
+                        algunOtroTiene: casillasGrupoConNotaGlobal.has(`${materia}|apreciacion|${i}`)
+                    });
+                }
+
+                const eje = [];
+                for (let i = 1; i <= maxEjercicio; i++) {
+                    eje.push({
+                        valor: materiasMap[materia].ejercicio[i] ?? null,
+                        algunOtroTiene: casillasGrupoConNotaGlobal.has(`${materia}|ejercicio|${i}`)
+                    });
+                }
+
+                const aprValidos = apr.map((c) => c.valor).filter((v) => v !== null);
+                const ejeValidos = eje.map((c) => c.valor).filter((v) => v !== null);
+
+                const promApr = aprValidos.length > 0
+                    ? aprValidos.reduce((a, b) => a + b.nota, 0) / aprValidos.length
+                    : null;
+
+                const promEje = ejeValidos.length > 0
+                    ? ejeValidos.reduce((a, b) => a + b.nota, 0) / ejeValidos.length
+                    : null;
+
+                let promFinal = null;
+                if (promApr !== null && promEje !== null) {
+                    promFinal = (promApr + promEje) / 2;
+                } else if (promApr !== null) {
+                    promFinal = promApr;
+                } else if (promEje !== null) {
+                    promFinal = promEje;
+                }
+
+                const row = [materia];
+                apr.forEach((c) => row.push(celdaTexto(c.valor, c.algunOtroTiene)));
+                if (maxApreciacion > 0) row.push(promApr !== null ? promApr.toFixed(1) : "-");
+                eje.forEach((c) => row.push(celdaTexto(c.valor, c.algunOtroTiene)));
+                if (maxEjercicio > 0) row.push(promEje !== null ? promEje.toFixed(1) : "-");
+                row.push(promFinal !== null ? promFinal.toFixed(1) : "-");
+
+                body.push(row);
+
+                if (promFinal !== null) {
+                    sumaPromedios += promFinal;
+                    totalMaterias++;
+                }
+            });
+
+            doc.autoTable({
+                head,
+                body,
+                startY: startYTabla,
+                styles: { fontSize: 8, halign: "center" },
+                headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+                columnStyles: { 0: { halign: "left", fontStyle: "bold" } }
+            });
+
+            y = doc.lastAutoTable.finalY + 6;
+
+            // -------- Nota aclaratoria sobre las casillas vacías --------
+            // El sistema funciona con AUTO-registro: es el propio estudiante
+            // quien busca la nota con el docente y la escribe en la plataforma.
+            // Por eso, si aparece "-" en una casilla NO significa que el
+            // docente no haya calificado esa actividad, sino que el
+            // estudiante (quien ya tiene cuenta y ha usado la plataforma)
+            // todavía no ha ido a buscar esa nota para registrarla.
+            if (huboCasillasSinRegistrar) {
+                doc.setFont(undefined, "italic");
+                doc.setFontSize(8);
+                doc.setTextColor(100, 100, 100);
+                doc.text(
+                    "Nota: el simbolo \"?\" indica que el estudiante aun no ha buscado ni registrado esa nota en el sistema " +
+                    "(no significa que el docente no la haya asignado o calificado).",
+                    20,
+                    y,
+                    { maxWidth: 170 }
+                );
+                doc.setTextColor(0, 0, 0);
+                doc.setFont(undefined, "normal");
+                doc.setFontSize(10);
+                y += 9;
+            } else {
+                y += 4;
+            }
+
+            const promedioGeneral = totalMaterias > 0 ? sumaPromedios / totalMaterias : 0;
+
+            doc.setFont(undefined, "bold");
+            doc.setFontSize(11);
+            doc.text("Resumen académico", 20, y);
+            doc.setFont(undefined, "normal");
+            doc.setFontSize(10);
+            y += 7;
+            doc.text(`Promedio General: ${promedioGeneral.toFixed(1)}`, 20, y);
+            y += 6;
+            doc.text(`Total de materias con notas: ${totalMaterias}`, 20, y);
+            y += 10;
+        }
+
+        // =================================================
+        // ALERTA PARA LOS PADRES
+        // Aparece si el estudiante no tiene cuenta creada,
+        // o si le faltan notas frente al resto del grupo.
+        // =================================================
+
+        if (!est.tieneCuenta || est.pendientes > 0) {
+
+            if (y > 250) {
+                doc.addPage();
+                y = 25;
+            }
+
+            doc.setLineWidth(0.5);
+            doc.setDrawColor(200, 0, 0);
+            doc.line(20, y, 190, y);
+            y += 8;
+
+            doc.setFont(undefined, "bold");
+            doc.setFontSize(11);
+            doc.setTextColor(180, 0, 0);
+            doc.text("ALERTA PARA LOS PADRES / ACUDIENTES", 20, y);
+            y += 8;
+
+            doc.setFont(undefined, "normal");
+            doc.setFontSize(10);
+
+            let textoAlerta = "";
+
+            if (!est.tieneCuenta) {
+                textoAlerta =
+                    "Su hijo(a) aun NO ha creado su cuenta en el sistema de Control de Notas, " +
+                    "por lo que no lleva un control adecuado de sus calificaciones. Le pedimos " +
+                    "comunicarse con la consejeria o pedirle a su hijo(a) que se registre en el " +
+                    "sistema lo antes posible, para poder darle seguimiento a su rendimiento academico.";
+            } else if (est.pendientes > 0) {
+                textoAlerta =
+                    `Su hijo(a) tiene ${est.pendientes} nota(s) pendiente(s) de registrar, en comparacion ` +
+                    "con el resto de sus companeros de grupo. Le recomendamos averiguar con su hijo(a) o " +
+                    "con el docente la razon de estas actividades pendientes, y corregir la situacion lo " +
+                    "antes posible para que este al dia con el resto del grupo.";
+            }
+
+            doc.text(textoAlerta, 20, y, { maxWidth: 170 });
+            doc.setTextColor(0, 0, 0);
+
+            // Calcula cuántas líneas ocupó el párrafo para colocar lo
+            // siguiente justo debajo (en vez de un salto fijo).
+            const lineasAlerta = doc.splitTextToSize(textoAlerta, 170);
+            y += lineasAlerta.length * 5 + 4;
+
+            // -------- Detalle por materia --------
+            // Tabla chiquita mostrando, materia por materia, cuántas
+            // casillas de Apreciación y de Ejercicio le faltan al
+            // estudiante frente al resto del grupo.
+            if (est.tieneCuenta && est.pendientes > 0 && est.detallePendientes &&
+                Object.keys(est.detallePendientes).length > 0) {
+
+                const filasDetalle = Object.keys(est.detallePendientes).sort().map((materia) => {
+                    const d = est.detallePendientes[materia];
+                    const total = d.apreciacion + d.ejercicio;
+                    return [
+                        materia,
+                        d.apreciacion > 0 ? `${d.apreciacion} ?` : "-",
+                        d.ejercicio > 0 ? `${d.ejercicio} ?` : "-",
+                        String(total)
+                    ];
+                });
+
+                doc.autoTable({
+                    head: [["Materia", "Apreciación pendiente", "Ejercicio pendiente", "Total"]],
+                    body: filasDetalle,
+                    startY: y,
+                    styles: { fontSize: 8, halign: "center" },
+                    headStyles: { fillColor: [180, 0, 0], textColor: 255 },
+                    columnStyles: { 0: { halign: "left", fontStyle: "bold" } },
+                    margin: { left: 20, right: 20 }
+                });
+
+                y = doc.lastAutoTable.finalY + 8;
+            } else {
+                y += 6;
+            }
+        }
+
+        // =================================================
+        // FIRMAS
+        // Siempre se incluyen, aunque la hoja quede casi
+        // vacía (sin cuenta / sin notas), para que quede un
+        // registro firmado de que se entregó y se notificó.
+        // Se colocan justo debajo del contenido (no al fondo
+        // de la página) para que siempre sean visibles sin
+        // necesidad de hacer scroll.
+        // =================================================
+
+        y += 20;
+
+        if (y > 265) {
+            doc.addPage();
+            y = 40;
+        }
+
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+
+        doc.line(25, y, 90, y);
+        doc.setFont(undefined, "normal");
+        doc.setFontSize(9);
+        doc.text("Firma del consejero(a)", 30, y + 5);
+
+        doc.line(120, y, 185, y);
+        doc.text("Firma del padre de familia / acudiente", 122, y + 5);
+    }
+
+    // =====================================================
+    // GENERAR BOLETÍN PDF DE UN SOLO ESTUDIANTE
+    // =====================================================
+
+    window.generarPdfEstudiante = async function (codigo) {
+        const est = resumenEstudiantes.find((e) => String(e.codigo) === String(codigo));
+
+        if (!est) {
+            alert("No se encontró información de este estudiante.");
+            return;
+        }
+
+        if (typeof window.jspdf === "undefined") {
+            alert("No se pudo cargar la librería para generar el PDF.");
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        await escribirBoletinEnDoc(doc, est);
+
+        doc.save(`Boletin_${est.nombre.replace(/[,\s]+/g, "_")}.pdf`);
+    };
+
+    // =====================================================
+    // GENERAR BOLETINES DE TODOS LOS ESTUDIANTES
+    // (un solo PDF con una página por estudiante)
+    // =====================================================
+
+    const btnPdfTodos = document.getElementById("btnPdfTodos");
+
+    if (btnPdfTodos) {
+        btnPdfTodos.addEventListener("click", async () => {
+
+            if (typeof window.jspdf === "undefined") {
+                alert("No se pudo cargar la librería para generar el PDF.");
+                return;
+            }
+
+            if (resumenEstudiantes.length === 0) {
+                alert("No hay estudiantes para generar boletines.");
+                return;
+            }
+
+            const confirmar = confirm(
+                `Se generará un solo PDF con el boletín de los ${resumenEstudiantes.length} estudiantes ` +
+                `(${trimestreActivo}). Esto puede tardar unos segundos. ¿Continuar?`
+            );
+            if (!confirmar) return;
+
+            const textoOriginal = btnPdfTodos.innerHTML;
+            btnPdfTodos.disabled = true;
+            btnPdfTodos.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Generando...`;
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                for (let i = 0; i < resumenEstudiantes.length; i++) {
+                    if (i > 0) doc.addPage();
+                    await escribirBoletinEnDoc(doc, resumenEstudiantes[i]);
+                }
+
+                const fechaArchivo = new Date().toISOString().slice(0, 10);
+                doc.save(`Boletines_${salonActual}_${trimestreActivo.replace(/\s+/g, "")}_${fechaArchivo}.pdf`);
+
+            } catch (error) {
+                console.error("❌ Error al generar los boletines de todos:", error);
+                alert("Ocurrió un error generando los boletines: " + error.message);
+            } finally {
+                btnPdfTodos.disabled = false;
+                btnPdfTodos.innerHTML = textoOriginal;
+            }
+        });
+    }
+
+    // =====================================================
+    // LISTA DE ESTUDIANTES (todos los salones)
+    // Nota: agregar estudiantes ya NO se hace desde este panel;
+    // esa tarea le corresponde exclusivamente al administrador
+    // para evitar códigos/cédulas duplicados entre consejeros.
+    // Aquí solo se CONSULTA e imprime en PDF, por nombre, por
+    // cédula, por salón o todos los salones juntos.
+    // =====================================================
+
+    const buscarListadoEl = document.getElementById("buscarListado");
+    const filtroSalonListadoEl = document.getElementById("filtroSalonListado");
+    const tablaListadoEl = document.getElementById("tablaListado");
+    const contadorListadoEl = document.getElementById("contadorListado");
+    const btnPdfListado = document.getElementById("btnPdfListado");
+    const seccionListadoEl = document.getElementById("seccionListado");
+
+    let todosLosEstudiantes = []; // { codigo, nombre, cedula, salon }
+    let listadoYaCargado = false;
+
+    async function cargarListadoEstudiantes() {
+        tablaListadoEl.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando...</td></tr>`;
+
+        // Se consultan TODOS los salones (no solo el propio), para que
+        // el consejero pueda ubicar a cualquier estudiante del colegio.
+        const { data, error } = await supabase
+            .from("estudiantes")
+            .select("codigo, nombre, cedula, salon")
+            .eq("es_prueba", false)
+            .order("salon", { ascending: true })
+            .order("codigo", { ascending: true });
+
+        if (error) {
+            console.error("❌ Error al cargar la lista de estudiantes:", error);
+            tablaListadoEl.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-3">
+                No se pudo cargar la lista de estudiantes.
+            </td></tr>`;
+            return;
+        }
+
+        todosLosEstudiantes = data || [];
+
+        // -------- Llenar el selector de salones con lo que realmente exista --------
+        const salonesUnicos = [...new Set(todosLosEstudiantes.map((e) => e.salon).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, "es"));
+
+        filtroSalonListadoEl.innerHTML = `<option value="">Todos los salones</option>` +
+            salonesUnicos.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+
+        // Por defecto se muestra el salón del propio consejero, si existe en la lista
+        if (salonesUnicos.includes(salonActual)) {
+            filtroSalonListadoEl.value = salonActual;
+        }
+
+        renderListado();
+    }
+
+    function renderListado() {
+        const texto = (buscarListadoEl.value || "").trim().toLowerCase();
+        const salonElegido = filtroSalonListadoEl.value;
+
+        const filtrados = todosLosEstudiantes.filter((e) => {
+            if (salonElegido && e.salon !== salonElegido) return false;
+
+            if (!texto) return true;
+
+            const nombre = (e.nombre || "").toLowerCase();
+            const cedula = (e.cedula || "").toLowerCase();
+            return nombre.includes(texto) || cedula.includes(texto);
+        });
+
+        contadorListadoEl.textContent = `${filtrados.length} estudiante${filtrados.length === 1 ? "" : "s"}`;
+
+        if (filtrados.length === 0) {
+            tablaListadoEl.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">
+                No se encontraron estudiantes con ese criterio.
+            </td></tr>`;
+            return;
+        }
+
+        tablaListadoEl.innerHTML = filtrados.map((e) => `
+            <tr>
+                <td>${escapeHtml(e.salon || "-")}</td>
+                <td>${escapeHtml(e.codigo)}</td>
+                <td>${escapeHtml(e.cedula || "-")}</td>
+                <td>${escapeHtml(e.nombre)}</td>
+            </tr>
+        `).join("");
+    }
+
+    if (buscarListadoEl) buscarListadoEl.addEventListener("input", renderListado);
+    if (filtroSalonListadoEl) filtroSalonListadoEl.addEventListener("change", renderListado);
+
+    // Carga la lista la primera vez que se entra a esta sección
+    // (patrón perezoso, igual que el bloque de consultas).
+    if (seccionListadoEl) {
+        const observer = new MutationObserver(() => {
+            if (seccionListadoEl.style.display !== "none" && !listadoYaCargado) {
+                listadoYaCargado = true;
+                cargarListadoEstudiantes();
+            }
+        });
+        observer.observe(seccionListadoEl, { attributes: true, attributeFilter: ["style"] });
+    }
+
+    // -------- Descargar / imprimir la lista actual (filtrada) en PDF --------
+    if (btnPdfListado) {
+        btnPdfListado.addEventListener("click", () => {
+            if (typeof window.jspdf === "undefined") {
+                alert("No se pudo cargar la librería para generar el PDF.");
+                return;
+            }
+
+            const texto = (buscarListadoEl.value || "").trim().toLowerCase();
+            const salonElegido = filtroSalonListadoEl.value;
+
+            const filtrados = todosLosEstudiantes.filter((e) => {
+                if (salonElegido && e.salon !== salonElegido) return false;
+                if (!texto) return true;
+                const nombre = (e.nombre || "").toLowerCase();
+                const cedula = (e.cedula || "").toLowerCase();
+                return nombre.includes(texto) || cedula.includes(texto);
+            });
+
+            if (filtrados.length === 0) {
+                alert("No hay estudiantes para imprimir con ese criterio.");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            const tituloSalon = salonElegido ? `Salón ${salonElegido}` : "Todos los salones";
+            const fecha = new Date().toLocaleDateString("es-PA");
+
+            doc.setFont(undefined, "bold");
+            doc.setFontSize(14);
+            doc.text("CENTRO EDUCATIVO BASICO GENERAL EL JIRAL", 105, 15, { align: "center" });
+            doc.setFontSize(12);
+            doc.text("LISTA DE ESTUDIANTES", 105, 22, { align: "center" });
+            doc.setFont(undefined, "normal");
+            doc.setFontSize(10);
+            doc.text(`${tituloSalon}`, 14, 30);
+            doc.text(`Fecha: ${fecha}`, 196, 30, { align: "right" });
+
+            doc.autoTable({
+                startY: 35,
+                head: [["Salón", "Código", "Cédula", "Nombre"]],
+                body: filtrados.map((e) => [e.salon || "-", e.codigo, e.cedula || "-", e.nombre]),
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [13, 110, 253] }
+            });
+
+            const nombreArchivo = `Lista_estudiantes_${salonElegido || "TodosLosSalones"}_${new Date().toISOString().slice(0, 10)}.pdf`;
+            doc.save(nombreArchivo);
+        });
+    }
+
+    // =====================================================
+    // CERRAR SESIÓN
+    // =====================================================
+
+    if (btnSalir) {
+        btnSalir.addEventListener("click", async () => {
+            try {
+                const { error } = await supabase.auth.signOut();
+
+                if (error) {
+                    console.error("Error cerrando sesión:", error);
+                    alert("No se pudo cerrar la sesión: " + error.message);
+                    return;
+                }
+
+                window.location.href = "login.html";
+            } catch (error) {
+                console.error("Error inesperado cerrando la sesión:", error);
+                alert("Ocurrió un error al cerrar la sesión.");
+            }
+        });
+    }
 });
