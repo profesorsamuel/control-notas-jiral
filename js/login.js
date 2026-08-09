@@ -1,6 +1,7 @@
 import { supabase } from "./supabase.js";
 import { usuarioAEmail } from "./utils.js";
 import { obtenerRolesDeCuenta } from "./roles.js";
+import { registrarEntrada } from "./accesos.js";
 
 // =================================================
 // SELECTOR DE ROL (cuentas con más de una función)
@@ -11,7 +12,7 @@ import { obtenerRolesDeCuenta } from "./roles.js";
 // El usuario elige con cuál panel quiere trabajar en esta sesión.
 // Cada botón se muestra u oculta según los roles que sí tenga.
 
-function mostrarSelectorDeRol({ esAdmin, consejeroInfo, esProfesor }) {
+function mostrarSelectorDeRol({ esAdmin, consejeroInfo, esProfesor, correo }) {
 
     const modalEl = document.getElementById("modalElegirRol");
     const btnAdmin = document.getElementById("btnEntrarComoAdmin");
@@ -20,11 +21,9 @@ function mostrarSelectorDeRol({ esAdmin, consejeroInfo, esProfesor }) {
     const salonSpan = document.getElementById("salonConsejeroBtn");
 
     if (!modalEl || !btnAdmin || !btnConsejero || !btnProfesor) {
-        // Si por alguna razón el modal no existe en el HTML,
-        // se cae al primer rol disponible como comportamiento por defecto.
-        if (esAdmin) { sessionStorage.setItem("rolActivo", "admin"); window.location.href = "admin.html"; }
-        else if (consejeroInfo) { sessionStorage.setItem("rolActivo", "consejero"); window.location.href = "consejero.html"; }
-        else { sessionStorage.setItem("rolActivo", "profesor"); window.location.href = "profesor.html"; }
+        if (esAdmin) { sessionStorage.setItem("rolActivo", "admin"); registrarEntrada(correo, "admin"); window.location.href = "admin.html"; }
+        else if (consejeroInfo) { sessionStorage.setItem("rolActivo", "consejero"); registrarEntrada(correo, "consejero"); window.location.href = "consejero.html"; }
+        else { sessionStorage.setItem("rolActivo", "profesor"); registrarEntrada(correo, "profesor"); window.location.href = "profesor.html"; }
         return;
     }
 
@@ -40,16 +39,19 @@ function mostrarSelectorDeRol({ esAdmin, consejeroInfo, esProfesor }) {
 
     btnAdmin.addEventListener("click", () => {
         sessionStorage.setItem("rolActivo", "admin");
+        registrarEntrada(correo, "admin");
         window.location.href = "admin.html";
     }, { once: true });
 
     btnConsejero.addEventListener("click", () => {
         sessionStorage.setItem("rolActivo", "consejero");
+        registrarEntrada(correo, "consejero");
         window.location.href = "consejero.html";
     }, { once: true });
 
     btnProfesor.addEventListener("click", () => {
         sessionStorage.setItem("rolActivo", "profesor");
+        registrarEntrada(correo, "profesor");
         window.location.href = "profesor.html";
     }, { once: true });
 
@@ -241,13 +243,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 console.log("🔀 Esta cuenta tiene varios roles. Mostrando selector...");
 
-                mostrarSelectorDeRol({ esAdmin, consejeroInfo, esProfesor });
+                mostrarSelectorDeRol({ esAdmin, consejeroInfo, esProfesor, correo });
 
             } else if (esAdmin) {
 
                 console.log("🛡️ Acceso como administrador");
 
                 sessionStorage.setItem("rolActivo", "admin");
+                registrarEntrada(correo, "admin");
                 window.location.href = "admin.html";
 
             } else if (consejeroInfo) {
@@ -255,6 +258,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.log("👨‍🏫 Acceso como consejero(a) de", consejeroInfo.salon);
 
                 sessionStorage.setItem("rolActivo", "consejero");
+                registrarEntrada(correo, "consejero");
                 window.location.href = "consejero.html";
 
             } else if (esProfesor) {
@@ -262,11 +266,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.log("📝 Acceso como profesor(a)");
 
                 sessionStorage.setItem("rolActivo", "profesor");
+                registrarEntrada(correo, "profesor");
                 window.location.href = "profesor.html";
 
             } else {
 
                 console.log("👨‍🎓 Acceso como estudiante");
+
+                registrarEntrada(correo, "estudiante");
 
                 const parametrosUrl = new URLSearchParams(window.location.search);
                 const siguientePagina = parametrosUrl.get("next");
