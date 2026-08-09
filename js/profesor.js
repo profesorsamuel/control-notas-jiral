@@ -1,6 +1,6 @@
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
-import { calcularColumnasApreciacionesNuevas, iconoApreciacion, abrirDetalleApreciacion } from "./apreciaciones.js";
+import { calcularColumnasApreciacionesNuevas, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas } from "./apreciaciones.js";
 
 // =========================================================
 // 0) UTILIDADES
@@ -294,9 +294,10 @@ let temasCasillasBD = {};
 // (por ejemplo el que sigue a eliminar una columna) no crea una columna
 // nueva por su cuenta.
 let agregarColumnaVaciaSolicitada = false;
-// { 4: "activa", 5: "bloqueada", ... } — solo para Aprec. 4 en adelante.
-// Aprec. 1, 2 y 3 nunca aparecen aquí: siguen funcionando exactamente
-// igual que antes, sin pasar por este sistema nuevo.
+// { 4: {estado:"activa", modo:null}, 5: {estado:"bloqueada", modo:null}, ... }
+// Solo para Aprec. 4 en adelante. Aprec. 1, 2 y 3 nunca aparecen aquí:
+// siguen funcionando exactamente igual que antes, sin pasar por este
+// sistema nuevo.
 let estadoApreciacionesNuevas = {};
 
 function claveEstudiante(est) {
@@ -893,13 +894,23 @@ function renderTabla() {
             return;
         }
         if (c.tipo === "apreciacion" && c.numero >= 4) {
-            const estadoCol = estadoApreciacionesNuevas[c.numero] || "bloqueada";
+            const infoCol = estadoApreciacionesNuevas[c.numero] || { estado: "bloqueada", modo: null };
+            if (infoCol.modo === "directo") {
+                // Modo directo: se ve exactamente como una columna normal
+                // (Aprec. 1, 2, 3), solo que sin botón de eliminar (el
+                // sistema sigue controlando cuándo avanza a la siguiente).
+                htmlCabecera += `
+                    <th class="text-center small ${claveCasilla(c.tipo, c.numero) === claveSel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
+                        <div>${iconoApreciacion(infoCol.estado)} ${etiquetaCasilla(c.tipo, c.numero)}</div>
+                    </th>`;
+                return;
+            }
             htmlCabecera += `
-                <th class="text-center small" style="width:90px; cursor:${estadoCol === "bloqueada" ? "default" : "pointer"};">
+                <th class="text-center small" style="width:90px; cursor:${infoCol.estado === "bloqueada" ? "default" : "pointer"};">
                     <button type="button" class="btn btn-link btn-sm p-0 fw-bold btn-abrir-apreciacion-nueva text-decoration-none"
-                        data-numero="${c.numero}" data-estado="${estadoCol}"
-                        style="color:${estadoCol === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"};">
-                        ${iconoApreciacion(estadoCol)} Aprec. ${c.numero}
+                        data-numero="${c.numero}" data-estado="${infoCol.estado}"
+                        style="color:${infoCol.estado === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"};">
+                        ${iconoApreciacion(infoCol.estado)} Aprec. ${c.numero}
                     </button>
                 </th>`;
             return;
@@ -949,13 +960,17 @@ function renderTabla() {
             const claveCas = claveCasilla(c.tipo, c.numero);
 
             if (c.tipo === "apreciacion" && c.numero >= 4) {
-                const estadoCol = estadoApreciacionesNuevas[c.numero] || "bloqueada";
-                const n = historial[claveCas];
-                const valorGuardado = (n && n.nota !== null && n.nota !== undefined) ? formatearNotaFinal(String(n.nota)) : "";
-                const contenido = estadoCol === "completada"
-                    ? `<span class="fw-bold text-success">${valorGuardado || "–"}</span>`
-                    : `<span style="opacity:${estadoCol === "bloqueada" ? .5 : 1};">${iconoApreciacion(estadoCol)}</span>`;
-                return `<td class="celda-nota text-center" style="cursor:${estadoCol === "bloqueada" ? "default" : "pointer"};" data-abrir-apreciacion="${c.numero}" data-estado-apreciacion="${estadoCol}">${contenido}</td>`;
+                const infoCol = estadoApreciacionesNuevas[c.numero] || { estado: "bloqueada", modo: null };
+                if (infoCol.modo !== "directo") {
+                    const n = historial[claveCas];
+                    const valorGuardado = (n && n.nota !== null && n.nota !== undefined) ? formatearNotaFinal(String(n.nota)) : "";
+                    const contenido = infoCol.estado === "completada"
+                        ? `<span class="fw-bold text-success">${valorGuardado || "–"}</span>`
+                        : `<span style="opacity:${infoCol.estado === "bloqueada" ? .5 : 1};">${iconoApreciacion(infoCol.estado)}</span>`;
+                    return `<td class="celda-nota text-center" style="cursor:${infoCol.estado === "bloqueada" ? "default" : "pointer"};" data-abrir-apreciacion="${c.numero}" data-estado-apreciacion="${infoCol.estado}">${contenido}</td>`;
+                }
+                // modo === "directo": sigue de largo y cae en el mismo
+                // renderizado de <input> normal que usan Aprec. 1, 2, 3.
             }
 
             const colIndex = indicesColumna[pos];
@@ -991,11 +1006,22 @@ function renderTabla() {
     });
 
     function abrirDesdeApreciacionNueva(numeroApreciacion, estadoCol) {
+        const infoCol = estadoApreciacionesNuevas[numeroApreciacion] || {};
+        const materia = selectMateriaNota.value, salon = selectSalonNota.value, trimestre = selectTrimestreNota.value;
+
+        if (!infoCol.modo && estadoCol === "activa") {
+            abrirSelectorModo({
+                materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes: grupoActual,
+                onModoElegido: (modoElegido) => {
+                    infoCol.modo = modoElegido;
+                    if (modoElegido === "directo") renderTabla(); // repinta la celda como input normal
+                },
+            });
+            return;
+        }
+
         abrirDetalleApreciacion({
-            materia: selectMateriaNota.value,
-            salon: selectSalonNota.value,
-            trimestre: selectTrimestreNota.value,
-            numeroApreciacion, estado: estadoCol,
+            materia, salon, trimestre, numeroApreciacion, estado: estadoCol,
             estudiantes: grupoActual, correoProfesor,
         });
     }
@@ -1194,8 +1220,8 @@ async function cargarSalon() {
     casillasTabla = casillasTabla.filter((c) => !(c.tipo === "apreciacion" && c.numero >= 4));
     estadoApreciacionesNuevas = {};
     const columnasNuevas = await calcularColumnasApreciacionesNuevas(materia, trimestre);
-    columnasNuevas.forEach(({ numero, estado: estadoCol }) => {
-        estadoApreciacionesNuevas[numero] = estadoCol;
+    columnasNuevas.forEach(({ numero, estado: estadoCol, modo }) => {
+        estadoApreciacionesNuevas[numero] = { estado: estadoCol, modo: modo || null };
         casillasTabla.push({ tipo: "apreciacion", numero, esNueva: true });
     });
     ordenarCasillas(casillasTabla);
@@ -1358,7 +1384,18 @@ async function guardarNotas(esAutomatico = false) {
         estadoGuardadoNotas.className = "small text-danger";
     }
 
-    if (!esAutomatico) cargarSalon();
+    // Si alguna de las notas guardadas era de una Apreciación 4+ en modo
+    // "directo", hay que revisar si con esto quedó completa (todos los
+    // estudiantes con nota) para activar la siguiente automáticamente.
+    const numerosApreciacionNuevaGuardados = [...new Set(
+        aGuardar.filter((item) => item.tipo === "apreciacion" && item.numero >= 4).map((item) => item.numero)
+    )];
+    let huboAvanceDeApreciacion = false;
+    if (numerosApreciacionNuevaGuardados.length > 0) {
+        huboAvanceDeApreciacion = await revisarAvanceApreciacionesDirectas(materia, trimestre, numerosApreciacionNuevaGuardados);
+    }
+
+    if (!esAutomatico || huboAvanceDeApreciacion) cargarSalon();
 }
 
 // =========================================================
