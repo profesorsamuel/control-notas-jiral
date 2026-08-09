@@ -62,6 +62,21 @@ function formatearFecha(fechaISO) {
 let profesoresCache = [];
 let asignacionesPorCorreo = {};
 
+// Si se llega desde otra pantalla con ?correo=..., (ej. la tabla
+// "Gestionar profesores" del panel de admin), usamos ese correo para
+// llevar directo a esa tarjeta: filtramos la búsqueda por él y, una
+// vez pintada la lista, le damos scroll y un resalte temporal.
+const correoDesdeUrl = (new URLSearchParams(window.location.search).get("correo") || "").trim().toLowerCase();
+
+function resaltarTarjeta(correo) {
+    if (!correo) return;
+    const tarjeta = listaProfesores.querySelector(`.tarjeta-profesor[data-correo="${CSS.escape(correo)}"]`);
+    if (!tarjeta) return;
+    tarjeta.scrollIntoView({ behavior: "smooth", block: "center" });
+    tarjeta.classList.add("tarjeta-resaltada");
+    setTimeout(() => tarjeta.classList.remove("tarjeta-resaltada"), 2500);
+}
+
 // =====================================================
 // 1) CARGAR PROFESORES + SUS ASIGNACIONES (materia/salón)
 // =====================================================
@@ -415,5 +430,11 @@ buscarProfesor?.addEventListener("input", () => {
 (async function init() {
     const ok = await verificarAdmin();
     if (!ok) return;
-    cargarProfesores();
+    await cargarProfesores();
+
+    if (correoDesdeUrl) {
+        // No filtramos con el buscador (así se ve el resto del directorio
+        // también); solo saltamos y resaltamos la tarjeta correspondiente.
+        resaltarTarjeta(correoDesdeUrl);
+    }
 })();
