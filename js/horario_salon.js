@@ -58,8 +58,8 @@ const fondoModalBloque = document.getElementById("fondoModalBloque");
 const tituloModalBloque = document.getElementById("tituloModalBloque");
 const selectTipoBloque = document.getElementById("selectTipoBloque");
 const campoMateriaSalon = document.getElementById("campoMateriaSalon");
-const inputMateriaBloque = document.getElementById("inputMateriaBloque");
-const inputProfesorBloque = document.getElementById("inputProfesorBloque");
+const selectMateriaBloque = document.getElementById("selectMateriaBloque");
+const selectProfesorBloque = document.getElementById("selectProfesorBloque");
 const campoTextoLibre = document.getElementById("campoTextoLibre");
 const inputTextoBloque = document.getElementById("inputTextoBloque");
 const btnEliminarBloqueModal = document.getElementById("btnEliminarBloqueModal");
@@ -72,6 +72,10 @@ let horarioPorClave = {};
 let bloqueEnEdicion = null;
 let esAdminActual = false;
 let salonBloqueado = null; // si es consejero, aquí queda fijo su salón
+
+let materiasCache = [];       // [{id, nombre, nivel_7, nivel_8, nivel_9}]
+let profesoresCache = [];     // [{correo_profesor, nombre_profesor}]
+let asignacionesCache = [];   // profesor_materias: [{correo_profesor, nombre_profesor, materia, salon}]
 
 // =========================================================
 // 1) VERIFICAR ACCESO (admin o consejero autorizado)
@@ -154,12 +158,100 @@ async function cargarFranjas() {
     return data || [];
 }
 
+// Catálogo de materias reales (el mismo que se administra en
+// materias.html), para no tener que escribirlas a mano cada vez.
+async function cargarMaterias() {
+    const { data, error } = await supabase
+        .from("materias")
+        .select("id, nombre, nivel_7, nivel_8, nivel_9, activo, orden")
+        .eq("activo", true)
+        .order("orden", { ascending: true });
+
+    if (error) {
+        console.error("❌ Error al cargar materias:", error);
+        return [];
+    }
+    return data || [];
+}
+
+// Directorio de profesores (el mismo que aparece en Asignaciones),
+// para elegir quién dicta el bloque sin tener que escribir el nombre.
+async function cargarProfesores() {
+    const { data, error } = await supabase
+        .from("profesores")
+        .select("correo_profesor, nombre_profesor")
+        .order("nombre_profesor", { ascending: true });
+
+    if (error) {
+        console.error("❌ Error al cargar profesores:", error);
+        return [];
+    }
+    return data || [];
+}
+
+// Quién ya está asignado a cada materia/salón (tabla profesor_materias,
+// la misma que llena el admin en "Asignaciones"). Se usa para sugerir
+// automáticamente el profesor cuando se elige una materia.
+async function cargarAsignaciones() {
+    const { data, error } = await supabase
+        .from("profesor_materias")
+        .select("correo_profesor, nombre_profesor, materia, salon");
+
+    if (error) {
+        console.error("❌ Error al cargar asignaciones de profesores:", error);
+        return [];
+    }
+    return data || [];
+}
+
+// Deduce el grado (7, 8 o 9) a partir del código del salón (ej: "9C" -> 9),
+// para no mostrar materias de otro nivel en el desplegable.
+function nivelDelSalon(salon) {
+    const match = String(salon || "").match(/\d+/);
+    return match ? parseInt(match[0], 10) : null;
+}
+
+function materiasParaSalon(salon) {
+    const nivel = nivelDelSalon(salon);
+    const campoNivel = nivel ? `nivel_${nivel}` : null;
+    if (!campoNivel) return materiasCache;
+    const filtradas = materiasCache.filter((m) => m[campoNivel]);
+    // Si ninguna materia tiene marcado ese nivel (catálogo sin configurar
+    // todavía), se muestran todas para no dejar el desplegable vacío.
+    return filtradas.length > 0 ? filtradas : materiasCache;
+}
+
+function poblarSelectsMateriaProfesor() {
+    const materiasDisponibles = materiasParaSalon(salonActual);
+
+    selectMateriaBloque.innerHTML = materiasDisponibles.length > 0
+        ? materiasDisponibles.map((m) => `<option value="${escapeHtml(m.nombre)}">${escapeHtml(m.nombre)}</option>`).join("")
+        : `<option value="">No hay materias configuradas — agrégalas en "Materias"</option>`;
+
+    selectProfesorBloque.innerHTML = `<option value="">— Sin profesor —</option>` +
+        profesoresCache.map((p) =>
+            `<option value="${escapeHtml(p.correo_profesor)}" data-nombre="${escapeHtml(p.nombre_profesor || p.correo_profesor)}">${escapeHtml(p.nombre_profesor || p.correo_profesor)}</option>`
+        ).join("");
+}
+
+// Si esa materia ya tiene un profesor asignado a este salón (según
+// "Asignaciones"), lo preselecciona automáticamente.
+function sugerirProfesorParaMateria(materia) {
+    const asignacion = asignacionesCache.find(
+        (a) => a.salon === salonActual && a.materia === materia
+    );
+    selectProfesorBloque.value = asignacion ? (asignacion.correo_profesor || "") : "";
+}
+
+selectMateriaBloque?.addEventListener("change", () => {
+    sugerirProfesorParaMateria(selectMateriaBloque.value);
+});
+
 async function cargarHorarioGuardado(salon) {
     const { data, error } = await supabase
         .from("horario_salon")
         .select("id, dia, franja_id, texto, tipo, materia, correo_profesor, nombre_profesor")
         .eq("salon", salon);
-
     if (error) {
         estadoHorario.textContent = "❌ Error al cargar el horario: " + error.message;
         estadoHorario.className = "text-danger";
@@ -256,8 +348,22 @@ function abrirModal(dia, franjaId) {
     selectTipoBloque.value = filaExistente?.tipo || "clase";
     alternarCamposModal();
 
-    inputMateriaBloque.value = filaExistente?.tipo !== "otro" ? (filaExistente?.materia || "") : "";
-    inputProfesorBloque.value = filaExistente?.tipo !== "otro" ? (filaExistente?.nombre_profesor || "") : "";
+    poblarSelectsMateriaProfesor();
+
+    if (filaExistente?.tipo !== "otro") {
+        const materiaGuardada = filaExistente?.materia || "";
+        const opcionesMateria = [...selectMateriaBloque.options].map((o) => o.value);
+        selectMateriaBloque.value = opcionesMateria.includes(materiaGuardada)
+            ? materiaGuardada
+            : (opcionesMateria[0] || "");
+
+        if (filaExistente?.correo_profesor) {
+            selectProfesorBloque.value = filaExistente.correo_profesor;
+        } else {
+            sugerirProfesorParaMateria(selectMateriaBloque.value);
+        }
+    }
+
     inputTextoBloque.value = filaExistente?.tipo === "otro" ? (filaExistente?.texto || "") : "";
 
     btnEliminarBloqueModal.classList.toggle("d-none", !filaExistente);
@@ -284,14 +390,18 @@ btnGuardarBloqueModal.addEventListener("click", async () => {
     let texto = "";
     let materia = null;
     let nombreProfesor = null;
+    let correoProfesor = null;
 
     if (tipo === "clase") {
-        materia = inputMateriaBloque.value.trim();
+        materia = selectMateriaBloque.value.trim();
         if (!materia) {
-            alert("Escribe la materia de este bloque.");
+            alert("Elige una materia de la lista. Si no aparece, agrégala primero en \"Materias\".");
             return;
         }
-        nombreProfesor = inputProfesorBloque.value.trim() || null;
+        correoProfesor = selectProfesorBloque.value || null;
+        nombreProfesor = correoProfesor
+            ? (selectProfesorBloque.selectedOptions[0]?.dataset.nombre || null)
+            : null;
         texto = nombreProfesor ? `${materia} — ${nombreProfesor}` : materia;
     } else {
         texto = inputTextoBloque.value.trim();
@@ -312,6 +422,7 @@ btnGuardarBloqueModal.addEventListener("click", async () => {
                 tipo,
                 materia,
                 nombre_profesor: nombreProfesor,
+                correo_profesor: correoProfesor,
                 actualizado_en: new Date().toISOString(),
             }],
             { onConflict: "salon,dia,franja_id" }
@@ -386,6 +497,9 @@ selectSalon.addEventListener("change", async () => {
     if (!ok) return;
 
     franjas = await cargarFranjas();
+    materiasCache = await cargarMaterias();
+    profesoresCache = await cargarProfesores();
+    asignacionesCache = await cargarAsignaciones();
     await cargarSalones();
 
     if (salonBloqueado) {
