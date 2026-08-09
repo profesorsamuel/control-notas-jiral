@@ -1764,15 +1764,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     btnRecargarNotas.addEventListener("click", cargarNotas);
 
     // =================================================
-    // 6.5) GESTIONAR PROFESORES (salón + permiso para
-    // agregar estudiantes). Se guarda solo al cambiar
-    // cada campo, sin necesidad de un botón "Guardar".
+    // 6.5) GESTIONAR PROFESORES (salones + permiso para
+    // agregar estudiantes). Se guarda solo al marcar/
+    // desmarcar cada casilla, sin necesidad de un botón
+    // "Guardar". Un profesor puede tener varios salones
+    // a la vez (tabla profesor_salones), y la lista de
+    // salones disponibles sale de la tabla "salones"
+    // (administrable en salones.html) en vez de venir
+    // fija en el código.
     // =================================================
 
     const tablaProfesoresAdmin = document.getElementById("tablaProfesoresAdmin");
     const mensajeProfesores = document.getElementById("mensajeProfesores");
 
-    const SALONES_DISPONIBLES = ["8A", "8B", "9A", "9B", "9C"];
+    let salonesDisponiblesCache = [];
 
     function mostrarMensajeProfesores(texto, tipo) {
         if (!mensajeProfesores) return;
@@ -1782,18 +1787,57 @@ document.addEventListener("DOMContentLoaded", async () => {
         setTimeout(() => mensajeProfesores.classList.add("d-none"), 3000);
     }
 
-    function opcionesSalonProfesor(salonActualDelProfesor) {
-        const opciones = ["", ...SALONES_DISPONIBLES];
-        // Si el profesor ya tiene un salón que no está en la lista fija,
-        // se agrega igual para no perder el dato al mostrarlo.
-        if (salonActualDelProfesor && !opciones.includes(salonActualDelProfesor)) {
-            opciones.push(salonActualDelProfesor);
+    async function cargarSalonesDisponiblesCache() {
+        const { data, error } = await supabase
+            .from("salones")
+            .select("codigo, nombre_visible")
+            .eq("activo", true)
+            .order("orden", { ascending: true });
+
+        if (error) {
+            console.error("❌ Error al cargar salones:", error);
+            salonesDisponiblesCache = [];
+            return;
         }
-        return opciones.map((s) => {
-            const seleccionado = s === (salonActualDelProfesor || "") ? "selected" : "";
-            const etiqueta = s === "" ? "-- Sin asignar --" : s;
-            return `<option value="${escapeHtmlAdmin(s)}" ${seleccionado}>${escapeHtmlAdmin(etiqueta)}</option>`;
+        salonesDisponiblesCache = data || [];
+    }
+
+    function textoResumenSalones(codigosSeleccionados) {
+        if (!codigosSeleccionados || codigosSeleccionados.length === 0) return "-- Sin asignar --";
+        return codigosSeleccionados.join(", ");
+    }
+
+    function menuChecksSalones(correo, codigosSeleccionados) {
+        if (salonesDisponiblesCache.length === 0) {
+            return `<span class="text-muted small">No hay salones creados. <a href="salones.html">Crear en Salones</a>.</span>`;
+        }
+
+        const opciones = salonesDisponiblesCache.map((s) => {
+            const marcado = codigosSeleccionados.includes(s.codigo) ? "checked" : "";
+            return `
+                <li class="px-2">
+                    <div class="form-check">
+                        <input class="form-check-input check-salon-profesor" type="checkbox"
+                            value="${escapeHtmlAdmin(s.codigo)}"
+                            data-correo="${escapeHtmlAdmin(correo)}"
+                            id="chk-${escapeHtmlAdmin(correo)}-${escapeHtmlAdmin(s.codigo)}"
+                            ${marcado}>
+                        <label class="form-check-label" for="chk-${escapeHtmlAdmin(correo)}-${escapeHtmlAdmin(s.codigo)}">
+                            ${escapeHtmlAdmin(s.nombre_visible)}
+                        </label>
+                    </div>
+                </li>`;
         }).join("");
+
+        return `
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    ${escapeHtmlAdmin(textoResumenSalones(codigosSeleccionados))}
+                </button>
+                <ul class="dropdown-menu p-1" style="min-width:180px; max-height:240px; overflow-y:auto;">
+                    ${opciones}
+                </ul>
+            </div>`;
     }
 
     async function cargarProfesoresAdmin() {
@@ -1801,9 +1845,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         tablaProfesoresAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando profesores...</td></tr>`;
 
+        await cargarSalonesDisponiblesCache();
+
         const { data: profesores, error } = await supabase
             .from("profesores")
-            .select("correo_profesor, nombre_profesor, salon, puede_agregar_estudiantes")
+            .select("correo_profesor, nombre_profesor, puede_agregar_estudiantes")
             .order("nombre_profesor", { ascending: true });
 
         if (error) {
@@ -1817,21 +1863,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        const { data: asignacionesSalon } = await supabase
+            .from("profesor_salones")
+            .select("correo_profesor, salon_codigo");
+
+        const salonesPorCorreo = {};
+        (asignacionesSalon || []).forEach((fila) => {
+            if (!salonesPorCorreo[fila.correo_profesor]) salonesPorCorreo[fila.correo_profesor] = [];
+            salonesPorCorreo[fila.correo_profesor].push(fila.salon_codigo);
+        });
+
         tablaProfesoresAdmin.innerHTML = profesores.map((p) => `
             <tr>
                 <td>${escapeHtmlAdmin(p.nombre_profesor || "(sin nombre)")}</td>
-                <td class="small">
-                    <div class="d-flex align-items-center gap-2 profesor-correo-vista" data-correo-original="${escapeHtmlAdmin(p.correo_profesor)}">
-                        <span class="profesor-correo-texto">${escapeHtmlAdmin(p.correo_profesor || "-")}</span>
-                        <button type="button" class="btn btn-sm btn-link p-0 profesor-correo-editar" title="Editar correo">
-                            <i class="fa-solid fa-pen" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                </td>
-                <td>
-                    <select class="form-select form-select-sm profesor-salon-select" data-correo="${escapeHtmlAdmin(p.correo_profesor)}">
-                        ${opcionesSalonProfesor(p.salon)}
-                    </select>
+                <td class="small">${escapeHtmlAdmin(p.correo_profesor || "-")}</td>
+                <td style="min-width:190px;">
+                    ${menuChecksSalones(p.correo_profesor, salonesPorCorreo[p.correo_profesor] || [])}
                 </td>
                 <td>
                     <div class="form-check form-switch mb-0">
@@ -1844,80 +1891,40 @@ document.addEventListener("DOMContentLoaded", async () => {
             </tr>
         `).join("");
 
-        // -------- Editar correo --------
-        tablaProfesoresAdmin.querySelectorAll(".profesor-correo-editar").forEach((btnEditar) => {
-            btnEditar.addEventListener("click", () => {
-                const contenedor = btnEditar.closest(".profesor-correo-vista");
-                const correoOriginal = contenedor.dataset.correoOriginal;
+        // -------- Marcar / desmarcar un salón --------
+        tablaProfesoresAdmin.querySelectorAll(".check-salon-profesor").forEach((check) => {
+            check.addEventListener("change", async () => {
+                const correo = check.dataset.correo;
+                const salonCodigo = check.value;
 
-                contenedor.innerHTML = `
-                    <input type="email" class="form-control form-control-sm profesor-correo-input"
-                        value="${escapeHtmlAdmin(correoOriginal)}" style="max-width:220px;">
-                    <button type="button" class="btn btn-sm btn-success profesor-correo-guardar" title="Guardar">
-                        <i class="fa-solid fa-check" aria-hidden="true"></i>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary profesor-correo-cancelar" title="Cancelar">
-                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                    </button>
-                `;
-
-                const input = contenedor.querySelector(".profesor-correo-input");
-                input.focus();
-                input.select();
-
-                contenedor.querySelector(".profesor-correo-cancelar").addEventListener("click", () => {
-                    cargarProfesoresAdmin();
-                });
-
-                const guardarCorreo = async () => {
-                    const nuevoCorreo = input.value.trim().toLowerCase();
-
-                    if (!nuevoCorreo || !nuevoCorreo.includes("@")) {
-                        mostrarMensajeProfesores("Ingresá un correo válido.", "danger");
-                        return;
-                    }
-
-                    const { error: errUpdate } = await supabase
-                        .from("profesores")
-                        .update({ correo_profesor: nuevoCorreo })
-                        .eq("correo_profesor", correoOriginal);
-
-                    if (errUpdate) {
-                        console.error("❌ Error al actualizar correo del profesor:", errUpdate);
-                        mostrarMensajeProfesores("No se pudo guardar el correo: " + errUpdate.message, "danger");
-                        return;
-                    }
-
-                    mostrarMensajeProfesores(`Correo actualizado a ${nuevoCorreo}.`, "success");
-                    cargarProfesoresAdmin();
-                };
-
-                contenedor.querySelector(".profesor-correo-guardar").addEventListener("click", guardarCorreo);
-                input.addEventListener("keydown", (e) => {
-                    if (e.key === "Enter") guardarCorreo();
-                    if (e.key === "Escape") cargarProfesoresAdmin();
-                });
-            });
-        });
-
-        // -------- Cambiar salón --------
-        tablaProfesoresAdmin.querySelectorAll(".profesor-salon-select").forEach((select) => {
-            select.addEventListener("change", async () => {
-                const correo = select.dataset.correo;
-                const nuevoSalon = select.value || null;
-
-                const { error: errUpdate } = await supabase
-                    .from("profesores")
-                    .update({ salon: nuevoSalon })
-                    .eq("correo_profesor", correo);
+                let errUpdate;
+                if (check.checked) {
+                    ({ error: errUpdate } = await supabase
+                        .from("profesor_salones")
+                        .upsert([{ correo_profesor: correo, salon_codigo: salonCodigo }], { onConflict: "correo_profesor,salon_codigo" }));
+                } else {
+                    ({ error: errUpdate } = await supabase
+                        .from("profesor_salones")
+                        .delete()
+                        .eq("correo_profesor", correo)
+                        .eq("salon_codigo", salonCodigo));
+                }
 
                 if (errUpdate) {
-                    console.error("❌ Error al actualizar salón del profesor:", errUpdate);
+                    console.error("❌ Error al actualizar salones del profesor:", errUpdate);
                     mostrarMensajeProfesores("No se pudo guardar el salón: " + errUpdate.message, "danger");
+                    check.checked = !check.checked;
                     return;
                 }
 
-                mostrarMensajeProfesores(`Salón actualizado para ${correo}.`, "success");
+                // Actualiza el texto del botón sin recargar toda la tabla
+                const boton = check.closest(".dropdown").querySelector(".dropdown-toggle");
+                const marcados = Array.from(
+                    check.closest(".dropdown-menu").querySelectorAll(".check-salon-profesor:checked")
+                ).map((c) => c.value);
+                boton.textContent = textoResumenSalones(marcados);
+
+                mostrarMensajeProfesores(`Salones actualizados para ${correo}.`, "success");
             });
         });
 
