@@ -1309,6 +1309,7 @@ function actualizarHistorialEnMemoria(item, temaPorCasilla, idInsertado) {
 
 async function guardarNotas(esAutomatico = false) {
     const materia = selectMateriaNota.value;
+    const salon = selectSalonNota.value;
     const trimestre = selectTrimestreNota.value;
     const hoy = new Date().toISOString().slice(0, 10);
 
@@ -1412,7 +1413,7 @@ async function guardarNotas(esAutomatico = false) {
     )];
     let huboAvanceDeApreciacion = false;
     if (numerosApreciacionNuevaGuardados.length > 0) {
-        huboAvanceDeApreciacion = await revisarAvanceApreciacionesDirectas(materia, trimestre, numerosApreciacionNuevaGuardados);
+        huboAvanceDeApreciacion = await revisarAvanceApreciacionesDirectas(materia, salon, trimestre, numerosApreciacionNuevaGuardados);
     }
 
     if (!esAutomatico || huboAvanceDeApreciacion) cargarSalon();
