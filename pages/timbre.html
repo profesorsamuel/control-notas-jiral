@@ -125,6 +125,41 @@
         .banner-alerta { font-size: 1.15rem; padding: 16px 14px; gap: 10px; }
         .banner-icono { font-size: 1.5rem; }
     }
+
+    /* --- Notificaciones del navegador (Etapa 4) --- */
+    #avisoNotificaciones { padding: 0 24px 10px; }
+
+    /* --- Modo cartelera (Etapa 4) --- */
+    body.modo-cartelera { padding: 0; background: linear-gradient(135deg, #1b1f4a, #123061); }
+    body.modo-cartelera .tarjeta-principal { display: none; }
+    .cartelera-vista { display: none; }
+    body.modo-cartelera .cartelera-vista {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        color: #fff;
+        text-align: center;
+        padding: 20px;
+    }
+    .cartelera-reloj { font-size: 6rem; font-weight: 800; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+    .cartelera-periodo { font-size: 2.2rem; font-weight: 700; margin-top: 6px; color: #cfe0ff; }
+    .cartelera-cuenta { font-size: 8rem; font-weight: 900; margin-top: 10px; font-variant-numeric: tabular-nums; }
+    .cartelera-cuenta.cartelera-cuenta-aviso { color: #f0ad4e; }
+    .cartelera-cuenta.cartelera-cuenta-urgente { color: #e74c3c; animation: pulso-banner 1s ease-in-out infinite; }
+    .cartelera-salir {
+        position: fixed; top: 14px; right: 14px; z-index: 10000;
+        background: rgba(255,255,255,.15); color: #fff; border: none;
+        width: 34px; height: 34px; border-radius: 50%; font-size: .9rem; cursor: pointer;
+    }
+    .cartelera-salir:hover { background: rgba(255,255,255,.3); }
+    body.modo-cartelera .banner-cerrar { display: none !important; }
+    @media (max-width: 600px) {
+        .cartelera-reloj { font-size: 3.2rem; }
+        .cartelera-cuenta { font-size: 4.5rem; }
+        .cartelera-periodo { font-size: 1.3rem; }
+    }
 </style>
 </head>
 <body>
@@ -135,6 +170,13 @@
     <span class="banner-texto" id="bannerTexto"></span>
     <button type="button" class="banner-detener oculto" id="bannerDetener">🛑 Detener</button>
     <button type="button" class="banner-cerrar" id="bannerCerrar" aria-label="Cerrar aviso">✕</button>
+</div>
+
+<div class="cartelera-vista" id="carteleraVista">
+    <button type="button" class="cartelera-salir" id="btnSalirCartelera" aria-label="Salir del modo cartelera">✕</button>
+    <div class="cartelera-reloj" id="carteleraReloj">--:--:--</div>
+    <div class="cartelera-periodo" id="carteleraPeriodo">Cargando…</div>
+    <div class="cartelera-cuenta" id="carteleraCuenta">--:--</div>
 </div>
 
 <div class="tarjeta-principal">
@@ -160,7 +202,15 @@
             </div>
             <button type="button" class="btn btn-outline-primary btn-sm" id="btnEditarHorario">🔒 Editar horario</button>
             <button type="button" class="btn btn-outline-danger btn-sm oculto" id="btnSalirEdicion">Salir de edición</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnActivarNotificaciones">🔔 Activar notificaciones del navegador</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnModoCartelera">🖥️ Modo cartelera</button>
         </div>
+
+        <p class="small text-muted text-center oculto" id="avisoNotificaciones">
+            ⚠️ En iPhone, las notificaciones fuera del navegador solo funcionan si agregas esta página
+            a tu pantalla de inicio (botón compartir → "Agregar a pantalla de inicio"). Mientras tanto
+            seguirás viendo los avisos grandes en esta pantalla.
+        </p>
 
         <!-- LOGIN de edición: aparece solo al tocar "Editar horario" -->
         <div class="panel-login-edicion oculto" id="panelLoginEdicion">
