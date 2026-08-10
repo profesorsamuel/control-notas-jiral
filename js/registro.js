@@ -654,6 +654,17 @@ async function registrarEstudiante(salon, password) {
     // aunque el estudiante ya la hubiera ingresado al registrarse.
     let vinculacionFallo = false;
 
+    // Diagnóstico: confirmar qué sesión está activa justo antes de
+    // intentar la vinculación (temporal, para encontrar la causa
+    // exacta de por qué la actualización no toma efecto).
+    const { data: sesionActual } = await supabase.auth.getUser();
+    console.log(
+        "DIAGNÓSTICO — usuario autenticado al momento de vincular:",
+        sesionActual?.user?.email || "(ninguno / sin sesión)",
+        "| esperado:",
+        emailInterno
+    );
+
     if (codigoSeleccionado !== null) {
         const { data: filasActualizadas, error: errorEstudiante } = await supabase
             .from("estudiantes")
