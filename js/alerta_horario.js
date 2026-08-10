@@ -309,6 +309,30 @@ function dispararAlerta(texto) {
 // 5) ACTIVAR ALERTAS (requiere toque del usuario)
 // =========================================================
 
+let wakeLock = null;
+
+async function pedirWakeLock() {
+    try {
+        if ("wakeLock" in navigator) {
+            wakeLock = await navigator.wakeLock.request("screen");
+            wakeLock.addEventListener("release", () => {
+                console.log("Wake Lock liberado");
+            });
+        }
+    } catch (e) {
+        console.warn("No se pudo activar Wake Lock:", e);
+    }
+}
+
+// Si el usuario cambia de pestaña/app y vuelve, o se apaga la pantalla,
+// el Wake Lock se libera solo. Al regresar a esta pestaña con alertas
+// activas, lo volvemos a pedir.
+document.addEventListener("visibilitychange", () => {
+    if (alertasActivas && document.visibilityState === "visible" && wakeLock === null) {
+        pedirWakeLock();
+    }
+});
+
 async function activarAlertas() {
     try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -322,6 +346,8 @@ async function activarAlertas() {
         try { await Notification.requestPermission(); } catch (e) { /* ignorar */ }
     }
 
+    await pedirWakeLock();
+
     alertasActivas = true;
     zonaActivar.classList.add("oculta");
     avisoActivo.classList.add("mostrar");
@@ -333,19 +359,37 @@ async function activarAlertas() {
 
 function revisarUmbrales() {
     const ahora = segundosAhora();
-    const umbrales = [300, 120, 0];
+    const umbralesInicio = [300, 120, 0];
+    const umbralesFin = [300, 0];
 
     clasesHoy.forEach((c, indice) => {
-        const diff = c.inicioSeg - ahora;
+        const diffInicio = c.inicioSeg - ahora;
+        const diffFin = c.finSeg - ahora;
 
-        umbrales.forEach(umbral => {
-            const clave = `${indice}-${umbral}`;
+        umbralesInicio.forEach(umbral => {
+            const clave = `ini-${indice}-${umbral}`;
             if (alertasDisparadas.has(clave)) return;
-            if (diff <= umbral && diff > umbral - 10) {
+            if (diffInicio <= umbral && diffInicio > umbral - 10) {
                 alertasDisparadas.add(clave);
                 const texto = umbral === 0
                     ? `🔔 ${c.titulo} está comenzando ahora`
                     : `⏰ ${c.titulo} empieza en ${umbral / 60} minuto(s)`;
+                dispararAlerta(texto);
+            }
+        });
+
+        // Solo avisamos el fin de una clase que ya empezó (evita falsos
+        // avisos de "termina" en clases que aún no han iniciado).
+        if (ahora < c.inicioSeg) return;
+
+        umbralesFin.forEach(umbral => {
+            const clave = `fin-${indice}-${umbral}`;
+            if (alertasDisparadas.has(clave)) return;
+            if (diffFin <= umbral && diffFin > umbral - 10) {
+                alertasDisparadas.add(clave);
+                const texto = umbral === 0
+                    ? `⏹️ ${c.titulo} ya terminó`
+                    : `⏰ ${c.titulo} termina en ${umbral / 60} minuto(s)`;
                 dispararAlerta(texto);
             }
         });
