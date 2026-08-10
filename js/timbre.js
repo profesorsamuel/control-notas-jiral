@@ -10,6 +10,7 @@ const CLAVE_VALIDA = "000000";
 const CLAVE_SESION = "timbre_sesion_jiral";
 const CLAVE_SONIDO = "timbre_sonido_jiral";
 const CLAVE_MODO_BUCLE = "timbre_modo_bucle_jiral";
+const CLAVE_VOLUMEN = "timbre_volumen_jiral";
 const CLAVE_PASS_GUARDADA = "timbre_clave_actual_jiral"; // contraseña vigente (si se cambió)
 const CLAVE_PREGUNTAS = "timbre_preguntas_seguridad_jiral"; // preguntas/respuestas de recuperación
 const TABLA = "timbre_horario";
@@ -141,12 +142,19 @@ const carteleraReloj = document.getElementById("carteleraReloj");
 const carteleraPeriodo = document.getElementById("carteleraPeriodo");
 const carteleraCuenta = document.getElementById("carteleraCuenta");
 
+const sliderVolumen = document.getElementById("sliderVolumen");
+const valorVolumen = document.getElementById("valorVolumen");
+const cuentaPeriodoActual = document.getElementById("cuentaPeriodoActual");
+
 let horario = [];
 let modoEdicion = false;
 let modoEdicionRenderizado = null; // controla si hace falta redibujar toda la tabla
 let sonidoActivo = false;
 let audioCtx = null;
 let yaTocados = new Set(); // se reinicia cada día
+
+let volumenActual = parseInt(localStorage.getItem(CLAVE_VOLUMEN), 10);
+if (isNaN(volumenActual) || volumenActual < 0 || volumenActual > 100) volumenActual = 100;
 
 // Guardado automático mientras se escribe (sin esperar a salir del campo)
 const temporizadoresGuardado = new Map(); // id-campo -> timeoutId
@@ -634,10 +642,11 @@ function reproducirTono(frecuencia, duracionMs, tipo = "sine", inicioMs = 0) {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const inicio = ctx.currentTime + inicioMs / 1000;
+    const pico = Math.max(0.0001, 0.3 * (volumenActual / 100));
     osc.type = tipo;
     osc.frequency.value = frecuencia;
     gain.gain.setValueAtTime(0.001, inicio);
-    gain.gain.exponentialRampToValueAtTime(0.3, inicio + 0.02);
+    gain.gain.exponentialRampToValueAtTime(pico, inicio + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.001, inicio + duracionMs / 1000);
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -695,6 +704,16 @@ selectorSonido.addEventListener("change", () => {
 });
 const sonidoGuardado = localStorage.getItem(CLAVE_SONIDO);
 if (sonidoGuardado) selectorSonido.value = sonidoGuardado;
+
+if (sliderVolumen) {
+    sliderVolumen.value = String(volumenActual);
+    if (valorVolumen) valorVolumen.textContent = `${volumenActual}%`;
+    sliderVolumen.addEventListener("input", () => {
+        volumenActual = parseInt(sliderVolumen.value, 10);
+        if (valorVolumen) valorVolumen.textContent = `${volumenActual}%`;
+        localStorage.setItem(CLAVE_VOLUMEN, String(volumenActual));
+    });
+}
 
 btnActivarTimbre.addEventListener("click", () => {
     asegurarAudioCtx();
@@ -889,6 +908,7 @@ function revisarHorario() {
 setInterval(() => {
     relojActual.textContent = horaTexto(new Date());
     revisarHorario();
+    actualizarCuentaPeriodo();
     actualizarCartelera();
 }, 1000);
 
@@ -1026,6 +1046,26 @@ function estadoPeriodoActual() {
     }
 
     return null;
+}
+
+function actualizarCuentaPeriodo() {
+    if (!cuentaPeriodoActual) return;
+
+    const info = estadoPeriodoActual();
+    cuentaPeriodoActual.classList.remove("cuenta-aviso", "cuenta-urgente");
+
+    if (!info) {
+        cuentaPeriodoActual.textContent = "No hay más periodos hoy";
+        return;
+    }
+
+    const texto = info.enCurso
+        ? `${info.periodo.nombre} — termina en ${formatearCuenta(info.restante)}`
+        : `Siguiente: ${info.periodo.nombre} — empieza en ${formatearCuenta(info.restante)}`;
+    cuentaPeriodoActual.textContent = texto;
+
+    if (info.restante <= 60) cuentaPeriodoActual.classList.add("cuenta-urgente");
+    else if (info.restante <= 300) cuentaPeriodoActual.classList.add("cuenta-aviso");
 }
 
 function actualizarCartelera() {
