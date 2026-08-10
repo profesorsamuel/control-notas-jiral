@@ -9,8 +9,8 @@ const CLAVE_VALIDA = "000000";
 
 const CLAVE_SESION = "timbre_sesion_jiral";
 const CLAVE_SONIDO = "timbre_sonido_jiral";
-const CLAVE_MODO_BUCLE = "timbre_modo_bucle_jiral";
 const CLAVE_VOLUMEN = "timbre_volumen_jiral";
+const CLAVE_MODO_BUCLE = "timbre_modo_bucle_jiral";
 const CLAVE_PASS_GUARDADA = "timbre_clave_actual_jiral"; // contraseña vigente (si se cambió)
 const CLAVE_PREGUNTAS = "timbre_preguntas_seguridad_jiral"; // preguntas/respuestas de recuperación
 const TABLA = "timbre_horario";
@@ -132,29 +132,20 @@ const bannerCerrar = document.getElementById("bannerCerrar");
 const bannerDetener = document.getElementById("bannerDetener");
 const switchModoBucle = document.getElementById("switchModoBucle");
 
+const cuentaRegresiva = document.getElementById("cuentaRegresiva");
+const sliderVolumen = document.getElementById("sliderVolumen");
 const btnActivarNotificaciones = document.getElementById("btnActivarNotificaciones");
-const avisoNotificaciones = document.getElementById("avisoNotificaciones");
-
+const avisoNotificacionesIOS = document.getElementById("avisoNotificacionesIOS");
 const btnModoCartelera = document.getElementById("btnModoCartelera");
 const btnSalirCartelera = document.getElementById("btnSalirCartelera");
-const carteleraVista = document.getElementById("carteleraVista");
-const carteleraReloj = document.getElementById("carteleraReloj");
-const carteleraPeriodo = document.getElementById("carteleraPeriodo");
-const carteleraCuenta = document.getElementById("carteleraCuenta");
-
-const sliderVolumen = document.getElementById("sliderVolumen");
-const valorVolumen = document.getElementById("valorVolumen");
-const cuentaPeriodoActual = document.getElementById("cuentaPeriodoActual");
 
 let horario = [];
 let modoEdicion = false;
 let modoEdicionRenderizado = null; // controla si hace falta redibujar toda la tabla
 let sonidoActivo = false;
+let volumenActual = 0.8; // 0..1 — se ajusta con el slider y se guarda por dispositivo
 let audioCtx = null;
 let yaTocados = new Set(); // se reinicia cada día
-
-let volumenActual = parseInt(localStorage.getItem(CLAVE_VOLUMEN), 10);
-if (isNaN(volumenActual) || volumenActual < 0 || volumenActual > 100) volumenActual = 100;
 
 // Guardado automático mientras se escribe (sin esperar a salir del campo)
 const temporizadoresGuardado = new Map(); // id-campo -> timeoutId
@@ -389,69 +380,49 @@ if (localStorage.getItem(CLAVE_SESION) === "1") {
 }
 
 // =========================================================
-// HORARIO — Supabase (tabla timbre_horario: 1 fila, columna
-// "periodos" tipo jsonb con el arreglo completo de periodos)
+// HORARIO — Supabase (tabla timbre_horario, sincronizado)
 // =========================================================
-
-let filaIdHorario = null; // id de la única fila de la tabla, se guarda al cargar
-
-function serializarPeriodos() {
-    // quita el "id" local (solo sirve para dibujar la tabla en pantalla)
-    return horario.map(({ id, ...resto }) => resto);
-}
-
-async function guardarPeriodosCompletos() {
-    if (filaIdHorario == null) {
-        return { error: new Error("Todavía no se cargó la fila de horario.") };
-    }
-    return supabase.from(TABLA).update({ periodos: serializarPeriodos() }).eq("id", filaIdHorario);
-}
 
 async function cargarHorario() {
     estadoSincronizacion.textContent = "Cargando horario…";
     const { data, error } = await supabase
         .from(TABLA)
-        .select("id, periodos")
-        .limit(1)
-        .maybeSingle();
+        .select("*")
+        .order("orden", { ascending: true });
 
     if (error) {
         console.error(error);
         estadoSincronizacion.textContent = "⚠ No se pudo conectar. Mostrando horario por defecto.";
-        horario = HORARIO_POR_DEFECTO.map((p, i) => ({ id: i, nombre: p.nombre, inicio: p.inicio, fin: p.fin }));
+        horario = [...HORARIO_POR_DEFECTO];
         renderHorario();
         return;
     }
 
-    if (!data) {
+    if (!data || data.length === 0) {
         await sembrarHorarioPorDefecto();
         return;
     }
 
-    filaIdHorario = data.id;
-    horario = (Array.isArray(data.periodos) ? data.periodos : []).map((p, i) => ({ ...p, id: i }));
+    horario = data;
     estadoSincronizacion.textContent = "✅ Sincronizado en tiempo real";
     renderHorario();
 }
 
 async function sembrarHorarioPorDefecto() {
-    const periodosPorDefecto = HORARIO_POR_DEFECTO.map(({ nombre, inicio, fin }) => ({ nombre, inicio, fin }));
     const { data, error } = await supabase
         .from(TABLA)
-        .insert({ periodos: periodosPorDefecto })
-        .select("id, periodos")
-        .single();
+        .insert(HORARIO_POR_DEFECTO)
+        .select("*")
+        .order("orden", { ascending: true });
 
     if (error) {
         console.error(error);
         estadoSincronizacion.textContent = "⚠ No se pudo crear el horario inicial.";
-        horario = HORARIO_POR_DEFECTO.map((p, i) => ({ id: i, nombre: p.nombre, inicio: p.inicio, fin: p.fin }));
+        horario = [...HORARIO_POR_DEFECTO];
         renderHorario();
         return;
     }
-
-    filaIdHorario = data.id;
-    horario = (Array.isArray(data.periodos) ? data.periodos : []).map((p, i) => ({ ...p, id: i }));
+    horario = data;
     estadoSincronizacion.textContent = "✅ Sincronizado en tiempo real";
     renderHorario();
 }
@@ -477,10 +448,7 @@ async function actualizarPeriodo(id, cambios, elementoParaResaltar) {
     guardadosPendientes++;
     mostrarEstadoGuardado("guardando");
 
-    const periodoLocal = horario.find((p) => p.id === id);
-    if (periodoLocal) Object.assign(periodoLocal, cambios);
-
-    const { error } = await guardarPeriodosCompletos();
+    const { error } = await supabase.from(TABLA).update(cambios).eq("id", id);
 
     guardadosPendientes = Math.max(0, guardadosPendientes - 1);
 
@@ -489,6 +457,10 @@ async function actualizarPeriodo(id, cambios, elementoParaResaltar) {
         mostrarEstadoGuardado("error");
         return;
     }
+
+    // refleja el cambio localmente al instante (sin esperar el eco de tiempo real)
+    const periodoLocal = horario.find((p) => p.id === id);
+    if (periodoLocal) Object.assign(periodoLocal, cambios);
 
     if (guardadosPendientes === 0) mostrarEstadoGuardado("guardado");
 
@@ -514,46 +486,30 @@ function programarGuardadoAutomatico(id, campo, valor, elemento, retrasoMs = 500
 }
 
 async function agregarPeriodo() {
-    horario.push({ id: horario.length, nombre: "Nuevo periodo", inicio: "12:00", fin: "12:40" });
-    renderHorario();
-
-    const { error } = await guardarPeriodosCompletos();
-    if (error) {
-        console.error(error);
-        horario.pop();
-        renderHorario();
-        mostrarEstadoGuardado("error");
-    }
+    const nuevoOrden = horario.length;
+    const { error } = await supabase.from(TABLA).insert({
+        orden: nuevoOrden,
+        nombre: "Nuevo periodo",
+        inicio: "12:00",
+        fin: "12:40",
+    });
+    if (error) console.error(error);
 }
 
 async function borrarPeriodo(id) {
-    const respaldo = horario;
-    horario = horario.filter((p) => p.id !== id).map((p, i) => ({ ...p, id: i }));
-    renderHorario();
-
-    const { error } = await guardarPeriodosCompletos();
-    if (error) {
-        console.error(error);
-        horario = respaldo;
-        renderHorario();
-        mostrarEstadoGuardado("error");
-    }
+    const { error } = await supabase.from(TABLA).delete().eq("id", id);
+    if (error) console.error(error);
 }
 
 async function restaurarHorario() {
     if (!confirm("¿Restaurar el horario por defecto? Se perderán los cambios para todos.")) return;
-
-    const respaldo = horario;
-    horario = HORARIO_POR_DEFECTO.map(({ nombre, inicio, fin }, i) => ({ id: i, nombre, inicio, fin }));
-    renderHorario();
-
-    const { error } = await guardarPeriodosCompletos();
-    if (error) {
-        console.error(error);
-        horario = respaldo;
-        renderHorario();
-        mostrarEstadoGuardado("error");
+    const idsActuales = horario.map((p) => p.id);
+    if (idsActuales.length > 0) {
+        const { error: errBorrar } = await supabase.from(TABLA).delete().in("id", idsActuales);
+        if (errBorrar) console.error(errBorrar);
     }
+    const { error: errInsertar } = await supabase.from(TABLA).insert(HORARIO_POR_DEFECTO);
+    if (errInsertar) console.error(errInsertar);
 }
 
 function crearFilaPeriodo(periodo) {
@@ -677,11 +633,11 @@ function reproducirTono(frecuencia, duracionMs, tipo = "sine", inicioMs = 0) {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const inicio = ctx.currentTime + inicioMs / 1000;
-    const pico = Math.max(0.0001, 0.3 * (volumenActual / 100));
+    const picoVolumen = Math.max(0.001, 0.3 * volumenActual);
     osc.type = tipo;
     osc.frequency.value = frecuencia;
     gain.gain.setValueAtTime(0.001, inicio);
-    gain.gain.exponentialRampToValueAtTime(pico, inicio + 0.02);
+    gain.gain.exponentialRampToValueAtTime(picoVolumen, inicio + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.001, inicio + duracionMs / 1000);
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -740,13 +696,14 @@ selectorSonido.addEventListener("change", () => {
 const sonidoGuardado = localStorage.getItem(CLAVE_SONIDO);
 if (sonidoGuardado) selectorSonido.value = sonidoGuardado;
 
+// --- Control de volumen (Etapa 4) — por dispositivo ---
+const volumenGuardado = localStorage.getItem(CLAVE_VOLUMEN);
+if (volumenGuardado !== null) volumenActual = Number(volumenGuardado) / 100;
 if (sliderVolumen) {
-    sliderVolumen.value = String(volumenActual);
-    if (valorVolumen) valorVolumen.textContent = `${volumenActual}%`;
+    sliderVolumen.value = Math.round(volumenActual * 100);
     sliderVolumen.addEventListener("input", () => {
-        volumenActual = parseInt(sliderVolumen.value, 10);
-        if (valorVolumen) valorVolumen.textContent = `${volumenActual}%`;
-        localStorage.setItem(CLAVE_VOLUMEN, String(volumenActual));
+        volumenActual = Number(sliderVolumen.value) / 100;
+        localStorage.setItem(CLAVE_VOLUMEN, sliderVolumen.value);
     });
 }
 
@@ -857,6 +814,7 @@ if (bannerDetener) bannerDetener.addEventListener("click", detenerBucleTimbre);
 // siempre visible; sonido en bucle si el modo está activo y ya se activó
 // el sonido en este dispositivo, o un solo toque en caso contrario.
 function activarAvisoPrincipal(tipo, texto) {
+    enviarNotificacionNavegador(texto);
     if (modoBucleActivo && sonidoActivo) {
         iniciarBucleTimbre(tipo, texto);
     } else {
@@ -864,6 +822,99 @@ function activarAvisoPrincipal(tipo, texto) {
         if (sonidoActivo) reproducirTimbrePrincipal();
     }
 }
+
+// =========================================================
+// NOTIFICACIONES DEL NAVEGADOR (Etapa 4)
+// Aviso fuera de la pestaña (con la pantalla bloqueada o en otra app),
+// además del banner en pantalla — solo se envía si la pestaña NO está
+// a la vista, porque si está visible ya se ve el banner.
+// =========================================================
+
+let notificacionesActivas = false;
+
+function esIOSSinInstalar() {
+    const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const enStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+    return esIOS && !enStandalone;
+}
+
+if (btnActivarNotificaciones) {
+    if (esIOSSinInstalar() && avisoNotificacionesIOS) {
+        avisoNotificacionesIOS.classList.remove("oculto");
+    }
+
+    if (!("Notification" in window)) {
+        btnActivarNotificaciones.disabled = true;
+        btnActivarNotificaciones.textContent = "🔕 Notificaciones no disponibles en este navegador";
+    } else {
+        if (Notification.permission === "granted") {
+            notificacionesActivas = true;
+            btnActivarNotificaciones.textContent = "✅ Notificaciones activadas";
+            btnActivarNotificaciones.disabled = true;
+        } else if (Notification.permission === "denied") {
+            btnActivarNotificaciones.textContent = "⚠️ Notificaciones bloqueadas — actívalas desde el navegador";
+        }
+
+        btnActivarNotificaciones.addEventListener("click", async () => {
+            const permiso = await Notification.requestPermission();
+            if (permiso === "granted") {
+                notificacionesActivas = true;
+                btnActivarNotificaciones.textContent = "✅ Notificaciones activadas";
+                btnActivarNotificaciones.disabled = true;
+            } else {
+                btnActivarNotificaciones.textContent = "⚠️ Permiso denegado — actívalo desde el navegador";
+            }
+        });
+    }
+}
+
+function enviarNotificacionNavegador(texto) {
+    if (!notificacionesActivas) return;
+    if (document.visibilityState === "visible") return; // ya se ve el banner
+    try {
+        const n = new Notification("🔔 Control de Timbre — El Jiral", { body: texto, tag: "timbre-jiral" });
+        n.onclick = () => {
+            window.focus();
+            n.close();
+        };
+    } catch {
+        // algunos navegadores móviles requieren Service Worker; se ignora en silencio
+    }
+}
+
+// =========================================================
+// MODO CARTELERA (Etapa 4)
+// Vista a pantalla completa, con letras gigantes, pensada para dejar
+// una tablet o pantalla fija en la oficina de dirección.
+// =========================================================
+
+function activarModoCartelera() {
+    document.body.classList.add("modo-cartelera");
+    if (btnSalirCartelera) btnSalirCartelera.classList.remove("oculto");
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+}
+
+function salirModoCartelera() {
+    document.body.classList.remove("modo-cartelera");
+    if (btnSalirCartelera) btnSalirCartelera.classList.add("oculto");
+    if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+    }
+}
+
+if (btnModoCartelera) btnModoCartelera.addEventListener("click", activarModoCartelera);
+if (btnSalirCartelera) btnSalirCartelera.addEventListener("click", salirModoCartelera);
+
+// Si el usuario sale de pantalla completa (ej. con Esc), también salimos
+// visualmente del modo cartelera para no dejarlo "a medias".
+document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && document.body.classList.contains("modo-cartelera")) {
+        salirModoCartelera();
+    }
+});
 
 // =========================================================
 // RELOJ Y REVISIÓN DEL HORARIO
@@ -883,6 +934,61 @@ function restarMinutos(hhmmTexto, minutos) {
     const hh = Math.floor(((total % 1440) + 1440) / 60) % 24;
     const mm = ((total % 60) + 60) % 60;
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+// =========================================================
+// CUENTA REGRESIVA DEL PERIODO ACTUAL / SIGUIENTE (Etapa 4)
+// =========================================================
+
+function aSegundosDelDia(hhmmTexto) {
+    const [h, m] = hhmmTexto.split(":").map(Number);
+    return h * 3600 + m * 60;
+}
+
+function formatoRestante(segundos) {
+    const s = Math.max(0, Math.round(segundos));
+    const m = Math.floor(s / 60);
+    const ss = s % 60;
+    return `${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+
+function actualizarCuentaRegresiva() {
+    if (!cuentaRegresiva) return;
+    if (!horario.length) {
+        cuentaRegresiva.textContent = "";
+        cuentaRegresiva.classList.remove("cuenta-aviso5", "cuenta-aviso1");
+        return;
+    }
+
+    const ahora = new Date();
+    const actual = hhmm(ahora);
+    const segundosHoy = ahora.getHours() * 3600 + ahora.getMinutes() * 60 + ahora.getSeconds();
+
+    const enCurso = horario.find((p) => actual >= p.inicio && actual < p.fin);
+    let texto;
+    let restanteSeg = null;
+
+    if (enCurso) {
+        restanteSeg = aSegundosDelDia(enCurso.fin) - segundosHoy;
+        texto = `${enCurso.nombre} — termina en ${formatoRestante(restanteSeg)}`;
+    } else {
+        const siguiente = horario
+            .filter((p) => p.inicio > actual)
+            .sort((a, b) => a.inicio.localeCompare(b.inicio))[0];
+        if (siguiente) {
+            restanteSeg = aSegundosDelDia(siguiente.inicio) - segundosHoy;
+            texto = `Siguiente: ${siguiente.nombre} — empieza en ${formatoRestante(restanteSeg)}`;
+        } else {
+            texto = "Fuera de horario";
+        }
+    }
+
+    cuentaRegresiva.textContent = texto;
+    cuentaRegresiva.classList.remove("cuenta-aviso5", "cuenta-aviso1");
+    if (restanteSeg !== null) {
+        if (restanteSeg <= 60) cuentaRegresiva.classList.add("cuenta-aviso1");
+        else if (restanteSeg <= 300) cuentaRegresiva.classList.add("cuenta-aviso5");
+    }
 }
 
 function revisarHorario() {
@@ -915,27 +1021,25 @@ function revisarHorario() {
             yaTocados.add(claveInicio);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — inicio (${periodo.inicio})`;
             activarAvisoPrincipal("inicio", `Inicia ${periodo.nombre}`);
-            notificarNavegador(`Inicia ${periodo.nombre}`);
         }
         if (actual === avisoHora && !yaTocados.has(claveAviso)) {
             yaTocados.add(claveAviso);
             estadoTimbre.textContent = `⏳ ${periodo.nombre} termina en 5 minutos`;
             mostrarBanner("aviso5", `${periodo.nombre} termina en 5 minutos`);
+            enviarNotificacionNavegador(`${periodo.nombre} termina en 5 minutos`);
             if (sonidoActivo) reproducirAviso();
-            notificarNavegador(`${periodo.nombre} termina en 5 minutos`);
         }
         if (actual === pitidoHora && !yaTocados.has(clavePitido)) {
             yaTocados.add(clavePitido);
             estadoTimbre.textContent = `⏳ ${periodo.nombre} termina en 1 minuto`;
             mostrarBanner("aviso1", `${periodo.nombre} termina en 1 minuto`);
+            enviarNotificacionNavegador(`${periodo.nombre} termina en 1 minuto`);
             if (sonidoActivo) reproducirPitidoLargo();
-            notificarNavegador(`${periodo.nombre} termina en 1 minuto`);
         }
         if (actual === periodo.fin && !yaTocados.has(claveFin)) {
             yaTocados.add(claveFin);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — fin (${periodo.fin})`;
             activarAvisoPrincipal("fin", `Terminó ${periodo.nombre}`);
-            notificarNavegador(`Terminó ${periodo.nombre}`);
         }
     });
 }
@@ -943,207 +1047,8 @@ function revisarHorario() {
 setInterval(() => {
     relojActual.textContent = horaTexto(new Date());
     revisarHorario();
-    actualizarCuentaPeriodo();
-    actualizarCartelera();
+    actualizarCuentaRegresiva();
 }, 1000);
-
-// =========================================================
-// NOTIFICACIONES DEL NAVEGADOR (Etapa 4)
-// Además del banner en pantalla, muestra la notificación del sistema
-// operativo cuando la pestaña está en segundo plano o el celular
-// bloqueado. Se pide permiso una sola vez, con un botón explícito.
-// =========================================================
-
-function esIOSSafariNoInstalada() {
-    const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
-    const esStandalone = window.navigator.standalone === true ||
-        window.matchMedia("(display-mode: standalone)").matches;
-    return esIOS && !esStandalone;
-}
-
-function actualizarEstadoBotonNotificaciones() {
-    if (!btnActivarNotificaciones) return;
-    if (typeof Notification === "undefined") {
-        btnActivarNotificaciones.classList.add("oculto");
-        return;
-    }
-    if (Notification.permission === "granted") {
-        btnActivarNotificaciones.textContent = "🔔 Notificaciones activas";
-        btnActivarNotificaciones.disabled = true;
-    } else if (Notification.permission === "denied") {
-        btnActivarNotificaciones.textContent = "🔕 Notificaciones bloqueadas (revisa los permisos del sitio)";
-        btnActivarNotificaciones.disabled = true;
-    }
-}
-
-async function activarNotificaciones() {
-    if (typeof Notification === "undefined") {
-        alert("Este navegador no admite notificaciones del sistema.");
-        return;
-    }
-    try {
-        const permiso = await Notification.requestPermission();
-        if (permiso === "granted") {
-            const confirmacion = new Notification("🔔 Notificaciones activadas", {
-                body: "Recibirás un aviso cuando empiece o termine un periodo.",
-            });
-            confirmacion.onclick = () => { window.focus(); confirmacion.close(); };
-        }
-    } catch (e) {
-        console.warn("No se pudo pedir permiso de notificaciones:", e);
-    }
-
-    actualizarEstadoBotonNotificaciones();
-
-    if (esIOSSafariNoInstalada() && avisoNotificaciones) {
-        avisoNotificaciones.classList.remove("oculto");
-    }
-}
-
-function notificarNavegador(texto) {
-    if (typeof Notification === "undefined") return;
-    if (Notification.permission !== "granted") return;
-    try {
-        const notif = new Notification("🔔 Control de Timbre", { body: texto });
-        notif.onclick = () => { window.focus(); notif.close(); };
-    } catch (e) {
-        console.warn("No se pudo mostrar la notificación:", e);
-    }
-}
-
-if (btnActivarNotificaciones) {
-    btnActivarNotificaciones.addEventListener("click", activarNotificaciones);
-    actualizarEstadoBotonNotificaciones();
-}
-
-// =========================================================
-// MODO "CARTELERA" (Etapa 4)
-// Vista alternativa a pantalla completa, pensada para dejar una
-// tablet o pantalla fija en la oficina: reloj gigante, cuenta
-// regresiva del periodo actual/siguiente y nombre del periodo.
-// =========================================================
-
-let modoCartelera = false;
-
-async function solicitarFullscreen() {
-    const el = document.documentElement;
-    try {
-        if (el.requestFullscreen) await el.requestFullscreen();
-        else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
-    } catch (e) {
-        console.warn("No se pudo activar pantalla completa:", e);
-    }
-}
-
-async function salirFullscreen() {
-    try {
-        if (document.fullscreenElement) {
-            if (document.exitFullscreen) await document.exitFullscreen();
-            else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
-        } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
-            await document.webkitExitFullscreen();
-        }
-    } catch (e) { /* ignorar */ }
-}
-
-function aSegundosDelDia(hhmmTexto) {
-    const [h, m] = hhmmTexto.split(":").map(Number);
-    return h * 3600 + m * 60;
-}
-
-function formatearCuenta(seg) {
-    const s = Math.max(0, Math.round(seg));
-    const m = Math.floor(s / 60);
-    const ss = s % 60;
-    return `${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
-}
-
-function estadoPeriodoActual() {
-    const ahora = new Date();
-    const segAhora = ahora.getHours() * 3600 + ahora.getMinutes() * 60 + ahora.getSeconds();
-
-    for (const periodo of horario) {
-        const ini = aSegundosDelDia(periodo.inicio);
-        const fin = aSegundosDelDia(periodo.fin);
-        if (segAhora >= ini && segAhora < fin) {
-            return { enCurso: true, periodo, restante: fin - segAhora };
-        }
-    }
-
-    const siguientes = horario
-        .map(p => ({ p, ini: aSegundosDelDia(p.inicio) }))
-        .filter(x => x.ini > segAhora)
-        .sort((a, b) => a.ini - b.ini);
-
-    if (siguientes.length) {
-        const { p, ini } = siguientes[0];
-        return { enCurso: false, periodo: p, restante: ini - segAhora };
-    }
-
-    return null;
-}
-
-function actualizarCuentaPeriodo() {
-    if (!cuentaPeriodoActual) return;
-
-    const info = estadoPeriodoActual();
-    cuentaPeriodoActual.classList.remove("cuenta-aviso", "cuenta-urgente");
-
-    if (!info) {
-        cuentaPeriodoActual.textContent = "No hay más periodos hoy";
-        return;
-    }
-
-    const texto = info.enCurso
-        ? `${info.periodo.nombre} — termina en ${formatearCuenta(info.restante)}`
-        : `Siguiente: ${info.periodo.nombre} — empieza en ${formatearCuenta(info.restante)}`;
-    cuentaPeriodoActual.textContent = texto;
-
-    if (info.restante <= 60) cuentaPeriodoActual.classList.add("cuenta-urgente");
-    else if (info.restante <= 300) cuentaPeriodoActual.classList.add("cuenta-aviso");
-}
-
-function actualizarCartelera() {
-    if (!modoCartelera || !carteleraReloj) return;
-
-    carteleraReloj.textContent = horaTexto(new Date());
-
-    const info = estadoPeriodoActual();
-    if (!info) {
-        carteleraPeriodo.textContent = "No hay más periodos hoy";
-        carteleraCuenta.textContent = "--:--";
-        carteleraCuenta.classList.remove("cartelera-cuenta-aviso", "cartelera-cuenta-urgente");
-        return;
-    }
-
-    carteleraPeriodo.textContent = info.enCurso ? info.periodo.nombre : `Siguiente: ${info.periodo.nombre}`;
-    carteleraCuenta.textContent = formatearCuenta(info.restante);
-    carteleraCuenta.classList.toggle("cartelera-cuenta-urgente", info.restante <= 60);
-    carteleraCuenta.classList.toggle("cartelera-cuenta-aviso", info.restante > 60 && info.restante <= 300);
-}
-
-function entrarModoCartelera() {
-    modoCartelera = true;
-    document.body.classList.add("modo-cartelera");
-    solicitarFullscreen();
-    actualizarCartelera();
-}
-
-function salirModoCartelera() {
-    modoCartelera = false;
-    document.body.classList.remove("modo-cartelera");
-    salirFullscreen();
-}
-
-if (btnModoCartelera) btnModoCartelera.addEventListener("click", entrarModoCartelera);
-if (btnSalirCartelera) btnSalirCartelera.addEventListener("click", salirModoCartelera);
-
-document.addEventListener("fullscreenchange", () => {
-    if (!document.fullscreenElement && modoCartelera) salirModoCartelera();
-});
-document.addEventListener("webkitfullscreenchange", () => {
-    if (!document.webkitFullscreenElement && modoCartelera) salirModoCartelera();
-});
 
 // =========================================================
 // INICIO
