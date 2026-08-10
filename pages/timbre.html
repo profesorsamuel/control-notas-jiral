@@ -28,9 +28,11 @@
     }
     .encabezado-timbre h1 { font-size: 1.25rem; margin: 0; font-weight: 700; }
     .encabezado-timbre p { margin: 4px 0 0; font-size: .82rem; opacity: .9; }
-    .pantalla-login { padding: 40px 24px; max-width: 360px; margin: 0 auto; }
     .oculto { display: none !important; }
-    .barra-acciones { padding: 14px 24px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; border-bottom: 1px solid #eee; }
+    .barra-acciones { padding: 14px 24px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; border-bottom: 1px solid #eee; }
+    .barra-acciones select { max-width: 190px; }
+    .panel-login-edicion { padding: 18px 24px; max-width: 320px; margin: 0 auto; border-bottom: 1px solid #eee; }
+    .barra-edicion { padding: 12px 24px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; border-bottom: 1px solid #eee; background: #fbfaff; }
     .zona-activar { padding: 16px 24px; text-align: center; border-bottom: 1px solid #eee; }
     .aviso-activo { display: none; padding: 10px 24px; background: #e6f7ec; color: #1e7e34; text-align: center; font-size: .85rem; font-weight: 600; }
     .aviso-activo.mostrar { display: block; }
@@ -38,7 +40,8 @@
     .tabla-horario input { font-size: .85rem; }
     .fila-periodo.en-curso { background: #f4fbf6; }
     #relojActual { text-align: center; font-size: 1.6rem; font-weight: 700; color: #2f3ea3; padding: 12px 24px 0; }
-    #estadoTimbre { text-align: center; padding: 6px 24px 16px; font-size: .85rem; min-height: 20px; color: #2e7d32; }
+    #estadoTimbre { text-align: center; padding: 6px 24px 4px; font-size: .85rem; min-height: 20px; color: #2e7d32; }
+    #estadoSincronizacion { text-align: center; padding: 0 24px 16px; font-size: .75rem; color: #888; }
 </style>
 </head>
 <body>
@@ -49,27 +52,41 @@
         <p>Turno Vespertino</p>
     </div>
 
-    <!-- LOGIN -->
-    <div class="pantalla-login" id="pantallaLogin">
-        <p class="text-muted small text-center mb-3">Acceso para Dirección</p>
-        <div class="mb-2">
-            <input type="text" id="cedulaTimbre" class="form-control" placeholder="Cédula" autocomplete="off">
-        </div>
-        <div class="mb-3">
-            <input type="password" id="claveTimbre" class="form-control" placeholder="Contraseña" autocomplete="off">
-        </div>
-        <button type="button" class="btn btn-primary w-100" id="btnEntrarTimbre">Entrar</button>
-        <p class="text-danger small text-center mt-2 oculto" id="errorLoginTimbre">Cédula o contraseña incorrecta.</p>
-    </div>
-
-    <!-- PANEL PRINCIPAL -->
-    <div id="panelTimbre" class="oculto">
+    <!-- PANEL PRINCIPAL: siempre visible, sin contraseña -->
+    <div id="panelTimbre">
 
         <div class="barra-acciones">
             <button type="button" class="btn btn-outline-secondary btn-sm" id="btnProbarTimbre">🔊 Probar timbre</button>
+            <select id="selectorSonido" class="form-select form-select-sm" title="Sonido del timbre (solo en este dispositivo)">
+                <option value="campana">🔔 Campana clásica</option>
+                <option value="agudo">📯 Timbre agudo</option>
+                <option value="doble">🎵 Doble tono</option>
+                <option value="suave">🎐 Suave</option>
+            </select>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btnEditarHorario">🔒 Editar horario</button>
+            <button type="button" class="btn btn-outline-danger btn-sm oculto" id="btnSalirEdicion">Salir de edición</button>
+        </div>
+
+        <!-- LOGIN de edición: aparece solo al tocar "Editar horario" -->
+        <div class="panel-login-edicion oculto" id="panelLoginEdicion">
+            <p class="text-muted small text-center mb-3">Acceso para Dirección</p>
+            <div class="mb-2">
+                <input type="text" id="cedulaTimbre" class="form-control" placeholder="Cédula" autocomplete="off">
+            </div>
+            <div class="mb-3">
+                <input type="password" id="claveTimbre" class="form-control" placeholder="Contraseña" autocomplete="off">
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary flex-fill" id="btnEntrarTimbre">Entrar</button>
+                <button type="button" class="btn btn-outline-secondary" id="btnCancelarLogin">Cancelar</button>
+            </div>
+            <p class="text-danger small text-center mt-2 oculto" id="errorLoginTimbre">Cédula o contraseña incorrecta.</p>
+        </div>
+
+        <!-- Barra de edición: solo visible en modo edición -->
+        <div class="barra-edicion oculto" id="barraEdicion">
             <button type="button" class="btn btn-outline-secondary btn-sm" id="btnAgregarPeriodo">➕ Agregar periodo</button>
             <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRestaurarHorario">↺ Restaurar horario por defecto</button>
-            <button type="button" class="btn btn-outline-danger btn-sm" id="btnSalirTimbre">Salir</button>
         </div>
 
         <div id="relojActual">--:--:--</div>
@@ -99,6 +116,7 @@
         </div>
 
         <div id="estadoTimbre"></div>
+        <div id="estadoSincronizacion">Cargando horario…</div>
     </div>
 </div>
 
