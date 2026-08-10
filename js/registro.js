@@ -528,7 +528,10 @@ form.addEventListener("submit", async (e) => {
 // =====================================================
 async function registrarEstudiante(salon, password) {
     const nombre = nombreSelect.value;
-    const codigoSeleccionado = nombreSelect.selectedOptions?.[0]?.dataset?.codigo || null;
+    const codigoSeleccionadoRaw = nombreSelect.selectedOptions?.[0]?.dataset?.codigo || null;
+    const codigoSeleccionado = codigoSeleccionadoRaw !== null && codigoSeleccionadoRaw !== ""
+        ? Number(codigoSeleccionadoRaw)
+        : null;
     const idSeleccionado = nombreSelect.selectedOptions?.[0]?.dataset?.id || null;
     const cedula = document.getElementById("cedula").value.trim();
 
@@ -595,6 +598,30 @@ async function registrarEstudiante(salon, password) {
         return;
     }
 
+    // -------------------------------------------------
+    // ASEGURAR UNA SESIÓN VÁLIDA ANTES DE VINCULAR NADA
+    // -------------------------------------------------
+    // "signUp" normalmente deja al usuario con sesión iniciada, pero
+    // en algunos casos (o por una carrera de tiempos) puede no quedar
+    // lista de inmediato. Iniciar sesión aquí de forma explícita
+    // garantiza que las actualizaciones de abajo (que requieren estar
+    // autenticado) tengan un token válido, evitando que fallen en
+    // silencio.
+    const { error: errorSesion } = await supabase.auth.signInWithPassword({
+        email: emailInterno,
+        password
+    });
+
+    if (errorSesion) {
+        console.error("Error al iniciar sesión justo después de registrarse:", errorSesion);
+        btnRegistrar.disabled = false;
+        mostrarMensaje(
+            "Tu cuenta se creó, pero hubo un problema al iniciar sesión automáticamente. Por favor inicia sesión manualmente.",
+            "error"
+        );
+        return;
+    }
+
     // Guarda/actualiza rol y salón en datos_estudiante
     // (upsert: si la fila no existe la crea; si ya existe la actualiza)
     const { error: errorTabla } = await supabase
@@ -625,14 +652,25 @@ async function registrarEstudiante(salon, password) {
     // También se guarda la cédula aquí: si el administrador no la
     // había cargado antes, el panel de consejería la mostraba vacía
     // aunque el estudiante ya la hubiera ingresado al registrarse.
-    if (codigoSeleccionado) {
-        const { error: errorEstudiante } = await supabase
+    let vinculacionFallo = false;
+
+    if (codigoSeleccionado !== null) {
+        const { data: filasActualizadas, error: errorEstudiante } = await supabase
             .from("estudiantes")
             .update({ correo: emailInterno, cedula })
-            .eq("codigo", codigoSeleccionado);
+            .eq("codigo", codigoSeleccionado)
+            .select("id");
 
         if (errorEstudiante) {
             console.error("Error al vincular el correo en 'estudiantes':", errorEstudiante);
+            vinculacionFallo = true;
+        } else if (!filasActualizadas || filasActualizadas.length === 0) {
+            console.error(
+                "La vinculación en 'estudiantes' no actualizó ninguna fila (código:",
+                codigoSeleccionado,
+                "). Puede que el permiso no lo permita o el código no exista."
+            );
+            vinculacionFallo = true;
         }
     }
 
@@ -699,11 +737,23 @@ async function registrarEstudiante(salon, password) {
 
         if (errorNotasVinculo) {
             console.error("Error al vincular notas previas del estudiante:", errorNotasVinculo);
+            vinculacionFallo = true;
         }
     }
 
     btnRegistrar.disabled = false;
-    mostrarMensaje("✅ Estudiante registrado correctamente.", "exito");
+
+    if (vinculacionFallo) {
+        mostrarMensaje(
+            "✅ La cuenta se creó y ya puedes iniciar sesión, pero hubo un problema al vincular tus notas anteriores. Avisa al administrador para que lo revise (código: " +
+                codigoSeleccionado +
+                ").",
+            "error"
+        );
+    } else {
+        mostrarMensaje("✅ Estudiante registrado correctamente.", "exito");
+    }
+
     form.reset();
     actualizarCampos();
 
