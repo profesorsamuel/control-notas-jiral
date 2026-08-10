@@ -9,7 +9,54 @@ const CLAVE_VALIDA = "000000";
 
 const CLAVE_SESION = "timbre_sesion_jiral";
 const CLAVE_SONIDO = "timbre_sonido_jiral";
+const CLAVE_PASS_GUARDADA = "timbre_clave_actual_jiral"; // contraseña vigente (si se cambió)
+const CLAVE_PREGUNTAS = "timbre_preguntas_seguridad_jiral"; // preguntas/respuestas de recuperación
 const TABLA = "timbre_horario";
+
+const PREGUNTAS_POR_DEFECTO = [
+    "¿Cuál es el nombre del director o directora del colegio?",
+    "¿En qué año se fundó el colegio (aproximado)?",
+    "¿Cuál es una palabra secreta que usted eligió?",
+];
+
+// =========================================================
+// CONTRASEÑA Y PREGUNTAS DE SEGURIDAD (guardadas en este dispositivo)
+// =========================================================
+
+function obtenerClaveActual() {
+    return localStorage.getItem(CLAVE_PASS_GUARDADA) || CLAVE_VALIDA;
+}
+
+function guardarClaveActual(nuevaClave) {
+    localStorage.setItem(CLAVE_PASS_GUARDADA, nuevaClave);
+}
+
+function obtenerPreguntasGuardadas() {
+    const crudo = localStorage.getItem(CLAVE_PREGUNTAS);
+    if (!crudo) return null;
+    try {
+        return JSON.parse(crudo);
+    } catch {
+        return null;
+    }
+}
+
+function guardarPreguntas(lista) {
+    // lista: [{ pregunta, respuesta }] — la respuesta se guarda normalizada
+    const normalizada = lista.map((p) => ({
+        pregunta: p.pregunta.trim(),
+        respuesta: normalizarTexto(p.respuesta),
+    }));
+    localStorage.setItem(CLAVE_PREGUNTAS, JSON.stringify(normalizada));
+}
+
+function normalizarTexto(txt) {
+    return (txt || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, ""); // quita tildes para comparar más flexible
+}
 
 const HORARIO_POR_DEFECTO = [
     { orden: 0, nombre: "Periodo 1", inicio: "12:30", fin: "13:10" },
@@ -42,7 +89,32 @@ const errorLoginTimbre = document.getElementById("errorLoginTimbre");
 const barraEdicion = document.getElementById("barraEdicion");
 const btnAgregarPeriodo = document.getElementById("btnAgregarPeriodo");
 const btnRestaurarHorario = document.getElementById("btnRestaurarHorario");
+const btnConfigSeguridad = document.getElementById("btnConfigSeguridad");
 
+// Recuperación de contraseña
+const linkOlvideClave = document.getElementById("linkOlvideClave");
+const panelRecuperarClave = document.getElementById("panelRecuperarClave");
+const zonaPreguntasRecuperar = document.getElementById("zonaPreguntasRecuperar");
+const avisoSinPreguntas = document.getElementById("avisoSinPreguntas");
+const zonaNuevaClave = document.getElementById("zonaNuevaClave");
+const nuevaClaveRecuperar = document.getElementById("nuevaClaveRecuperar");
+const confirmarClaveRecuperar = document.getElementById("confirmarClaveRecuperar");
+const errorRecuperarClave = document.getElementById("errorRecuperarClave");
+const exitoRecuperarClave = document.getElementById("exitoRecuperarClave");
+const btnVerificarRespuestas = document.getElementById("btnVerificarRespuestas");
+const btnGuardarNuevaClave = document.getElementById("btnGuardarNuevaClave");
+const btnCancelarRecuperar = document.getElementById("btnCancelarRecuperar");
+
+// Configuración de contraseña y preguntas (modo edición)
+const panelConfigSeguridad = document.getElementById("panelConfigSeguridad");
+const configNuevaClave = document.getElementById("configNuevaClave");
+const zonaConfigPreguntas = document.getElementById("zonaConfigPreguntas");
+const errorConfigSeguridad = document.getElementById("errorConfigSeguridad");
+const exitoConfigSeguridad = document.getElementById("exitoConfigSeguridad");
+const btnGuardarConfigSeguridad = document.getElementById("btnGuardarConfigSeguridad");
+const btnCancelarConfigSeguridad = document.getElementById("btnCancelarConfigSeguridad");
+
+const estadoGuardadoHorario = document.getElementById("estadoGuardadoHorario");
 const relojActual = document.getElementById("relojActual");
 const zonaActivarTimbre = document.getElementById("zonaActivarTimbre");
 const btnActivarTimbre = document.getElementById("btnActivarTimbre");
@@ -53,9 +125,14 @@ const estadoSincronizacion = document.getElementById("estadoSincronizacion");
 
 let horario = [];
 let modoEdicion = false;
+let modoEdicionRenderizado = null; // controla si hace falta redibujar toda la tabla
 let sonidoActivo = false;
 let audioCtx = null;
 let yaTocados = new Set(); // se reinicia cada día
+
+// Guardado automático mientras se escribe (sin esperar a salir del campo)
+const temporizadoresGuardado = new Map(); // id-campo -> timeoutId
+let guardadosPendientes = 0;
 
 // =========================================================
 // LOGIN DE EDICIÓN (independiente, no usa Supabase Auth)
@@ -94,7 +171,7 @@ btnCancelarLogin.addEventListener("click", () => {
 btnEntrarTimbre.addEventListener("click", () => {
     const cedula = cedulaTimbre.value.trim();
     const clave = claveTimbre.value.trim();
-    if (cedula === CEDULA_VALIDA && clave === CLAVE_VALIDA) {
+    if (cedula === CEDULA_VALIDA && clave === obtenerClaveActual()) {
         errorLoginTimbre.classList.add("oculto");
         cedulaTimbre.value = "";
         claveTimbre.value = "";
@@ -105,6 +182,178 @@ btnEntrarTimbre.addEventListener("click", () => {
 });
 
 btnSalirEdicion.addEventListener("click", salirModoEdicion);
+
+// =========================================================
+// RECUPERAR CONTRASEÑA CON 3 PREGUNTAS DE SEGURIDAD
+// =========================================================
+
+let respuestasCorrectasVerificadas = false;
+
+function abrirPanelRecuperar() {
+    panelLoginEdicion.classList.add("oculto");
+    panelRecuperarClave.classList.remove("oculto");
+    errorRecuperarClave.classList.add("oculto");
+    exitoRecuperarClave.classList.add("oculto");
+    zonaNuevaClave.classList.add("oculto");
+    btnGuardarNuevaClave.classList.add("oculto");
+    nuevaClaveRecuperar.value = "";
+    confirmarClaveRecuperar.value = "";
+    respuestasCorrectasVerificadas = false;
+
+    const preguntas = obtenerPreguntasGuardadas();
+
+    if (!preguntas || preguntas.length < 3) {
+        avisoSinPreguntas.classList.remove("oculto");
+        zonaPreguntasRecuperar.innerHTML = "";
+        btnVerificarRespuestas.classList.add("oculto");
+        return;
+    }
+
+    avisoSinPreguntas.classList.add("oculto");
+    btnVerificarRespuestas.classList.remove("oculto");
+    zonaPreguntasRecuperar.innerHTML = preguntas
+        .map(
+            (p, i) => `
+        <div class="mb-2">
+            <label class="form-label small">${p.pregunta}</label>
+            <input type="text" class="form-control respuesta-recuperar" data-indice="${i}" autocomplete="off">
+        </div>`
+        )
+        .join("");
+}
+
+linkOlvideClave.addEventListener("click", (e) => {
+    e.preventDefault();
+    abrirPanelRecuperar();
+});
+
+btnCancelarRecuperar.addEventListener("click", () => {
+    panelRecuperarClave.classList.add("oculto");
+});
+
+btnVerificarRespuestas.addEventListener("click", () => {
+    const preguntas = obtenerPreguntasGuardadas();
+    if (!preguntas) return;
+
+    const inputs = zonaPreguntasRecuperar.querySelectorAll(".respuesta-recuperar");
+    let todasCorrectas = true;
+    inputs.forEach((input) => {
+        const i = Number(input.dataset.indice);
+        if (normalizarTexto(input.value) !== preguntas[i].respuesta) {
+            todasCorrectas = false;
+        }
+    });
+
+    if (!todasCorrectas) {
+        errorRecuperarClave.textContent = "Una o más respuestas son incorrectas.";
+        errorRecuperarClave.classList.remove("oculto");
+        return;
+    }
+
+    errorRecuperarClave.classList.add("oculto");
+    respuestasCorrectasVerificadas = true;
+    zonaPreguntasRecuperar.classList.add("oculto");
+    btnVerificarRespuestas.classList.add("oculto");
+    zonaNuevaClave.classList.remove("oculto");
+    btnGuardarNuevaClave.classList.remove("oculto");
+});
+
+btnGuardarNuevaClave.addEventListener("click", () => {
+    if (!respuestasCorrectasVerificadas) return;
+
+    const nueva = nuevaClaveRecuperar.value.trim();
+    const confirmar = confirmarClaveRecuperar.value.trim();
+
+    if (nueva.length < 4) {
+        errorRecuperarClave.textContent = "La nueva contraseña debe tener al menos 4 caracteres.";
+        errorRecuperarClave.classList.remove("oculto");
+        return;
+    }
+    if (nueva !== confirmar) {
+        errorRecuperarClave.textContent = "Las contraseñas no coinciden.";
+        errorRecuperarClave.classList.remove("oculto");
+        return;
+    }
+
+    guardarClaveActual(nueva);
+    errorRecuperarClave.classList.add("oculto");
+    exitoRecuperarClave.textContent = "Contraseña actualizada. Ya puede iniciar sesión.";
+    exitoRecuperarClave.classList.remove("oculto");
+    zonaNuevaClave.classList.add("oculto");
+    btnGuardarNuevaClave.classList.add("oculto");
+
+    setTimeout(() => {
+        panelRecuperarClave.classList.add("oculto");
+        panelLoginEdicion.classList.remove("oculto");
+    }, 1500);
+});
+
+// =========================================================
+// CONFIGURAR CONTRASEÑA Y PREGUNTAS (desde el modo edición)
+// =========================================================
+
+function abrirPanelConfigSeguridad() {
+    errorConfigSeguridad.classList.add("oculto");
+    exitoConfigSeguridad.classList.add("oculto");
+    configNuevaClave.value = "";
+
+    const guardadas = obtenerPreguntasGuardadas();
+    zonaConfigPreguntas.innerHTML = PREGUNTAS_POR_DEFECTO.map((textoDefecto, i) => {
+        const preguntaActual = guardadas && guardadas[i] ? guardadas[i].pregunta : textoDefecto;
+        return `
+        <div class="mb-2">
+            <label class="form-label small">Pregunta ${i + 1}</label>
+            <input type="text" class="form-control mb-1 config-pregunta" data-indice="${i}" value="${preguntaActual.replace(/"/g, "&quot;")}">
+            <input type="text" class="form-control config-respuesta" data-indice="${i}" placeholder="Respuesta" autocomplete="off">
+        </div>`;
+    }).join("");
+
+    panelConfigSeguridad.classList.remove("oculto");
+}
+
+btnConfigSeguridad.addEventListener("click", abrirPanelConfigSeguridad);
+
+btnCancelarConfigSeguridad.addEventListener("click", () => {
+    panelConfigSeguridad.classList.add("oculto");
+});
+
+btnGuardarConfigSeguridad.addEventListener("click", () => {
+    const preguntasInputs = zonaConfigPreguntas.querySelectorAll(".config-pregunta");
+    const respuestasInputs = zonaConfigPreguntas.querySelectorAll(".config-respuesta");
+
+    const lista = [];
+    let faltaAlgo = false;
+    preguntasInputs.forEach((input, i) => {
+        const pregunta = input.value.trim();
+        const respuesta = respuestasInputs[i].value.trim();
+        if (!pregunta || !respuesta) faltaAlgo = true;
+        lista.push({ pregunta, respuesta });
+    });
+
+    if (faltaAlgo) {
+        errorConfigSeguridad.textContent = "Complete las 3 preguntas y sus 3 respuestas.";
+        errorConfigSeguridad.classList.remove("oculto");
+        exitoConfigSeguridad.classList.add("oculto");
+        return;
+    }
+
+    guardarPreguntas(lista);
+
+    const nueva = configNuevaClave.value.trim();
+    if (nueva) {
+        if (nueva.length < 4) {
+            errorConfigSeguridad.textContent = "La nueva contraseña debe tener al menos 4 caracteres.";
+            errorConfigSeguridad.classList.remove("oculto");
+            exitoConfigSeguridad.classList.add("oculto");
+            return;
+        }
+        guardarClaveActual(nueva);
+    }
+
+    errorConfigSeguridad.classList.add("oculto");
+    exitoConfigSeguridad.textContent = "Guardado correctamente.";
+    exitoConfigSeguridad.classList.remove("oculto");
+});
 
 if (localStorage.getItem(CLAVE_SESION) === "1") {
     modoEdicion = true;
@@ -161,9 +410,62 @@ async function sembrarHorarioPorDefecto() {
     renderHorario();
 }
 
-async function actualizarPeriodo(id, cambios) {
+function mostrarEstadoGuardado(estado) {
+    estadoGuardadoHorario.classList.remove("oculto", "guardando", "guardado", "error-guardado");
+    if (estado === "guardando") {
+        estadoGuardadoHorario.textContent = "💾 Guardando...";
+        estadoGuardadoHorario.classList.add("guardando");
+    } else if (estado === "guardado") {
+        estadoGuardadoHorario.textContent = "✅ Guardado para todos los dispositivos";
+        estadoGuardadoHorario.classList.add("guardado");
+        setTimeout(() => {
+            if (guardadosPendientes === 0) estadoGuardadoHorario.classList.add("oculto");
+        }, 2000);
+    } else if (estado === "error") {
+        estadoGuardadoHorario.textContent = "⚠ No se pudo guardar. Revisa tu conexión.";
+        estadoGuardadoHorario.classList.add("error-guardado");
+    }
+}
+
+async function actualizarPeriodo(id, cambios, elementoParaResaltar) {
+    guardadosPendientes++;
+    mostrarEstadoGuardado("guardando");
+
     const { error } = await supabase.from(TABLA).update(cambios).eq("id", id);
-    if (error) console.error(error);
+
+    guardadosPendientes = Math.max(0, guardadosPendientes - 1);
+
+    if (error) {
+        console.error(error);
+        mostrarEstadoGuardado("error");
+        return;
+    }
+
+    // refleja el cambio localmente al instante (sin esperar el eco de tiempo real)
+    const periodoLocal = horario.find((p) => p.id === id);
+    if (periodoLocal) Object.assign(periodoLocal, cambios);
+
+    if (guardadosPendientes === 0) mostrarEstadoGuardado("guardado");
+
+    if (elementoParaResaltar) {
+        elementoParaResaltar.classList.add("campo-guardado");
+        setTimeout(() => elementoParaResaltar.classList.remove("campo-guardado"), 700);
+    }
+}
+
+// Guarda automáticamente mientras el usuario escribe/selecciona, sin esperar a que
+// pierda el foco el campo. Usa un pequeño retraso (debounce) por campo para no
+// mandar una petición por cada letra.
+function programarGuardadoAutomatico(id, campo, valor, elemento, retrasoMs = 500) {
+    const clave = `${id}-${campo}`;
+    if (temporizadoresGuardado.has(clave)) {
+        clearTimeout(temporizadoresGuardado.get(clave));
+    }
+    const idTimeout = setTimeout(() => {
+        temporizadoresGuardado.delete(clave);
+        actualizarPeriodo(id, { [campo]: valor }, elemento);
+    }, retrasoMs);
+    temporizadoresGuardado.set(clave, idTimeout);
 }
 
 async function agregarPeriodo() {
@@ -193,34 +495,96 @@ async function restaurarHorario() {
     if (errInsertar) console.error(errInsertar);
 }
 
+function crearFilaPeriodo(periodo) {
+    const fila = document.createElement("tr");
+    fila.className = "fila-periodo";
+    fila.dataset.id = periodo.id;
+    const soloLectura = modoEdicion ? "" : "disabled";
+    fila.innerHTML = `
+        <td><input type="text" class="form-control form-control-sm campo-nombre" value="${periodo.nombre}" ${soloLectura}></td>
+        <td><input type="time" class="form-control form-control-sm campo-inicio" value="${periodo.inicio}" ${soloLectura}></td>
+        <td><input type="time" class="form-control form-control-sm campo-fin" value="${periodo.fin}" ${soloLectura}></td>
+        <td>${modoEdicion ? '<button type="button" class="btn btn-outline-danger btn-sm btn-borrar-periodo">✕</button>' : ""}</td>
+    `;
+    if (modoEdicion) {
+        const campoNombre = fila.querySelector(".campo-nombre");
+        const campoInicio = fila.querySelector(".campo-inicio");
+        const campoFin = fila.querySelector(".campo-fin");
+
+        // "input" guarda mientras escribes/seleccionas (con pequeño retraso).
+        // "change" guarda de inmediato en cuanto sales del campo, por si acaso.
+        campoNombre.addEventListener("input", (e) => {
+            programarGuardadoAutomatico(periodo.id, "nombre", e.target.value, campoNombre);
+        });
+        campoNombre.addEventListener("change", (e) => {
+            programarGuardadoAutomatico(periodo.id, "nombre", e.target.value, campoNombre, 0);
+        });
+        campoInicio.addEventListener("input", (e) => {
+            programarGuardadoAutomatico(periodo.id, "inicio", e.target.value, campoInicio);
+        });
+        campoInicio.addEventListener("change", (e) => {
+            programarGuardadoAutomatico(periodo.id, "inicio", e.target.value, campoInicio, 0);
+        });
+        campoFin.addEventListener("input", (e) => {
+            programarGuardadoAutomatico(periodo.id, "fin", e.target.value, campoFin);
+        });
+        campoFin.addEventListener("change", (e) => {
+            programarGuardadoAutomatico(periodo.id, "fin", e.target.value, campoFin, 0);
+        });
+        fila.querySelector(".btn-borrar-periodo").addEventListener("click", () => {
+            borrarPeriodo(periodo.id);
+        });
+    }
+    return fila;
+}
+
+// Actualiza los valores de una fila ya existente SIN recrearla, y sin tocar
+// el campo que el usuario tiene enfocado en este momento (para no perder lo
+// que está escribiendo cuando llega una sincronización en tiempo real).
+function actualizarFilaSiCorresponde(fila, periodo) {
+    const mapa = {
+        ".campo-nombre": periodo.nombre,
+        ".campo-inicio": periodo.inicio,
+        ".campo-fin": periodo.fin,
+    };
+    Object.entries(mapa).forEach(([selector, valor]) => {
+        const input = fila.querySelector(selector);
+        if (!input) return;
+        if (document.activeElement === input) return; // el usuario está escribiendo aquí, no tocar
+        if (input.value !== valor) input.value = valor;
+    });
+}
+
 function renderHorario() {
-    cuerpoHorarioTimbre.innerHTML = "";
-    horario.forEach((periodo) => {
-        const fila = document.createElement("tr");
-        fila.className = "fila-periodo";
-        fila.dataset.id = periodo.id;
-        const soloLectura = modoEdicion ? "" : "disabled";
-        fila.innerHTML = `
-            <td><input type="text" class="form-control form-control-sm campo-nombre" value="${periodo.nombre}" ${soloLectura}></td>
-            <td><input type="time" class="form-control form-control-sm campo-inicio" value="${periodo.inicio}" ${soloLectura}></td>
-            <td><input type="time" class="form-control form-control-sm campo-fin" value="${periodo.fin}" ${soloLectura}></td>
-            <td>${modoEdicion ? '<button type="button" class="btn btn-outline-danger btn-sm btn-borrar-periodo">✕</button>' : ""}</td>
-        `;
-        if (modoEdicion) {
-            fila.querySelector(".campo-nombre").addEventListener("change", (e) => {
-                actualizarPeriodo(periodo.id, { nombre: e.target.value });
-            });
-            fila.querySelector(".campo-inicio").addEventListener("change", (e) => {
-                actualizarPeriodo(periodo.id, { inicio: e.target.value });
-            });
-            fila.querySelector(".campo-fin").addEventListener("change", (e) => {
-                actualizarPeriodo(periodo.id, { fin: e.target.value });
-            });
-            fila.querySelector(".btn-borrar-periodo").addEventListener("click", () => {
-                borrarPeriodo(periodo.id);
-            });
+    // Si cambió el modo (edición <-> solo lectura), sí hace falta reconstruir todo
+    if (modoEdicionRenderizado !== modoEdicion) {
+        cuerpoHorarioTimbre.innerHTML = "";
+        modoEdicionRenderizado = modoEdicion;
+    }
+
+    const idsVistos = new Set();
+
+    horario.forEach((periodo, indice) => {
+        idsVistos.add(String(periodo.id));
+        let fila = cuerpoHorarioTimbre.querySelector(`tr[data-id="${periodo.id}"]`);
+
+        if (!fila) {
+            fila = crearFilaPeriodo(periodo);
+            const filaEnEsaPosicion = cuerpoHorarioTimbre.children[indice];
+            if (filaEnEsaPosicion) cuerpoHorarioTimbre.insertBefore(fila, filaEnEsaPosicion);
+            else cuerpoHorarioTimbre.appendChild(fila);
+        } else {
+            actualizarFilaSiCorresponde(fila, periodo);
+            const filaEnEsaPosicion = cuerpoHorarioTimbre.children[indice];
+            if (filaEnEsaPosicion !== fila) {
+                cuerpoHorarioTimbre.insertBefore(fila, filaEnEsaPosicion || null);
+            }
         }
-        cuerpoHorarioTimbre.appendChild(fila);
+    });
+
+    // Elimina filas de periodos que ya no existen (borrados por este u otro dispositivo)
+    Array.from(cuerpoHorarioTimbre.children).forEach((fila) => {
+        if (!idsVistos.has(fila.dataset.id)) fila.remove();
     });
 }
 
