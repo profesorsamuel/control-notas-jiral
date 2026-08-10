@@ -12,9 +12,13 @@ const CLAVE_SONIDO = "timbre_sonido_jiral";
 const CLAVE_VOLUMEN = "timbre_volumen_jiral";
 const CLAVE_MODO_BUCLE = "timbre_modo_bucle_jiral";
 const CLAVE_VOZ = "timbre_anuncio_voz_jiral";
+const CLAVE_AVISOS_MINUTOS = "timbre_avisos_minutos_jiral"; // minutos de anticipación elegidos (por dispositivo)
 const CLAVE_PASS_GUARDADA = "timbre_clave_actual_jiral"; // contraseña vigente (si se cambió)
 const CLAVE_PREGUNTAS = "timbre_preguntas_seguridad_jiral"; // preguntas/respuestas de recuperación
 const TABLA = "timbre_horario";
+
+const MINUTOS_AVISO_DISPONIBLES = [15, 10, 5, 2, 1];
+const MINUTOS_AVISO_POR_DEFECTO = [5, 1]; // comportamiento original, antes de que fuera configurable
 
 const PREGUNTAS_POR_DEFECTO = [
     "¿Cuál es el nombre del director o directora del colegio?",
@@ -133,6 +137,10 @@ const bannerCerrar = document.getElementById("bannerCerrar");
 const bannerDetener = document.getElementById("bannerDetener");
 const switchModoBucle = document.getElementById("switchModoBucle");
 const switchAnuncioVoz = document.getElementById("switchAnuncioVoz");
+const btnAvisosMinutos = document.getElementById("btnAvisosMinutos");
+const panelAvisosMinutos = document.getElementById("panelAvisosMinutos");
+const btnCerrarAvisosMinutos = document.getElementById("btnCerrarAvisosMinutos");
+const checksAvisoMinuto = document.querySelectorAll(".check-aviso-minuto");
 
 const cuentaRegresiva = document.getElementById("cuentaRegresiva");
 const sliderVolumen = document.getElementById("sliderVolumen");
@@ -755,14 +763,14 @@ const DURACION_BANNER_MS = 8000;
 
 const ICONOS_BANNER = {
     inicio: "🔔",
-    aviso5: "⏳",
-    aviso1: "⚠️",
+    aviso: "⏳",
+    "aviso-urgente": "⚠️",
     fin: "🔔",
 };
 
 let bannerTimeoutId = null;
 
-// tipo: "inicio" | "aviso5" | "aviso1" | "fin"
+// tipo: "inicio" | "aviso" | "aviso-urgente" | "fin"
 // persistente: true => no se oculta solo, muestra botón "Detener" en vez de "✕"
 function mostrarBanner(tipo, texto, persistente = false) {
     if (!bannerAlerta) return;
@@ -885,6 +893,57 @@ function anunciarPorVoz(texto) {
     } catch {
         // si el navegador no soporta voz, simplemente no se anuncia
     }
+}
+
+// =========================================================
+// AVISOS PREVIOS CONFIGURABLES (personal de cada dispositivo/usuario)
+// Cada quien elige con cuántos minutos de anticipación quiere que
+// avise antes de que termine el periodo (15, 10, 5, 2 y/o 1 minuto).
+// Se guarda solo en este navegador, no se sincroniza con Supabase.
+// =========================================================
+
+function obtenerMinutosAvisoGuardados() {
+    const crudo = localStorage.getItem(CLAVE_AVISOS_MINUTOS);
+    if (!crudo) return [...MINUTOS_AVISO_POR_DEFECTO];
+    try {
+        const lista = JSON.parse(crudo);
+        if (!Array.isArray(lista)) return [...MINUTOS_AVISO_POR_DEFECTO];
+        return lista.filter((m) => MINUTOS_AVISO_DISPONIBLES.includes(m));
+    } catch {
+        return [...MINUTOS_AVISO_POR_DEFECTO];
+    }
+}
+
+let minutosAvisoActivos = obtenerMinutosAvisoGuardados();
+
+function guardarMinutosAviso() {
+    localStorage.setItem(CLAVE_AVISOS_MINUTOS, JSON.stringify(minutosAvisoActivos));
+}
+
+if (checksAvisoMinuto.length) {
+    checksAvisoMinuto.forEach((chk) => {
+        chk.checked = minutosAvisoActivos.includes(Number(chk.value));
+        chk.addEventListener("change", () => {
+            const valor = Number(chk.value);
+            if (chk.checked) {
+                if (!minutosAvisoActivos.includes(valor)) minutosAvisoActivos.push(valor);
+            } else {
+                minutosAvisoActivos = minutosAvisoActivos.filter((m) => m !== valor);
+            }
+            guardarMinutosAviso();
+        });
+    });
+}
+
+if (btnAvisosMinutos && panelAvisosMinutos) {
+    btnAvisosMinutos.addEventListener("click", () => {
+        panelAvisosMinutos.classList.toggle("oculto");
+    });
+}
+if (btnCerrarAvisosMinutos && panelAvisosMinutos) {
+    btnCerrarAvisosMinutos.addEventListener("click", () => {
+        panelAvisosMinutos.classList.add("oculto");
+    });
 }
 
 // Dispara el aviso del timbre principal (inicio/fin de periodo): banner
@@ -1088,11 +1147,7 @@ function revisarHorario() {
     });
 
     horario.forEach((periodo) => {
-        const avisoHora = restarMinutos(periodo.fin, 5);
-        const pitidoHora = restarMinutos(periodo.fin, 1);
         const claveInicio = `${claveDia}-${periodo.inicio}-inicio-${periodo.id}`;
-        const claveAviso = `${claveDia}-${periodo.fin}-aviso-${periodo.id}`;
-        const clavePitido = `${claveDia}-${periodo.fin}-pitido-${periodo.id}`;
         const claveFin = `${claveDia}-${periodo.fin}-fin-${periodo.id}`;
 
         // El banner visual aparece siempre (no depende de que el sonido esté
@@ -1102,20 +1157,27 @@ function revisarHorario() {
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — inicio (${periodo.inicio})`;
             activarAvisoPrincipal("inicio", `Inicia ${periodo.nombre}`, periodo.nombre);
         }
-        if (actual === avisoHora && !yaTocados.has(claveAviso)) {
+
+        // Avisos previos configurables (personal de cada dispositivo): 15, 10, 5, 2 y/o 1 minuto antes del fin.
+        minutosAvisoActivos.forEach((minutos) => {
+            const horaAviso = restarMinutos(periodo.fin, minutos);
+            const claveAviso = `${claveDia}-${periodo.fin}-aviso${minutos}-${periodo.id}`;
+            if (actual !== horaAviso || yaTocados.has(claveAviso)) return;
             yaTocados.add(claveAviso);
-            estadoTimbre.textContent = `⏳ ${periodo.nombre} termina en 5 minutos`;
-            mostrarBanner("aviso5", `${periodo.nombre} termina en 5 minutos`);
-            enviarNotificacionNavegador(`${periodo.nombre} termina en 5 minutos`);
-            if (sonidoActivo) reproducirAviso();
-        }
-        if (actual === pitidoHora && !yaTocados.has(clavePitido)) {
-            yaTocados.add(clavePitido);
-            estadoTimbre.textContent = `⏳ ${periodo.nombre} termina en 1 minuto`;
-            mostrarBanner("aviso1", `${periodo.nombre} termina en 1 minuto`);
-            enviarNotificacionNavegador(`${periodo.nombre} termina en 1 minuto`);
-            if (sonidoActivo) reproducirPitidoLargo();
-        }
+
+            const urgente = minutos <= 1;
+            const textoMinutos = minutos === 1 ? "1 minuto" : `${minutos} minutos`;
+            const texto = `${periodo.nombre} termina en ${textoMinutos}`;
+
+            estadoTimbre.textContent = `⏳ ${texto}`;
+            mostrarBanner(urgente ? "aviso-urgente" : "aviso", texto);
+            enviarNotificacionNavegador(texto);
+            if (sonidoActivo) {
+                if (urgente) reproducirPitidoLargo();
+                else reproducirAviso();
+            }
+        });
+
         if (actual === periodo.fin && !yaTocados.has(claveFin)) {
             yaTocados.add(claveFin);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — fin (${periodo.fin})`;
