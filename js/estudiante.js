@@ -744,6 +744,82 @@ async function editarTemaCelda(materia, tipo, numero) {
 }
 
 // =====================================================
+// AVISO POR CORREO: si pasan 5 minutos sin que el estudiante
+// guarde nada nuevo, se manda un correo con la tabla de lo
+// que cambió desde el último aviso. Misma lógica que ya
+// existe en profesor.js (segunda capa de seguridad).
+// =====================================================
+const EMAILJS_SERVICE_ID = "service_avsesik";
+const EMAILJS_TEMPLATE_ID = "template_00nky6m";
+const EMAILJS_PUBLIC_KEY = "2PasfycZJSW6hDpqg";
+const MINUTOS_INACTIVIDAD_RESPALDO = 5;
+
+if (window.emailjs) {
+    window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+}
+
+let cambiosPendientesRespaldoEst = [];
+let temporizadorRespaldoEst = null;
+
+function registrarCambioParaRespaldoEst(materia, tipo, numero, valor) {
+    cambiosPendientesRespaldoEst.push({
+        estudiante: miEstudiante?.nombre || usuarioActual?.email || "—",
+        casilla: `${materia} — ${etiquetaCasillaRespaldo(tipo, numero)}`,
+        nota: valor,
+        hora: new Date().toLocaleString("es-PA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+    });
+    reiniciarTemporizadorRespaldoEst();
+}
+
+function reiniciarTemporizadorRespaldoEst() {
+    if (temporizadorRespaldoEst) clearTimeout(temporizadorRespaldoEst);
+    temporizadorRespaldoEst = setTimeout(enviarRespaldoPorCorreoEst, MINUTOS_INACTIVIDAD_RESPALDO * 60 * 1000);
+}
+
+async function enviarRespaldoPorCorreoEst() {
+    if (!window.emailjs || cambiosPendientesRespaldoEst.length === 0) return;
+
+    const filas = cambiosPendientesRespaldoEst.map((c) =>
+        `<tr>` +
+        `<td style="padding:4px 8px;border:1px solid #ccc;">${escapeHtml(c.estudiante)}</td>` +
+        `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtml(c.casilla)}</td>` +
+        `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtml(String(c.nota))}</td>` +
+        `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtml(c.hora)}</td>` +
+        `</tr>`
+    ).join("");
+
+    const tablaHtml = `
+        <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;">
+            <thead>
+                <tr>
+                    <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Estudiante</th>
+                    <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Casilla</th>
+                    <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Nota</th>
+                    <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Hora</th>
+                </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+        </table>`;
+
+    const parametros = {
+        profesor: `Estudiante: ${miEstudiante?.nombre || usuarioActual?.email || "—"}`,
+        materia: "(auto-reporte de estudiante)",
+        salon: miEstudiante?.salon || "—",
+        trimestre: trimestreActivo,
+        fecha: new Date().toLocaleString("es-PA"),
+        tabla_notas: tablaHtml,
+    };
+
+    try {
+        await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, parametros);
+        cambiosPendientesRespaldoEst = [];
+    } catch (err) {
+        console.error("❌ No se pudo enviar el respaldo automático por correo:", err);
+        reiniciarTemporizadorRespaldoEst();
+    }
+}
+
+// =====================================================
 // GUARDAR UNA CASILLA
 // =====================================================
 
@@ -812,6 +888,7 @@ async function guardarCelda(inputEl) {
 
         notaExistente.nota = valor;
         notaExistente.fecha = fechaHoy();
+        registrarCambioParaRespaldoEst(materia, tipo, numero, valor);
     } else {
         const { data, error } = await supabase
             .from("notas")
@@ -842,6 +919,7 @@ async function guardarCelda(inputEl) {
 
         if (!notasPorMateria[materia]) notasPorMateria[materia] = { apreciacion: {}, ejercicio: {} };
         notasPorMateria[materia][tipo][numero] = data;
+        registrarCambioParaRespaldoEst(materia, tipo, numero, valor);
     }
 
     mostrarToast("✅ Guardado");
