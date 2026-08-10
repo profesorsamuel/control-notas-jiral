@@ -131,6 +131,16 @@ const bannerCerrar = document.getElementById("bannerCerrar");
 const bannerDetener = document.getElementById("bannerDetener");
 const switchModoBucle = document.getElementById("switchModoBucle");
 
+const btnActivarNotificaciones = document.getElementById("btnActivarNotificaciones");
+const avisoNotificaciones = document.getElementById("avisoNotificaciones");
+
+const btnModoCartelera = document.getElementById("btnModoCartelera");
+const btnSalirCartelera = document.getElementById("btnSalirCartelera");
+const carteleraVista = document.getElementById("carteleraVista");
+const carteleraReloj = document.getElementById("carteleraReloj");
+const carteleraPeriodo = document.getElementById("carteleraPeriodo");
+const carteleraCuenta = document.getElementById("carteleraCuenta");
+
 let horario = [];
 let modoEdicion = false;
 let modoEdicionRenderizado = null; // controla si hace falta redibujar toda la tabla
@@ -851,23 +861,27 @@ function revisarHorario() {
             yaTocados.add(claveInicio);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — inicio (${periodo.inicio})`;
             activarAvisoPrincipal("inicio", `Inicia ${periodo.nombre}`);
+            notificarNavegador(`Inicia ${periodo.nombre}`);
         }
         if (actual === avisoHora && !yaTocados.has(claveAviso)) {
             yaTocados.add(claveAviso);
             estadoTimbre.textContent = `⏳ ${periodo.nombre} termina en 5 minutos`;
             mostrarBanner("aviso5", `${periodo.nombre} termina en 5 minutos`);
             if (sonidoActivo) reproducirAviso();
+            notificarNavegador(`${periodo.nombre} termina en 5 minutos`);
         }
         if (actual === pitidoHora && !yaTocados.has(clavePitido)) {
             yaTocados.add(clavePitido);
             estadoTimbre.textContent = `⏳ ${periodo.nombre} termina en 1 minuto`;
             mostrarBanner("aviso1", `${periodo.nombre} termina en 1 minuto`);
             if (sonidoActivo) reproducirPitidoLargo();
+            notificarNavegador(`${periodo.nombre} termina en 1 minuto`);
         }
         if (actual === periodo.fin && !yaTocados.has(claveFin)) {
             yaTocados.add(claveFin);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — fin (${periodo.fin})`;
             activarAvisoPrincipal("fin", `Terminó ${periodo.nombre}`);
+            notificarNavegador(`Terminó ${periodo.nombre}`);
         }
     });
 }
@@ -875,7 +889,186 @@ function revisarHorario() {
 setInterval(() => {
     relojActual.textContent = horaTexto(new Date());
     revisarHorario();
+    actualizarCartelera();
 }, 1000);
+
+// =========================================================
+// NOTIFICACIONES DEL NAVEGADOR (Etapa 4)
+// Además del banner en pantalla, muestra la notificación del sistema
+// operativo cuando la pestaña está en segundo plano o el celular
+// bloqueado. Se pide permiso una sola vez, con un botón explícito.
+// =========================================================
+
+function esIOSSafariNoInstalada() {
+    const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+    const esStandalone = window.navigator.standalone === true ||
+        window.matchMedia("(display-mode: standalone)").matches;
+    return esIOS && !esStandalone;
+}
+
+function actualizarEstadoBotonNotificaciones() {
+    if (!btnActivarNotificaciones) return;
+    if (typeof Notification === "undefined") {
+        btnActivarNotificaciones.classList.add("oculto");
+        return;
+    }
+    if (Notification.permission === "granted") {
+        btnActivarNotificaciones.textContent = "🔔 Notificaciones activas";
+        btnActivarNotificaciones.disabled = true;
+    } else if (Notification.permission === "denied") {
+        btnActivarNotificaciones.textContent = "🔕 Notificaciones bloqueadas (revisa los permisos del sitio)";
+        btnActivarNotificaciones.disabled = true;
+    }
+}
+
+async function activarNotificaciones() {
+    if (typeof Notification === "undefined") {
+        alert("Este navegador no admite notificaciones del sistema.");
+        return;
+    }
+    try {
+        const permiso = await Notification.requestPermission();
+        if (permiso === "granted") {
+            const confirmacion = new Notification("🔔 Notificaciones activadas", {
+                body: "Recibirás un aviso cuando empiece o termine un periodo.",
+            });
+            confirmacion.onclick = () => { window.focus(); confirmacion.close(); };
+        }
+    } catch (e) {
+        console.warn("No se pudo pedir permiso de notificaciones:", e);
+    }
+
+    actualizarEstadoBotonNotificaciones();
+
+    if (esIOSSafariNoInstalada() && avisoNotificaciones) {
+        avisoNotificaciones.classList.remove("oculto");
+    }
+}
+
+function notificarNavegador(texto) {
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission !== "granted") return;
+    try {
+        const notif = new Notification("🔔 Control de Timbre", { body: texto });
+        notif.onclick = () => { window.focus(); notif.close(); };
+    } catch (e) {
+        console.warn("No se pudo mostrar la notificación:", e);
+    }
+}
+
+if (btnActivarNotificaciones) {
+    btnActivarNotificaciones.addEventListener("click", activarNotificaciones);
+    actualizarEstadoBotonNotificaciones();
+}
+
+// =========================================================
+// MODO "CARTELERA" (Etapa 4)
+// Vista alternativa a pantalla completa, pensada para dejar una
+// tablet o pantalla fija en la oficina: reloj gigante, cuenta
+// regresiva del periodo actual/siguiente y nombre del periodo.
+// =========================================================
+
+let modoCartelera = false;
+
+async function solicitarFullscreen() {
+    const el = document.documentElement;
+    try {
+        if (el.requestFullscreen) await el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+    } catch (e) {
+        console.warn("No se pudo activar pantalla completa:", e);
+    }
+}
+
+async function salirFullscreen() {
+    try {
+        if (document.fullscreenElement) {
+            if (document.exitFullscreen) await document.exitFullscreen();
+            else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+        } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+            await document.webkitExitFullscreen();
+        }
+    } catch (e) { /* ignorar */ }
+}
+
+function aSegundosDelDia(hhmmTexto) {
+    const [h, m] = hhmmTexto.split(":").map(Number);
+    return h * 3600 + m * 60;
+}
+
+function formatearCuenta(seg) {
+    const s = Math.max(0, Math.round(seg));
+    const m = Math.floor(s / 60);
+    const ss = s % 60;
+    return `${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+
+function estadoPeriodoActual() {
+    const ahora = new Date();
+    const segAhora = ahora.getHours() * 3600 + ahora.getMinutes() * 60 + ahora.getSeconds();
+
+    for (const periodo of horario) {
+        const ini = aSegundosDelDia(periodo.inicio);
+        const fin = aSegundosDelDia(periodo.fin);
+        if (segAhora >= ini && segAhora < fin) {
+            return { enCurso: true, periodo, restante: fin - segAhora };
+        }
+    }
+
+    const siguientes = horario
+        .map(p => ({ p, ini: aSegundosDelDia(p.inicio) }))
+        .filter(x => x.ini > segAhora)
+        .sort((a, b) => a.ini - b.ini);
+
+    if (siguientes.length) {
+        const { p, ini } = siguientes[0];
+        return { enCurso: false, periodo: p, restante: ini - segAhora };
+    }
+
+    return null;
+}
+
+function actualizarCartelera() {
+    if (!modoCartelera || !carteleraReloj) return;
+
+    carteleraReloj.textContent = horaTexto(new Date());
+
+    const info = estadoPeriodoActual();
+    if (!info) {
+        carteleraPeriodo.textContent = "No hay más periodos hoy";
+        carteleraCuenta.textContent = "--:--";
+        carteleraCuenta.classList.remove("cartelera-cuenta-aviso", "cartelera-cuenta-urgente");
+        return;
+    }
+
+    carteleraPeriodo.textContent = info.enCurso ? info.periodo.nombre : `Siguiente: ${info.periodo.nombre}`;
+    carteleraCuenta.textContent = formatearCuenta(info.restante);
+    carteleraCuenta.classList.toggle("cartelera-cuenta-urgente", info.restante <= 60);
+    carteleraCuenta.classList.toggle("cartelera-cuenta-aviso", info.restante > 60 && info.restante <= 300);
+}
+
+function entrarModoCartelera() {
+    modoCartelera = true;
+    document.body.classList.add("modo-cartelera");
+    solicitarFullscreen();
+    actualizarCartelera();
+}
+
+function salirModoCartelera() {
+    modoCartelera = false;
+    document.body.classList.remove("modo-cartelera");
+    salirFullscreen();
+}
+
+if (btnModoCartelera) btnModoCartelera.addEventListener("click", entrarModoCartelera);
+if (btnSalirCartelera) btnSalirCartelera.addEventListener("click", salirModoCartelera);
+
+document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && modoCartelera) salirModoCartelera();
+});
+document.addEventListener("webkitfullscreenchange", () => {
+    if (!document.webkitFullscreenElement && modoCartelera) salirModoCartelera();
+});
 
 // =========================================================
 // INICIO
