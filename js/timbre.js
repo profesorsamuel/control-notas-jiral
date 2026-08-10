@@ -123,6 +123,11 @@ const cuerpoHorarioTimbre = document.getElementById("cuerpoHorarioTimbre");
 const estadoTimbre = document.getElementById("estadoTimbre");
 const estadoSincronizacion = document.getElementById("estadoSincronizacion");
 
+const bannerAlerta = document.getElementById("bannerAlerta");
+const bannerIcono = document.getElementById("bannerIcono");
+const bannerTexto = document.getElementById("bannerTexto");
+const bannerCerrar = document.getElementById("bannerCerrar");
+
 let horario = [];
 let modoEdicion = false;
 let modoEdicionRenderizado = null; // controla si hace falta redibujar toda la tabla
@@ -687,6 +692,50 @@ btnActivarTimbre.addEventListener("click", () => {
 });
 
 // =========================================================
+// BANNER GRANDE DE ALERTA (Etapa 2)
+// Aviso visual en pantalla completa de ancho, además del sonido —
+// útil para quien tiene el volumen bajo o está lejos del dispositivo.
+// =========================================================
+
+const DURACION_BANNER_MS = 8000;
+
+const ICONOS_BANNER = {
+    inicio: "🔔",
+    aviso5: "⏳",
+    aviso1: "⚠️",
+    fin: "🔔",
+};
+
+let bannerTimeoutId = null;
+
+function mostrarBanner(tipo, texto) {
+    if (!bannerAlerta) return;
+    if (bannerTimeoutId) clearTimeout(bannerTimeoutId);
+
+    bannerAlerta.className = "banner-alerta tipo-" + tipo;
+    bannerIcono.textContent = ICONOS_BANNER[tipo] || "🔔";
+    bannerTexto.textContent = texto;
+
+    // Fuerza un reflow para que la animación de entrada se note
+    // incluso si ya había un banner visible (cambia de un aviso a otro).
+    void bannerAlerta.offsetWidth;
+    bannerAlerta.classList.add("mostrar");
+
+    bannerTimeoutId = setTimeout(ocultarBanner, DURACION_BANNER_MS);
+}
+
+function ocultarBanner() {
+    if (!bannerAlerta) return;
+    bannerAlerta.classList.remove("mostrar");
+    if (bannerTimeoutId) {
+        clearTimeout(bannerTimeoutId);
+        bannerTimeoutId = null;
+    }
+}
+
+if (bannerCerrar) bannerCerrar.addEventListener("click", ocultarBanner);
+
+// =========================================================
 // RELOJ Y REVISIÓN DEL HORARIO
 // =========================================================
 
@@ -722,8 +771,6 @@ function revisarHorario() {
         if (filas[i]) filas[i].classList.toggle("en-curso", enCurso);
     });
 
-    if (!sonidoActivo) return;
-
     horario.forEach((periodo) => {
         const avisoHora = restarMinutos(periodo.fin, 5);
         const pitidoHora = restarMinutos(periodo.fin, 1);
@@ -732,25 +779,31 @@ function revisarHorario() {
         const clavePitido = `${claveDia}-${periodo.fin}-pitido-${periodo.id}`;
         const claveFin = `${claveDia}-${periodo.fin}-fin-${periodo.id}`;
 
+        // El banner visual aparece siempre (no depende de que el sonido esté
+        // activado); el sonido solo se reproduce si el usuario ya lo activó.
         if (actual === periodo.inicio && !yaTocados.has(claveInicio)) {
-            reproducirTimbrePrincipal();
             yaTocados.add(claveInicio);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — inicio (${periodo.inicio})`;
+            mostrarBanner("inicio", `Inicia ${periodo.nombre}`);
+            if (sonidoActivo) reproducirTimbrePrincipal();
         }
         if (actual === avisoHora && !yaTocados.has(claveAviso)) {
-            reproducirAviso();
             yaTocados.add(claveAviso);
             estadoTimbre.textContent = `⏳ ${periodo.nombre} termina en 5 minutos`;
+            mostrarBanner("aviso5", `${periodo.nombre} termina en 5 minutos`);
+            if (sonidoActivo) reproducirAviso();
         }
         if (actual === pitidoHora && !yaTocados.has(clavePitido)) {
-            reproducirPitidoLargo();
             yaTocados.add(clavePitido);
             estadoTimbre.textContent = `⏳ ${periodo.nombre} termina en 1 minuto`;
+            mostrarBanner("aviso1", `${periodo.nombre} termina en 1 minuto`);
+            if (sonidoActivo) reproducirPitidoLargo();
         }
         if (actual === periodo.fin && !yaTocados.has(claveFin)) {
-            reproducirTimbrePrincipal();
             yaTocados.add(claveFin);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — fin (${periodo.fin})`;
+            mostrarBanner("fin", `Terminó ${periodo.nombre}`);
+            if (sonidoActivo) reproducirTimbrePrincipal();
         }
     });
 }
