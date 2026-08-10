@@ -645,7 +645,52 @@ async function registrarEstudiante(salon, password) {
     // que todavía no existía). Ahora que el estudiante ya se registró,
     // esas notas se actualizan para que también tengan su correo, y
     // así aparezcan en el panel del consejero(a) y en su propio panel.
+    //
+    // OJO: mientras el estudiante no tenía cuenta, pudo haber entrado
+    // a "estudiante.html" en modo de auto-reporte y guardado sus
+    // propias notas provisionales (ligadas por correo). Si para esa
+    // misma casilla el profesor/admin YA le puso una nota oficial
+    // (ligada por estudiante_id), tendríamos dos filas para la misma
+    // materia+tipo+número+trimestre, y el UPDATE de abajo fallaría por
+    // el candado de "no repetir casilla" (fallaba en silencio, dejando
+    // al estudiante sin sus notas vinculadas). Por eso primero se
+    // borra la nota "provisional" del estudiante cuando ya existe la
+    // versión oficial del profesor/admin para esa misma casilla.
     if (idSeleccionado) {
+        // 1) Traer las casillas ya ligadas al estudiante_id (las que puso
+        //    el profesor/admin mientras el estudiante no tenía cuenta).
+        const { data: notasOficiales, error: errorLeerOficiales } = await supabase
+            .from("notas")
+            .select("materia, tipo, numero, trimestre")
+            .eq("estudiante_id", idSeleccionado)
+            .is("correo", null);
+
+        if (errorLeerOficiales) {
+            console.error("Error al revisar notas oficiales previas:", errorLeerOficiales);
+        }
+
+        // 2) Si el estudiante ya se había puesto notas provisionales por
+        //    su cuenta (ligadas por correo) en esas MISMAS casillas,
+        //    esas provisionales sobran: se borran y se deja la oficial.
+        if (notasOficiales && notasOficiales.length > 0) {
+            for (const casilla of notasOficiales) {
+                const { error: errorBorrarDuplicado } = await supabase
+                    .from("notas")
+                    .delete()
+                    .eq("correo", emailInterno)
+                    .eq("origen", "estudiante")
+                    .eq("materia", casilla.materia)
+                    .eq("tipo", casilla.tipo)
+                    .eq("numero", casilla.numero)
+                    .eq("trimestre", casilla.trimestre);
+
+                if (errorBorrarDuplicado) {
+                    console.error("Error al limpiar nota duplicada antes de vincular:", errorBorrarDuplicado);
+                }
+            }
+        }
+
+        // 3) Ahora sí, vincular (ya sin choques de casillas repetidas).
         const { error: errorNotasVinculo } = await supabase
             .from("notas")
             .update({ correo: emailInterno })
