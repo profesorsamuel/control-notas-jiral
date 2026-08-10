@@ -48,9 +48,65 @@
     #relojActual { text-align: center; font-size: 1.6rem; font-weight: 700; color: #2f3ea3; padding: 12px 24px 0; }
     #estadoTimbre { text-align: center; padding: 6px 24px 4px; font-size: .85rem; min-height: 20px; color: #2e7d32; }
     #estadoSincronizacion { text-align: center; padding: 0 24px 16px; font-size: .75rem; color: #888; }
+
+    /* --- Banner de alerta grande (Etapa 2) --- */
+    .banner-alerta {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 22px 20px;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #fff;
+        text-align: center;
+        box-shadow: 0 6px 20px rgba(0,0,0,.3);
+        transform: translateY(-110%);
+        transition: transform .35s ease;
+    }
+    .banner-alerta.mostrar { transform: translateY(0); }
+    .banner-alerta.tipo-inicio { background: linear-gradient(90deg, #1e7e34, #28a745); }
+    .banner-alerta.tipo-aviso5 { background: linear-gradient(90deg, #b8860b, #f0ad4e); }
+    .banner-alerta.tipo-aviso1 { background: linear-gradient(90deg, #c0392b, #e74c3c); animation: pulso-banner 1s ease-in-out infinite; }
+    .banner-alerta.tipo-fin { background: linear-gradient(90deg, #3a3fb3, #5a4fcf); }
+    .banner-icono { font-size: 2rem; line-height: 1; }
+    .banner-texto { line-height: 1.25; }
+    .banner-cerrar {
+        background: rgba(255,255,255,.25);
+        border: none;
+        color: #fff;
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        border-radius: 50%;
+        font-size: 1rem;
+        cursor: pointer;
+        line-height: 1;
+    }
+    .banner-cerrar:hover { background: rgba(255,255,255,.4); }
+    @keyframes pulso-banner {
+        0%, 100% { box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+        50% { box-shadow: 0 6px 34px rgba(231,76,60,.8); }
+    }
+    @media (max-width: 480px) {
+        .banner-alerta { font-size: 1.15rem; padding: 16px 14px; gap: 10px; }
+        .banner-icono { font-size: 1.5rem; }
+    }
 </style>
 </head>
 <body>
+
+<!-- Banner grande de alerta (Etapa 2): inicio, 5 min, 1 min, fin de periodo -->
+<div class="banner-alerta" id="bannerAlerta">
+    <span class="banner-icono" id="bannerIcono">🔔</span>
+    <span class="banner-texto" id="bannerTexto"></span>
+    <button type="button" class="banner-cerrar" id="bannerCerrar" aria-label="Cerrar aviso">✕</button>
+</div>
 
 <div class="tarjeta-principal">
     <div class="encabezado-timbre">
