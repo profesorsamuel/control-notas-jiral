@@ -39,6 +39,12 @@
     .tabla-horario { padding: 16px 24px; }
     .tabla-horario input { font-size: .85rem; }
     .fila-periodo.en-curso { background: #f4fbf6; }
+    .fila-periodo input { transition: background-color .5s ease; }
+    .fila-periodo input.campo-guardado { background-color: #e6f7ec; }
+    #estadoGuardadoHorario { padding: 6px 24px 0; font-weight: 600; }
+    #estadoGuardadoHorario.guardando { color: #b8860b; }
+    #estadoGuardadoHorario.guardado { color: #1e7e34; }
+    #estadoGuardadoHorario.error-guardado { color: #c0392b; }
     #relojActual { text-align: center; font-size: 1.6rem; font-weight: 700; color: #2f3ea3; padding: 12px 24px 0; }
     #estadoTimbre { text-align: center; padding: 6px 24px 4px; font-size: .85rem; min-height: 20px; color: #2e7d32; }
     #estadoSincronizacion { text-align: center; padding: 0 24px 16px; font-size: .75rem; color: #888; }
@@ -81,12 +87,57 @@
                 <button type="button" class="btn btn-outline-secondary" id="btnCancelarLogin">Cancelar</button>
             </div>
             <p class="text-danger small text-center mt-2 oculto" id="errorLoginTimbre">Cédula o contraseña incorrecta.</p>
+            <p class="text-center mt-2 mb-0">
+                <a href="#" class="small" id="linkOlvideClave">¿Olvidó su contraseña?</a>
+            </p>
+        </div>
+
+        <!-- RECUPERACIÓN: preguntas de seguridad -->
+        <div class="panel-login-edicion oculto" id="panelRecuperarClave">
+            <p class="text-muted small text-center mb-3">Recuperar acceso — responda las 3 preguntas</p>
+            <div id="zonaPreguntasRecuperar"></div>
+            <p class="text-center small text-muted oculto" id="avisoSinPreguntas">
+                Todavía no hay preguntas de seguridad configuradas en este dispositivo.
+                Debe entrar con la contraseña actual y configurarlas en el panel de edición.
+            </p>
+            <div id="zonaNuevaClave" class="oculto">
+                <div class="mb-2">
+                    <input type="password" id="nuevaClaveRecuperar" class="form-control" placeholder="Nueva contraseña" autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <input type="password" id="confirmarClaveRecuperar" class="form-control" placeholder="Confirmar nueva contraseña" autocomplete="off">
+                </div>
+            </div>
+            <p class="text-danger small text-center oculto" id="errorRecuperarClave"></p>
+            <p class="text-success small text-center oculto" id="exitoRecuperarClave"></p>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary flex-fill oculto" id="btnVerificarRespuestas">Verificar respuestas</button>
+                <button type="button" class="btn btn-success flex-fill oculto" id="btnGuardarNuevaClave">Guardar nueva contraseña</button>
+                <button type="button" class="btn btn-outline-secondary" id="btnCancelarRecuperar">Cancelar</button>
+            </div>
         </div>
 
         <!-- Barra de edición: solo visible en modo edición -->
         <div class="barra-edicion oculto" id="barraEdicion">
             <button type="button" class="btn btn-outline-secondary btn-sm" id="btnAgregarPeriodo">➕ Agregar periodo</button>
             <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRestaurarHorario">↺ Restaurar horario por defecto</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnConfigSeguridad">🔑 Cambiar contraseña / preguntas</button>
+        </div>
+
+        <!-- CONFIGURACIÓN: cambiar contraseña y preguntas de seguridad (solo en modo edición) -->
+        <div class="panel-login-edicion oculto" id="panelConfigSeguridad">
+            <p class="text-muted small text-center mb-3">Configurar contraseña y preguntas de seguridad</p>
+            <div class="mb-2">
+                <label class="form-label small">Nueva contraseña (dejar en blanco para no cambiarla)</label>
+                <input type="password" id="configNuevaClave" class="form-control" autocomplete="off">
+            </div>
+            <div class="mb-3" id="zonaConfigPreguntas"></div>
+            <p class="text-danger small text-center oculto" id="errorConfigSeguridad"></p>
+            <p class="text-success small text-center oculto" id="exitoConfigSeguridad"></p>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary flex-fill" id="btnGuardarConfigSeguridad">Guardar</button>
+                <button type="button" class="btn btn-outline-secondary" id="btnCancelarConfigSeguridad">Cancelar</button>
+            </div>
         </div>
 
         <div id="relojActual">--:--:--</div>
@@ -100,6 +151,8 @@
         </div>
 
         <div class="aviso-activo" id="avisoActivoTimbre">✅ Timbre activo — mantén esta página abierta</div>
+
+        <div class="text-center small oculto" id="estadoGuardadoHorario"></div>
 
         <div class="tabla-horario">
             <table class="table table-sm align-middle">
