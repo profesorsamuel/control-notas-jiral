@@ -665,19 +665,48 @@ async function registrarEstudiante(salon, password) {
         emailInterno
     );
 
+    // Pequeña espera de seguridad antes del primer intento: en algunos
+    // casos, justo después de signInWithPassword(), el token de sesión
+    // nuevo tarda una fracción de segundo en propagarse internamente en
+    // el cliente de Supabase, y las peticiones que salen demasiado rápido
+    // pueden fallar con 401 aunque la sesión ya se vea correcta en el
+    // diagnóstico de arriba. Esta espera reduce la probabilidad de que
+    // eso pase, y el reintento de abajo cubre los casos restantes.
+    const esperar = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
+    await esperar(400);
+
     if (codigoSeleccionado !== null) {
-        const { data: filasActualizadas, error: errorEstudiante } = await supabase
-            .from("estudiantes")
-            .update({ correo: emailInterno, cedula })
-            .eq("codigo", codigoSeleccionado)
-            .select("id");
+        let filasActualizadas = null;
+        let errorEstudiante = null;
+
+        for (let intento = 1; intento <= 2; intento++) {
+            const resultado = await supabase
+                .from("estudiantes")
+                .update({ correo: emailInterno, cedula })
+                .eq("codigo", codigoSeleccionado)
+                .select("id");
+
+            filasActualizadas = resultado.data;
+            errorEstudiante = resultado.error;
+
+            const funcionoAlPrimerIntento = !errorEstudiante && filasActualizadas && filasActualizadas.length > 0;
+            if (funcionoAlPrimerIntento) break;
+
+            if (intento === 1) {
+                console.warn(
+                    "Vinculación en 'estudiantes' falló en el primer intento (posible carrera de sesión). Reintentando en 800ms...",
+                    errorEstudiante || "(0 filas afectadas)"
+                );
+                await esperar(800);
+            }
+        }
 
         if (errorEstudiante) {
-            console.error("Error al vincular el correo en 'estudiantes':", errorEstudiante);
+            console.error("Error al vincular el correo en 'estudiantes' (tras reintento):", errorEstudiante);
             vinculacionFallo = true;
         } else if (!filasActualizadas || filasActualizadas.length === 0) {
             console.error(
-                "La vinculación en 'estudiantes' no actualizó ninguna fila (código:",
+                "La vinculación en 'estudiantes' no actualizó ninguna fila tras reintentar (código:",
                 codigoSeleccionado,
                 "). Puede que el permiso no lo permita o el código no exista."
             );
@@ -740,14 +769,32 @@ async function registrarEstudiante(salon, password) {
         }
 
         // 3) Ahora sí, vincular (ya sin choques de casillas repetidas).
-        const { error: errorNotasVinculo } = await supabase
-            .from("notas")
-            .update({ correo: emailInterno })
-            .eq("estudiante_id", idSeleccionado)
-            .is("correo", null);
+        //    Igual que con 'estudiantes', reintentamos una vez si la
+        //    primera pasada falla, por si fue una carrera de sesión.
+        let errorNotasVinculo = null;
+
+        for (let intento = 1; intento <= 2; intento++) {
+            const resultado = await supabase
+                .from("notas")
+                .update({ correo: emailInterno })
+                .eq("estudiante_id", idSeleccionado)
+                .is("correo", null);
+
+            errorNotasVinculo = resultado.error;
+
+            if (!errorNotasVinculo) break;
+
+            if (intento === 1) {
+                console.warn(
+                    "Vinculación en 'notas' falló en el primer intento (posible carrera de sesión). Reintentando en 800ms...",
+                    errorNotasVinculo
+                );
+                await esperar(800);
+            }
+        }
 
         if (errorNotasVinculo) {
-            console.error("Error al vincular notas previas del estudiante:", errorNotasVinculo);
+            console.error("Error al vincular notas previas del estudiante (tras reintento):", errorNotasVinculo);
             vinculacionFallo = true;
         }
     }
