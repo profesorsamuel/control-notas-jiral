@@ -642,159 +642,45 @@ async function registrarEstudiante(salon, password) {
     }
 
     // -------------------------------------------------
-    // VINCULAR ESTA CUENTA CON LA FILA DEL ESTUDIANTE
+    // VINCULAR ESTA CUENTA CON LA FILA DEL ESTUDIANTE (Y SUS NOTAS)
     // -------------------------------------------------
     // Sin este paso, el estudiante puede iniciar sesión y guardar
     // notas con normalidad, pero el panel del consejero(a) nunca
     // las va a encontrar: ese panel busca las notas comparando
     // "notas.correo" contra "estudiantes.correo", y ese campo
     // se queda vacío si no se actualiza aquí.
-    // También se guarda la cédula aquí: si el administrador no la
-    // había cargado antes, el panel de consejería la mostraba vacía
-    // aunque el estudiante ya la hubiera ingresado al registrarse.
+    //
+    // Antes esto se hacía con varias actualizaciones directas desde
+    // el navegador. En la práctica, esas peticiones fallaban de forma
+    // sistemática justo después de signInWithPassword() (error 401
+    // "No API key found in request"), porque dependían de que el
+    // token de sesión recién creado ya estuviera listo en ese
+    // instante exacto en el cliente de Supabase. Eso dejaba al
+    // estudiante con cuenta creada pero sin sus notas visibles.
+    //
+    // Ahora todo el proceso (vincular 'estudiantes' + vincular/limpiar
+    // 'notas') se hace de un solo golpe dentro de la base de datos,
+    // con la función "vincular_registro_estudiante" (SECURITY
+    // DEFINER), que no depende de esa sincronización del navegador.
     let vinculacionFallo = false;
 
-    // Diagnóstico: confirmar qué sesión está activa justo antes de
-    // intentar la vinculación (temporal, para encontrar la causa
-    // exacta de por qué la actualización no toma efecto).
-    const { data: sesionActual } = await supabase.auth.getUser();
-    console.log(
-        "DIAGNÓSTICO — usuario autenticado al momento de vincular:",
-        sesionActual?.user?.email || "(ninguno / sin sesión)",
-        "| esperado:",
-        emailInterno
-    );
-
-    // Pequeña espera de seguridad antes del primer intento: en algunos
-    // casos, justo después de signInWithPassword(), el token de sesión
-    // nuevo tarda una fracción de segundo en propagarse internamente en
-    // el cliente de Supabase, y las peticiones que salen demasiado rápido
-    // pueden fallar con 401 aunque la sesión ya se vea correcta en el
-    // diagnóstico de arriba. Esta espera reduce la probabilidad de que
-    // eso pase, y el reintento de abajo cubre los casos restantes.
-    const esperar = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
-    await esperar(400);
-
     if (codigoSeleccionado !== null) {
-        let filasActualizadas = null;
-        let errorEstudiante = null;
-
-        for (let intento = 1; intento <= 2; intento++) {
-            const resultado = await supabase
-                .from("estudiantes")
-                .update({ correo: emailInterno, cedula })
-                .eq("codigo", codigoSeleccionado)
-                .select("id");
-
-            filasActualizadas = resultado.data;
-            errorEstudiante = resultado.error;
-
-            const funcionoAlPrimerIntento = !errorEstudiante && filasActualizadas && filasActualizadas.length > 0;
-            if (funcionoAlPrimerIntento) break;
-
-            if (intento === 1) {
-                console.warn(
-                    "Vinculación en 'estudiantes' falló en el primer intento (posible carrera de sesión). Reintentando en 800ms...",
-                    errorEstudiante || "(0 filas afectadas)"
-                );
-                await esperar(800);
+        const { data: resultadoVinculo, error: errorVinculo } = await supabase.rpc(
+            "vincular_registro_estudiante",
+            {
+                p_codigo: codigoSeleccionado,
+                p_id_estudiante: idSeleccionado,
+                p_cedula: cedula
             }
-        }
+        );
 
-        if (errorEstudiante) {
-            console.error("Error al vincular el correo en 'estudiantes' (tras reintento):", errorEstudiante);
-            vinculacionFallo = true;
-        } else if (!filasActualizadas || filasActualizadas.length === 0) {
+        const fila = Array.isArray(resultadoVinculo) ? resultadoVinculo[0] : resultadoVinculo;
+
+        if (errorVinculo || !fila?.ok) {
             console.error(
-                "La vinculación en 'estudiantes' no actualizó ninguna fila tras reintentar (código:",
-                codigoSeleccionado,
-                "). Puede que el permiso no lo permita o el código no exista."
+                "Error al vincular la cuenta del estudiante:",
+                errorVinculo || fila?.mensaje || "(sin detalle)"
             );
-            vinculacionFallo = true;
-        }
-    }
-
-    // -------------------------------------------------
-    // VINCULAR NOTAS "PROVISIONALES" QUE EL ADMINISTRADOR
-    // YA LE HAYA PUESTO ANTES DE QUE ESTE ESTUDIANTE TUVIERA CUENTA
-    // -------------------------------------------------
-    // El panel de admin puede guardar notas de un estudiante sin
-    // cuenta usando "notas.estudiante_id" (en vez de "notas.correo",
-    // que todavía no existía). Ahora que el estudiante ya se registró,
-    // esas notas se actualizan para que también tengan su correo, y
-    // así aparezcan en el panel del consejero(a) y en su propio panel.
-    //
-    // OJO: mientras el estudiante no tenía cuenta, pudo haber entrado
-    // a "estudiante.html" en modo de auto-reporte y guardado sus
-    // propias notas provisionales (ligadas por correo). Si para esa
-    // misma casilla el profesor/admin YA le puso una nota oficial
-    // (ligada por estudiante_id), tendríamos dos filas para la misma
-    // materia+tipo+número+trimestre, y el UPDATE de abajo fallaría por
-    // el candado de "no repetir casilla" (fallaba en silencio, dejando
-    // al estudiante sin sus notas vinculadas). Por eso primero se
-    // borra la nota "provisional" del estudiante cuando ya existe la
-    // versión oficial del profesor/admin para esa misma casilla.
-    if (idSeleccionado) {
-        // 1) Traer las casillas ya ligadas al estudiante_id (las que puso
-        //    el profesor/admin mientras el estudiante no tenía cuenta).
-        const { data: notasOficiales, error: errorLeerOficiales } = await supabase
-            .from("notas")
-            .select("materia, tipo, numero, trimestre")
-            .eq("estudiante_id", idSeleccionado)
-            .is("correo", null);
-
-        if (errorLeerOficiales) {
-            console.error("Error al revisar notas oficiales previas:", errorLeerOficiales);
-        }
-
-        // 2) Si el estudiante ya se había puesto notas provisionales por
-        //    su cuenta (ligadas por correo) en esas MISMAS casillas,
-        //    esas provisionales sobran: se borran y se deja la oficial.
-        if (notasOficiales && notasOficiales.length > 0) {
-            for (const casilla of notasOficiales) {
-                const { error: errorBorrarDuplicado } = await supabase
-                    .from("notas")
-                    .delete()
-                    .eq("correo", emailInterno)
-                    .eq("origen", "estudiante")
-                    .eq("materia", casilla.materia)
-                    .eq("tipo", casilla.tipo)
-                    .eq("numero", casilla.numero)
-                    .eq("trimestre", casilla.trimestre);
-
-                if (errorBorrarDuplicado) {
-                    console.error("Error al limpiar nota duplicada antes de vincular:", errorBorrarDuplicado);
-                }
-            }
-        }
-
-        // 3) Ahora sí, vincular (ya sin choques de casillas repetidas).
-        //    Igual que con 'estudiantes', reintentamos una vez si la
-        //    primera pasada falla, por si fue una carrera de sesión.
-        let errorNotasVinculo = null;
-
-        for (let intento = 1; intento <= 2; intento++) {
-            const resultado = await supabase
-                .from("notas")
-                .update({ correo: emailInterno })
-                .eq("estudiante_id", idSeleccionado)
-                .is("correo", null);
-
-            errorNotasVinculo = resultado.error;
-
-            if (!errorNotasVinculo) break;
-
-            if (intento === 1) {
-                console.warn(
-                    "Vinculación en 'notas' falló en el primer intento (posible carrera de sesión). Reintentando en 800ms...",
-                    errorNotasVinculo
-                );
-                await esperar(800);
-            }
-        }
-
-        if (errorNotasVinculo) {
-            console.error("Error al vincular notas previas del estudiante (tras reintento):", errorNotasVinculo);
             vinculacionFallo = true;
         }
     }
