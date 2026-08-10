@@ -11,6 +11,7 @@ const CLAVE_SESION = "timbre_sesion_jiral";
 const CLAVE_SONIDO = "timbre_sonido_jiral";
 const CLAVE_VOLUMEN = "timbre_volumen_jiral";
 const CLAVE_MODO_BUCLE = "timbre_modo_bucle_jiral";
+const CLAVE_VOZ = "timbre_anuncio_voz_jiral";
 const CLAVE_PASS_GUARDADA = "timbre_clave_actual_jiral"; // contraseña vigente (si se cambió)
 const CLAVE_PREGUNTAS = "timbre_preguntas_seguridad_jiral"; // preguntas/respuestas de recuperación
 const TABLA = "timbre_horario";
@@ -131,6 +132,7 @@ const bannerTexto = document.getElementById("bannerTexto");
 const bannerCerrar = document.getElementById("bannerCerrar");
 const bannerDetener = document.getElementById("bannerDetener");
 const switchModoBucle = document.getElementById("switchModoBucle");
+const switchAnuncioVoz = document.getElementById("switchAnuncioVoz");
 
 const cuentaRegresiva = document.getElementById("cuentaRegresiva");
 const sliderVolumen = document.getElementById("sliderVolumen");
@@ -688,7 +690,15 @@ function reproducirPitidoLargo() {
     reproducirTono(950, 1000, "sawtooth", 0);
 }
 
-btnProbarTimbre.addEventListener("click", reproducirTimbrePrincipal);
+btnProbarTimbre.addEventListener("click", () => {
+    // Si el modo "sonar hasta apagar" está activado, la prueba también debe
+    // sonar en bucle (para poder probar el botón "Detener"); si no, un solo toque.
+    if (modoBucleActivo) {
+        iniciarBucleTimbre("inicio", "Prueba de timbre");
+    } else {
+        reproducirTimbrePrincipal();
+    }
+});
 
 selectorSonido.addEventListener("change", () => {
     localStorage.setItem(CLAVE_SONIDO, selectorSonido.value);
@@ -713,6 +723,13 @@ btnActivarTimbre.addEventListener("click", () => {
     sonidoActivo = true;
     zonaActivarTimbre.classList.add("oculto");
     avisoActivoTimbre.classList.add("mostrar");
+    // Desbloquea la síntesis de voz en navegadores que la requieren dentro
+    // de un toque del usuario (varios navegadores móviles).
+    if ("speechSynthesis" in window) {
+        const desbloqueo = new SpeechSynthesisUtterance(" ");
+        desbloqueo.volume = 0;
+        window.speechSynthesis.speak(desbloqueo);
+    }
 });
 
 // =========================================================
@@ -810,11 +827,61 @@ function detenerBucleTimbre() {
 
 if (bannerDetener) bannerDetener.addEventListener("click", detenerBucleTimbre);
 
+// =========================================================
+// ANUNCIO POR VOZ DE CADA PERIODO
+// Dice en voz alta el nombre del periodo que empieza o termina
+// ("Comienza el Segundo Periodo", "Terminó el Tercer Periodo"...),
+// además del timbre — útil para saber de inmediato en qué periodo se está.
+// =========================================================
+
+const ORDINALES = ["", "Primer", "Segundo", "Tercer", "Cuarto", "Quinto",
+    "Sexto", "Séptimo", "Octavo", "Noveno", "Décimo"];
+
+// Convierte "Periodo 2" en "Segundo Periodo" para que se escuche más natural;
+// nombres personalizados (ej. "Recreo") se anuncian tal cual.
+function nombreParaVoz(nombre) {
+    const coincide = /^periodo\s+(\d+)$/i.exec((nombre || "").trim());
+    if (coincide) {
+        const n = Number(coincide[1]);
+        if (ORDINALES[n]) return `${ORDINALES[n]} Periodo`;
+    }
+    return nombre;
+}
+
+let anuncioVozActivo = localStorage.getItem(CLAVE_VOZ) !== "0"; // activado por defecto
+
+if (switchAnuncioVoz) {
+    switchAnuncioVoz.checked = anuncioVozActivo;
+    switchAnuncioVoz.addEventListener("change", () => {
+        anuncioVozActivo = switchAnuncioVoz.checked;
+        localStorage.setItem(CLAVE_VOZ, anuncioVozActivo ? "1" : "0");
+        if (!anuncioVozActivo && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    });
+}
+
+function anunciarPorVoz(texto) {
+    if (!anuncioVozActivo) return;
+    if (!sonidoActivo) return; // requiere que ya se haya activado el audio en este dispositivo
+    if (!("speechSynthesis" in window)) return;
+    try {
+        window.speechSynthesis.cancel(); // corta un anuncio anterior si todavía estaba sonando
+        const utterancia = new SpeechSynthesisUtterance(texto);
+        utterancia.lang = "es-ES";
+        utterancia.rate = 0.95;
+        window.speechSynthesis.speak(utterancia);
+    } catch {
+        // si el navegador no soporta voz, simplemente no se anuncia
+    }
+}
+
 // Dispara el aviso del timbre principal (inicio/fin de periodo): banner
 // siempre visible; sonido en bucle si el modo está activo y ya se activó
 // el sonido en este dispositivo, o un solo toque en caso contrario.
-function activarAvisoPrincipal(tipo, texto) {
+// tipo: "inicio" | "fin" — nombrePeriodo: nombre tal como está en el horario (ej. "Periodo 2")
+function activarAvisoPrincipal(tipo, texto, nombrePeriodo) {
     enviarNotificacionNavegador(texto);
+    if (tipo === "inicio") anunciarPorVoz(`Comienza el ${nombreParaVoz(nombrePeriodo)}`);
+    else if (tipo === "fin") anunciarPorVoz(`Terminó el ${nombreParaVoz(nombrePeriodo)}`);
     if (modoBucleActivo && sonidoActivo) {
         iniciarBucleTimbre(tipo, texto);
     } else {
@@ -1020,7 +1087,7 @@ function revisarHorario() {
         if (actual === periodo.inicio && !yaTocados.has(claveInicio)) {
             yaTocados.add(claveInicio);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — inicio (${periodo.inicio})`;
-            activarAvisoPrincipal("inicio", `Inicia ${periodo.nombre}`);
+            activarAvisoPrincipal("inicio", `Inicia ${periodo.nombre}`, periodo.nombre);
         }
         if (actual === avisoHora && !yaTocados.has(claveAviso)) {
             yaTocados.add(claveAviso);
@@ -1039,7 +1106,7 @@ function revisarHorario() {
         if (actual === periodo.fin && !yaTocados.has(claveFin)) {
             yaTocados.add(claveFin);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — fin (${periodo.fin})`;
-            activarAvisoPrincipal("fin", `Terminó ${periodo.nombre}`);
+            activarAvisoPrincipal("fin", `Terminó ${periodo.nombre}`, periodo.nombre);
         }
     });
 }
