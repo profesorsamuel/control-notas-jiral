@@ -46,8 +46,16 @@
     #estadoGuardadoHorario.guardado { color: #1e7e34; }
     #estadoGuardadoHorario.error-guardado { color: #c0392b; }
     #relojActual { text-align: center; font-size: 1.6rem; font-weight: 700; color: #2f3ea3; padding: 12px 24px 0; }
+    #cuentaPeriodoActual { text-align: center; font-size: 1.15rem; font-weight: 700; color: #3a6fd8; padding: 2px 24px 8px; transition: color .3s ease; }
+    #cuentaPeriodoActual.cuenta-aviso { color: #b8860b; }
+    #cuentaPeriodoActual.cuenta-urgente { color: #c0392b; }
     #estadoTimbre { text-align: center; padding: 6px 24px 4px; font-size: .85rem; min-height: 20px; color: #2e7d32; }
     #estadoSincronizacion { text-align: center; padding: 0 24px 16px; font-size: .75rem; color: #888; }
+
+    /* --- Control de volumen (Etapa 4) --- */
+    .control-volumen { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid #ddd; border-radius: 999px; margin: 0; }
+    .control-volumen input[type="range"] { width: 100px; }
+    .control-volumen .valor-volumen { font-size: .78rem; color: #555; min-width: 32px; text-align: right; }
 
     /* --- Banner de alerta grande (Etapa 2) --- */
     .banner-alerta {
@@ -196,6 +204,11 @@
                 <option value="doble">🎵 Doble tono</option>
                 <option value="suave">🎐 Suave</option>
             </select>
+            <div class="control-volumen" title="Volumen de todos los tonos (solo en este dispositivo)">
+                <label for="sliderVolumen" class="small mb-0">🔊</label>
+                <input type="range" id="sliderVolumen" min="0" max="100" step="5" value="100">
+                <span class="valor-volumen" id="valorVolumen">100%</span>
+            </div>
             <div class="form-check form-switch modo-bucle-switch" title="Si está activo, el timbre principal (inicio y fin de periodo) suena en bucle hasta que alguien presione Detener, en vez de detenerse solo tras unos segundos.">
                 <input class="form-check-input" type="checkbox" role="switch" id="switchModoBucle">
                 <label class="form-check-label small" for="switchModoBucle">🔁 Sonar hasta apagar</label>
@@ -280,6 +293,7 @@
         </div>
 
         <div id="relojActual">--:--:--</div>
+        <div id="cuentaPeriodoActual">Cargando…</div>
 
         <div class="zona-activar" id="zonaActivarTimbre">
             <p style="font-size:.85rem; color:#555; margin-bottom:10px;">
