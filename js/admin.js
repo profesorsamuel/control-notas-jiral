@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const btnCerrarSesion = document.getElementById("btnCerrarSesion");
     const btnRecargarUsuarios = document.getElementById("btnRecargarUsuarios");
     const btnRecargarNotas = document.getElementById("btnRecargarNotas");
+    const btnDescargarRespaldo = document.getElementById("btnDescargarRespaldo");
 
     function mostrarMensaje(texto, tipo = "danger") {
         mensajeAdmin.textContent = texto;
@@ -1390,6 +1391,89 @@ document.addEventListener("DOMContentLoaded", async () => {
     // GUARDAR NOTAS
     // =================================================
 
+    // =================================================
+    // AVISO POR CORREO: si pasan 5 minutos sin que el admin
+    // guarde nada nuevo en esta tabla de notas, se manda un
+    // correo con la tabla de lo que cambió desde el último
+    // aviso. Misma lógica que ya existe en profesor.js.
+    // =================================================
+    const EMAILJS_SERVICE_ID = "service_avsesik";
+    const EMAILJS_TEMPLATE_ID = "template_00nky6m";
+    const EMAILJS_PUBLIC_KEY = "2PasfycZJSW6hDpqg";
+    const MINUTOS_INACTIVIDAD_RESPALDO = 5;
+
+    if (window.emailjs) {
+        window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+    }
+
+    let cambiosPendientesRespaldoAdmin = [];
+    let temporizadorRespaldoAdmin = null;
+
+    function nombreEstudiantePorItemAdmin(item) {
+        const est = grupoActualNotas.find((e) =>
+            (item.correo && e.correo === item.correo) || (item.estudianteId && String(e.id) === String(item.estudianteId))
+        );
+        return est ? est.nombre : (item.correo || item.estudianteId || "—");
+    }
+
+    function registrarCambioParaRespaldoAdmin(item) {
+        cambiosPendientesRespaldoAdmin.push({
+            estudiante: nombreEstudiantePorItemAdmin(item),
+            casilla: etiquetaCasilla(item.tipo, item.numero),
+            nota: item.nota,
+            hora: new Date().toLocaleString("es-PA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+        });
+        reiniciarTemporizadorRespaldoAdmin();
+    }
+
+    function reiniciarTemporizadorRespaldoAdmin() {
+        if (temporizadorRespaldoAdmin) clearTimeout(temporizadorRespaldoAdmin);
+        temporizadorRespaldoAdmin = setTimeout(enviarRespaldoPorCorreoAdmin, MINUTOS_INACTIVIDAD_RESPALDO * 60 * 1000);
+    }
+
+    async function enviarRespaldoPorCorreoAdmin() {
+        if (!window.emailjs || cambiosPendientesRespaldoAdmin.length === 0) return;
+
+        const filas = cambiosPendientesRespaldoAdmin.map((c) =>
+            `<tr>` +
+            `<td style="padding:4px 8px;border:1px solid #ccc;">${escapeHtmlAdmin(c.estudiante)}</td>` +
+            `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtmlAdmin(c.casilla)}</td>` +
+            `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtmlAdmin(String(c.nota))}</td>` +
+            `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtmlAdmin(c.hora)}</td>` +
+            `</tr>`
+        ).join("");
+
+        const tablaHtml = `
+            <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;">
+                <thead>
+                    <tr>
+                        <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Estudiante</th>
+                        <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Casilla</th>
+                        <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Nota</th>
+                        <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Hora</th>
+                    </tr>
+                </thead>
+                <tbody>${filas}</tbody>
+            </table>`;
+
+        const parametros = {
+            profesor: `Administrador (${perfil.correo})`,
+            materia: notasMateria.value,
+            salon: notasSalon.value,
+            trimestre: notasTrimestre.value,
+            fecha: new Date().toLocaleString("es-PA"),
+            tabla_notas: tablaHtml,
+        };
+
+        try {
+            await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, parametros);
+            cambiosPendientesRespaldoAdmin = [];
+        } catch (err) {
+            console.error("❌ No se pudo enviar el respaldo automático por correo:", err);
+            reiniciarTemporizadorRespaldoAdmin();
+        }
+    }
+
     async function guardarNotasGrupo(esAutomatico = false) {
 
         const materia = notasMateria.value.trim();
@@ -1465,6 +1549,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 } else {
                     exitosas++;
                     item.input.dataset.ultimoValorGuardado = String(item.nota);
+                    registrarCambioParaRespaldoAdmin(item);
                 }
 
             } else {
@@ -1499,6 +1584,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     if (insertado && insertado[0]) {
                         item.input.dataset.notaId = insertado[0].id;
                     }
+                    registrarCambioParaRespaldoAdmin(item);
                 }
             }
 
@@ -1820,6 +1906,71 @@ document.addEventListener("DOMContentLoaded", async () => {
     // =================================================
 
     btnRecargarUsuarios.addEventListener("click", cargarUsuarios);
+
+    // =================================================
+    // BOTÓN "DESCARGAR RESPALDO" (Excel con todas las tablas)
+    // =================================================
+    const TABLAS_RESPALDO = [
+        "accesos", "actividades_apreciacion", "actividades_calificaciones",
+        "apreciaciones_estado", "asistencia_columnas", "asistencia_detalle",
+        "asistencias", "columnas_materia", "comportamiento_detalle",
+        "config_pesos_apreciacion", "configuracion", "consejeros",
+        "datos_estudiante", "estudiantes", "excepciones_horario",
+        "franjas_horario", "horario_profesor", "horario_salon", "materias",
+        "notas", "profesor_materias", "profesor_salones", "profesores",
+        "salones", "task_assignments", "tasks", "temas_casillas", "usuarios",
+        "visitas"
+    ];
+
+    async function descargarTablaCompleta(nombreTabla) {
+        const TAMANO_PAGINA = 1000;
+        const filas = [];
+        let desde = 0;
+        while (true) {
+            const { data, error } = await supabase
+                .from(nombreTabla)
+                .select("*")
+                .range(desde, desde + TAMANO_PAGINA - 1);
+            if (error) {
+                console.error(`No se pudo leer la tabla "${nombreTabla}":`, error);
+                break;
+            }
+            filas.push(...data);
+            if (data.length < TAMANO_PAGINA) break;
+            desde += TAMANO_PAGINA;
+        }
+        return filas;
+    }
+
+    async function exportarRespaldoCompleto() {
+        const textoOriginal = btnDescargarRespaldo.innerHTML;
+        btnDescargarRespaldo.disabled = true;
+        try {
+            const XLSX = await import("https://esm.sh/xlsx@0.18.5");
+            const libro = XLSX.utils.book_new();
+
+            for (const tabla of TABLAS_RESPALDO) {
+                btnDescargarRespaldo.innerHTML =
+                    `<i class="fa-solid fa-spinner fa-spin me-1"></i>${tabla}...`;
+                const filas = await descargarTablaCompleta(tabla);
+                const hoja = filas.length > 0
+                    ? XLSX.utils.json_to_sheet(filas)
+                    : XLSX.utils.aoa_to_sheet([["(sin datos)"]]);
+                XLSX.utils.book_append_sheet(libro, hoja, tabla.substring(0, 31));
+            }
+
+            const fecha = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(libro, `respaldo_control_notas_${fecha}.xlsx`);
+        } catch (error) {
+            console.error("❌ Error al generar el respaldo:", error);
+            alert("No se pudo generar el respaldo. Revisa tu conexión e intenta de nuevo.");
+        } finally {
+            btnDescargarRespaldo.disabled = false;
+            btnDescargarRespaldo.innerHTML = textoOriginal;
+        }
+    }
+
+    btnDescargarRespaldo.addEventListener("click", exportarRespaldoCompleto);
     btnRecargarNotas.addEventListener("click", cargarNotas);
 
     // =================================================
