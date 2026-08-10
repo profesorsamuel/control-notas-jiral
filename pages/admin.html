@@ -57,6 +57,9 @@
                 <a href="salones.html" class="btn btn-outline-light btn-sm me-2">
                     <i class="fa-solid fa-school me-1"></i>Salones
                 </a>
+                <button id="btnDescargarRespaldo" type="button" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fa-solid fa-file-excel me-1"></i>Descargar respaldo
+                </button>
                 <span id="navCambiarPanel" class="me-2"></span>
                 <span id="nombreAdmin" class="me-3 small"></span>
                 <button id="btnCerrarSesion" class="btn btn-outline-light btn-sm">
@@ -1034,6 +1037,9 @@
 
     <!-- Librería jsPDF-AutoTable -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- EmailJS (para el aviso automático por correo al guardar notas) -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
     <script type="module" src="../js/admin.js"></script>
 
