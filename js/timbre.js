@@ -62,15 +62,15 @@ function normalizarTexto(txt) {
 }
 
 const HORARIO_POR_DEFECTO = [
-    { orden: 0, nombre: "Periodo 1", inicio: "12:30", fin: "13:10" },
-    { orden: 1, nombre: "Periodo 2", inicio: "13:10", fin: "13:50" },
-    { orden: 2, nombre: "Periodo 3", inicio: "13:50", fin: "14:30" },
-    { orden: 3, nombre: "Recreo",    inicio: "14:30", fin: "14:45" },
-    { orden: 4, nombre: "Periodo 4", inicio: "14:45", fin: "15:25" },
-    { orden: 5, nombre: "Periodo 5", inicio: "15:25", fin: "16:05" },
-    { orden: 6, nombre: "Periodo 6", inicio: "16:05", fin: "16:45" },
-    { orden: 7, nombre: "Periodo 7", inicio: "16:45", fin: "17:25" },
-    { orden: 8, nombre: "Periodo 8", inicio: "17:25", fin: "18:05" },
+    { nombre: "Periodo 1", inicio: "12:30", fin: "13:10" },
+    { nombre: "Periodo 2", inicio: "13:10", fin: "13:50" },
+    { nombre: "Periodo 3", inicio: "13:50", fin: "14:30" },
+    { nombre: "Recreo",    inicio: "14:30", fin: "14:45" },
+    { nombre: "Periodo 4", inicio: "14:45", fin: "15:25" },
+    { nombre: "Periodo 5", inicio: "15:25", fin: "16:05" },
+    { nombre: "Periodo 6", inicio: "16:05", fin: "16:45" },
+    { nombre: "Periodo 7", inicio: "16:45", fin: "17:25" },
+    { nombre: "Periodo 8", inicio: "17:25", fin: "18:05" },
 ];
 
 // =========================================================
@@ -142,6 +142,7 @@ const btnModoCartelera = document.getElementById("btnModoCartelera");
 const btnSalirCartelera = document.getElementById("btnSalirCartelera");
 
 let horario = [];
+let idFilaHorario = null; // id de la única fila de la tabla timbre_horario (esquema: id, periodos jsonb, actualizado_en)
 let modoEdicion = false;
 let modoEdicionRenderizado = null; // controla si hace falta redibujar toda la tabla
 let sonidoActivo = false;
@@ -385,27 +386,35 @@ if (localStorage.getItem(CLAVE_SESION) === "1") {
 // HORARIO — Supabase (tabla timbre_horario, sincronizado)
 // =========================================================
 
+// La tabla real tiene una sola fila: id, periodos (jsonb, arreglo de {nombre,inicio,fin}), actualizado_en.
+// El "id" que usa la interfaz para cada período es solo la posición en el arreglo (uso local, no se guarda así en la BD).
+function periodosDesdeFila(fila) {
+    return (fila.periodos || []).map((p, i) => ({ ...p, id: i }));
+}
+
 async function cargarHorario() {
     estadoSincronizacion.textContent = "Cargando horario…";
     const { data, error } = await supabase
         .from(TABLA)
         .select("*")
-        .order("orden", { ascending: true });
+        .limit(1)
+        .maybeSingle();
 
     if (error) {
         console.error(error);
         estadoSincronizacion.textContent = "⚠ No se pudo conectar. Mostrando horario por defecto.";
-        horario = [...HORARIO_POR_DEFECTO];
+        horario = HORARIO_POR_DEFECTO.map((p, i) => ({ ...p, id: i }));
         renderHorario();
         return;
     }
 
-    if (!data || data.length === 0) {
+    if (!data) {
         await sembrarHorarioPorDefecto();
         return;
     }
 
-    horario = data;
+    idFilaHorario = data.id;
+    horario = periodosDesdeFila(data);
     estadoSincronizacion.textContent = "✅ Sincronizado en tiempo real";
     renderHorario();
 }
@@ -413,20 +422,49 @@ async function cargarHorario() {
 async function sembrarHorarioPorDefecto() {
     const { data, error } = await supabase
         .from(TABLA)
-        .insert(HORARIO_POR_DEFECTO)
+        .insert({ periodos: HORARIO_POR_DEFECTO })
         .select("*")
-        .order("orden", { ascending: true });
+        .maybeSingle();
 
     if (error) {
         console.error(error);
         estadoSincronizacion.textContent = "⚠ No se pudo crear el horario inicial.";
-        horario = [...HORARIO_POR_DEFECTO];
+        horario = HORARIO_POR_DEFECTO.map((p, i) => ({ ...p, id: i }));
         renderHorario();
         return;
     }
-    horario = data;
+    idFilaHorario = data.id;
+    horario = periodosDesdeFila(data);
     estadoSincronizacion.textContent = "✅ Sincronizado en tiempo real";
     renderHorario();
+}
+
+// Guarda TODO el arreglo de períodos de una vez en la fila única (así es como funciona
+// el esquema real: no hay insert/delete de filas por período, solo update de "periodos").
+async function guardarHorarioEnSupabase(elementoParaResaltar) {
+    guardadosPendientes++;
+    mostrarEstadoGuardado("guardando");
+
+    const periodosParaGuardar = horario.map(({ id, ...resto }) => resto);
+    const { error } = await supabase
+        .from(TABLA)
+        .update({ periodos: periodosParaGuardar, actualizado_en: new Date().toISOString() })
+        .eq("id", idFilaHorario);
+
+    guardadosPendientes = Math.max(0, guardadosPendientes - 1);
+
+    if (error) {
+        console.error(error);
+        mostrarEstadoGuardado("error");
+        return;
+    }
+
+    if (guardadosPendientes === 0) mostrarEstadoGuardado("guardado");
+
+    if (elementoParaResaltar) {
+        elementoParaResaltar.classList.add("campo-guardado");
+        setTimeout(() => elementoParaResaltar.classList.remove("campo-guardado"), 700);
+    }
 }
 
 function mostrarEstadoGuardado(estado) {
@@ -447,29 +485,11 @@ function mostrarEstadoGuardado(estado) {
 }
 
 async function actualizarPeriodo(id, cambios, elementoParaResaltar) {
-    guardadosPendientes++;
-    mostrarEstadoGuardado("guardando");
-
-    const { error } = await supabase.from(TABLA).update(cambios).eq("id", id);
-
-    guardadosPendientes = Math.max(0, guardadosPendientes - 1);
-
-    if (error) {
-        console.error(error);
-        mostrarEstadoGuardado("error");
-        return;
-    }
-
     // refleja el cambio localmente al instante (sin esperar el eco de tiempo real)
     const periodoLocal = horario.find((p) => p.id === id);
     if (periodoLocal) Object.assign(periodoLocal, cambios);
 
-    if (guardadosPendientes === 0) mostrarEstadoGuardado("guardado");
-
-    if (elementoParaResaltar) {
-        elementoParaResaltar.classList.add("campo-guardado");
-        setTimeout(() => elementoParaResaltar.classList.remove("campo-guardado"), 700);
-    }
+    await guardarHorarioEnSupabase(elementoParaResaltar);
 }
 
 // Guarda automáticamente mientras el usuario escribe/selecciona, sin esperar a que
@@ -488,30 +508,23 @@ function programarGuardadoAutomatico(id, campo, valor, elemento, retrasoMs = 500
 }
 
 async function agregarPeriodo() {
-    const nuevoOrden = horario.length;
-    const { error } = await supabase.from(TABLA).insert({
-        orden: nuevoOrden,
-        nombre: "Nuevo periodo",
-        inicio: "12:00",
-        fin: "12:40",
-    });
-    if (error) console.error(error);
+    const nuevoId = horario.length ? Math.max(...horario.map((p) => p.id)) + 1 : 0;
+    horario.push({ id: nuevoId, nombre: "Nuevo periodo", inicio: "12:00", fin: "12:40" });
+    renderHorario();
+    await guardarHorarioEnSupabase();
 }
 
 async function borrarPeriodo(id) {
-    const { error } = await supabase.from(TABLA).delete().eq("id", id);
-    if (error) console.error(error);
+    horario = horario.filter((p) => p.id !== id);
+    renderHorario();
+    await guardarHorarioEnSupabase();
 }
 
 async function restaurarHorario() {
     if (!confirm("¿Restaurar el horario por defecto? Se perderán los cambios para todos.")) return;
-    const idsActuales = horario.map((p) => p.id);
-    if (idsActuales.length > 0) {
-        const { error: errBorrar } = await supabase.from(TABLA).delete().in("id", idsActuales);
-        if (errBorrar) console.error(errBorrar);
-    }
-    const { error: errInsertar } = await supabase.from(TABLA).insert(HORARIO_POR_DEFECTO);
-    if (errInsertar) console.error(errInsertar);
+    horario = HORARIO_POR_DEFECTO.map((p, i) => ({ ...p, id: i }));
+    renderHorario();
+    await guardarHorarioEnSupabase();
 }
 
 function crearFilaPeriodo(periodo) {
