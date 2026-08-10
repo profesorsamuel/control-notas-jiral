@@ -9,6 +9,7 @@ const CLAVE_VALIDA = "000000";
 
 const CLAVE_SESION = "timbre_sesion_jiral";
 const CLAVE_SONIDO = "timbre_sonido_jiral";
+const CLAVE_MODO_BUCLE = "timbre_modo_bucle_jiral";
 const CLAVE_PASS_GUARDADA = "timbre_clave_actual_jiral"; // contraseña vigente (si se cambió)
 const CLAVE_PREGUNTAS = "timbre_preguntas_seguridad_jiral"; // preguntas/respuestas de recuperación
 const TABLA = "timbre_horario";
@@ -127,6 +128,8 @@ const bannerAlerta = document.getElementById("bannerAlerta");
 const bannerIcono = document.getElementById("bannerIcono");
 const bannerTexto = document.getElementById("bannerTexto");
 const bannerCerrar = document.getElementById("bannerCerrar");
+const bannerDetener = document.getElementById("bannerDetener");
+const switchModoBucle = document.getElementById("switchModoBucle");
 
 let horario = [];
 let modoEdicion = false;
@@ -708,20 +711,30 @@ const ICONOS_BANNER = {
 
 let bannerTimeoutId = null;
 
-function mostrarBanner(tipo, texto) {
+// tipo: "inicio" | "aviso5" | "aviso1" | "fin"
+// persistente: true => no se oculta solo, muestra botón "Detener" en vez de "✕"
+function mostrarBanner(tipo, texto, persistente = false) {
     if (!bannerAlerta) return;
-    if (bannerTimeoutId) clearTimeout(bannerTimeoutId);
+    if (bannerTimeoutId) {
+        clearTimeout(bannerTimeoutId);
+        bannerTimeoutId = null;
+    }
 
     bannerAlerta.className = "banner-alerta tipo-" + tipo;
     bannerIcono.textContent = ICONOS_BANNER[tipo] || "🔔";
     bannerTexto.textContent = texto;
+
+    if (bannerDetener) bannerDetener.classList.toggle("oculto", !persistente);
+    if (bannerCerrar) bannerCerrar.classList.toggle("oculto", persistente);
 
     // Fuerza un reflow para que la animación de entrada se note
     // incluso si ya había un banner visible (cambia de un aviso a otro).
     void bannerAlerta.offsetWidth;
     bannerAlerta.classList.add("mostrar");
 
-    bannerTimeoutId = setTimeout(ocultarBanner, DURACION_BANNER_MS);
+    if (!persistente) {
+        bannerTimeoutId = setTimeout(ocultarBanner, DURACION_BANNER_MS);
+    }
 }
 
 function ocultarBanner() {
@@ -734,6 +747,59 @@ function ocultarBanner() {
 }
 
 if (bannerCerrar) bannerCerrar.addEventListener("click", ocultarBanner);
+
+// =========================================================
+// MODO "TIMBRE EN BUCLE HASTA APAGAR" (Etapa 3)
+// En vez de sonar unos segundos y detenerse solo, el timbre principal
+// (inicio y fin de periodo) repite hasta que alguien presione "Detener" —
+// útil si nadie está cerca para reaccionar rápido.
+// =========================================================
+
+const INTERVALO_BUCLE_MS = 2000; // separación entre repeticiones del timbre
+
+let modoBucleActivo = localStorage.getItem(CLAVE_MODO_BUCLE) === "1";
+let intervaloBucleId = null;
+
+if (switchModoBucle) {
+    switchModoBucle.checked = modoBucleActivo;
+    switchModoBucle.addEventListener("change", () => {
+        modoBucleActivo = switchModoBucle.checked;
+        localStorage.setItem(CLAVE_MODO_BUCLE, modoBucleActivo ? "1" : "0");
+        // Si lo apagan mientras está sonando, detiene el bucle en curso.
+        if (!modoBucleActivo && intervaloBucleId) detenerBucleTimbre();
+    });
+}
+
+function iniciarBucleTimbre(tipo, texto) {
+    detenerBucleTimbre(); // por si ya había uno sonando
+    mostrarBanner(tipo, `${texto} — suena hasta presionar Detener`, true);
+    reproducirTimbrePrincipal();
+    intervaloBucleId = setInterval(() => {
+        reproducirTimbrePrincipal();
+    }, INTERVALO_BUCLE_MS);
+}
+
+function detenerBucleTimbre() {
+    if (intervaloBucleId) {
+        clearInterval(intervaloBucleId);
+        intervaloBucleId = null;
+    }
+    ocultarBanner();
+}
+
+if (bannerDetener) bannerDetener.addEventListener("click", detenerBucleTimbre);
+
+// Dispara el aviso del timbre principal (inicio/fin de periodo): banner
+// siempre visible; sonido en bucle si el modo está activo y ya se activó
+// el sonido en este dispositivo, o un solo toque en caso contrario.
+function activarAvisoPrincipal(tipo, texto) {
+    if (modoBucleActivo && sonidoActivo) {
+        iniciarBucleTimbre(tipo, texto);
+    } else {
+        mostrarBanner(tipo, texto);
+        if (sonidoActivo) reproducirTimbrePrincipal();
+    }
+}
 
 // =========================================================
 // RELOJ Y REVISIÓN DEL HORARIO
@@ -784,8 +850,7 @@ function revisarHorario() {
         if (actual === periodo.inicio && !yaTocados.has(claveInicio)) {
             yaTocados.add(claveInicio);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — inicio (${periodo.inicio})`;
-            mostrarBanner("inicio", `Inicia ${periodo.nombre}`);
-            if (sonidoActivo) reproducirTimbrePrincipal();
+            activarAvisoPrincipal("inicio", `Inicia ${periodo.nombre}`);
         }
         if (actual === avisoHora && !yaTocados.has(claveAviso)) {
             yaTocados.add(claveAviso);
@@ -802,8 +867,7 @@ function revisarHorario() {
         if (actual === periodo.fin && !yaTocados.has(claveFin)) {
             yaTocados.add(claveFin);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — fin (${periodo.fin})`;
-            mostrarBanner("fin", `Terminó ${periodo.nombre}`);
-            if (sonidoActivo) reproducirTimbrePrincipal();
+            activarAvisoPrincipal("fin", `Terminó ${periodo.nombre}`);
         }
     });
 }
