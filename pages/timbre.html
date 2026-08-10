@@ -89,6 +89,34 @@
         line-height: 1;
     }
     .banner-cerrar:hover { background: rgba(255,255,255,.4); }
+    .banner-detener {
+        background: #fff;
+        color: #c0392b;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: 1rem;
+        cursor: pointer;
+        box-shadow: 0 3px 10px rgba(0,0,0,.25);
+        white-space: nowrap;
+        animation: pulso-boton-detener 1s ease-in-out infinite;
+    }
+    .banner-detener:hover { background: #fef2f2; }
+    @keyframes pulso-boton-detener {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.06); }
+    }
+    .modo-bucle-switch {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border: 1px solid #ddd;
+        border-radius: 999px;
+        margin: 0;
+    }
+    .modo-bucle-switch .form-check-label { cursor: pointer; }
     @keyframes pulso-banner {
         0%, 100% { box-shadow: 0 6px 20px rgba(0,0,0,.3); }
         50% { box-shadow: 0 6px 34px rgba(231,76,60,.8); }
@@ -105,6 +133,7 @@
 <div class="banner-alerta" id="bannerAlerta">
     <span class="banner-icono" id="bannerIcono">🔔</span>
     <span class="banner-texto" id="bannerTexto"></span>
+    <button type="button" class="banner-detener oculto" id="bannerDetener">🛑 Detener</button>
     <button type="button" class="banner-cerrar" id="bannerCerrar" aria-label="Cerrar aviso">✕</button>
 </div>
 
@@ -125,6 +154,10 @@
                 <option value="doble">🎵 Doble tono</option>
                 <option value="suave">🎐 Suave</option>
             </select>
+            <div class="form-check form-switch modo-bucle-switch" title="Si está activo, el timbre principal (inicio y fin de periodo) suena en bucle hasta que alguien presione Detener, en vez de detenerse solo tras unos segundos.">
+                <input class="form-check-input" type="checkbox" role="switch" id="switchModoBucle">
+                <label class="form-check-label small" for="switchModoBucle">🔁 Sonar hasta apagar</label>
+            </div>
             <button type="button" class="btn btn-outline-primary btn-sm" id="btnEditarHorario">🔒 Editar horario</button>
             <button type="button" class="btn btn-outline-danger btn-sm oculto" id="btnSalirEdicion">Salir de edición</button>
         </div>
