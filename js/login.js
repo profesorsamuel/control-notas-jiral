@@ -378,6 +378,20 @@ document.addEventListener("DOMContentLoaded", () => {
             modalOlvido = new bootstrap.Modal(modalEl);
 
             if (error || !tienePreguntas) {
+                // Igual que en el Paso 1 manual: si nunca configuró
+                // preguntas de seguridad, se libera la cuenta y se
+                // manda directo a registrarse, en vez de un mensaje
+                // sin salida.
+                const cedulaDesdeCorreo = correoDesdeEnlace.split("@")[0];
+
+                const { data: liberada } =
+                    await supabase.rpc("liberar_cuenta_sin_usar", { p_correo: correoDesdeEnlace });
+
+                if (liberada) {
+                    window.location.href = `registro.html?tipo=estudiante&cedula=${encodeURIComponent(cedulaDesdeCorreo)}`;
+                    return;
+                }
+
                 formPaso1.classList.remove("d-none");
                 formPreguntas.classList.add("d-none");
                 mostrarMensaje(
@@ -464,6 +478,25 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             if (!tienePreguntas) {
+                // Esta cuenta se creó alguna vez pero nunca se llegó a
+                // usar de verdad (nunca configuró sus preguntas de
+                // seguridad). En vez de dejar a la persona atascada,
+                // se libera la cuenta y se le manda a registrarse de cero.
+                const { data: liberada } =
+                    await supabase.rpc("liberar_cuenta_sin_usar", { p_correo: correoEncontrado });
+
+                if (liberada) {
+                    mostrarMensaje(
+                        mensajePaso1,
+                        "⚠️ Esta cuenta nunca se terminó de configurar. Te vamos a llevar a registrarte de nuevo...",
+                        "warning"
+                    );
+                    setTimeout(() => {
+                        window.location.href = `registro.html?tipo=estudiante&cedula=${encodeURIComponent(valor)}`;
+                    }, 1800);
+                    return;
+                }
+
                 mostrarMensaje(
                     mensajePaso1,
                     "⚠️ Tu cuenta todavía no tiene preguntas de seguridad configuradas. Pídele al profesor(a) o al administrador que te las configure.",
