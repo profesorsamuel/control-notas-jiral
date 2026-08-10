@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { cedulaAEmail } from "./utils.js";
 
 // =====================================================
 // LISTA BASE DE MATERIAS (igual que en el panel del estudiante)
@@ -216,7 +217,34 @@ async function buscar() {
     nombreEstudianteEl.textContent = estudiante.nombre || "Estudiante";
     salonEstudianteEl.textContent = estudiante.salon ? `Salón: ${estudiante.salon}` : "";
 
-    if (estudiante.registrado) {
+    let estaRegistrado = estudiante.registrado;
+
+    if (estaRegistrado) {
+        // -------------------------------------------------
+        // ¿Esta cuenta se registró alguna vez pero nunca se
+        // llegó a usar de verdad? (nunca configuró sus 3
+        // preguntas de seguridad, que se piden en el primer
+        // inicio de sesión real). Si es así, se libera
+        // automáticamente para que la persona pueda registrarse
+        // de cero, en vez de quedar atascada intentando iniciar
+        // sesión con una contraseña que nadie conoce.
+        // -------------------------------------------------
+        const correoInterno = cedulaAEmail(cedula);
+
+        const { data: tienePreguntas, error: errPreguntas } =
+            await supabase.rpc("tiene_preguntas_seguridad", { p_correo: correoInterno });
+
+        if (!errPreguntas && !tienePreguntas) {
+            const { data: liberada, error: errLiberar } =
+                await supabase.rpc("liberar_cuenta_sin_usar", { p_correo: correoInterno });
+
+            if (!errLiberar && liberada) {
+                estaRegistrado = false;
+            }
+        }
+    }
+
+    if (estaRegistrado) {
         bloqueNoRegistrado.style.display = "none";
         bloqueRegistrado.style.display = "block";
         btnEditarNotas.href = `login.html?cedula=${encodeURIComponent(cedula)}`;
