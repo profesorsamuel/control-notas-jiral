@@ -737,8 +737,9 @@ async function cargarEstudiantes() {
         <tr>
             <td>${i + 1}</td>
             <td class="col-nombre">${escapeHtml(est.nombre)}</td>
-            <td>
+            <td class="col-estado">
                 <button type="button" class="btn-estado estado-presente" data-estado="presente" data-detalle="${idDetalle}">🟢 Presente</button>
+                <button type="button" class="btn-detalle" data-detalle="${idDetalle}" title="Agregar observación, justificación o adjuntar archivo">📝</button>
             </td>
             ${celdasExtra}
         </tr>
@@ -751,7 +752,7 @@ async function cargarEstudiantes() {
                     </div>
                     <div>
                         <label>Justificación</label>
-                        <textarea class="input-justificacion" rows="2" placeholder="Motivo de la ausencia/tardanza/permiso"></textarea>
+                        <textarea class="input-justificacion" rows="2" placeholder="Motivo de la ausencia/tardanza/permiso/fuga"></textarea>
                     </div>
                     <div>
                         <label>Adjuntar archivo</label>
@@ -764,6 +765,7 @@ async function cargarEstudiantes() {
     }).join("");
 
     activarBotonesEstado();
+    activarBotonesDetalle();
     activarAutoguardadoCampos();
     pintarEncabezadosColumnasDinamicas();
     await precargarValoresGuardadosHoy();
@@ -795,11 +797,17 @@ function activarAutoguardadoCampos() {
 // se actualiza justo después de pintar el texto/clase nuevos. Por eso
 // guardarAsistencia() puede leerlo directamente.
 
+// "Fuga" cuenta igual que "Ausente" para efectos de estadísticas,
+// alertas y nota de asistencia (ver detectarAlertas más abajo y
+// ETIQUETAS/valores en historial-asistencia.js, estadisticas_asistencias.js
+// y apreciaciones.js). Se guarda como estado propio ("fuga") solo para
+// que quede registrado que el estudiante se fugó, no que faltó.
 const CICLO_ESTADOS = {
     presente: { siguiente: "ausente", clase: "estado-ausente", texto: "🔴 Ausente" },
     ausente: { siguiente: "tardanza", clase: "estado-tardanza", texto: "🟡 Tardanza" },
     tardanza: { siguiente: "permiso", clase: "estado-permiso", texto: "🔵 Permiso" },
-    permiso: { siguiente: "presente", clase: "estado-presente", texto: "🟢 Presente" },
+    permiso: { siguiente: "fuga", clase: "estado-fuga", texto: "🟣 Fuga" },
+    fuga: { siguiente: "presente", clase: "estado-presente", texto: "🟢 Presente" },
 };
 
 // Igual que CICLO_ESTADOS pero para "pintar" un estado directamente
@@ -810,7 +818,10 @@ const ESTADOS_INFO = {
     ausente: { clase: "estado-ausente", texto: "🔴 Ausente" },
     tardanza: { clase: "estado-tardanza", texto: "🟡 Tardanza" },
     permiso: { clase: "estado-permiso", texto: "🔵 Permiso" },
+    fuga: { clase: "estado-fuga", texto: "🟣 Fuga" },
 };
+
+const CLASES_ESTADO = ["estado-presente", "estado-ausente", "estado-tardanza", "estado-permiso", "estado-fuga"];
 
 function activarBotonesEstado() {
     cuerpoTablaEstudiantes.querySelectorAll(".btn-estado").forEach((btn) => {
@@ -819,17 +830,30 @@ function activarBotonesEstado() {
             const paso = CICLO_ESTADOS[actual];
             if (!paso) return;
 
-            btn.classList.remove("estado-presente", "estado-ausente", "estado-tardanza", "estado-permiso");
+            btn.classList.remove(...CLASES_ESTADO);
             btn.classList.add(paso.clase);
             btn.textContent = paso.texto;
             btn.dataset.estado = paso.siguiente;
 
-            const filaDetalle = document.getElementById(btn.dataset.detalle);
-            if (filaDetalle) {
-                filaDetalle.classList.toggle("mostrar", paso.siguiente !== "presente");
-            }
+            // El panel de detalle YA NO se abre automáticamente al cambiar
+            // de estado; se abre/cierra a demanda con el botón 📝 (ver
+            // activarBotonesDetalle más abajo).
 
             programarGuardadoAutomatico();
+        });
+    });
+}
+
+// Botón 📝: abre/cierra el panel de Observación/Justificación/Adjuntar
+// archivo a demanda. Ya no se abre automáticamente al marcar
+// Ausente/Tardanza/Permiso/Fuga: el profesor decide cuándo lo necesita.
+function activarBotonesDetalle() {
+    cuerpoTablaEstudiantes.querySelectorAll(".btn-detalle").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const filaDetalle = document.getElementById(btn.dataset.detalle);
+            if (!filaDetalle) return;
+            const abierto = filaDetalle.classList.toggle("mostrar");
+            btn.classList.toggle("btn-detalle-activo", abierto);
         });
     });
 }
@@ -1075,13 +1099,19 @@ async function copiarAsistenciaDiaAnterior() {
             if (!btn || !fila.estado || !ESTADOS_INFO[fila.estado]) return;
 
             const info = ESTADOS_INFO[fila.estado];
-            btn.classList.remove("estado-presente", "estado-ausente", "estado-tardanza", "estado-permiso");
+            btn.classList.remove(...CLASES_ESTADO);
             btn.classList.add(info.clase);
             btn.textContent = info.texto;
             btn.dataset.estado = fila.estado;
 
             if (filaDetalle) {
-                filaDetalle.classList.toggle("mostrar", fila.estado !== "presente");
+                // Solo se abre solo si ya traía observación/justificación
+                // guardadas (para no ocultar datos existentes); si no, el
+                // profesor la abre a mano con el botón 📝.
+                const tieneContenido = Boolean(fila.observacion || fila.justificacion);
+                filaDetalle.classList.toggle("mostrar", tieneContenido);
+                const btnDetalle = cuerpoTablaEstudiantes.querySelector(`.btn-detalle[data-detalle="${idDetalle}"]`);
+                if (btnDetalle) btnDetalle.classList.toggle("btn-detalle-activo", tieneContenido);
                 const inputObservacion = filaDetalle.querySelector(".input-observacion");
                 const inputJustificacion = filaDetalle.querySelector(".input-justificacion");
                 if (inputObservacion) inputObservacion.value = fila.observacion || "";
@@ -1159,9 +1189,11 @@ async function detectarAlertas() {
 
     const conteos = {}; // estudiante_id -> { ausente: n, tardanza: n }
     (historico || []).forEach((fila) => {
-        if (fila.estado !== "ausente" && fila.estado !== "tardanza") return;
+        // "Fuga" cuenta igual que "Ausente" para esta alerta.
+        const claveConteo = fila.estado === "fuga" ? "ausente" : fila.estado;
+        if (claveConteo !== "ausente" && claveConteo !== "tardanza") return;
         if (!conteos[fila.estudiante_id]) conteos[fila.estudiante_id] = { ausente: 0, tardanza: 0 };
-        conteos[fila.estudiante_id][fila.estado] += 1;
+        conteos[fila.estudiante_id][claveConteo] += 1;
     });
 
     const nombrePorId = Object.fromEntries(estudiantesCache.map((e) => [e.id, e.nombre]));
@@ -1440,14 +1472,20 @@ async function precargarValoresGuardadosHoy() {
 
         if (btn && fila.estado && ESTADOS_INFO[fila.estado]) {
             const info = ESTADOS_INFO[fila.estado];
-            btn.classList.remove("estado-presente", "estado-ausente", "estado-tardanza", "estado-permiso");
+            btn.classList.remove(...CLASES_ESTADO);
             btn.classList.add(info.clase);
             btn.textContent = info.texto;
             btn.dataset.estado = fila.estado;
         }
 
         if (filaDetalle) {
-            filaDetalle.classList.toggle("mostrar", fila.estado !== "presente");
+            // Solo se abre solo si ya traía observación/justificación
+            // guardadas (para no ocultar datos existentes); si no, el
+            // profesor la abre a mano con el botón 📝.
+            const tieneContenido = Boolean(fila.observacion || fila.justificacion);
+            filaDetalle.classList.toggle("mostrar", tieneContenido);
+            const btnDetalle = cuerpoTablaEstudiantes.querySelector(`.btn-detalle[data-detalle="${idDetalle}"]`);
+            if (btnDetalle) btnDetalle.classList.toggle("btn-detalle-activo", tieneContenido);
             const inputObservacion = filaDetalle.querySelector(".input-observacion");
             const inputJustificacion = filaDetalle.querySelector(".input-justificacion");
             if (inputObservacion && fila.observacion) inputObservacion.value = fila.observacion;
