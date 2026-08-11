@@ -151,6 +151,32 @@
         .btn-estado.estado-ausente { background: #fbe2e2; color: #7a2e2e; }
         .btn-estado.estado-tardanza { background: #fdf3d6; color: #6b5100; }
         .btn-estado.estado-permiso { background: #dbe8f7; color: #1f4e79; }
+        .btn-estado.estado-fuga { background: #ece0f5; color: #5a2e7a; }
+
+        #panelTabla td.col-estado {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            justify-content: center;
+        }
+        #panelTabla td.col-estado .btn-estado { width: auto; flex: 1; }
+
+        .btn-detalle {
+            border: 1px solid #ccc;
+            background: white;
+            border-radius: 8px;
+            padding: 6px 8px;
+            font-size: 15px;
+            cursor: pointer;
+            line-height: 1;
+            touch-action: manipulation;
+            flex-shrink: 0;
+        }
+        .btn-detalle:hover { background: #f2f2f2; }
+        .btn-detalle.btn-detalle-activo {
+            background: var(--color-primario-claro, #e3efec);
+            border-color: var(--color-primario, #2f6f62);
+        }
 
         tr.fila-detalle { display: none; }
         tr.fila-detalle.mostrar { display: table-row; }
