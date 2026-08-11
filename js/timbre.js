@@ -160,6 +160,7 @@ let idFilaHorario = null; // id de la única fila de la tabla timbre_horario (es
 let modoEdicion = false;
 let modoEdicionRenderizado = null; // controla si hace falta redibujar toda la tabla
 let sonidoActivo = false;
+let wakeLockActivo = null; // referencia al WakeLockSentinel mientras esté sosteniendo la pantalla encendida
 let volumenActual = 0.8; // 0..1 — se ajusta con el slider y se guarda por dispositivo
 let audioCtx = null;
 let yaTocados = new Set(); // se reinicia cada día
@@ -750,6 +751,7 @@ btnActivarTimbre.addEventListener("click", () => {
     sonidoActivo = true;
     zonaActivarTimbre.classList.add("oculto");
     avisoActivoTimbre.classList.add("mostrar");
+    pedirWakeLock(); // evita que la pantalla se apague sola mientras el timbre está activo
     // Desbloquea la síntesis de voz en navegadores que la requieren dentro
     // de un toque del usuario (varios navegadores móviles).
     if ("speechSynthesis" in window) {
@@ -1088,6 +1090,35 @@ function enviarNotificacionNavegador(texto) {
 }
 
 // =========================================================
+// WAKE LOCK — evita que el celular/tablet apague la pantalla solo
+// mientras el timbre está activo. Sin esto, al bloquearse la pantalla
+// el navegador congela el temporizador y el timbre deja de sonar.
+// No es 100% infalible (si el usuario cambia de app igual se pierde),
+// pero cubre el caso más común: la pantalla apagándose sola.
+// =========================================================
+
+async function pedirWakeLock() {
+    if (!("wakeLock" in navigator)) return; // no soportado en este navegador (ej. iOS < 16.4)
+    try {
+        wakeLockActivo = await navigator.wakeLock.request("screen");
+        wakeLockActivo.addEventListener("release", () => {
+            wakeLockActivo = null;
+        });
+    } catch {
+        // el navegador lo negó (ej. pestaña no visible en ese momento); se ignora en silencio
+    }
+}
+
+// El sistema libera el wake lock automáticamente al cambiar de pestaña/app.
+// Si el usuario vuelve a esta pestaña y el timbre sigue activo, se vuelve
+// a pedir para que la pantalla no se apague de nuevo.
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && sonidoActivo && !wakeLockActivo) {
+        pedirWakeLock();
+    }
+});
+
+// =========================================================
 // MODO CARTELERA (Etapa 4)
 // Vista a pantalla completa, con letras gigantes, pensada para dejar
 // una tablet o pantalla fija en la oficina de dirección.
@@ -1098,6 +1129,7 @@ function activarModoCartelera() {
     if (btnSalirCartelera) btnSalirCartelera.classList.remove("oculto");
     const el = document.documentElement;
     if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    pedirWakeLock(); // el modo cartelera es justo para dejar la pantalla fija encendida
 }
 
 function salirModoCartelera() {
