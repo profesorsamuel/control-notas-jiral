@@ -146,6 +146,7 @@ const checksAvisoMinuto = document.querySelectorAll(".check-aviso-minuto");
 const inputsDuracionAviso = document.querySelectorAll(".input-duracion-aviso");
 
 const cuentaRegresiva = document.getElementById("cuentaRegresiva");
+const resumenAvisosActivos = document.getElementById("resumenAvisosActivos");
 const sliderVolumen = document.getElementById("sliderVolumen");
 const btnActivarNotificaciones = document.getElementById("btnActivarNotificaciones");
 const btnDescargarApp = document.getElementById("btnDescargarApp");
@@ -1278,6 +1279,28 @@ function actualizarCuentaRegresiva() {
         if (restanteSeg <= 60) cuentaRegresiva.classList.add("cuenta-aviso1");
         else if (restanteSeg <= 300) cuentaRegresiva.classList.add("cuenta-aviso5");
     }
+
+    actualizarResumenAvisosActivos();
+}
+
+// Muestra, debajo de la cuenta regresiva, cuáles avisos previos (15/10/5/2/1
+// min) están marcados en ESTE dispositivo y si el sonido está encendido —
+// para no tener que abrir el panel "Avisos previos" solo para revisarlo.
+function actualizarResumenAvisosActivos() {
+    if (!resumenAvisosActivos) return;
+
+    if (!minutosAvisoActivos.length) {
+        resumenAvisosActivos.textContent = "Avisos previos: ninguno activado";
+        return;
+    }
+
+    const ordenados = [...minutosAvisoActivos].sort((a, b) => b - a);
+    const listaMinutos = ordenados.map((m) => `${m} min`).join(", ");
+    const estadoSonido = sonidoActivo
+        ? '<span class="punto-sonido">🔊 con sonido</span>'
+        : "🔕 sin sonido (solo banner)";
+
+    resumenAvisosActivos.innerHTML = `Avisos previos activos: ${listaMinutos} antes — ${estadoSonido}`;
 }
 
 function revisarHorario() {
