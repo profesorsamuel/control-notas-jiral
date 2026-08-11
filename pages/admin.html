@@ -1129,6 +1129,10 @@
                 if (idPanel === "panel-consultas" && typeof window.cargarConsultasAdmin === "function") {
                     window.cargarConsultasAdmin();
                 }
+
+                if (idPanel === "panel-vista-general" && typeof window.precargarTrimestreActivoVistaGeneral === "function") {
+                    window.precargarTrimestreActivoVistaGeneral();
+                }
             }
 
             function mostrarMenu() {
