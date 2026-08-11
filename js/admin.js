@@ -1643,6 +1643,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         return `${tipo}|${numero}`;
     }
 
+    // Al abrir el panel, precarga el trimestre que el administrador
+    // tiene configurado como activo (igual que en "Agregar notas"),
+    // para que no se quede en "Trimestre 1" por defecto y parezca
+    // que no hay notas cuando en realidad están en otro trimestre.
+    let vistaGeneralTrimestreYaPrecargado = false;
+    async function precargarTrimestreActivoVistaGeneral() {
+        if (vistaGeneralTrimestreYaPrecargado || !vistaGeneralTrimestre) return;
+        vistaGeneralTrimestreYaPrecargado = true;
+
+        const { data: cfg, error } = await supabase
+            .from("configuracion")
+            .select("trimestre_activo")
+            .limit(1)
+            .single();
+
+        if (!error && cfg?.trimestre_activo) {
+            vistaGeneralTrimestre.value = cfg.trimestre_activo;
+        }
+    }
+    window.precargarTrimestreActivoVistaGeneral = precargarTrimestreActivoVistaGeneral;
+
     async function construirDatosVistaGeneral(salon, trimestre) {
         const { data: estudiantesSalon, error: errEst } = await supabase
             .from("estudiantes")
