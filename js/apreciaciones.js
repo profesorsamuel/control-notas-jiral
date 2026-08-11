@@ -21,6 +21,16 @@ function escapeHtml(str) {
         .replace(/'/g, "&#39;");
 }
 
+// Fecha de hoy en formato YYYY-MM-DD (hora local, no UTC), para
+// marcar automáticamente la fecha de una nueva "Actividad en clase".
+function obtenerFechaHoyISOApreciacion() {
+    const hoy = new Date();
+    const y = hoy.getFullYear();
+    const m = String(hoy.getMonth() + 1).padStart(2, "0");
+    const d = String(hoy.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+}
+
 // Mismas reglas que usa la tabla principal (Aprec. 1, 2, 3) para que
 // las notas de las actividades se comporten igual: mientras se
 // escribe, solo deja pasar dígitos y un único punto decimal, máximo
@@ -339,7 +349,7 @@ async function guardarComportamiento(materia, trimestre, numeroApreciacion, fech
 async function obtenerActividades(materia, trimestre, numeroApreciacion, tipoActividad) {
     const { data: actividades, error } = await supabase
         .from("actividades_apreciacion")
-        .select("id, nombre, orden")
+        .select("id, nombre, orden, fecha")
         .eq("materia", materia).eq("trimestre", trimestre)
         .eq("numero_apreciacion", numeroApreciacion).eq("tipo_actividad", tipoActividad)
         .order("orden", { ascending: true });
@@ -360,10 +370,14 @@ async function obtenerActividades(materia, trimestre, numeroApreciacion, tipoAct
     return actividades.map((a) => ({ ...a, notas: notasPorActividad[a.id] || {} }));
 }
 
-async function crearActividad(materia, trimestre, numeroApreciacion, tipoActividad, nombre, orden) {
+// tipoActividad "clase": fecha se pone automáticamente (hoy) al crear
+// la actividad, para poder tener varias el mismo día (varias preguntas
+// al mismo estudiante) y para bloquear la nota si ese día el estudiante
+// estuvo Ausente/Fuga/Permiso. tipoActividad "casa" no usa fecha.
+async function crearActividad(materia, trimestre, numeroApreciacion, tipoActividad, nombre, orden, fecha = null) {
     const { data, error } = await supabase.from("actividades_apreciacion")
-        .insert([{ materia, trimestre, numero_apreciacion: numeroApreciacion, tipo_actividad: tipoActividad, nombre, orden }])
-        .select("id, nombre, orden").single();
+        .insert([{ materia, trimestre, numero_apreciacion: numeroApreciacion, tipo_actividad: tipoActividad, nombre, orden, fecha }])
+        .select("id, nombre, orden, fecha").single();
     if (error) { console.error(error); return null; }
     return { ...data, notas: {} };
 }
@@ -659,6 +673,16 @@ function valorComportamientoEfectivo(estado_, fecha, estudianteId) {
     return undefined;
 }
 
+// Una actividad "de clase" queda bloqueada para un estudiante si ese
+// día (a.fecha) el estudiante estuvo Ausente, Fuga o con Permiso según
+// la asistencia ya registrada. Las actividades "para la casa" no
+// tienen fecha (a.fecha es null) y nunca se bloquean.
+function actividadBloqueadaParaEstudiante(a, estudianteId, asistenciaPorFecha) {
+    if (!a.fecha) return false;
+    const estadoEseDia = asistenciaPorFecha[a.fecha]?.[estudianteId];
+    return estadoEseDia === "ausente" || estadoEseDia === "fuga" || estadoEseDia === "permiso";
+}
+
 function calcularNotaFinalEstudiante(estado_, estudianteId) {
     const { asistenciaFechas, asistenciaPorFecha, comportamientoFechas, actividadesClase, actividadesCasa, valoresAsistencia, pesos } = estado_;
 
@@ -678,7 +702,12 @@ function calcularNotaFinalEstudiante(estado_, estudianteId) {
         .filter((v) => v !== undefined);
     const notaComportamiento = promedio(valoresComportamiento);
 
-    const notaActClase = promedio(actividadesClase.map((a) => a.notas[estudianteId]).filter((v) => v !== undefined));
+    const notaActClase = promedio(
+        actividadesClase
+            .filter((a) => !actividadBloqueadaParaEstudiante(a, estudianteId, asistenciaPorFecha))
+            .map((a) => a.notas[estudianteId])
+            .filter((v) => v !== undefined)
+    );
     const notaActCasa = promedio(actividadesCasa.map((a) => a.notas[estudianteId]).filter((v) => v !== undefined));
 
     return calcularNotaFinalApreciacion(
@@ -722,6 +751,9 @@ export function imprimirApreciacion(estado_) {
     }).join("");
 
     const filaActividades = (lista, est) => lista.map((a) => {
+        if (actividadBloqueadaParaEstudiante(a, est.id, asistenciaPorFecha)) {
+            return `<td class="text-muted">—</td>`;
+        }
         const v = a.notas[est.id];
         return `<td>${(v === null || v === undefined) ? "—" : formatearNotaFinal(String(v))}</td>`;
     }).join("");
@@ -943,7 +975,10 @@ function pintarModal(estado_) {
     };
 
     // --- 3/4) Actividades: una columna por actividad, nombre editable
-    // en el encabezado y "➕" al final para agregar otra. ---
+    // en el encabezado y "➕" al final para agregar otra. Las
+    // actividades "de clase" llevan fecha automática (se puede repetir
+    // el mismo día varias veces) y su casilla se bloquea si ese día el
+    // estudiante estuvo Ausente/Fuga/Permiso. ---
     const bloqueActividades = (lista, tipoActividad) => {
         const selector = bloqueSelectorColumnas(tipoActividad, lista.map((a) => ({ clave: a.id, etiqueta: a.nombre })));
         const listaVisible = lista.filter((a) => !columnasOcultas[tipoActividad].has(a.id));
@@ -954,6 +989,7 @@ function pintarModal(estado_) {
                     ? `<div class="text-center small fw-bold">${escapeHtml(a.nombre)}</div>`
                     : `<input type="text" class="form-control form-control-sm input-nombre-actividad text-center fw-bold"
                         data-actividad-id="${a.id}" value="${escapeHtml(a.nombre)}" style="font-size:12px;">`}
+                ${a.fecha ? `<div class="text-muted text-center" style="font-weight:normal; font-size:10px;">${escapeHtml(a.fecha)}</div>` : ""}
                 ${soloLectura ? "" : `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-actividad" data-actividad-id="${a.id}" title="Eliminar esta actividad">🗑️</button>`}
             </th>`).join("");
 
@@ -964,6 +1000,9 @@ function pintarModal(estado_) {
 
         const filas = estudiantes.map((est) => {
             const celdas = listaVisible.map((a) => {
+                if (actividadBloqueadaParaEstudiante(a, est.id, asistenciaPorFecha)) {
+                    return `<td class="text-center text-muted bg-light" title="Este día el estudiante estuvo Ausente, Fuga o con Permiso: no aplica nota.">—</td>`;
+                }
                 const crudo = a.notas[est.id];
                 const valor = (crudo === null || crudo === undefined) ? "" : formatearNotaFinal(String(crudo));
                 if (soloLectura) return `<td class="text-center">${valor === "" ? "–" : valor}</td>`;
@@ -1180,7 +1219,11 @@ function pintarModal(estado_) {
             const tipoActividad = btn.dataset.tipo;
             const lista = tipoActividad === "clase" ? estado_.actividadesClase : estado_.actividadesCasa;
             const nombre = `Actividad ${lista.length + 1}`;
-            const nueva = await crearActividad(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, tipoActividad, nombre, lista.length);
+            // Las actividades "de clase" llevan la fecha de hoy puesta
+            // automáticamente (se pueden crear varias el mismo día);
+            // las "para la casa" no usan fecha.
+            const fecha = tipoActividad === "clase" ? obtenerFechaHoyISOApreciacion() : null;
+            const nueva = await crearActividad(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, tipoActividad, nombre, lista.length, fecha);
             if (!nueva) { alert("No se pudo crear la actividad."); return; }
             lista.push(nueva);
             pintarModal(estado_);
