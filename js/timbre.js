@@ -19,7 +19,7 @@ const CLAVE_PREGUNTAS = "timbre_preguntas_seguridad_jiral"; // preguntas/respues
 const TABLA = "timbre_horario";
 
 const MINUTOS_AVISO_DISPONIBLES = [15, 10, 5, 2, 1];
-const MINUTOS_AVISO_POR_DEFECTO = [5, 1]; // comportamiento original, antes de que fuera configurable
+const MINUTOS_AVISO_POR_DEFECTO = [10, 5, 2, 1]; // activados de fábrica; antes solo venían 5 y 1
 const DURACION_AVISO_POR_DEFECTO = { 15: 8, 10: 8, 5: 10, 2: 12, 1: 15 }; // segundos que repite cada aviso
 
 const PREGUNTAS_POR_DEFECTO = [
