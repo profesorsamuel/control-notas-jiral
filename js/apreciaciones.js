@@ -103,8 +103,11 @@ export async function asegurarApreciacion4Activa(materia, trimestre) {
 }
 
 // Devuelve la lista de columnas "nuevas" (numero >= 4) que hay que
-// dibujar en la tabla: todas las que tengan fila en apreciaciones_estado,
-// más una columna extra bloqueada como vista previa de "lo que viene".
+// dibujar en la tabla: solo las que YA tienen fila real en
+// apreciaciones_estado (activa, completada o bloqueada a mano). Ya NO
+// se agrega ninguna columna de "vista previa" automática — para abrir
+// la siguiente Apreciación el profesor usa el botón "➕" en la tabla
+// (ver profesor.js).
 export async function calcularColumnasApreciacionesNuevas(materia, trimestre) {
     let estados = await obtenerEstadoApreciaciones(materia, trimestre);
 
@@ -113,14 +116,20 @@ export async function calcularColumnasApreciacionesNuevas(materia, trimestre) {
         estados = await obtenerEstadoApreciaciones(materia, trimestre);
     }
 
-    if (estados.length === 0) return [];
-
-    const maximo = Math.max(...estados.map((e) => e.numero));
-    const yaHayPreview = estados.some((e) => e.numero === maximo + 1);
-    if (!yaHayPreview) {
-        estados = [...estados, { numero: maximo + 1, estado: "bloqueada", modo: null }];
-    }
     return estados; // [{numero, estado, modo}, ...] ordenado
+}
+
+// Crea (o reactiva) la siguiente Apreciación 4+ cuando el profesor le
+// da clic al "➕" de esa columna en la tabla principal. Si por
+// cualquier razón ya existiera una fila con ese número, no la pisa
+// (ignoreDuplicates) para no borrar una que ya estuviera en curso.
+export async function activarApreciacionSiguiente(materia, trimestre, numero) {
+    const { error } = await supabase.from("apreciaciones_estado").upsert(
+        { materia, trimestre, numero, estado: "activa", modo: null },
+        { onConflict: "materia,trimestre,numero", ignoreDuplicates: true }
+    );
+    if (error) { console.error("No se pudo activar la siguiente Apreciación:", error); return false; }
+    return true;
 }
 
 export async function elegirModoApreciacion(materia, trimestre, numeroApreciacion, modo) {
