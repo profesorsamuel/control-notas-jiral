@@ -146,8 +146,9 @@ async function cargarEstudiantes() {
         <tr>
             <td>${i + 1}</td>
             <td class="col-nombre">${escapeHtml(est.nombre)}</td>
-            <td>
+            <td class="col-estado">
                 <button type="button" class="btn-estado estado-presente" data-estado="presente" data-detalle="${idDetalle}">🟢 Presente</button>
+                <button type="button" class="btn-detalle" data-detalle="${idDetalle}" title="Agregar observación, justificación o adjuntar archivo">📝</button>
             </td>
         </tr>
         <tr class="fila-detalle" id="${idDetalle}">
@@ -159,7 +160,7 @@ async function cargarEstudiantes() {
                     </div>
                     <div>
                         <label>Justificación</label>
-                        <textarea class="input-justificacion" rows="2" placeholder="Motivo de la ausencia/tardanza/permiso"></textarea>
+                        <textarea class="input-justificacion" rows="2" placeholder="Motivo de la ausencia/tardanza/permiso/fuga"></textarea>
                     </div>
                     <div>
                         <label>Adjuntar archivo</label>
@@ -172,27 +173,37 @@ async function cargarEstudiantes() {
     }).join("");
 
     activarBotonesEstado();
+    activarBotonesDetalle();
     estadoLista.textContent = `${estudiantesSalon.length} estudiante(s) cargado(s).`;
 }
 
 // =========================================================
 // 5) BOTÓN DE ESTADO: UN TOQUE/CLIC = SIGUIENTE ESTADO
 // =========================================================
-// Ciclo fijo: Presente -> Ausente -> Tardanza -> Permiso -> Presente -> ...
+// Ciclo fijo: Presente -> Ausente -> Tardanza -> Permiso -> Fuga -> Presente -> ...
 // "click" funciona igual con mouse y con pantalla táctil (un tap
 // dispara "click"), así que no hace falta manejar touch por separado.
 // No usa <select> ni abre ningún popup/confirm.
 //
-// Cuando el estado queda en Ausente, Tardanza o Permiso, se muestra
-// automáticamente el panel de Observación/Justificación/Adjuntar
-// archivo debajo de ese estudiante. En Presente ese panel queda oculto.
+// El botón de estado SOLO cambia el estado (cicla entre las opciones);
+// ya NO abre el panel de Observación/Justificación/Adjuntar archivo
+// automáticamente. Ese panel se abre/cierra a demanda con el botón 📝
+// de al lado (ver activarBotonesDetalle).
+//
+// "Fuga" cuenta igual que "Ausente" para efectos de estadísticas y
+// alertas (ver historial-asistencia.js y estadisticas_asistencias.js);
+// se guarda como estado propio ("fuga") solo para dejar constancia de
+// que el estudiante se fugó y no que simplemente faltó.
 
 const CICLO_ESTADOS = {
     presente: { siguiente: "ausente", clase: "estado-ausente", texto: "🔴 Ausente" },
     ausente: { siguiente: "tardanza", clase: "estado-tardanza", texto: "🟡 Tardanza" },
     tardanza: { siguiente: "permiso", clase: "estado-permiso", texto: "🔵 Permiso" },
-    permiso: { siguiente: "presente", clase: "estado-presente", texto: "🟢 Presente" },
+    permiso: { siguiente: "fuga", clase: "estado-fuga", texto: "🟣 Fuga" },
+    fuga: { siguiente: "presente", clase: "estado-presente", texto: "🟢 Presente" },
 };
+
+const CLASES_ESTADO = ["estado-presente", "estado-ausente", "estado-tardanza", "estado-permiso", "estado-fuga"];
 
 function activarBotonesEstado() {
     cuerpoTablaEstudiantes.querySelectorAll(".btn-estado").forEach((btn) => {
@@ -201,15 +212,24 @@ function activarBotonesEstado() {
             const paso = CICLO_ESTADOS[actual];
             if (!paso) return;
 
-            btn.classList.remove("estado-presente", "estado-ausente", "estado-tardanza", "estado-permiso");
+            btn.classList.remove(...CLASES_ESTADO);
             btn.classList.add(paso.clase);
             btn.textContent = paso.texto;
             btn.dataset.estado = paso.siguiente;
+        });
+    });
+}
 
+// Botón 📝: abre/cierra el panel de Observación/Justificación/Adjuntar
+// archivo a demanda. Ya no se abre automáticamente al marcar
+// Ausente/Tardanza/Permiso/Fuga: el profesor decide cuándo lo necesita.
+function activarBotonesDetalle() {
+    cuerpoTablaEstudiantes.querySelectorAll(".btn-detalle").forEach((btn) => {
+        btn.addEventListener("click", () => {
             const filaDetalle = document.getElementById(btn.dataset.detalle);
-            if (filaDetalle) {
-                filaDetalle.classList.toggle("mostrar", paso.siguiente !== "presente");
-            }
+            if (!filaDetalle) return;
+            const abierto = filaDetalle.classList.toggle("mostrar");
+            btn.classList.toggle("btn-detalle-activo", abierto);
         });
     });
 }
