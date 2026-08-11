@@ -1060,7 +1060,7 @@ document.addEventListener("fullscreenchange", () => {
 // =========================================================
 
 function horaTexto(fecha) {
-    return fecha.toLocaleTimeString("es-PA", { hour12: false });
+    return fecha.toLocaleTimeString("es-PA", { hour12: true });
 }
 
 function hhmm(fecha) {
