@@ -1,64 +1,594 @@
-// Service worker del Control de Timbre — C.E.B.G. El Jiral
-// Cachea solo el "cascarón" de la app (HTML/JS/íconos propios) para que abra
-// rápido y funcione aunque el celular se quede sin señal un momento.
-// Las llamadas a Supabase (datos del horario) NUNCA se cachean: siempre van
-// directo a la red para que el horario mostrado sea siempre el real.
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Timbre · Centro Básico General El Jiral</title>
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#14213d">
+<link rel="icon" href="../img/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="../img/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Timbre El Jiral">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --tinta: #14213d;
+        --tinta-2: #1f335e;
+        --bronce: #b8863b;
+        --bronce-claro: #dcae6b;
+        --bronce-oscuro: #8c6425;
+        --crema: #faf7f1;
+        --papel: #fffefb;
+        --texto: #211d17;
+        --texto-suave: #6b6459;
+        --borde: #e8e1d3;
+        --verde: #4f7a53;
+        --verde-fondo: #eaf2e6;
+        --rojo: #c0392b;
+        --rojo-fondo: #fbeae8;
+        --ambar: #a8781f;
+        --ambar-fondo: #fbf1de;
+        --radio: 20px;
+        --radio-sm: 12px;
+    }
+    body {
+        background: radial-gradient(circle at 20% -10%, #274579 0%, var(--tinta) 55%, #0d1830 100%);
+        min-height: 100vh;
+        font-family: "Inter", "Segoe UI", Arial, sans-serif;
+        color: var(--texto);
+        padding: 32px 12px;
+    }
+    .tarjeta-principal {
+        max-width: 720px;
+        margin: 0 auto;
+        background: var(--papel);
+        border-radius: var(--radio);
+        box-shadow: 0 24px 60px rgba(8,14,32,.45), 0 2px 0 rgba(255,255,255,.03) inset;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.06);
+    }
+    .encabezado-timbre {
+        background:
+            radial-gradient(circle at 85% -40%, rgba(184,134,59,.35), transparent 60%),
+            linear-gradient(120deg, var(--tinta) 0%, var(--tinta-2) 100%);
+        color: #fff;
+        padding: 26px 24px 22px;
+        text-align: center;
+        position: relative;
+    }
+    .encabezado-timbre::after {
+        content: "";
+        position: absolute;
+        left: 0; right: 0; bottom: 0;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, var(--bronce-claro), transparent);
+    }
+    .campana-marca {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 6px;
+    }
+    .campana-marca svg { display: block; }
+    .campana-marca .campana-cuerpo {
+        transform-origin: 50% 15%;
+        animation: balanceo-campana 4.5s ease-in-out infinite;
+    }
+    @keyframes balanceo-campana {
+        0%, 100% { transform: rotate(0deg); }
+        4% { transform: rotate(-9deg); }
+        9% { transform: rotate(7deg); }
+        14% { transform: rotate(-5deg); }
+        19% { transform: rotate(3deg); }
+        24% { transform: rotate(0deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .campana-marca .campana-cuerpo { animation: none; }
+    }
+    .encabezado-timbre h1 {
+        font-family: "Fraunces", Georgia, serif;
+        font-size: 1.4rem;
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: .01em;
+    }
+    .encabezado-timbre p {
+        margin: 6px 0 0;
+        font-size: .8rem;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: var(--bronce-claro);
+        font-weight: 600;
+    }
+    .oculto { display: none !important; }
+    .barra-acciones {
+        padding: 16px 24px;
+        display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center;
+        border-bottom: 1px solid var(--borde);
+        background: var(--crema);
+    }
+    .barra-acciones select { max-width: 190px; }
+    .barra-acciones .btn, .barra-edicion .btn, .zona-activar .btn, .zona-notificaciones .btn {
+        border-radius: 999px;
+        font-weight: 600;
+    }
+    .barra-acciones .btn-outline-secondary, .barra-edicion .btn-outline-secondary {
+        border-color: var(--borde);
+        color: var(--texto);
+        background: var(--papel);
+    }
+    .barra-acciones .btn-outline-secondary:hover, .barra-edicion .btn-outline-secondary:hover {
+        background: var(--tinta);
+        border-color: var(--tinta);
+        color: #fff;
+    }
+    .barra-acciones .btn-outline-primary {
+        color: var(--bronce-oscuro);
+        border-color: var(--bronce);
+    }
+    .barra-acciones .btn-outline-primary:hover {
+        background: var(--bronce);
+        border-color: var(--bronce);
+        color: #fff;
+    }
+    .btn-bronce {
+        background: linear-gradient(135deg, var(--bronce-claro), var(--bronce));
+        border: none;
+        color: #fff;
+        font-weight: 700;
+        box-shadow: 0 3px 10px rgba(184,134,59,.35);
+    }
+    .btn-bronce:hover {
+        background: linear-gradient(135deg, var(--bronce), var(--bronce-oscuro));
+        color: #fff;
+    }
+    .barra-acciones .form-select {
+        border-radius: 999px;
+        border-color: var(--borde);
+    }
+    .panel-login-edicion { padding: 20px 24px; max-width: 320px; margin: 0 auto; border-bottom: 1px solid var(--borde); }
+    .panel-login-edicion .btn { border-radius: 999px; font-weight: 600; }
+    .panel-login-edicion .form-control { border-radius: var(--radio-sm); border-color: var(--borde); }
+    .barra-edicion {
+        padding: 14px 24px;
+        display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+        border-bottom: 1px solid var(--borde);
+        background: linear-gradient(180deg, #fbf1de, #f8ecd8);
+    }
+    .zona-activar { padding: 18px 24px; text-align: center; border-bottom: 1px solid var(--borde); }
+    .zona-activar .btn-danger {
+        background: var(--rojo);
+        border-color: var(--rojo);
+        border-radius: 999px;
+        font-weight: 700;
+        padding: 10px 22px;
+    }
+    .aviso-activo {
+        display: none; padding: 12px 24px;
+        background: var(--verde-fondo); color: var(--verde);
+        text-align: center; font-size: .85rem; font-weight: 700;
+        letter-spacing: .01em;
+    }
+    .aviso-activo.mostrar { display: block; }
+    .tabla-horario { padding: 18px 24px 22px; }
+    .tabla-horario table { border-collapse: separate; border-spacing: 0 6px; }
+    .tabla-horario thead th {
+        font-family: "Inter", sans-serif;
+        font-size: .72rem;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--texto-suave);
+        font-weight: 700;
+        border: none;
+        padding-bottom: 6px;
+    }
+    .tabla-horario tbody td {
+        border-top: 1px solid var(--borde);
+        border-bottom: 1px solid var(--borde);
+        background: var(--papel);
+    }
+    .tabla-horario tbody td:first-child { border-left: 1px solid var(--borde); border-radius: var(--radio-sm) 0 0 var(--radio-sm); }
+    .tabla-horario tbody td:last-child { border-right: 1px solid var(--borde); border-radius: 0 var(--radio-sm) var(--radio-sm) 0; }
+    .tabla-horario input {
+        font-size: .85rem;
+        font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+        border-radius: 8px;
+        border-color: var(--borde);
+    }
+    .fila-periodo.en-curso td {
+        background: #fdf8ec;
+        border-top-color: var(--bronce);
+        border-bottom-color: var(--bronce);
+        box-shadow: inset 3px 0 0 var(--bronce);
+    }
+    .fila-periodo input { transition: background-color .5s ease; }
+    .fila-periodo input.campo-guardado { background-color: var(--verde-fondo); }
+    #estadoGuardadoHorario { padding: 8px 24px 0; font-weight: 700; font-size: .82rem; }
+    #estadoGuardadoHorario.guardando { color: var(--ambar); }
+    #estadoGuardadoHorario.guardado { color: var(--verde); }
+    #estadoGuardadoHorario.error-guardado { color: var(--rojo); }
+    #relojActual {
+        text-align: center;
+        font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+        font-size: 2.4rem;
+        font-weight: 600;
+        color: var(--tinta);
+        padding: 20px 24px 0;
+        letter-spacing: .02em;
+        font-variant-numeric: tabular-nums;
+    }
+    #cuentaRegresiva {
+        text-align: center;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--texto-suave);
+        padding: 6px 24px 0;
+        min-height: 22px;
+    }
+    #cuentaRegresiva.cuenta-aviso5 { color: var(--ambar); }
+    #cuentaRegresiva.cuenta-aviso1 { color: var(--rojo); }
+    #estadoTimbre { text-align: center; padding: 8px 24px 4px; font-size: .85rem; min-height: 20px; color: var(--verde); font-weight: 600; }
+    #estadoSincronizacion { text-align: center; padding: 0 24px 18px; font-size: .74rem; color: var(--texto-suave); }
+    .control-volumen {
+        display: flex; align-items: center; gap: 6px;
+        padding: 5px 12px; border: 1px solid var(--borde);
+        border-radius: 999px; background: var(--papel);
+    }
+    .control-volumen input[type=range] { width: 100px; accent-color: var(--bronce); }
+    .zona-notificaciones { padding: 6px 24px 18px; text-align: center; }
+    .zona-notificaciones p { max-width: 480px; margin-left: auto; margin-right: auto; }
+    .btn-salir-cartelera {
+        position: fixed;
+        bottom: 14px;
+        right: 14px;
+        z-index: 10000;
+        opacity: .55;
+        font-size: .75rem;
+        border-radius: 999px;
+    }
+    .btn-salir-cartelera:hover { opacity: 1; }
 
-const CACHE_NOMBRE = "timbre-jiral-v1";
+    /* --- Banner de alerta grande (Etapa 2) --- */
+    .banner-alerta {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 22px 20px;
+        font-family: "Fraunces", Georgia, serif;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #fff;
+        text-align: center;
+        box-shadow: 0 6px 24px rgba(0,0,0,.35);
+        transform: translateY(-110%);
+        transition: transform .35s ease;
+    }
+    .banner-alerta.mostrar { transform: translateY(0); }
+    .banner-alerta.tipo-inicio { background: linear-gradient(90deg, #355e38, var(--verde)); }
+    .banner-alerta.tipo-aviso { background: linear-gradient(90deg, var(--bronce-oscuro), var(--bronce)); }
+    .banner-alerta.tipo-aviso-urgente { background: linear-gradient(90deg, #96271b, var(--rojo)); animation: pulso-banner 1s ease-in-out infinite; }
+    .banner-alerta.tipo-fin { background: linear-gradient(90deg, var(--tinta), var(--tinta-2)); }
+    .banner-icono { font-size: 2rem; line-height: 1; }
+    .banner-texto { line-height: 1.25; }
+    .banner-cerrar {
+        background: rgba(255,255,255,.25);
+        border: none;
+        color: #fff;
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        border-radius: 50%;
+        font-size: 1rem;
+        cursor: pointer;
+        line-height: 1;
+    }
+    .banner-cerrar:hover { background: rgba(255,255,255,.4); }
+    .banner-detener {
+        background: #fff;
+        color: var(--rojo);
+        border: none;
+        padding: 8px 16px;
+        border-radius: 999px;
+        font-family: "Inter", sans-serif;
+        font-weight: 800;
+        font-size: 1rem;
+        cursor: pointer;
+        box-shadow: 0 3px 10px rgba(0,0,0,.25);
+        white-space: nowrap;
+        animation: pulso-boton-detener 1s ease-in-out infinite;
+    }
+    .banner-detener:hover { background: #fef2f2; }
+    @keyframes pulso-boton-detener {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.06); }
+    }
+    .modo-bucle-switch {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border: 1px solid var(--borde);
+        border-radius: 999px;
+        margin: 0;
+        background: var(--papel);
+    }
+    .modo-bucle-switch .form-check-label { cursor: pointer; }
+    .modo-bucle-switch .form-check-input:checked { background-color: var(--bronce); border-color: var(--bronce); }
+    @media (max-width: 480px) {
+        .banner-alerta { font-size: 1.15rem; padding: 16px 14px; gap: 10px; }
+        .banner-icono { font-size: 1.5rem; }
+    }
 
-const ARCHIVOS_SHELL = [
-  "./pages/timbre.html",
-  "./js/timbre.js",
-  "./manifest.json",
-  "./img/icon-192.png",
-  "./img/icon-512.png",
-  "./img/apple-touch-icon.png",
-];
+    /* --- Modo cartelera (Etapa 4): pantalla completa para dirección --- */
+    body.modo-cartelera {
+        background: radial-gradient(circle at 50% 35%, var(--tinta-2) 0%, var(--tinta) 55%, #08122a 100%);
+        padding: 0;
+    }
+    body.modo-cartelera .tarjeta-principal {
+        max-width: 100%;
+        min-height: 100vh;
+        border-radius: 0;
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    body.modo-cartelera .encabezado-timbre,
+    body.modo-cartelera .barra-acciones,
+    body.modo-cartelera .panel-login-edicion,
+    body.modo-cartelera .barra-edicion,
+    body.modo-cartelera .zona-activar,
+    body.modo-cartelera .aviso-activo,
+    body.modo-cartelera .zona-notificaciones,
+    body.modo-cartelera .tabla-horario,
+    body.modo-cartelera #estadoGuardadoHorario,
+    body.modo-cartelera #estadoSincronizacion,
+    body.modo-cartelera #estadoTimbre {
+        display: none !important;
+    }
+    body.modo-cartelera #relojActual { font-size: 6rem; color: #fff; padding: 0; text-shadow: 0 2px 30px rgba(184,134,59,.35); }
+    body.modo-cartelera #cuentaRegresiva { font-size: 2.4rem; color: var(--bronce-claro); padding: 12px 24px 0; }
+    body.modo-cartelera .banner-cerrar { display: none !important; }
+    body.modo-cartelera .banner-alerta { font-size: 2.2rem; padding: 34px 20px; }
+</style>
+</head>
+<body>
 
-self.addEventListener("install", (evento) => {
-  evento.waitUntil(
-    caches.open(CACHE_NOMBRE).then((cache) => cache.addAll(ARCHIVOS_SHELL))
-  );
-  self.skipWaiting();
-});
+<!-- Botón discreto para salir del modo cartelera (Etapa 4) -->
+<button type="button" class="btn btn-dark btn-sm btn-salir-cartelera oculto" id="btnSalirCartelera">✕ Salir de cartelera</button>
 
-self.addEventListener("activate", (evento) => {
-  evento.waitUntil(
-    caches.keys().then((nombres) =>
-      Promise.all(
-        nombres
-          .filter((nombre) => nombre !== CACHE_NOMBRE)
-          .map((nombre) => caches.delete(nombre))
-      )
-    )
-  );
-  self.clients.claim();
-});
+<!-- Banner grande de alerta (Etapa 2): inicio, 5 min, 1 min, fin de periodo -->
+<div class="banner-alerta" id="bannerAlerta">
+    <span class="banner-icono" id="bannerIcono">🔔</span>
+    <span class="banner-texto" id="bannerTexto"></span>
+    <button type="button" class="banner-detener oculto" id="bannerDetener">🛑 Detener</button>
+    <button type="button" class="banner-cerrar" id="bannerCerrar" aria-label="Cerrar aviso">✕</button>
+</div>
 
-self.addEventListener("fetch", (evento) => {
-  const url = new URL(evento.request.url);
+<div class="tarjeta-principal">
+    <div class="encabezado-timbre">
+        <div class="campana-marca" aria-hidden="true">
+            <svg width="34" height="34" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g class="campana-cuerpo">
+                    <path d="M24 6C22.9 6 22 6.9 22 8V9.3C16.6 10.3 12.5 15 12.5 20.7V27.5C12.5 29 11.9 30.4 10.8 31.5L9 33.3C8.2 34.1 8.7 35.5 9.9 35.5H38.1C39.3 35.5 39.8 34.1 39 33.3L37.2 31.5C36.1 30.4 35.5 29 35.5 27.5V20.7C35.5 15 31.4 10.3 26 9.3V8C26 6.9 25.1 6 24 6Z" fill="url(#gradCampana)" stroke="#8c6425" stroke-width="1.2"/>
+                    <circle cx="24" cy="8" r="1.6" fill="#8c6425"/>
+                </g>
+                <path d="M19 38.5C19.6 40.5 21.6 42 24 42C26.4 42 28.4 40.5 29 38.5" stroke="#8c6425" stroke-width="1.6" stroke-linecap="round"/>
+                <defs>
+                    <linearGradient id="gradCampana" x1="8" y1="6" x2="40" y2="35.5" gradientUnits="userSpaceOnUse">
+                        <stop offset="0" stop-color="#dcae6b"/>
+                        <stop offset="1" stop-color="#b8863b"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+        </div>
+        <h1>C.E.B.G. EL JIRAL — Control de Timbre</h1>
+        <p>Turno Vespertino</p>
+    </div>
 
-  // Solo intervenimos peticiones GET del mismo origen (el propio sitio).
-  // Todo lo demás (Supabase, fuentes de Google, Bootstrap CDN) pasa directo
-  // a la red sin pasar por el cache, para no servir datos ni estilos viejos.
-  if (evento.request.method !== "GET" || url.origin !== self.location.origin) {
-    return;
-  }
+    <!-- PANEL PRINCIPAL: siempre visible, sin contraseña -->
+    <div id="panelTimbre">
 
-  evento.respondWith(
-    caches.match(evento.request).then((respuestaCache) => {
-      const buscarEnRed = fetch(evento.request)
-        .then((respuestaRed) => {
-          if (respuestaRed && respuestaRed.status === 200) {
-            const copia = respuestaRed.clone();
-            caches.open(CACHE_NOMBRE).then((cache) => cache.put(evento.request, copia));
-          }
-          return respuestaRed;
-        })
-        .catch(() => respuestaCache);
+        <div class="barra-acciones">
+            <button type="button" class="btn btn-bronce btn-sm oculto" id="btnDescargarApp">📲 Descargar app</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnProbarTimbre">🔊 Probar timbre</button>
+            <select id="selectorSonido" class="form-select form-select-sm" title="Sonido del timbre (solo en este dispositivo)">
+                <option value="campana">🔔 Campana clásica</option>
+                <option value="agudo">📯 Timbre agudo</option>
+                <option value="doble">🎵 Doble tono</option>
+                <option value="suave">🎐 Suave</option>
+            </select>
+            <div class="control-volumen" title="Volumen del timbre en este dispositivo">
+                <label for="sliderVolumen" class="small mb-0">🔊</label>
+                <input type="range" min="0" max="100" value="80" id="sliderVolumen">
+            </div>
+            <div class="form-check form-switch modo-bucle-switch" title="Si está activo, el timbre principal (inicio y fin de periodo) suena en bucle hasta que alguien presione Detener, en vez de detenerse solo tras unos segundos.">
+                <input class="form-check-input" type="checkbox" role="switch" id="switchModoBucle">
+                <label class="form-check-label small" for="switchModoBucle">🔁 Sonar hasta apagar</label>
+            </div>
+            <div class="form-check form-switch modo-bucle-switch" title="Anuncia por voz el nombre del periodo cada vez que inicia o termina (además del timbre).">
+                <input class="form-check-input" type="checkbox" role="switch" id="switchAnuncioVoz">
+                <label class="form-check-label small" for="switchAnuncioVoz">🗣️ Anunciar por voz</label>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnAvisosMinutos" title="Elige con cuántos minutos de anticipación quieres que avise antes de que termine cada periodo (solo en este dispositivo)">⏰ Avisos previos</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnModoCartelera">🖥️ Modo cartelera</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btnEditarHorario">🔒 Editar horario</button>
+            <button type="button" class="btn btn-outline-danger btn-sm oculto" id="btnSalirEdicion">Salir de edición</button>
+        </div>
 
-      // Cache-first para que abra al instante; se actualiza en segundo plano.
-      return respuestaCache || buscarEnRed;
-    })
-  );
-});
+        <!-- Panel de instrucciones para instalar en iPhone (Safari no permite instalar con un toque) -->
+        <div class="panel-login-edicion oculto" id="panelInstalarIOS">
+            <p class="text-muted small text-center mb-2">Para instalar en iPhone/iPad:</p>
+            <ol class="small text-muted ps-3 mb-3">
+                <li>Toca el ícono de compartir <strong>⬆️</strong> abajo en Safari.</li>
+                <li>Elige <strong>"Agregar a pantalla de inicio"</strong>.</li>
+                <li>Toca <strong>Agregar</strong>. Listo, queda como app.</li>
+            </ol>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary flex-fill" id="btnCerrarInstalarIOS">Entendido</button>
+            </div>
+        </div>
+
+        <!-- Configuración personal (por dispositivo): con cuántos minutos de anticipación avisar -->
+        <div class="panel-login-edicion oculto" id="panelAvisosMinutos">
+            <p class="text-muted small text-center mb-1">Avisar antes de que termine el periodo</p>
+            <p class="text-muted small text-center mb-3">(esta elección se guarda solo en este dispositivo)</p>
+            <div class="mb-2" id="zonaAvisosMinutos">
+                <div class="form-check">
+                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="15" id="chkAviso15">
+                    <label class="form-check-label" for="chkAviso15">15 minutos antes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="10" id="chkAviso10">
+                    <label class="form-check-label" for="chkAviso10">10 minutos antes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="5" id="chkAviso5">
+                    <label class="form-check-label" for="chkAviso5">5 minutos antes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="2" id="chkAviso2">
+                    <label class="form-check-label" for="chkAviso2">2 minutos antes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="1" id="chkAviso1">
+                    <label class="form-check-label" for="chkAviso1">1 minuto antes</label>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary flex-fill" id="btnCerrarAvisosMinutos">Cerrar</button>
+            </div>
+        </div>
+
+        <!-- LOGIN de edición: aparece solo al tocar "Editar horario" -->
+        <div class="panel-login-edicion oculto" id="panelLoginEdicion">
+            <p class="text-muted small text-center mb-3">Acceso para Dirección</p>
+            <div class="mb-2">
+                <input type="text" id="cedulaTimbre" class="form-control" placeholder="Cédula" autocomplete="off">
+            </div>
+            <div class="mb-3">
+                <input type="password" id="claveTimbre" class="form-control" placeholder="Contraseña" autocomplete="off">
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary flex-fill" id="btnEntrarTimbre">Entrar</button>
+                <button type="button" class="btn btn-outline-secondary" id="btnCancelarLogin">Cancelar</button>
+            </div>
+            <p class="text-danger small text-center mt-2 oculto" id="errorLoginTimbre">Cédula o contraseña incorrecta.</p>
+            <p class="text-center mt-2 mb-0">
+                <a href="#" class="small" id="linkOlvideClave">¿Olvidó su contraseña?</a>
+            </p>
+        </div>
+
+        <!-- RECUPERACIÓN: preguntas de seguridad -->
+        <div class="panel-login-edicion oculto" id="panelRecuperarClave">
+            <p class="text-muted small text-center mb-3">Recuperar acceso — responda las 3 preguntas</p>
+            <div id="zonaPreguntasRecuperar"></div>
+            <p class="text-center small text-muted oculto" id="avisoSinPreguntas">
+                Todavía no hay preguntas de seguridad configuradas en este dispositivo.
+                Debe entrar con la contraseña actual y configurarlas en el panel de edición.
+            </p>
+            <div id="zonaNuevaClave" class="oculto">
+                <div class="mb-2">
+                    <input type="password" id="nuevaClaveRecuperar" class="form-control" placeholder="Nueva contraseña" autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <input type="password" id="confirmarClaveRecuperar" class="form-control" placeholder="Confirmar nueva contraseña" autocomplete="off">
+                </div>
+            </div>
+            <p class="text-danger small text-center oculto" id="errorRecuperarClave"></p>
+            <p class="text-success small text-center oculto" id="exitoRecuperarClave"></p>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary flex-fill oculto" id="btnVerificarRespuestas">Verificar respuestas</button>
+                <button type="button" class="btn btn-success flex-fill oculto" id="btnGuardarNuevaClave">Guardar nueva contraseña</button>
+                <button type="button" class="btn btn-outline-secondary" id="btnCancelarRecuperar">Cancelar</button>
+            </div>
+        </div>
+
+        <!-- Barra de edición: solo visible en modo edición -->
+        <div class="barra-edicion oculto" id="barraEdicion">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnAgregarPeriodo">➕ Agregar periodo</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRestaurarHorario">↺ Restaurar horario por defecto</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnConfigSeguridad">🔑 Cambiar contraseña / preguntas</button>
+        </div>
+
+        <!-- CONFIGURACIÓN: cambiar contraseña y preguntas de seguridad (solo en modo edición) -->
+        <div class="panel-login-edicion oculto" id="panelConfigSeguridad">
+            <p class="text-muted small text-center mb-3">Configurar contraseña y preguntas de seguridad</p>
+            <div class="mb-2">
+                <label class="form-label small">Nueva contraseña (dejar en blanco para no cambiarla)</label>
+                <input type="password" id="configNuevaClave" class="form-control" autocomplete="off">
+            </div>
+            <div class="mb-3" id="zonaConfigPreguntas"></div>
+            <p class="text-danger small text-center oculto" id="errorConfigSeguridad"></p>
+            <p class="text-success small text-center oculto" id="exitoConfigSeguridad"></p>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary flex-fill" id="btnGuardarConfigSeguridad">Guardar</button>
+                <button type="button" class="btn btn-outline-secondary" id="btnCancelarConfigSeguridad">Cancelar</button>
+            </div>
+        </div>
+
+        <div id="relojActual">--:--:--</div>
+        <div id="cuentaRegresiva"></div>
+
+        <div class="zona-activar" id="zonaActivarTimbre">
+            <p style="font-size:.85rem; color:#555; margin-bottom:10px;">
+                Toca el botón para activar el sonido del timbre. El navegador necesita
+                este toque una vez para poder sonar automáticamente después.
+            </p>
+            <button type="button" class="btn btn-danger" id="btnActivarTimbre">🔔 Activar sonido del timbre</button>
+        </div>
+
+        <div class="aviso-activo" id="avisoActivoTimbre">✅ Timbre activo — mantén esta página abierta</div>
+
+        <div class="zona-notificaciones" id="zonaNotificaciones">
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btnActivarNotificaciones">🔔 Activar notificaciones del navegador</button>
+            <p class="small text-muted mt-2 mb-0 oculto" id="avisoNotificacionesIOS">
+                En iPhone, para que las notificaciones lleguen aunque la pantalla esté bloqueada o el navegador
+                cerrado, primero agrega esta página a la pantalla de inicio (compartir → "Agregar a pantalla de
+                inicio") y ábrela desde ahí.
+            </p>
+        </div>
+
+        <div class="text-center small oculto" id="estadoGuardadoHorario"></div>
+
+        <div class="tabla-horario">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Hora inicio</th>
+                        <th>Hora fin</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoHorarioTimbre"></tbody>
+            </table>
+        </div>
+
+        <div id="estadoTimbre"></div>
+        <div id="estadoSincronizacion">Cargando horario…</div>
+    </div>
+</div>
+
+<script type="module" src="../js/timbre.js"></script>
+<script>
+    if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+            navigator.serviceWorker.register("../sw.js").catch(() => {});
+        });
+    }
+</script>
+</body>
+</html>
