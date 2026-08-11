@@ -7,11 +7,17 @@
 
     <title>C.E.B.G. El Jiral | Notas de Evaluación</title>
 
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#14213d">
+
     <!-- Favicon (ícono de la pestaña del navegador) -->
     <link rel="icon" type="image/x-icon" href="../img/favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="../img/favicon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="../img/favicon-16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="../img/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Notas El Jiral">
 
     <!-- Vista previa al compartir el enlace (WhatsApp, Facebook, etc.) -->
     <meta property="og:type" content="website">
@@ -36,66 +42,147 @@
         rel="stylesheet"
     >
 
+    <!-- Tipografías (misma identidad que Control de Timbre) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- CSS del proyecto -->
     <link rel="stylesheet" href="../css/style.css">
 
     <style>
-        .tarjeta-opcion {
-            border: none;
-            border-radius: 16px;
-            padding: 26px 22px;
-            height: 100%;
-            transition: transform .15s ease, box-shadow .15s ease;
-            text-decoration: none;
-            color: #212529;
-            display: block;
+        :root {
+            --tinta: #14213d;
+            --tinta-2: #1f335e;
+            --bronce: #b8863b;
+            --bronce-claro: #dcae6b;
+            --bronce-oscuro: #8c6425;
+            --crema: #faf7f1;
+            --papel: #fffefb;
+            --texto: #211d17;
+            --texto-suave: #6b6459;
+            --borde: #e8e1d3;
+            --verde: #4f7a53;
+            --verde-fondo: #eaf2e6;
+            --radio: 20px;
+            --radio-sm: 12px;
         }
 
-        .tarjeta-opcion:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
-            color: #212529;
+        body {
+            background: radial-gradient(circle at 20% -10%, #274579 0%, var(--tinta) 55%, #0d1830 100%);
+            min-height: 100vh;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            color: var(--texto);
+            padding: 0;
+            margin: 0;
         }
 
-        .tarjeta-opcion .icono {
+        main.contenedor-inicio {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 40px 16px 56px;
+        }
+
+        .tarjeta-principal {
+            background: var(--papel);
+            border-radius: var(--radio);
+            box-shadow: 0 24px 60px rgba(8,14,32,.45), 0 2px 0 rgba(255,255,255,.03) inset;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,.06);
+        }
+
+        .encabezado-inicio {
+            background:
+                radial-gradient(circle at 85% -40%, rgba(184,134,59,.35), transparent 60%),
+                linear-gradient(120deg, var(--tinta) 0%, var(--tinta-2) 100%);
+            color: #fff;
+            padding: 34px 24px 26px;
+            text-align: center;
+            position: relative;
+        }
+
+        .encabezado-inicio::after {
+            content: "";
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--bronce-claro), transparent);
+        }
+
+        .escudo-marca {
             width: 58px;
             height: 58px;
+            margin: 0 auto 12px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            background: radial-gradient(circle, var(--bronce-claro), var(--bronce) 70%);
+            box-shadow: 0 6px 16px rgba(0,0,0,.35);
+        }
+
+        .escudo-marca i {
+            color: var(--tinta);
+            font-size: 26px;
+        }
+
+        .encabezado-inicio h1 {
+            font-family: "Fraunces", Georgia, serif;
+            font-size: 1.5rem;
+            margin: 0;
+            font-weight: 600;
+            letter-spacing: .01em;
+        }
+
+        .encabezado-inicio p.subtitulo {
+            margin: 6px 0 0;
+            font-size: .8rem;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--bronce-claro);
+            font-weight: 600;
+        }
+
+        .encabezado-inicio p.descripcion {
+            margin: 14px auto 0;
+            max-width: 460px;
+            font-size: .92rem;
+            color: rgba(255,255,255,.78);
+            line-height: 1.5;
+        }
+
+        .cuerpo-inicio {
+            padding: 26px 24px 30px;
+        }
+
+        .seccion-titulo {
+            font-family: "Fraunces", Georgia, serif;
+            font-size: .95rem;
+            font-weight: 600;
+            color: var(--texto);
             margin-bottom: 12px;
         }
 
-        .icono-consejero {
-            background: rgba(37, 99, 235, 0.12);
-            color: #2563eb;
-        }
-
-        .icono-estudiante {
-            background: rgba(22, 163, 74, 0.12);
-            color: #16a34a;
-        }
-
-        .aviso-prueba {
-            background: #fefce8;
-            border: 1px solid #fde68a;
-            border-radius: 12px;
-        }
-
-        .aviso-prueba .fa-flask {
-            color: #ca8a04;
-        }
-
         .tarjeta-consulta {
-            border-radius: 16px;
-            border: 2px solid #bbf7d0;
-            background: #f0fdf4;
+            border-radius: var(--radio-sm);
+            border: 1px solid var(--borde);
+            background: var(--verde-fondo);
+            padding: 20px;
+            margin-bottom: 22px;
         }
 
-        .tarjeta-consulta h5 {
-            color: #15803d;
+        .tarjeta-consulta h2 {
+            font-family: "Fraunces", Georgia, serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--verde);
+            margin-bottom: 4px;
+        }
+
+        .tarjeta-consulta p {
+            color: var(--texto-suave);
+            font-size: .85rem;
+            margin-bottom: 14px;
         }
 
         .campo-cedula-wrap {
@@ -104,6 +191,14 @@
 
         .campo-cedula-wrap input {
             padding-right: 42px;
+            border-radius: var(--radio-sm);
+            border: 1px solid var(--borde);
+            background: var(--papel);
+        }
+
+        .campo-cedula-wrap input:focus {
+            border-color: var(--verde);
+            box-shadow: 0 0 0 .2rem rgba(79,122,83,.15);
         }
 
         .btn-ojo-cedula {
@@ -115,103 +210,236 @@
             background: none;
             cursor: pointer;
             font-size: 16px;
-            color: #64748b;
+            color: var(--texto-suave);
+        }
+
+        .btn-verde {
+            background: linear-gradient(135deg, #5f9364, var(--verde));
+            border: none;
+            color: #fff;
+            border-radius: 999px;
+            font-weight: 600;
+        }
+
+        .btn-verde:hover {
+            filter: brightness(1.05);
+            color: #fff;
+        }
+
+        .tarjeta-docente {
+            border-radius: var(--radio-sm);
+            border: 1px solid var(--borde);
+            background: var(--papel);
+            padding: 20px;
+            display: block;
+            text-decoration: none;
+            color: var(--texto);
+            transition: transform .15s ease, box-shadow .15s ease;
+            margin-bottom: 22px;
+        }
+
+        .tarjeta-docente:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 28px rgba(20,33,61,.18);
+            color: var(--texto);
+        }
+
+        .tarjeta-docente .icono {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 10px;
+            background: rgba(20, 33, 61, .08);
+            color: var(--tinta);
+        }
+
+        .tarjeta-docente h2 {
+            font-family: "Fraunces", Georgia, serif;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .tarjeta-docente p {
+            font-size: .85rem;
+            color: var(--texto-suave);
+            margin-bottom: 10px;
+        }
+
+        .tarjeta-docente .ir {
+            font-weight: 600;
+            color: var(--tinta);
+            font-size: .85rem;
+        }
+
+        .boton-timbre {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-radius: var(--radio-sm);
+            border: 1px solid var(--bronce);
+            background: linear-gradient(135deg, var(--bronce-claro), var(--bronce));
+            padding: 16px 20px;
+            text-decoration: none;
+            color: #fff;
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+
+        .boton-timbre:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 28px rgba(140,100,37,.35);
+            color: #fff;
+        }
+
+        .boton-timbre .campana-marca {
+            display: inline-flex;
+            flex-shrink: 0;
+        }
+
+        .boton-timbre .campana-marca svg { display: block; }
+
+        .boton-timbre .campana-cuerpo {
+            transform-origin: 50% 15%;
+            animation: balanceo-campana 4.5s ease-in-out infinite;
+        }
+
+        @keyframes balanceo-campana {
+            0%, 100% { transform: rotate(0deg); }
+            4% { transform: rotate(-9deg); }
+            9% { transform: rotate(7deg); }
+            14% { transform: rotate(-5deg); }
+            19% { transform: rotate(3deg); }
+            24% { transform: rotate(0deg); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .boton-timbre .campana-cuerpo { animation: none; }
+        }
+
+        .boton-timbre .texto strong {
+            display: block;
+            font-family: "Fraunces", Georgia, serif;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .boton-timbre .texto span {
+            display: block;
+            font-size: .8rem;
+            color: rgba(255,255,255,.85);
+        }
+
+        .boton-timbre .flecha {
+            margin-left: auto;
+            font-size: 1rem;
+        }
+
+        .pie-inicio {
+            text-align: center;
+            margin-top: 22px;
+        }
+
+        .pie-inicio p {
+            color: rgba(255,255,255,.55);
+            font-size: .78rem;
+            margin: 0;
         }
     </style>
 </head>
 
-<body class="bg-light">
+<body>
 
-    <main class="container py-5" style="max-width: 900px;">
+    <main class="contenedor-inicio">
 
-        <!-- ENCABEZADO -->
-        <div class="card shadow-sm border-0 text-center p-4 p-md-5 mb-4">
-            <i class="fa-solid fa-graduation-cap fa-3x text-primary" aria-hidden="true"></i>
+        <div class="tarjeta-principal">
 
-            <h1 class="h2 mt-3 mb-1">C.E.B.G. EL JIRAL</h1>
-            <p class="fs-5 fw-bold mb-2">Notas de Evaluación</p>
-
-            <p class="text-muted mx-auto mb-0" style="max-width: 580px;">
-                Este sistema está en fase de prueba. Fue creado para que el estudiante
-                registre las notas que va obteniendo en cada materia (apreciaciones y
-                ejercicios), y así tanto él o ella como sus padres o acudientes puedan
-                darle seguimiento durante el trimestre.
-            </p>
-        </div>
-
-        <!-- VER MIS NOTAS (por cédula, sin contraseña) -->
-        <div class="card shadow-sm tarjeta-consulta p-4 mb-4">
-            <h5 class="mb-2">
-                <i class="fa-solid fa-file-lines me-2" aria-hidden="true"></i>
-                Ver mis notas
-            </h5>
-            <p class="text-muted small mb-3">
-                Escribe tu cédula para ver y descargar tus notas de todas las materias.
-            </p>
-            <form id="formVerNotas" class="row g-2 align-items-start">
-                <div class="col-sm-8 campo-cedula-wrap">
-                    <input
-                        type="password"
-                        id="cedulaInicio"
-                        class="form-control"
-                        placeholder="0-000-0000"
-                        autocomplete="off"
-                        required
-                    >
-                    <button type="button" class="btn-ojo-cedula" id="btnOjoInicio" title="Mostrar/ocultar cédula">
-                        👁️
-                    </button>
+            <!-- ENCABEZADO -->
+            <div class="encabezado-inicio">
+                <div class="escudo-marca" aria-hidden="true">
+                    <i class="fa-solid fa-graduation-cap"></i>
                 </div>
-                <div class="col-sm-4">
-                    <button type="submit" class="btn btn-success w-100">
-                        Ver mis notas
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- ACCESO DOCENTE -->
-        <p class="text-center fw-bold text-uppercase text-muted small mb-3">
-            Acceso para docentes
-        </p>
-
-        <div class="row g-3 mb-4">
-
-            <div class="col-md-6 mx-md-auto">
-                <a href="login.html?rol=profesor" class="card shadow tarjeta-opcion">
-                    <div class="icono icono-consejero">
-                        <i class="fa-solid fa-chalkboard-user" aria-hidden="true"></i>
-                    </div>
-                    <h5 class="mb-1">DOCENTE</h5>
-                    <p class="text-muted small mb-2">
-                        Ingresa con tu cédula y contraseña para meter notas de tus materias.
-                    </p>
-                    <span class="fw-bold text-primary">
-                        Iniciar sesión <i class="fa-solid fa-arrow-right ms-1"></i>
-                    </span>
-                </a>
+                <h1>C.E.B.G. El Jiral</h1>
+                <p class="subtitulo">Notas de Evaluación</p>
+                <p class="descripcion">
+                    Consulta tus calificaciones por materia durante el trimestre,
+                    en cualquier momento y desde cualquier dispositivo.
+                </p>
             </div>
 
+            <div class="cuerpo-inicio">
+
+                <!-- VER MIS NOTAS (por cédula, sin contraseña) -->
+                <div class="tarjeta-consulta">
+                    <h2>
+                        <i class="fa-solid fa-file-lines me-2" aria-hidden="true"></i>
+                        Ver mis notas
+                    </h2>
+                    <p>
+                        Escribe tu cédula para ver y descargar tus notas de todas las materias.
+                    </p>
+                    <form id="formVerNotas" class="row g-2 align-items-start">
+                        <div class="col-sm-8 campo-cedula-wrap">
+                            <input
+                                type="password"
+                                id="cedulaInicio"
+                                class="form-control"
+                                placeholder="0-000-0000"
+                                autocomplete="off"
+                                required
+                            >
+                            <button type="button" class="btn-ojo-cedula" id="btnOjoInicio" title="Mostrar/ocultar cédula">
+                                👁️
+                            </button>
+                        </div>
+                        <div class="col-sm-4">
+                            <button type="submit" class="btn btn-verde w-100">
+                                Ver mis notas
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- ACCESO DOCENTE -->
+                <p class="seccion-titulo">Acceso para docentes</p>
+
+                <a href="login.html?rol=profesor" class="tarjeta-docente">
+                    <div class="icono">
+                        <i class="fa-solid fa-chalkboard-user" aria-hidden="true"></i>
+                    </div>
+                    <h2>Docente</h2>
+                    <p>Ingresa con tu cédula y contraseña para registrar notas de tus materias.</p>
+                    <span class="ir">Iniciar sesión <i class="fa-solid fa-arrow-right ms-1"></i></span>
+                </a>
+
+                <!-- ACCESO A CONTROL DE TIMBRE -->
+                <p class="seccion-titulo">Dirección</p>
+
+                <a href="timbre.html" class="boton-timbre">
+                    <span class="campana-marca" aria-hidden="true">
+                        <svg width="30" height="30" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <g class="campana-cuerpo">
+                                <path d="M24 6C22.9 6 22 6.9 22 8V9.3C16.6 10.3 12.5 15 12.5 20.7V27.5C12.5 29 11.9 30.4 10.8 31.5L9 33.3C8.2 34.1 8.7 35.5 9.9 35.5H38.1C39.3 35.5 39.8 34.1 39 33.3L37.2 31.5C36.1 30.4 35.5 29 35.5 27.5V20.7C35.5 15 31.4 10.3 26 9.3V8C26 6.9 25.1 6 24 6Z" fill="#fff" stroke="#fff" stroke-width="1.2"/>
+                                <circle cx="24" cy="8" r="1.6" fill="#fff"/>
+                            </g>
+                            <path d="M19 38.5C19.6 40.5 21.6 42 24 42C26.4 42 28.4 40.5 29 38.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="texto">
+                        <strong>Control de Timbre</strong>
+                        <span>Horarios y alertas sonoras del plantel</span>
+                    </span>
+                    <span class="flecha"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+                </a>
+
+            </div>
         </div>
 
-        <!-- ENLACE DISCRETO PARA DIRECCIÓN -->
-        <p class="text-center mb-4">
-            <a href="timbre.html" class="text-muted small">
-                Control de Timbre (Dirección)
-            </a>
-        </p>
-
-        <!-- AVISO DE FASE DE PRUEBA -->
-        <div class="card aviso-prueba text-center p-3">
-            <p class="mb-1">
-                <i class="fa-solid fa-flask me-1" aria-hidden="true"></i>
-                <strong>Este sistema está en fase de evaluación y prueba.</strong>
-            </p>
-            <p class="mb-0 small text-muted">
-                Agradecemos mucho tus comentarios, dudas o sugerencias al
-                <strong>6010-3047</strong> o al correo
-                <a href="mailto:profesorsamuelortega@gmail.com">profesorsamuelortega@gmail.com</a>.
-            </p>
+        <div class="pie-inicio">
+            <p>C.E.B.G. El Jiral &middot; Sistema de Control de Notas</p>
         </div>
 
     </main>
