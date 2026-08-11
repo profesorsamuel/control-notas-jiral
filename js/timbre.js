@@ -1210,6 +1210,21 @@ function restarMinutos(hhmmTexto, minutos) {
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
+// Ventana de tolerancia (en segundos) para disparar un aviso aunque el
+// setInterval de 1s se haya saltado el segundo exacto (pantalla atenuada,
+// navegador en segundo plano, etc.). En vez de exigir "ahora === objetivo"
+// (una comparación de igualdad que solo es cierta durante 1 segundo),
+// verificamos "ya pasó el objetivo, dentro de este margen, y no ha sonado
+// hoy". Así, si el código deja de correr un rato y vuelve, el aviso igual
+// se dispara en cuanto detecta que el objetivo ya pasó.
+const MARGEN_TOLERANCIA_SEG = 90;
+
+function yaLlegoElMomento(segundosHoy, hhmmObjetivo) {
+    const objetivoSeg = aSegundosDelDia(hhmmObjetivo);
+    const diferencia = segundosHoy - objetivoSeg;
+    return diferencia >= 0 && diferencia <= MARGEN_TOLERANCIA_SEG;
+}
+
 // =========================================================
 // CUENTA REGRESIVA DEL PERIODO ACTUAL / SIGUIENTE (Etapa 4)
 // =========================================================
@@ -1268,6 +1283,7 @@ function actualizarCuentaRegresiva() {
 function revisarHorario() {
     const ahora = new Date();
     const actual = hhmm(ahora);
+    const segundosHoy = ahora.getHours() * 3600 + ahora.getMinutes() * 60 + ahora.getSeconds();
     const claveDia = ahora.toISOString().slice(0, 10);
 
     if (!revisarHorario._dia || revisarHorario._dia !== claveDia) {
@@ -1287,7 +1303,10 @@ function revisarHorario() {
 
         // El banner visual aparece siempre (no depende de que el sonido esté
         // activado); el sonido solo se reproduce si el usuario ya lo activó.
-        if (actual === periodo.inicio && !yaTocados.has(claveInicio)) {
+        // Se usa una ventana de tolerancia (yaLlegoElMomento) en vez de una
+        // igualdad exacta de string, para que no se pierda el aviso si el
+        // temporizador se saltó el segundo exacto.
+        if (yaLlegoElMomento(segundosHoy, periodo.inicio) && !yaTocados.has(claveInicio)) {
             yaTocados.add(claveInicio);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — inicio (${periodo.inicio})`;
             activarAvisoPrincipal("inicio", `Inicia ${periodo.nombre}`, periodo.nombre);
@@ -1297,7 +1316,7 @@ function revisarHorario() {
         minutosAvisoActivos.forEach((minutos) => {
             const horaAviso = restarMinutos(periodo.fin, minutos);
             const claveAviso = `${claveDia}-${periodo.fin}-aviso${minutos}-${periodo.id}`;
-            if (actual !== horaAviso || yaTocados.has(claveAviso)) return;
+            if (!yaLlegoElMomento(segundosHoy, horaAviso) || yaTocados.has(claveAviso)) return;
             yaTocados.add(claveAviso);
 
             const urgente = minutos <= 1;
@@ -1324,7 +1343,7 @@ function revisarHorario() {
             }
         });
 
-        if (actual === periodo.fin && !yaTocados.has(claveFin)) {
+        if (yaLlegoElMomento(segundosHoy, periodo.fin) && !yaTocados.has(claveFin)) {
             yaTocados.add(claveFin);
             estadoTimbre.textContent = `🔔 ${periodo.nombre} — fin (${periodo.fin})`;
             activarAvisoPrincipal("fin", `Terminó ${periodo.nombre}`, periodo.nombre);
