@@ -251,6 +251,14 @@
     }
     #cuentaRegresiva.cuenta-aviso5 { color: var(--ambar); }
     #cuentaRegresiva.cuenta-aviso1 { color: var(--rojo); }
+    #resumenAvisosActivos {
+        text-align: center;
+        font-size: .78rem;
+        color: var(--texto-suave);
+        padding: 2px 24px 0;
+        min-height: 16px;
+    }
+    #resumenAvisosActivos .punto-sonido { color: var(--verde); font-weight: 700; }
     #estadoTimbre { text-align: center; padding: 8px 24px 4px; font-size: .85rem; min-height: 20px; color: var(--verde); font-weight: 600; }
     #estadoSincronizacion { text-align: center; padding: 0 24px 18px; font-size: .74rem; color: var(--texto-suave); }
     .control-volumen {
@@ -594,6 +602,7 @@
 
         <div id="relojActual">--:--:--</div>
         <div id="cuentaRegresiva"></div>
+        <div id="resumenAvisosActivos"></div>
 
         <div class="zona-activar" id="zonaActivarTimbre">
             <p style="font-size:.85rem; color:#555; margin-bottom:10px;">
