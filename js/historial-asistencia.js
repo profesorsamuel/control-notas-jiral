@@ -305,7 +305,8 @@ async function calcularAlertas(cabeceras) {
     detalles.forEach((d) => {
         if (!conteos[d.estudiante_id]) conteos[d.estudiante_id] = { tardanzas: 0, ausenciasSinExcusa: 0 };
         if (d.estado === "tardanza") conteos[d.estudiante_id].tardanzas++;
-        if (d.estado === "ausente" && !d.justificacion) conteos[d.estudiante_id].ausenciasSinExcusa++;
+        // "Fuga" cuenta igual que "Ausente" para esta alerta.
+        if ((d.estado === "ausente" || d.estado === "fuga") && !d.justificacion) conteos[d.estudiante_id].ausenciasSinExcusa++;
     });
 
     const entradasAlerta = Object.entries(conteos)
@@ -351,6 +352,7 @@ const ETIQUETAS_ESTADO = {
     ausente: "🔴 Ausente",
     tardanza: "🟡 Tardanza",
     permiso: "🔵 Permiso",
+    fuga: "🟣 Fuga",
     suspendida: "⬜ Suspendida",
 };
 
@@ -406,6 +408,7 @@ const OPCIONES_ESTADO = [
     ["ausente", "🔴 Ausente"],
     ["tardanza", "🟡 Tardanza"],
     ["permiso", "🔵 Permiso"],
+    ["fuga", "🟣 Fuga"],
     ["suspendida", "⬜ Suspendida"],
 ];
 
@@ -695,8 +698,8 @@ function quitarAcentosCuad(texto) {
     return String(texto ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-const CICLO_ESTADOS_CUAD = ["presente", "ausente", "tardanza", "permiso", "suspendida"];
-const ETIQUETAS_CORTAS_CUAD = { presente: "P", ausente: "A", tardanza: "T", permiso: "Pe", suspendida: "Susp" };
+const CICLO_ESTADOS_CUAD = ["presente", "ausente", "tardanza", "permiso", "fuga", "suspendida"];
+const ETIQUETAS_CORTAS_CUAD = { presente: "P", ausente: "A", tardanza: "T", permiso: "Pe", fuga: "F", suspendida: "Susp" };
 
 // =========================================================
 // NOTA DE ASISTENCIA (columna final de la cuadrícula)
@@ -717,7 +720,8 @@ function calcularNotaAsistencia(estadosDelEstudiante) {
         if (estado === "presente" || estado === "permiso") {
             sumaPuntos += PUNTOS_PRESENTE;
             diasContados += 1;
-        } else if (estado === "ausente" || estado === "tardanza") {
+        } else if (estado === "ausente" || estado === "tardanza" || estado === "fuga") {
+            // "Fuga" cuenta igual que "Ausente" para la nota de asistencia.
             sumaPuntos += PUNTOS_AUSENTE;
             diasContados += 1;
         }
