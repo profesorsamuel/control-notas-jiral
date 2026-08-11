@@ -13,12 +13,14 @@ const CLAVE_VOLUMEN = "timbre_volumen_jiral";
 const CLAVE_MODO_BUCLE = "timbre_modo_bucle_jiral";
 const CLAVE_VOZ = "timbre_anuncio_voz_jiral";
 const CLAVE_AVISOS_MINUTOS = "timbre_avisos_minutos_jiral"; // minutos de anticipación elegidos (por dispositivo)
+const CLAVE_DURACION_AVISOS = "timbre_duracion_avisos_jiral"; // cuántos segundos repite cada aviso previo (por dispositivo)
 const CLAVE_PASS_GUARDADA = "timbre_clave_actual_jiral"; // contraseña vigente (si se cambió)
 const CLAVE_PREGUNTAS = "timbre_preguntas_seguridad_jiral"; // preguntas/respuestas de recuperación
 const TABLA = "timbre_horario";
 
 const MINUTOS_AVISO_DISPONIBLES = [15, 10, 5, 2, 1];
 const MINUTOS_AVISO_POR_DEFECTO = [5, 1]; // comportamiento original, antes de que fuera configurable
+const DURACION_AVISO_POR_DEFECTO = { 15: 8, 10: 8, 5: 10, 2: 12, 1: 15 }; // segundos que repite cada aviso
 
 const PREGUNTAS_POR_DEFECTO = [
     "¿Cuál es el nombre del director o directora del colegio?",
@@ -141,6 +143,7 @@ const btnAvisosMinutos = document.getElementById("btnAvisosMinutos");
 const panelAvisosMinutos = document.getElementById("panelAvisosMinutos");
 const btnCerrarAvisosMinutos = document.getElementById("btnCerrarAvisosMinutos");
 const checksAvisoMinuto = document.querySelectorAll(".check-aviso-minuto");
+const inputsDuracionAviso = document.querySelectorAll(".input-duracion-aviso");
 
 const cuentaRegresiva = document.getElementById("cuentaRegresiva");
 const sliderVolumen = document.getElementById("sliderVolumen");
@@ -821,6 +824,7 @@ const INTERVALO_BUCLE_MS = 2000; // separación entre repeticiones del timbre
 
 let modoBucleActivo = localStorage.getItem(CLAVE_MODO_BUCLE) === "1";
 let intervaloBucleId = null;
+let bucleTimeoutId = null;
 
 if (switchModoBucle) {
     switchModoBucle.checked = modoBucleActivo;
@@ -832,12 +836,12 @@ if (switchModoBucle) {
     });
 }
 
-function iniciarBucleTimbre(tipo, texto) {
+function iniciarBucleTimbre(tipo, texto, sonarFn = reproducirTimbrePrincipal) {
     detenerBucleTimbre(); // por si ya había uno sonando
     mostrarBanner(tipo, `${texto} — suena hasta presionar Detener`, true);
-    reproducirTimbrePrincipal();
+    sonarFn();
     intervaloBucleId = setInterval(() => {
-        reproducirTimbrePrincipal();
+        sonarFn();
     }, INTERVALO_BUCLE_MS);
 }
 
@@ -846,7 +850,25 @@ function detenerBucleTimbre() {
         clearInterval(intervaloBucleId);
         intervaloBucleId = null;
     }
+    if (bucleTimeoutId) {
+        clearTimeout(bucleTimeoutId);
+        bucleTimeoutId = null;
+    }
     ocultarBanner();
+}
+
+// Igual que iniciarBucleTimbre, pero se detiene solo tras "segundos" —
+// se usa para los avisos previos (5, 2, 1 min...) cuando el modo
+// "sonar hasta apagar" está desactivado, para que repitan un rato
+// en vez de sonar una sola vez y ya.
+function iniciarBucleConDuracion(tipo, texto, sonarFn, segundos) {
+    detenerBucleTimbre();
+    mostrarBanner(tipo, texto, true);
+    sonarFn();
+    intervaloBucleId = setInterval(() => {
+        sonarFn();
+    }, INTERVALO_BUCLE_MS);
+    bucleTimeoutId = setTimeout(detenerBucleTimbre, Math.max(2, segundos) * 1000);
 }
 
 if (bannerDetener) bannerDetener.addEventListener("click", detenerBucleTimbre);
@@ -934,6 +956,45 @@ if (checksAvisoMinuto.length) {
                 minutosAvisoActivos = minutosAvisoActivos.filter((m) => m !== valor);
             }
             guardarMinutosAviso();
+        });
+    });
+}
+
+// Duración (en segundos) que repite cada aviso previo cuando el modo
+// "sonar hasta apagar" está desactivado. Se guarda por dispositivo.
+function obtenerDuracionesAvisoGuardadas() {
+    const base = { ...DURACION_AVISO_POR_DEFECTO };
+    const crudo = localStorage.getItem(CLAVE_DURACION_AVISOS);
+    if (!crudo) return base;
+    try {
+        const guardado = JSON.parse(crudo);
+        MINUTOS_AVISO_DISPONIBLES.forEach((m) => {
+            const val = Number(guardado[m]);
+            if (Number.isFinite(val) && val >= 2 && val <= 120) base[m] = val;
+        });
+    } catch {
+        // si el JSON guardado es inválido, usamos los valores por defecto
+    }
+    return base;
+}
+
+let duracionesAviso = obtenerDuracionesAvisoGuardadas();
+
+function guardarDuracionesAviso() {
+    localStorage.setItem(CLAVE_DURACION_AVISOS, JSON.stringify(duracionesAviso));
+}
+
+if (inputsDuracionAviso.length) {
+    inputsDuracionAviso.forEach((input) => {
+        const minuto = Number(input.dataset.minuto);
+        input.value = duracionesAviso[minuto] ?? DURACION_AVISO_POR_DEFECTO[minuto] ?? 10;
+        input.addEventListener("change", () => {
+            let val = Number(input.value);
+            if (!Number.isFinite(val)) val = DURACION_AVISO_POR_DEFECTO[minuto] ?? 10;
+            val = Math.min(120, Math.max(2, Math.round(val)));
+            input.value = val;
+            duracionesAviso[minuto] = val;
+            guardarDuracionesAviso();
         });
     });
 }
@@ -1171,13 +1232,24 @@ function revisarHorario() {
             const urgente = minutos <= 1;
             const textoMinutos = minutos === 1 ? "1 minuto" : `${minutos} minutos`;
             const texto = `${periodo.nombre} termina en ${textoMinutos}`;
+            const tipoBanner = urgente ? "aviso-urgente" : "aviso";
+            const sonarFn = urgente ? reproducirPitidoLargo : reproducirAviso;
 
             estadoTimbre.textContent = `⏳ ${texto}`;
-            mostrarBanner(urgente ? "aviso-urgente" : "aviso", texto);
             enviarNotificacionNavegador(texto);
-            if (sonidoActivo) {
-                if (urgente) reproducirPitidoLargo();
-                else reproducirAviso();
+
+            if (modoBucleActivo && sonidoActivo) {
+                // "Sonar hasta apagar" también aplica a los avisos previos: suena
+                // sin parar hasta que alguien presione Detener en el banner.
+                iniciarBucleTimbre(tipoBanner, texto, sonarFn);
+            } else if (sonidoActivo) {
+                // Repite el aviso durante los segundos configurados para ese umbral
+                // (en vez de sonar una sola vez), y se detiene solo al terminar.
+                const segundos = duracionesAviso[minutos] ?? DURACION_AVISO_POR_DEFECTO[minutos] ?? 10;
+                iniciarBucleConDuracion(tipoBanner, texto, sonarFn, segundos);
+            } else {
+                // Sonido aún no activado en este dispositivo: solo banner visual.
+                mostrarBanner(tipoBanner, texto);
             }
         });
 
