@@ -56,10 +56,11 @@ const VALOR_COMPORTAMIENTO_BUENO = 5;
 const VALOR_COMPORTAMIENTO_MALO = 1;
 
 // Valores de asistencia (traducen el estado que ya existe en el
-// sistema de asistencia -presente/tardanza/ausente/permiso- a una
+// sistema de asistencia -presente/tardanza/ausente/permiso/fuga- a una
 // nota 1-5). Viven en config_pesos_apreciacion junto a los pesos, así
 // quedan igual de centralizados y editables desde la base de datos.
-const VALOR_ASISTENCIA_DEFECTO = { presente: 5, tardanza: 3, ausente: 1, permiso: 5 };
+// "fuga" vale igual que "ausente" (1).
+const VALOR_ASISTENCIA_DEFECTO = { presente: 5, tardanza: 3, ausente: 1, permiso: 5, fuga: 1 };
 
 // =========================================================
 // 1) ESTADO DE LAS APRECIACIONES (activa / completada / bloqueada)
@@ -876,7 +877,7 @@ function pintarModal(estado_) {
         const filas = estudiantes.map((est) => {
             const celdas = fechasVisibles.map((f) => {
                 const est_ = asistenciaPorFecha[f]?.[est.id] || "—";
-                const badge = { presente: "success", tardanza: "warning", ausente: "danger", permiso: "secondary" }[est_] || "secondary";
+                const badge = { presente: "success", tardanza: "warning", ausente: "danger", permiso: "secondary", fuga: "dark" }[est_] || "secondary";
                 return `<td class="text-center"><span class="badge bg-${badge}">${escapeHtml(est_)}</span></td>`;
             }).join("");
             return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}</tr>`;
