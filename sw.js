@@ -4,7 +4,7 @@
 // Las llamadas a Supabase (datos del horario) NUNCA se cachean: siempre van
 // directo a la red para que el horario mostrado sea siempre el real.
 
-const CACHE_NOMBRE = "timbre-jiral-v1";
+const CACHE_NOMBRE = "timbre-jiral-v2";
 
 const ARCHIVOS_SHELL = [
   "./pages/timbre.html",
