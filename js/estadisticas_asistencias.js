@@ -27,6 +27,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const ESTADOS_QUE_CUENTAN_COMO_ASISTENCIA = ["presente"];
     const TOP_N_RANKING = 10;
 
+    // "Fuga" cuenta igual que "Ausente" en todos los resúmenes,
+    // rankings y gráficas de esta pantalla (se guarda como estado
+    // propio solo para dejar constancia de que el estudiante se fugó,
+    // no que simplemente faltó).
+    function estadoParaConteo(estado) {
+        return estado === "fuga" ? "ausente" : estado;
+    }
+
     // =================================================
     // 1) VERIFICAR SESIÓN Y ROL DE ADMIN
     // =================================================
@@ -201,7 +209,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     function calcularResumenGeneral(lista) {
         const resumen = { presente: 0, ausente: 0, tardanza: 0, permiso: 0, total: lista.length };
         lista.forEach((r) => {
-            if (resumen[r.estado] !== undefined) resumen[r.estado]++;
+            const estado = estadoParaConteo(r.estado);
+            if (resumen[estado] !== undefined) resumen[estado]++;
         });
 
         const asistieron = ESTADOS_QUE_CUENTAN_COMO_ASISTENCIA.reduce(
@@ -224,7 +233,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             }
             const fila = mapa.get(r.estudianteId);
-            if (fila[r.estado] !== undefined) fila[r.estado]++;
+            const estado = estadoParaConteo(r.estado);
+            if (fila[estado] !== undefined) fila[estado]++;
             fila.total++;
         });
 
