@@ -10,9 +10,9 @@ const ARCHIVOS_SHELL = [
   "./pages/timbre.html",
   "./js/timbre.js",
   "./manifest.json",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/apple-touch-icon.png",
+  "./img/icon-192.png",
+  "./img/icon-512.png",
+  "./img/apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (evento) => {
