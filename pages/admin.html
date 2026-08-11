@@ -57,6 +57,9 @@
                 <a href="salones.html" class="btn btn-outline-light btn-sm me-2">
                     <i class="fa-solid fa-school me-1"></i>Salones
                 </a>
+                <button type="button" class="btn btn-outline-light btn-sm me-2" data-bs-toggle="modal" data-bs-target="#modalElegirHorario">
+                    <i class="fa-solid fa-calendar-days me-1"></i>Horario
+                </button>
                 <button id="btnDescargarRespaldo" type="button" class="btn btn-outline-light btn-sm me-2">
                     <i class="fa-solid fa-file-excel me-1"></i>Descargar respaldo
                 </button>
@@ -1035,6 +1038,34 @@
         </div>
 
     </main>
+
+    <!-- Modal: elegir horario por profesor o por salón -->
+    <div class="modal fade" id="modalElegirHorario" tabindex="-1" aria-labelledby="modalElegirHorarioLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalElegirHorarioLabel">
+                        <i class="fa-solid fa-calendar-days me-1"></i> ¿Qué horario querés ver?
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-grid gap-3">
+                        <a href="horario_profesores.html" target="_blank" class="btn btn-outline-dark py-3">
+                            <i class="fa-solid fa-chalkboard-user fa-lg me-2" aria-hidden="true"></i>
+                            Horario de profesores
+                            <span class="d-block small text-muted mt-1">Ver o editar el horario de cualquier profesor(a)</span>
+                        </a>
+                        <a href="horario_salon.html" target="_blank" class="btn btn-outline-dark py-3">
+                            <i class="fa-solid fa-school fa-lg me-2" aria-hidden="true"></i>
+                            Horario por salón
+                            <span class="d-block small text-muted mt-1">Cargar el horario completo de cada salón</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
