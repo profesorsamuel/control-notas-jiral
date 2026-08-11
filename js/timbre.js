@@ -745,20 +745,59 @@ if (sliderVolumen) {
     });
 }
 
-btnActivarTimbre.addEventListener("click", () => {
+function desbloquearVoz() {
+    // Desbloquea la síntesis de voz en navegadores que la requieren dentro
+    // de un toque del usuario (varios navegadores móviles).
+    if ("speechSynthesis" in window) {
+        try {
+            const desbloqueo = new SpeechSynthesisUtterance(" ");
+            desbloqueo.volume = 0;
+            window.speechSynthesis.speak(desbloqueo);
+        } catch {
+            // si el navegador no lo permite, se ignora en silencio
+        }
+    }
+}
+
+// Activa el sonido para este dispositivo/sesión. sonarConfirmacion controla
+// si se escucha un "beep" de confirmación (solo cuando lo activa la persona
+// a propósito con el botón rojo; no cuando se activa solo en segundo plano).
+function activarSonidoTimbre(sonarConfirmacion) {
+    if (sonidoActivo) return;
     asegurarAudioCtx();
-    reproducirTono(660, 200, "sine"); // confirmación
+    if (sonarConfirmacion) reproducirTono(660, 200, "sine"); // confirmación
     sonidoActivo = true;
     zonaActivarTimbre.classList.add("oculto");
     avisoActivoTimbre.classList.add("mostrar");
     pedirWakeLock(); // evita que la pantalla se apague sola mientras el timbre está activo
-    // Desbloquea la síntesis de voz en navegadores que la requieren dentro
-    // de un toque del usuario (varios navegadores móviles).
-    if ("speechSynthesis" in window) {
-        const desbloqueo = new SpeechSynthesisUtterance(" ");
-        desbloqueo.volume = 0;
-        window.speechSynthesis.speak(desbloqueo);
-    }
+    desbloquearVoz();
+}
+
+btnActivarTimbre.addEventListener("click", () => activarSonidoTimbre(true));
+
+// =========================================================
+// DESBLOQUEO AUTOMÁTICO DEL SONIDO (arregla que los avisos queden
+// "mudos" tras recargar la página)
+// -----------------------------------------------------------
+// `sonidoActivo` es una variable en memoria: cada vez que la página se
+// recarga —al abrir el navegador de nuevo, al desbloquear el celular
+// después de que el sistema descargó la pestaña, etc.— vuelve a quedar en
+// false, y aunque el banner visual siga apareciendo, ningún aviso vuelve a
+// sonar hasta tocar otra vez el botón "Activar sonido del timbre". Muchas
+// personas no recuerdan hacerlo cada vez.
+//
+// Los navegadores solo exigen que el audio se desbloquee dentro de un gesto
+// del usuario (un toque/clic), pero no exigen que sea justo ese botón. Por
+// eso aquí escuchamos el primer toque/clic/tecla en cualquier parte de la
+// página y aprovechamos ese gesto para activar el sonido automáticamente,
+// sin necesidad de que encuentren y toquen el botón rojo cada vez.
+// =========================================================
+["pointerdown", "keydown"].forEach((evento) => {
+    document.addEventListener(
+        evento,
+        () => activarSonidoTimbre(false),
+        { once: true, capture: true }
+    );
 });
 
 // =========================================================
