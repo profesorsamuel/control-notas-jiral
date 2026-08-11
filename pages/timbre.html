@@ -87,8 +87,8 @@
     }
     .banner-alerta.mostrar { transform: translateY(0); }
     .banner-alerta.tipo-inicio { background: linear-gradient(90deg, #1e7e34, #28a745); }
-    .banner-alerta.tipo-aviso5 { background: linear-gradient(90deg, #b8860b, #f0ad4e); }
-    .banner-alerta.tipo-aviso1 { background: linear-gradient(90deg, #c0392b, #e74c3c); animation: pulso-banner 1s ease-in-out infinite; }
+    .banner-alerta.tipo-aviso { background: linear-gradient(90deg, #b8860b, #f0ad4e); }
+    .banner-alerta.tipo-aviso-urgente { background: linear-gradient(90deg, #c0392b, #e74c3c); animation: pulso-banner 1s ease-in-out infinite; }
     .banner-alerta.tipo-fin { background: linear-gradient(90deg, #3a3fb3, #5a4fcf); }
     .banner-icono { font-size: 2rem; line-height: 1; }
     .banner-texto { line-height: 1.25; }
@@ -214,9 +214,41 @@
                 <input class="form-check-input" type="checkbox" role="switch" id="switchAnuncioVoz">
                 <label class="form-check-label small" for="switchAnuncioVoz">🗣️ Anunciar por voz</label>
             </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnAvisosMinutos" title="Elige con cuántos minutos de anticipación quieres que avise antes de que termine cada periodo (solo en este dispositivo)">⏰ Avisos previos</button>
             <button type="button" class="btn btn-outline-secondary btn-sm" id="btnModoCartelera">🖥️ Modo cartelera</button>
             <button type="button" class="btn btn-outline-primary btn-sm" id="btnEditarHorario">🔒 Editar horario</button>
             <button type="button" class="btn btn-outline-danger btn-sm oculto" id="btnSalirEdicion">Salir de edición</button>
+        </div>
+
+        <!-- Configuración personal (por dispositivo): con cuántos minutos de anticipación avisar -->
+        <div class="panel-login-edicion oculto" id="panelAvisosMinutos">
+            <p class="text-muted small text-center mb-1">Avisar antes de que termine el periodo</p>
+            <p class="text-muted small text-center mb-3">(esta elección se guarda solo en este dispositivo)</p>
+            <div class="mb-2" id="zonaAvisosMinutos">
+                <div class="form-check">
+                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="15" id="chkAviso15">
+                    <label class="form-check-label" for="chkAviso15">15 minutos antes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="10" id="chkAviso10">
+                    <label class="form-check-label" for="chkAviso10">10 minutos antes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="5" id="chkAviso5">
+                    <label class="form-check-label" for="chkAviso5">5 minutos antes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="2" id="chkAviso2">
+                    <label class="form-check-label" for="chkAviso2">2 minutos antes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="1" id="chkAviso1">
+                    <label class="form-check-label" for="chkAviso1">1 minuto antes</label>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary flex-fill" id="btnCerrarAvisosMinutos">Cerrar</button>
+            </div>
         </div>
 
         <!-- LOGIN de edición: aparece solo al tocar "Editar horario" -->
