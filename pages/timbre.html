@@ -154,6 +154,23 @@
     .panel-login-edicion { padding: 20px 24px; max-width: 320px; margin: 0 auto; border-bottom: 1px solid var(--borde); }
     .panel-login-edicion .btn { border-radius: 999px; font-weight: 600; }
     .panel-login-edicion .form-control { border-radius: var(--radio-sm); border-color: var(--borde); }
+    .fila-aviso-minuto {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 4px 0;
+    }
+    .control-duracion-aviso {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .control-duracion-aviso .input-duracion-aviso {
+        width: 56px;
+        text-align: center;
+        padding: 2px 4px;
+    }
     .barra-edicion {
         padding: 14px 24px;
         display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
@@ -444,27 +461,62 @@
         <!-- Configuración personal (por dispositivo): con cuántos minutos de anticipación avisar -->
         <div class="panel-login-edicion oculto" id="panelAvisosMinutos">
             <p class="text-muted small text-center mb-1">Avisar antes de que termine el periodo</p>
-            <p class="text-muted small text-center mb-3">(esta elección se guarda solo en este dispositivo)</p>
+            <p class="text-muted small text-center mb-2">(esta elección se guarda solo en este dispositivo)</p>
+            <p class="text-muted small text-center mb-3">
+                Si activas <strong>🔁 Sonar hasta apagar</strong> (barra de arriba), estos avisos también
+                sonarán sin parar hasta que presiones Detener. Si lo dejas apagado, cada aviso suena
+                repetido durante los segundos que indiques abajo.
+            </p>
             <div class="mb-2" id="zonaAvisosMinutos">
-                <div class="form-check">
-                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="15" id="chkAviso15">
-                    <label class="form-check-label" for="chkAviso15">15 minutos antes</label>
+                <div class="fila-aviso-minuto">
+                    <div class="form-check">
+                        <input class="form-check-input check-aviso-minuto" type="checkbox" value="15" id="chkAviso15">
+                        <label class="form-check-label" for="chkAviso15">15 minutos antes</label>
+                    </div>
+                    <div class="control-duracion-aviso">
+                        <input type="number" min="2" max="120" class="form-control form-control-sm input-duracion-aviso" data-minuto="15" id="duracionAviso15">
+                        <span class="small text-muted">seg</span>
+                    </div>
                 </div>
-                <div class="form-check">
-                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="10" id="chkAviso10">
-                    <label class="form-check-label" for="chkAviso10">10 minutos antes</label>
+                <div class="fila-aviso-minuto">
+                    <div class="form-check">
+                        <input class="form-check-input check-aviso-minuto" type="checkbox" value="10" id="chkAviso10">
+                        <label class="form-check-label" for="chkAviso10">10 minutos antes</label>
+                    </div>
+                    <div class="control-duracion-aviso">
+                        <input type="number" min="2" max="120" class="form-control form-control-sm input-duracion-aviso" data-minuto="10" id="duracionAviso10">
+                        <span class="small text-muted">seg</span>
+                    </div>
                 </div>
-                <div class="form-check">
-                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="5" id="chkAviso5">
-                    <label class="form-check-label" for="chkAviso5">5 minutos antes</label>
+                <div class="fila-aviso-minuto">
+                    <div class="form-check">
+                        <input class="form-check-input check-aviso-minuto" type="checkbox" value="5" id="chkAviso5">
+                        <label class="form-check-label" for="chkAviso5">5 minutos antes</label>
+                    </div>
+                    <div class="control-duracion-aviso">
+                        <input type="number" min="2" max="120" class="form-control form-control-sm input-duracion-aviso" data-minuto="5" id="duracionAviso5">
+                        <span class="small text-muted">seg</span>
+                    </div>
                 </div>
-                <div class="form-check">
-                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="2" id="chkAviso2">
-                    <label class="form-check-label" for="chkAviso2">2 minutos antes</label>
+                <div class="fila-aviso-minuto">
+                    <div class="form-check">
+                        <input class="form-check-input check-aviso-minuto" type="checkbox" value="2" id="chkAviso2">
+                        <label class="form-check-label" for="chkAviso2">2 minutos antes</label>
+                    </div>
+                    <div class="control-duracion-aviso">
+                        <input type="number" min="2" max="120" class="form-control form-control-sm input-duracion-aviso" data-minuto="2" id="duracionAviso2">
+                        <span class="small text-muted">seg</span>
+                    </div>
                 </div>
-                <div class="form-check">
-                    <input class="form-check-input check-aviso-minuto" type="checkbox" value="1" id="chkAviso1">
-                    <label class="form-check-label" for="chkAviso1">1 minuto antes</label>
+                <div class="fila-aviso-minuto">
+                    <div class="form-check">
+                        <input class="form-check-input check-aviso-minuto" type="checkbox" value="1" id="chkAviso1">
+                        <label class="form-check-label" for="chkAviso1">1 minuto antes</label>
+                    </div>
+                    <div class="control-duracion-aviso">
+                        <input type="number" min="2" max="120" class="form-control form-control-sm input-duracion-aviso" data-minuto="1" id="duracionAviso1">
+                        <span class="small text-muted">seg</span>
+                    </div>
                 </div>
             </div>
             <div class="d-flex gap-2">
