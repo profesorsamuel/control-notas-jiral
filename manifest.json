@@ -1,0 +1,32 @@
+{
+  "name": "Control de Timbre · C.E.B.G. El Jiral",
+  "short_name": "Timbre El Jiral",
+  "description": "Control de timbre y horario de periodos del Centro Básico General El Jiral (turno vespertino).",
+  "start_url": "./pages/timbre.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#14213d",
+  "theme_color": "#14213d",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
