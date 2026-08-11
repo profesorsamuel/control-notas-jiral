@@ -145,6 +145,9 @@ const checksAvisoMinuto = document.querySelectorAll(".check-aviso-minuto");
 const cuentaRegresiva = document.getElementById("cuentaRegresiva");
 const sliderVolumen = document.getElementById("sliderVolumen");
 const btnActivarNotificaciones = document.getElementById("btnActivarNotificaciones");
+const btnDescargarApp = document.getElementById("btnDescargarApp");
+const panelInstalarIOS = document.getElementById("panelInstalarIOS");
+const btnCerrarInstalarIOS = document.getElementById("btnCerrarInstalarIOS");
 const avisoNotificacionesIOS = document.getElementById("avisoNotificacionesIOS");
 const btnModoCartelera = document.getElementById("btnModoCartelera");
 const btnSalirCartelera = document.getElementById("btnSalirCartelera");
@@ -1185,6 +1188,57 @@ function revisarHorario() {
         }
     });
 }
+
+// =========================================================
+// DESCARGAR / INSTALAR LA APP EN EL CELULAR
+// =========================================================
+
+let eventoInstalacionPWA = null;
+
+function appYaInstalada() {
+    return window.matchMedia("(display-mode: standalone)").matches
+        || window.navigator.standalone === true; // Safari en iOS
+}
+
+function esIOS() {
+    return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+}
+
+// Chrome/Android/escritorio: el navegador avisa cuando la app se puede instalar.
+window.addEventListener("beforeinstallprompt", (evento) => {
+    evento.preventDefault();
+    eventoInstalacionPWA = evento;
+    if (!appYaInstalada() && btnDescargarApp) btnDescargarApp.classList.remove("oculto");
+});
+
+// iOS no dispara "beforeinstallprompt": mostramos el botón igual y,
+// al tocarlo, explicamos el paso manual de Safari.
+if (esIOS() && !appYaInstalada() && btnDescargarApp) {
+    btnDescargarApp.classList.remove("oculto");
+}
+
+if (btnDescargarApp) {
+    btnDescargarApp.addEventListener("click", async () => {
+        if (eventoInstalacionPWA) {
+            eventoInstalacionPWA.prompt();
+            await eventoInstalacionPWA.userChoice;
+            eventoInstalacionPWA = null;
+            btnDescargarApp.classList.add("oculto");
+        } else if (esIOS()) {
+            if (panelInstalarIOS) panelInstalarIOS.classList.remove("oculto");
+        }
+    });
+}
+
+if (btnCerrarInstalarIOS) {
+    btnCerrarInstalarIOS.addEventListener("click", () => {
+        panelInstalarIOS.classList.add("oculto");
+    });
+}
+
+window.addEventListener("appinstalled", () => {
+    if (btnDescargarApp) btnDescargarApp.classList.add("oculto");
+});
 
 setInterval(() => {
     relojActual.textContent = horaTexto(new Date());
