@@ -1,6 +1,6 @@
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
-import { calcularColumnasApreciacionesNuevas, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas, reiniciarApreciacionActiva, inicializarPanelPesosGlobal } from "./apreciaciones.js";
+import { calcularColumnasApreciacionesNuevas, activarApreciacionSiguiente, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas, reiniciarApreciacionActiva, inicializarPanelPesosGlobal } from "./apreciaciones.js";
 
 inicializarPanelPesosGlobal();
 
@@ -902,12 +902,11 @@ function renderTabla() {
         columnasConBoton.push(c);
         const siguiente = columnasVisibles[idx + 1];
         if (!siguiente || siguiente.tipo !== c.tipo) {
-            // Las columnas de Apreciación 4+ se crean solas según su
-            // estado (activa/completada/bloqueada); ya no tiene sentido
-            // el botón "➕" manual para ese tipo.
-            if (c.tipo !== "apreciacion") {
-                columnasConBoton.push({ tipo: c.tipo, numero: null, esBotonAgregar: true });
-            }
+            // Para Apreciación 4+, este "➕" ya no es solo la casilla
+            // "lista para escribir" del sistema viejo: crea/activa la
+            // siguiente Apreciación (numero+1) en apreciaciones_estado
+            // (ver el manejador de .btn-agregar-columna más abajo).
+            columnasConBoton.push({ tipo: c.tipo, numero: null, esBotonAgregar: true });
         }
     });
     // Índice de columna de nota "real" para cada posición (null en los
@@ -939,9 +938,9 @@ function renderTabla() {
             }
             htmlCabecera += `
                 <th class="text-center small" data-abrir-apreciacion-header="${c.numero}" data-estado-header="${infoCol.estado}"
-                    style="width:90px; cursor:${infoCol.estado === "bloqueada" ? "default" : "pointer"};">
-                    <div class="fw-bold" style="color:${infoCol.estado === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"};">
-                        ${iconoApreciacion(infoCol.estado)} Aprec. ${c.numero}
+                    style="width:90px; min-width:90px; cursor:${infoCol.estado === "bloqueada" ? "default" : "pointer"};">
+                    <div class="fw-bold" style="color:${infoCol.estado === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"}; white-space:normal; line-height:1.15; word-break:keep-all;">
+                        <span style="font-size:14px;">${iconoApreciacion(infoCol.estado)}</span> Aprec. ${c.numero}
                     </div>
                     ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar/reiniciar esta apreciación">🗑️</button>` : ""}
                 </th>`;
@@ -1090,8 +1089,23 @@ function renderTabla() {
     // de ese mismo Tipo (Aprec./Ejer./Exam.), sin importar cuál Tipo esté
     // elegido arriba en el selector.
     cabeceraNotasGrupo.querySelectorAll(".btn-agregar-columna").forEach((btn) => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", async () => {
             const tipo = btn.dataset.tipo;
+
+            if (tipo === "apreciacion") {
+                // Apreciación 4+ vive en apreciaciones_estado, no en la
+                // tabla "notas" normal: crea/activa la siguiente en vez
+                // de abrir una casilla vacía del sistema viejo.
+                const numerosActuales = Object.keys(estadoApreciacionesNuevas).map((n) => parseInt(n, 10));
+                const siguienteNumero = numerosActuales.length > 0 ? Math.max(...numerosActuales) + 1 : 4;
+                btn.disabled = true;
+                const ok = await activarApreciacionSiguiente(selectMateriaNota.value, selectTrimestreNota.value, siguienteNumero);
+                btn.disabled = false;
+                if (!ok) { alert("No se pudo agregar la siguiente Apreciación."); return; }
+                await cargarSalon();
+                return;
+            }
+
             selectTipoNota.value = tipo;
             inputNumeroNota.value = obtenerUltimoNumeroTipo(tipo) + 1;
             agregarColumnaVaciaSolicitada = true;
