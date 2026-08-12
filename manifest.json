@@ -1,8 +1,8 @@
 {
-  "name": "Control de Timbre · C.E.B.G. El Jiral",
-  "short_name": "Timbre El Jiral",
-  "description": "Control de timbre y horario de periodos del Centro Básico General El Jiral (turno vespertino).",
-  "start_url": "./pages/timbre.html",
+  "name": "Notas · C.E.B.G. El Jiral",
+  "short_name": "Notas El Jiral",
+  "description": "Consulta tus calificaciones por materia durante el trimestre, desde cualquier dispositivo.",
+  "start_url": "./pages/inicio.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
