@@ -55,10 +55,10 @@ function materiasParaMostrar() {
         : MATERIAS_BASE;
 
     const extras = Object.keys(columnasPorMateria)
-        .filter((m) => !base.includes(m) && !(miEstudiante?.salon === "8A" && m === "Contabilidad"))
-        .sort();
+        .filter((m) => !base.includes(m) && !(miEstudiante?.salon === "8A" && m === "Contabilidad"));
 
-    return [...base, ...extras];
+    // Orden alfabético (usando localeCompare "es" para que tilde/eñe ordenen bien).
+    return [...base, ...extras].sort((a, b) => a.localeCompare(b, "es"));
 }
 
 // =====================================================
