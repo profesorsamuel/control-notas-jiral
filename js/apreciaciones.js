@@ -60,6 +60,13 @@ function formatearNotaFinal(valor) {
     return num.toFixed(1);
 }
 
+// Formatea el promedio de UNA sección (Asistencia, Comportamiento,
+// Actividades en clase o en casa) para mostrarlo al final de la fila
+// de cada estudiante dentro del detalle de una Apreciación 4+.
+function formatearPromedioSeccion(valor) {
+    return valor === null || valor === undefined || isNaN(valor) ? "–" : valor.toFixed(1);
+}
+
 // Valores fijos pedidos explícitamente en el punto 6 (Comportamiento):
 // buen comportamiento = 5, mal comportamiento = 1.
 const VALOR_COMPORTAMIENTO_BUENO = 5;
@@ -740,8 +747,8 @@ function actividadBloqueadaParaEstudiante(a, estudianteId, asistenciaPorFecha) {
     return estadoEseDia === "ausente" || estadoEseDia === "fuga" || estadoEseDia === "permiso";
 }
 
-function calcularNotaFinalEstudiante(estado_, estudianteId) {
-    const { asistenciaFechas, asistenciaPorFecha, comportamientoFechas, actividadesClase, actividadesCasa, valoresAsistencia, pesos } = estado_;
+function calcularNotasParcialesEstudiante(estado_, estudianteId) {
+    const { asistenciaFechas, asistenciaPorFecha, comportamientoFechas, actividadesClase, actividadesCasa, valoresAsistencia } = estado_;
 
     // Las fechas que el docente marcó como "excluir" (ej. una asistencia
     // mal tomada) NO cuentan en el promedio de Asistencia ni en el
@@ -775,10 +782,12 @@ function calcularNotaFinalEstudiante(estado_, estudianteId) {
     );
     const notaActCasa = promedio(actividadesCasa.map((a) => a.notas[estudianteId]).filter((v) => v !== undefined));
 
-    return calcularNotaFinalApreciacion(
-        { notaAsistencia, notaComportamiento, notaActClase, notaActCasa },
-        pesos
-    );
+    return { notaAsistencia, notaComportamiento, notaActClase, notaActCasa };
+}
+
+function calcularNotaFinalEstudiante(estado_, estudianteId) {
+    const partes = calcularNotasParcialesEstudiante(estado_, estudianteId);
+    return calcularNotaFinalApreciacion(partes, estado_.pesos);
 }
 
 function calcularYPintarNotasFinales(estado_) {
@@ -982,14 +991,15 @@ function pintarModal(estado_) {
                 const badge = { presente: "success", tardanza: "warning", ausente: "danger", permiso: "secondary", fuga: "dark" }[est_] || "secondary";
                 return `<td class="text-center"><span class="badge bg-${badge}">${escapeHtml(est_)}</span></td>`;
             }).join("");
-            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}</tr>`;
+            const notaSeccion = calcularNotasParcialesEstudiante(estado_, est.id).notaAsistencia;
+            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}<td class="text-center fw-bold">${formatearPromedioSeccion(notaSeccion)}</td></tr>`;
         }).join("");
 
         return `
             ${nota}
             ${selector}
             <table class="table table-sm table-bordered align-middle mb-2">
-                <thead><tr><th class="small">Estudiante</th>${encabezado}</tr></thead>
+                <thead><tr><th class="small">Estudiante</th>${encabezado}<th class="text-center small">Prom.</th></tr></thead>
                 <tbody>${filas}</tbody>
             </table>`;
     };
@@ -1033,13 +1043,14 @@ function pintarModal(estado_) {
                     </div>
                 </td>`;
             }).join("");
-            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}${soloLectura ? "" : "<td></td>"}</tr>`;
+            const notaSeccion = calcularNotasParcialesEstudiante(estado_, est.id).notaComportamiento;
+            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}${soloLectura ? "" : "<td></td>"}<td class="text-center fw-bold">${formatearPromedioSeccion(notaSeccion)}</td></tr>`;
         }).join("");
 
         return `
             ${selector}
             <table class="table table-sm table-bordered align-middle mb-2">
-                <thead><tr><th class="small">Estudiante</th>${encabezadoFechas}${columnaAgregar}</tr></thead>
+                <thead><tr><th class="small">Estudiante</th>${encabezadoFechas}${columnaAgregar}<th class="text-center small">Prom.</th></tr></thead>
                 <tbody>${filas || `<tr><td colspan="99" class="text-muted small">Todavía no hay fechas de comportamiento. Define el rango de Asistencia arriba, o agrega una fecha a mano.</td></tr>`}</tbody>
             </table>
             <p class="small text-muted mb-2">Los días marcados "Día de clase" empiezan en 😀 (bueno) por defecto — solo toca 😕 en quien se portó mal ese día.</p>`;
@@ -1082,7 +1093,9 @@ function pintarModal(estado_) {
                         data-actividad-id="${a.id}" data-estudiante-id="${est.id}" value="${valor}" style="width:60px; margin:auto;">
                 </td>`;
             }).join("");
-            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}${soloLectura ? "" : "<td></td>"}</tr>`;
+            const partes = calcularNotasParcialesEstudiante(estado_, est.id);
+            const notaSeccion = tipoActividad === "clase" ? partes.notaActClase : partes.notaActCasa;
+            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}${soloLectura ? "" : "<td></td>"}<td class="text-center fw-bold">${formatearPromedioSeccion(notaSeccion)}</td></tr>`;
         }).join("");
 
         const mensajeVacio = lista.length === 0
@@ -1092,7 +1105,7 @@ function pintarModal(estado_) {
         return `
             ${selector}
             <table class="table table-sm table-bordered align-middle mb-3">
-                <thead><tr><th class="small">Estudiante</th>${encabezado}${columnaAgregar}</tr></thead>
+                <thead><tr><th class="small">Estudiante</th>${encabezado}${columnaAgregar}<th class="text-center small">Prom.</th></tr></thead>
                 <tbody>${filas && listaVisible.length ? filas : `<tr><td colspan="99" class="text-muted small">${mensajeVacio}</td></tr>`}</tbody>
             </table>`;
     };
