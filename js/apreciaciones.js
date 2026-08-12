@@ -79,6 +79,20 @@ const VALOR_COMPORTAMIENTO_MALO = 1;
 // "fuga" vale igual que "ausente" (1).
 const VALOR_ASISTENCIA_DEFECTO = { presente: 5, tardanza: 3, ausente: 1, permiso: 5, fuga: 1 };
 
+// Igual que en la cuadrícula del trimestre (historial-asistencia.js): si
+// un día NO tiene fila guardada en asistencia_detalle para un estudiante,
+// se asume "presente" por defecto (más rápido de revisar: el profesor
+// solo corrige las excepciones). Antes esta pantalla mostraba esos días
+// como "—" (vacío) y los excluía del promedio, lo que hacía que la nota
+// y las casillas NO coincidieran con lo que se ve en la cuadrícula de
+// Asistencia. Se deja centralizado aquí para no repetir el criterio.
+const ESTADO_ASISTENCIA_DEFECTO = "presente";
+
+// Ciclo de estados al hacer clic sobre una casilla de asistencia dentro
+// de la Apreciación (igual orden que en la pantalla de Asistencia).
+const CICLO_ASISTENCIA_APR = ["presente", "ausente", "tardanza", "permiso", "fuga"];
+const ETIQUETAS_ASISTENCIA_APR = { presente: "Presente", ausente: "Ausente", tardanza: "Tardanza", permiso: "Permiso", fuga: "Fuga" };
+
 // =========================================================
 // 1) ESTADO DE LAS APRECIACIONES (activa / completada / bloqueada)
 // =========================================================
@@ -346,7 +360,7 @@ export async function guardarRangoFechas(materia, trimestre, numeroApreciacion, 
 }
 
 export async function obtenerAsistenciaPorRango(materia, salon, fechaInicio, fechaFin) {
-    if (!fechaInicio || !fechaFin) return { fechas: [], porFecha: {} };
+    if (!fechaInicio || !fechaFin) return { fechas: [], porFecha: {}, idPorFecha: {} };
 
     const { data: sesiones, error } = await supabase
         .from("asistencias")
@@ -355,23 +369,40 @@ export async function obtenerAsistenciaPorRango(materia, salon, fechaInicio, fec
         .gte("fecha", fechaInicio).lte("fecha", fechaFin)
         .order("fecha", { ascending: true });
 
-    if (error) { console.error(error); return { fechas: [], porFecha: {} }; }
-    if (!sesiones || sesiones.length === 0) return { fechas: [], porFecha: {} };
+    if (error) { console.error(error); return { fechas: [], porFecha: {}, idPorFecha: {} }; }
+    if (!sesiones || sesiones.length === 0) return { fechas: [], porFecha: {}, idPorFecha: {} };
 
     const { data: detalles, error: errDet } = await supabase
         .from("asistencia_detalle")
         .select("asistencia_id, estudiante_id, estado")
         .in("asistencia_id", sesiones.map((s) => s.id));
-    if (errDet) { console.error(errDet); return { fechas: [], porFecha: {} }; }
+    if (errDet) { console.error(errDet); return { fechas: [], porFecha: {}, idPorFecha: {} }; }
 
     const fechaPorSesion = Object.fromEntries(sesiones.map((s) => [s.id, s.fecha]));
     const fechas = sesiones.map((s) => s.fecha);
+    // id de la sesión ("asistencias.id") por fecha, para poder corregir
+    // una casilla puntual sin tener que volver a consultar todo.
+    const idPorFecha = Object.fromEntries(sesiones.map((s) => [s.fecha, s.id]));
     const porFecha = {};
     (detalles || []).forEach((d) => {
         const fecha = fechaPorSesion[d.asistencia_id];
         (porFecha[fecha] ??= {})[d.estudiante_id] = d.estado;
     });
-    return { fechas, porFecha };
+    return { fechas, porFecha, idPorFecha };
+}
+
+// Guarda (upsert) la corrección de UN estudiante en UNA fecha, dentro del
+// panel de Apreciación. Usa la misma tabla/llave que el resto del
+// sistema de asistencia (asistencia_id + estudiante_id), así que la
+// corrección queda reflejada también en la pantalla de Asistencia y en
+// la cuadrícula del trimestre — es la MISMA asistencia real, solo que
+// aquí se puede corregir sin salir de la Apreciación.
+export async function guardarCorreccionAsistencia(asistenciaId, estudianteId, estado) {
+    const { error } = await supabase
+        .from("asistencia_detalle")
+        .upsert({ asistencia_id: asistenciaId, estudiante_id: estudianteId, estado }, { onConflict: "asistencia_id,estudiante_id" });
+    if (error) { console.error("No se pudo corregir la asistencia:", error); return false; }
+    return true;
 }
 
 // =========================================================
@@ -647,6 +678,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
         fechaInicio: rango.fecha_inicio, fechaFin: rango.fecha_fin,
         fechasAsistenciaExcluidas: new Set(rango.fechas_asistencia_excluidas || []),
         asistenciaFechas: [...asistenciaTabla.fechas], asistenciaPorFecha: { ...asistenciaTabla.porFecha },
+        asistenciaIdPorFecha: { ...asistenciaTabla.idPorFecha },
         comportamientoFechas: [...comportamientoTabla.fechas], comportamientoPorFecha: { ...comportamientoTabla.porFecha },
         actividadesClase, actividadesCasa,
         valoresAsistencia: VALOR_ASISTENCIA_DEFECTO,
@@ -761,9 +793,12 @@ function calcularNotasParcialesEstudiante(estado_, estudianteId) {
     const excluidas = estado_.fechasAsistenciaExcluidas || new Set();
     const fechasAsistenciaValidas = asistenciaFechas.filter((f) => !excluidas.has(f));
 
+    // Si un día real de clase no tiene fila guardada para este
+    // estudiante, se asume "presente" (igual que la cuadrícula del
+    // trimestre en Asistencia) en vez de excluirlo del promedio, para
+    // que la nota de Asistencia coincida con lo que se ve ahí.
     const valoresAsist = fechasAsistenciaValidas
-        .map((f) => asistenciaPorFecha[f]?.[estudianteId])
-        .filter((v) => v !== undefined)
+        .map((f) => asistenciaPorFecha[f]?.[estudianteId] || ESTADO_ASISTENCIA_DEFECTO)
         .map((estadoDia) => valoresAsistencia[estadoDia])
         .filter((v) => v !== undefined);
     const notaAsistencia = promedio(valoresAsist);
@@ -819,7 +854,7 @@ export function imprimirApreciacion(estado_) {
     const fechasComportamientoReporte = [...new Set([...comportamientoFechas, ...asistenciaFechas])].sort();
 
     const filaAsistencia = (est) => asistenciaFechas.map((f) => {
-        const v = asistenciaPorFecha[f]?.[est.id] || "—";
+        const v = asistenciaPorFecha[f]?.[est.id] || ESTADO_ASISTENCIA_DEFECTO;
         return `<td>${escapeHtml(v)}</td>`;
     }).join("");
 
@@ -982,7 +1017,9 @@ function pintarModal(estado_) {
 
         const selector = bloqueSelectorColumnas("asistencia", asistenciaFechas.map((f) => ({ clave: f, etiqueta: f })));
         const fechasVisibles = asistenciaFechas.filter((f) => !columnasOcultas.asistencia.has(f));
-        const nota = `<p class="small text-muted mb-2">Desmarca una fecha para <strong>excluirla del promedio</strong> de esta Apreciación (por ejemplo, una asistencia mal tomada). No borra la asistencia real, solo deja de contar aquí.</p>`;
+        const nota = soloLectura
+            ? `<p class="small text-muted mb-2">Viene directo de tu pantalla de Asistencia. Los días sin registro individual se cuentan como "Presente" por defecto.</p>`
+            : `<p class="small text-muted mb-2">Viene directo de tu pantalla de Asistencia — <strong>haz clic en una casilla para corregirla</strong> (queda guardado también en Asistencia y en la cuadrícula del trimestre, es la misma asistencia real). Los días sin registro individual se muestran como "Presente" atenuado, hasta que los toques. Desmarca una fecha arriba para <strong>excluirla del promedio</strong> de esta Apreciación (por ejemplo, una asistencia mal tomada) sin borrar nada.</p>`;
 
         if (fechasVisibles.length === 0) {
             return `${nota}${selector}<p class="text-muted small">Excluiste todas las fechas. Marca "Ver todas" arriba para volver a contarlas.</p>`;
@@ -991,9 +1028,22 @@ function pintarModal(estado_) {
         const encabezado = fechasVisibles.map((f) => `<th class="text-center small" style="min-width:90px;">${escapeHtml(f)}</th>`).join("");
         const filas = estudiantes.map((est) => {
             const celdas = fechasVisibles.map((f) => {
-                const est_ = asistenciaPorFecha[f]?.[est.id] || "—";
+                const guardado = asistenciaPorFecha[f]?.[est.id];
+                const est_ = guardado || ESTADO_ASISTENCIA_DEFECTO;
+                const sinRegistrar = !guardado;
                 const badge = { presente: "success", tardanza: "warning", ausente: "danger", permiso: "secondary", fuga: "dark" }[est_] || "secondary";
-                return `<td class="text-center"><span class="badge bg-${badge}">${escapeHtml(est_)}</span></td>`;
+                const asistenciaId = estado_.asistenciaIdPorFecha?.[f];
+                const titulo = sinRegistrar
+                    ? "Sin registrar (mostrando Presente por defecto) — clic para corregir"
+                    : "Clic para cambiar el estado";
+                if (soloLectura) {
+                    return `<td class="text-center"><span class="badge bg-${badge} ${sinRegistrar ? "opacity-50" : ""}">${escapeHtml(ETIQUETAS_ASISTENCIA_APR[est_] || est_)}</span></td>`;
+                }
+                return `<td class="text-center">
+                    <button type="button" class="btn btn-sm badge bg-${badge} btn-asistencia-apr ${sinRegistrar ? "opacity-50" : ""}"
+                        data-fecha="${f}" data-estudiante-id="${est.id}" data-estado="${est_}" data-asistencia-id="${asistenciaId || ""}"
+                        title="${titulo}" style="border:none;">${escapeHtml(ETIQUETAS_ASISTENCIA_APR[est_] || est_)}</button>
+                </td>`;
             }).join("");
             const notaSeccion = calcularNotasParcialesEstudiante(estado_, est.id).notaAsistencia;
             return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}<td class="text-center fw-bold">${formatearPromedioSeccion(notaSeccion)}</td></tr>`;
@@ -1276,9 +1326,37 @@ function pintarModal(estado_) {
         const asistenciaTabla = await obtenerAsistenciaPorRango(estado_.materia, estado_.salon, inicio, fin);
         estado_.asistenciaFechas = [...asistenciaTabla.fechas];
         estado_.asistenciaPorFecha = { ...asistenciaTabla.porFecha };
+        estado_.asistenciaIdPorFecha = { ...asistenciaTabla.idPorFecha };
 
         pintarModal(estado_);
         calcularYPintarNotasFinales(estado_);
+    });
+
+    // --- Listeners: Asistencia (corrección directa desde la Apreciación) ---
+    // Al hacer clic se avanza al siguiente estado del ciclo (igual que en
+    // la pantalla de Asistencia) y se guarda de una vez en la base de
+    // datos — misma tabla que usa Asistencia y la cuadrícula del
+    // trimestre, así que ambos lados quedan sincronizados.
+    el.cuerpo.querySelectorAll(".btn-asistencia-apr").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const fecha = btn.dataset.fecha;
+            const estudianteId = btn.dataset.estudianteId;
+            const asistenciaId = btn.dataset.asistenciaId || estado_.asistenciaIdPorFecha?.[fecha];
+            if (!asistenciaId) { alert("No se encontró la clase de ese día. Recarga e intenta de nuevo."); return; }
+
+            const actual = btn.dataset.estado;
+            const indice = CICLO_ASISTENCIA_APR.indexOf(actual);
+            const nuevoEstado = CICLO_ASISTENCIA_APR[(indice + 1) % CICLO_ASISTENCIA_APR.length];
+
+            btn.disabled = true;
+            const ok = await guardarCorreccionAsistencia(asistenciaId, estudianteId, nuevoEstado);
+            btn.disabled = false;
+            if (!ok) { alert("No se pudo guardar la corrección. Revisa tu conexión e intenta de nuevo."); return; }
+
+            (estado_.asistenciaPorFecha[fecha] ??= {})[estudianteId] = nuevoEstado;
+            pintarModal(estado_);
+            calcularYPintarNotasFinales(estado_);
+        });
     });
 
     // --- Listeners: Comportamiento ---
