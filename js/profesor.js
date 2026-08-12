@@ -1,6 +1,6 @@
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
-import { calcularColumnasApreciacionesNuevas, activarApreciacionSiguiente, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas, reiniciarApreciacionActiva, inicializarPanelPesosGlobal } from "./apreciaciones.js";
+import { calcularColumnasApreciacionesNuevas, activarApreciacionSiguiente, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas, eliminarApreciacionColumna, inicializarPanelPesosGlobal } from "./apreciaciones.js";
 
 inicializarPanelPesosGlobal();
 
@@ -932,7 +932,7 @@ function renderTabla() {
                 htmlCabecera += `
                     <th class="text-center small ${claveCasilla(c.tipo, c.numero) === claveSel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
                         <div>${iconoApreciacion(infoCol.estado)} ${etiquetaCasilla(c.tipo, c.numero)}</div>
-                        ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar/reiniciar esta apreciación">🗑️</button>` : ""}
+                        ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
                     </th>`;
                 return;
             }
@@ -942,7 +942,7 @@ function renderTabla() {
                     <div class="fw-bold" style="color:${infoCol.estado === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"}; white-space:normal; line-height:1.15; word-break:keep-all;">
                         <span style="font-size:14px;">${iconoApreciacion(infoCol.estado)}</span> Aprec. ${c.numero}
                     </div>
-                    ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar/reiniciar esta apreciación">🗑️</button>` : ""}
+                    ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
                 </th>`;
             return;
         }
@@ -1070,12 +1070,12 @@ function renderTabla() {
             e.stopPropagation();
             const numeroApreciacion = parseInt(btn.dataset.numero, 10);
             const ok = window.confirm(
-                `¿Eliminar/reiniciar la Apreciación ${numeroApreciacion}? Esto borra las notas, comportamiento y actividades guardadas de esta apreciación (solo de esta, no toca Aprec. 1, 2 ni 3) y vuelve a preguntar el modo.`
+                `¿Eliminar por completo la Apreciación ${numeroApreciacion}? Esto borra sus notas, comportamiento y actividades, y la columna desaparece de la tabla (solo esta, no toca Aprec. 1, 2 ni 3). Nota: esta apreciación es la misma para todos los salones que tengan esta materia y trimestre, así que se elimina para todos ellos, no solo para este salón.`
             );
             if (!ok) return;
             const materia = selectMateriaNota.value, trimestre = selectTrimestreNota.value;
-            const seReinicio = await reiniciarApreciacionActiva(materia, trimestre, numeroApreciacion);
-            if (!seReinicio) { alert("No se pudo reiniciar (puede que ya se haya completado)."); return; }
+            const resultado = await eliminarApreciacionColumna(materia, trimestre, numeroApreciacion);
+            if (!resultado.ok) { alert("❌ No se pudo eliminar la columna.\n\nMotivo: " + (resultado.error?.message || "desconocido")); return; }
             cargarSalon();
         });
     });
