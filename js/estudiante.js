@@ -230,12 +230,19 @@ async function cargarColumnas(trimestre) {
         });
     }
 
-    const consultas = [
-        supabase
-            .from("columnas_materia")
-            .select("materia, tipo, numero, creado_por")
-            .eq("trimestre", trimestre)
-    ];
+    let consultaColumnas = supabase
+        .from("columnas_materia")
+        .select("materia, tipo, numero, creado_por")
+        .eq("trimestre", trimestre);
+
+    // Solo columnas de mi mismo grado, o "oficiales" (sin nivel = para todos).
+    // Así, dos grados distintos que comparten el nombre de una materia
+    // (ej. "Ciencias Naturales" en 8° y en 9°) ya no chocan entre sí.
+    if (nivelNum) {
+        consultaColumnas = consultaColumnas.or(`nivel.eq.${nivelNum},nivel.is.null`);
+    }
+
+    const consultas = [consultaColumnas];
 
     if (correosNivel.length > 0) {
         consultas.push(
@@ -970,9 +977,15 @@ async function agregarColumna(materia, tipo) {
     const listaActual = columnasPorMateria[materia]?.[tipo] || [];
     const siguienteNumero = listaActual.length > 0 ? Math.max(...listaActual) + 1 : 1;
 
+    const salonActual = miEstudiante?.salon || null;
+    const nivelActual = salonActual ? salonActual.replace(/\D/g, "") : null;
+
     const { error } = await supabase
         .from("columnas_materia")
-        .insert([{ materia, tipo, numero: siguienteNumero, trimestre: trimestreActivo, creado_por: usuarioActual.email }]);
+        .insert([{
+            materia, tipo, numero: siguienteNumero, trimestre: trimestreActivo,
+            creado_por: usuarioActual.email, nivel: nivelActual
+        }]);
 
     if (error) {
         console.error("❌ Error al crear la columna:", error);
@@ -1056,13 +1069,24 @@ async function eliminarColumna(materia, tipo, numero) {
         }
     }
 
-    const { error: errBorrar } = await supabase
+    const salonParaBorrar = miEstudiante?.salon || null;
+    const nivelParaBorrar = salonParaBorrar ? salonParaBorrar.replace(/\D/g, "") : null;
+
+    let consultaBorrar = supabase
         .from("columnas_materia")
         .delete()
         .eq("materia", materia)
         .eq("tipo", tipo)
         .eq("numero", numero)
         .eq("trimestre", trimestreActivo);
+
+    // Solo borra la columna de MI grado (o una oficial sin grado);
+    // así no se toca por error la de otro grado con el mismo número.
+    consultaBorrar = nivelParaBorrar
+        ? consultaBorrar.or(`nivel.eq.${nivelParaBorrar},nivel.is.null`)
+        : consultaBorrar.is("nivel", null);
+
+    const { error: errBorrar } = await consultaBorrar;
 
     if (errBorrar) {
         console.error("❌ Error al eliminar la columna:", errBorrar);
