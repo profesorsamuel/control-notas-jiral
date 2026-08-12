@@ -656,6 +656,10 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
         // hasta que el docente desmarque algo. Se guarda en estado_
         // para que sobreviva a los re-pintados del modal.
         columnasOcultas: { asistencia: new Set(), comportamiento: new Set(), clase: new Set(), casa: new Set() },
+        // Qué pestaña está activa en el modal (asistencia / comportamiento /
+        // clase / casa / final). Se guarda en estado_ para que no se pierda
+        // cada vez que el modal se vuelve a pintar tras una acción.
+        tabApreciacionActiva: "asistencia",
     };
 
     pintarModal(estado_);
@@ -1110,33 +1114,72 @@ function pintarModal(estado_) {
             </table>`;
     };
 
+    // --- Pestañas: cada sección vive en su propio panel, y solo se
+    // muestra la que esté activa (estado_.tabApreciacionActiva). Así el
+    // docente ve una cosa a la vez en vez de tener que hacer scroll por
+    // las 5 secciones apiladas. ---
+    const tabsInfo = [
+        { clave: "asistencia", icono: "📋", etiqueta: "Asistencia" },
+        { clave: "comportamiento", icono: "🙂", etiqueta: "Comportamiento" },
+        { clave: "clase", icono: "✏️", etiqueta: "Act. en clase" },
+        { clave: "casa", icono: "🏠", etiqueta: "Act. en casa" },
+        { clave: "final", icono: "🏁", etiqueta: "Nota final" },
+    ];
+    if (!tabsInfo.some((t) => t.clave === estado_.tabApreciacionActiva)) {
+        estado_.tabApreciacionActiva = "asistencia";
+    }
+    const tabActiva = estado_.tabApreciacionActiva;
+
+    const botonesTabs = tabsInfo.map((t) => `
+        <button type="button" class="apr-tab-btn ${t.clave === tabActiva ? "activo" : ""}" data-tab-btn="${t.clave}">
+            <span class="apr-tab-icono">${t.icono}</span>${t.etiqueta}
+        </button>`).join("");
+
+    const panel = (clave, tituloInterno, contenidoHtml, claseExtra = "") => `
+        <div class="apr-tab-pane ${clave === tabActiva ? "activo" : ""}" data-tab-pane="${clave}">
+            <div class="apr-panel-seccion ${claseExtra}">
+                ${tituloInterno ? `<h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">${tituloInterno}</h6>` : ""}
+                ${contenidoHtml}
+            </div>
+        </div>`;
+
     el.cuerpo.innerHTML = `
-        <button type="button" class="btn btn-sm btn-outline-primary mb-2" id="btnImprimirApreciacion">🖨️ Imprimir / PDF de esta Apreciación</button>
-        <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">Rango de fechas de esta Apreciación</h6>
-        ${bloqueRango()}
-        ${soloLectura ? "" : `<button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="btnVolverModoDirecto">↩️ Ya no quiero el detalle — usar casilla directa</button>`}
+        <div class="apr-cabecera">
+            <div class="apr-cabecera-fila">
+                <div>
+                    <h6 class="fw-bold mb-1" style="color:var(--color-primario, #4f46e5);">🗓️ Rango de fechas de esta Apreciación</h6>
+                    ${bloqueRango()}
+                </div>
+                <div class="d-flex flex-column gap-2 align-items-end">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnImprimirApreciacion">🖨️ Imprimir / PDF</button>
+                    ${soloLectura ? "" : `<button type="button" class="btn btn-sm btn-outline-secondary" id="btnVolverModoDirecto">↩️ Usar casilla directa</button>`}
+                </div>
+            </div>
+        </div>
 
-        <h6 class="fw-bold mt-3" style="color:var(--color-primario, #4f46e5);">1) Asistencia</h6>
-        ${bloqueAsistencia()}
+        <div class="apr-tabs">${botonesTabs}</div>
 
-        <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">2) Comportamiento <span class="small text-muted fw-normal">(agrega una columna por cada día)</span></h6>
-        ${bloqueComportamiento()}
-
-        <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">3) Actividades en clase</h6>
-        ${bloqueActividades(actividadesClase, "clase")}
-
-        <h6 class="fw-bold" style="color:var(--color-primario, #4f46e5);">4) Actividades para la casa</h6>
-        ${bloqueActividades(actividadesCasa, "casa")}
-
-        <h6 class="fw-bold mt-4" style="color:var(--color-primario, #4f46e5);">Nota final de Apreciación ${numeroApreciacion}</h6>
-        <table class="table table-sm table-bordered">
-            <thead><tr><th class="small">Estudiante</th><th class="small text-center">Nota final</th></tr></thead>
-            <tbody>${estudiantes.map((est) => `<tr><td class="small">${escapeHtml(est.nombre)}</td><td class="text-center fw-bold" id="aprNotaFinal-${est.id}">–</td></tr>`).join("")}</tbody>
-        </table>
+        ${panel("asistencia", "📋 Asistencia", bloqueAsistencia())}
+        ${panel("comportamiento", `🙂 Comportamiento <span class="small text-muted fw-normal">(agrega una columna por cada día)</span>`, bloqueComportamiento())}
+        ${panel("clase", "✏️ Actividades en clase", bloqueActividades(actividadesClase, "clase"))}
+        ${panel("casa", "🏠 Actividades para la casa", bloqueActividades(actividadesCasa, "casa"))}
+        ${panel("final", `🏁 Nota final de Apreciación ${numeroApreciacion}`, `
+            <table class="table table-sm table-bordered mb-0">
+                <thead><tr><th class="small">Estudiante</th><th class="small text-center">Nota final</th></tr></thead>
+                <tbody>${estudiantes.map((est) => `<tr><td class="small">${escapeHtml(est.nombre)}</td><td class="text-center fw-bold" id="aprNotaFinal-${est.id}">–</td></tr>`).join("")}</tbody>
+            </table>`, "apr-nota-final-panel")}
     `;
 
     document.getElementById("btnImprimirApreciacion")?.addEventListener("click", () => {
         imprimirApreciacion(estado_);
+    });
+
+    el.cuerpo.querySelectorAll(".apr-tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            estado_.tabApreciacionActiva = btn.dataset.tabBtn;
+            el.cuerpo.querySelectorAll(".apr-tab-btn").forEach((b) => b.classList.toggle("activo", b === btn));
+            el.cuerpo.querySelectorAll(".apr-tab-pane").forEach((p) => p.classList.toggle("activo", p.dataset.tabPane === btn.dataset.tabBtn));
+        });
     });
 
     if (soloLectura) return;
