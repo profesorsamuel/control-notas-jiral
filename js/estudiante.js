@@ -71,6 +71,8 @@ const avisoSoloLectura = document.getElementById("avisoSoloLectura");
 const toast = document.getElementById("toast");
 const nombreEstudianteEl = document.getElementById("nombreEstudiante");
 const salonEstudianteEl = document.getElementById("salonEstudiante");
+const btnToggleApreciacion = document.getElementById("btnToggleApreciacion");
+const btnToggleEjercicio = document.getElementById("btnToggleEjercicio");
 
 // =====================================================
 // ESTADO GLOBAL
@@ -90,6 +92,12 @@ let companerosPorCasilla = {};
 let creadoPorPorCasilla = {};
 let nombrePorCorreo = {};
 let columnaEsOficial = {};
+
+// Preferencia del estudiante de ocultar Apreciación o Ejercicio (para ver
+// mejor la tabla en pantallas chicas). Se recuerda entre sesiones.
+let ocultarApreciacion = localStorage.getItem("ocultarApreciacion") === "true";
+let ocultarEjercicio = localStorage.getItem("ocultarEjercicio") === "true";
+
 
 // =====================================================
 // UTILIDADES
@@ -630,18 +638,26 @@ function tablaConsolidadaHtml() {
 
     let filaHead1 = `<tr>`;
     filaHead1 += `<th rowspan="2" class="col-materia">Materia</th>`;
-    filaHead1 += `<th colspan="${maxApr + 1}" class="th-grupo th-apreciacion">Apreciación</th>`;
-    filaHead1 += `<th rowspan="2" class="th-prom">Prom.<br>Apr.</th>`;
-    filaHead1 += `<th colspan="${maxEje + 1}" class="th-grupo th-ejercicio">Ejercicio</th>`;
-    filaHead1 += `<th rowspan="2" class="th-prom">Prom.<br>Eje.</th>`;
+    if (!ocultarApreciacion) {
+        filaHead1 += `<th colspan="${maxApr + 1}" class="th-grupo th-apreciacion">Apreciación</th>`;
+        filaHead1 += `<th rowspan="2" class="th-prom">Prom.<br>Apr.</th>`;
+    }
+    if (!ocultarEjercicio) {
+        filaHead1 += `<th colspan="${maxEje + 1}" class="th-grupo th-ejercicio">Ejercicio</th>`;
+        filaHead1 += `<th rowspan="2" class="th-prom">Prom.<br>Eje.</th>`;
+    }
     filaHead1 += `<th rowspan="2" class="th-final">Promedio<br>Final</th>`;
     filaHead1 += `</tr>`;
 
     let filaHead2 = `<tr>`;
-    for (let i = 1; i <= maxApr; i++) filaHead2 += `<th class="th-apreciacion-num">${i}</th>`;
-    filaHead2 += `<th class="col-agregar th-apreciacion-num">+</th>`;
-    for (let i = 1; i <= maxEje; i++) filaHead2 += `<th class="th-ejercicio-num">${i}</th>`;
-    filaHead2 += `<th class="col-agregar th-ejercicio-num">+</th>`;
+    if (!ocultarApreciacion) {
+        for (let i = 1; i <= maxApr; i++) filaHead2 += `<th class="th-apreciacion-num">${i}</th>`;
+        filaHead2 += `<th class="col-agregar th-apreciacion-num">+</th>`;
+    }
+    if (!ocultarEjercicio) {
+        for (let i = 1; i <= maxEje; i++) filaHead2 += `<th class="th-ejercicio-num">${i}</th>`;
+        filaHead2 += `<th class="col-agregar th-ejercicio-num">+</th>`;
+    }
     filaHead2 += `</tr>`;
 
     let filas = "";
@@ -654,21 +670,25 @@ function tablaConsolidadaHtml() {
         filas += `<tr>`;
         filas += `<td class="col-materia" title="${escapeHtml(materia)}">${escapeHtml(materiaAbreviada(materia))}</td>`;
 
-        for (let i = 1; i <= maxApr; i++) {
-            filas += cols.apreciacion.includes(i)
-                ? celdaNotaHtml(materia, "apreciacion", i)
-                : `<td class="celda-vacia grupo-apreciacion"></td>`;
+        if (!ocultarApreciacion) {
+            for (let i = 1; i <= maxApr; i++) {
+                filas += cols.apreciacion.includes(i)
+                    ? celdaNotaHtml(materia, "apreciacion", i)
+                    : `<td class="celda-vacia grupo-apreciacion"></td>`;
+            }
+            filas += celdaAgregarHtml(materia, "apreciacion", editando);
+            filas += `<td class="celda-promedio prom-apreciacion">${promApr !== null ? promApr.toFixed(1) : "-"}</td>`;
         }
-        filas += celdaAgregarHtml(materia, "apreciacion", editando);
-        filas += `<td class="celda-promedio prom-apreciacion">${promApr !== null ? promApr.toFixed(1) : "-"}</td>`;
 
-        for (let i = 1; i <= maxEje; i++) {
-            filas += cols.ejercicio.includes(i)
-                ? celdaNotaHtml(materia, "ejercicio", i)
-                : `<td class="celda-vacia grupo-ejercicio"></td>`;
+        if (!ocultarEjercicio) {
+            for (let i = 1; i <= maxEje; i++) {
+                filas += cols.ejercicio.includes(i)
+                    ? celdaNotaHtml(materia, "ejercicio", i)
+                    : `<td class="celda-vacia grupo-ejercicio"></td>`;
+            }
+            filas += celdaAgregarHtml(materia, "ejercicio", editando);
+            filas += `<td class="celda-promedio prom-ejercicio">${promEje !== null ? promEje.toFixed(1) : "-"}</td>`;
         }
-        filas += celdaAgregarHtml(materia, "ejercicio", editando);
-        filas += `<td class="celda-promedio prom-ejercicio">${promEje !== null ? promEje.toFixed(1) : "-"}</td>`;
 
         let claseFinal = "celda-promedio celda-final";
         if (promFinal !== null) {
@@ -709,6 +729,37 @@ function render() {
     avisoSoloLectura.style.display = estaEditando() ? "none" : "inline-block";
     contenedorMaterias.innerHTML = tablaConsolidadaHtml();
 }
+
+function actualizarBotonesSeccion() {
+    if (btnToggleApreciacion) {
+        btnToggleApreciacion.setAttribute("aria-pressed", String(ocultarApreciacion));
+        btnToggleApreciacion.textContent = ocultarApreciacion
+            ? "👁️ Mostrar Apreciación"
+            : "🙈 Ocultar Apreciación";
+    }
+    if (btnToggleEjercicio) {
+        btnToggleEjercicio.setAttribute("aria-pressed", String(ocultarEjercicio));
+        btnToggleEjercicio.textContent = ocultarEjercicio
+            ? "👁️ Mostrar Ejercicio"
+            : "🙈 Ocultar Ejercicio";
+    }
+}
+
+btnToggleApreciacion?.addEventListener("click", () => {
+    ocultarApreciacion = !ocultarApreciacion;
+    localStorage.setItem("ocultarApreciacion", String(ocultarApreciacion));
+    actualizarBotonesSeccion();
+    render();
+});
+
+btnToggleEjercicio?.addEventListener("click", () => {
+    ocultarEjercicio = !ocultarEjercicio;
+    localStorage.setItem("ocultarEjercicio", String(ocultarEjercicio));
+    actualizarBotonesSeccion();
+    render();
+});
+
+actualizarBotonesSeccion();
 
 // =====================================================
 // EDITAR EL TEMA DE UNA CASILLA (por ícono 🏷️)
