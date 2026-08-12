@@ -7,7 +7,7 @@
 
     <title>C.E.B.G. El Jiral | Notas de Evaluación</title>
 
-    <link rel="manifest" href="../manifest.json">
+    <link rel="manifest" href="../manifest-notas.json">
     <meta name="theme-color" content="#14213d">
 
     <!-- Favicon (ícono de la pestaña del navegador) -->
@@ -349,6 +349,93 @@
             font-size: .78rem;
             margin: 0;
         }
+
+        /* Tarjeta "Instalar app" */
+        .tarjeta-instalar {
+            border-radius: var(--radio-sm);
+            border: 1.5px dashed var(--bronce);
+            background: #fbf3e6;
+            padding: 16px 18px;
+            margin-bottom: 22px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .tarjeta-instalar .icono-instalar {
+            font-size: 26px;
+            flex-shrink: 0;
+        }
+
+        .tarjeta-instalar .texto-instalar {
+            flex: 1;
+        }
+
+        .tarjeta-instalar .texto-instalar strong {
+            display: block;
+            font-family: "Fraunces", Georgia, serif;
+            font-size: .95rem;
+            color: var(--texto);
+        }
+
+        .tarjeta-instalar .texto-instalar span {
+            display: block;
+            font-size: .8rem;
+            color: var(--texto-suave);
+        }
+
+        .btn-instalar {
+            background: linear-gradient(135deg, var(--bronce-claro), var(--bronce));
+            border: none;
+            color: #fff;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: .85rem;
+            padding: 8px 16px;
+            white-space: nowrap;
+        }
+
+        .btn-instalar:hover { filter: brightness(1.05); color: #fff; }
+
+        .oculto { display: none !important; }
+
+        /* Panel con instrucciones para iPhone/iPad (Safari no permite instalar con un toque) */
+        .panel-instalar-ios {
+            position: fixed;
+            inset: 0;
+            background: rgba(20, 33, 61, .55);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            z-index: 1050;
+            padding: 16px;
+        }
+
+        .panel-instalar-ios .tarjeta-panel-ios {
+            background: var(--papel);
+            border-radius: 18px;
+            padding: 22px 20px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 -8px 30px rgba(0,0,0,.35);
+        }
+
+        .panel-instalar-ios h3 {
+            font-family: "Fraunces", Georgia, serif;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .panel-instalar-ios ol {
+            font-size: .85rem;
+            color: var(--texto-suave);
+            padding-left: 20px;
+            margin-bottom: 16px;
+        }
+
+        .panel-instalar-ios ol li { margin-bottom: 6px; }
     </style>
 </head>
 
@@ -372,6 +459,16 @@
             </div>
 
             <div class="cuerpo-inicio">
+
+                <!-- INSTALAR LA APP EN EL CELULAR -->
+                <div class="tarjeta-instalar oculto" id="tarjetaInstalarApp">
+                    <span class="icono-instalar" aria-hidden="true">📲</span>
+                    <span class="texto-instalar">
+                        <strong>Instala esta app en tu celular</strong>
+                        <span>Ábrela como un ícono en tu pantalla de inicio, sin buscarla en el navegador.</span>
+                    </span>
+                    <button type="button" class="btn-instalar" id="btnInstalarApp">Instalar</button>
+                </div>
 
                 <!-- VER MIS NOTAS (por cédula, sin contraseña) -->
                 <div class="tarjeta-consulta">
@@ -445,6 +542,19 @@
 
     </main>
 
+    <!-- Panel con instrucciones para instalar en iPhone/iPad -->
+    <div class="panel-instalar-ios oculto" id="panelInstalarIOS">
+        <div class="tarjeta-panel-ios">
+            <h3>Para instalar en iPhone/iPad</h3>
+            <ol>
+                <li>Toca el ícono de compartir <strong>⬆️</strong> abajo en Safari.</li>
+                <li>Elige <strong>"Agregar a pantalla de inicio"</strong>.</li>
+                <li>Toca <strong>Agregar</strong>. Listo, queda como app.</li>
+            </ol>
+            <button type="button" class="btn btn-outline-secondary w-100" id="btnCerrarInstalarIOS">Entendido</button>
+        </div>
+    </div>
+
     <script>
         const cedulaInicio = document.getElementById("cedulaInicio");
         const btnOjoInicio = document.getElementById("btnOjoInicio");
@@ -462,6 +572,64 @@
             if (!cedula) return;
             window.location.href = `consulta.html?cedula=${encodeURIComponent(cedula)}`;
         });
+
+        // =========================================================
+        // INSTALAR LA APP EN EL CELULAR (PWA)
+        // =========================================================
+        const tarjetaInstalarApp = document.getElementById("tarjetaInstalarApp");
+        const btnInstalarApp = document.getElementById("btnInstalarApp");
+        const panelInstalarIOS = document.getElementById("panelInstalarIOS");
+        const btnCerrarInstalarIOS = document.getElementById("btnCerrarInstalarIOS");
+
+        let eventoInstalacionPWA = null;
+
+        function appYaInstalada() {
+            return window.matchMedia("(display-mode: standalone)").matches
+                || window.navigator.standalone === true; // Safari en iOS
+        }
+
+        function esIOS() {
+            return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+        }
+
+        // Chrome/Android/escritorio: el navegador avisa cuando la app se puede instalar.
+        window.addEventListener("beforeinstallprompt", (evento) => {
+            evento.preventDefault();
+            eventoInstalacionPWA = evento;
+            if (!appYaInstalada()) tarjetaInstalarApp.classList.remove("oculto");
+        });
+
+        // iOS no dispara "beforeinstallprompt": mostramos la tarjeta igual y,
+        // al tocarla, explicamos el paso manual de Safari.
+        if (esIOS() && !appYaInstalada()) {
+            tarjetaInstalarApp.classList.remove("oculto");
+        }
+
+        btnInstalarApp.addEventListener("click", async () => {
+            if (eventoInstalacionPWA) {
+                eventoInstalacionPWA.prompt();
+                await eventoInstalacionPWA.userChoice;
+                eventoInstalacionPWA = null;
+                tarjetaInstalarApp.classList.add("oculto");
+            } else if (esIOS()) {
+                panelInstalarIOS.classList.remove("oculto");
+            }
+        });
+
+        btnCerrarInstalarIOS.addEventListener("click", () => {
+            panelInstalarIOS.classList.add("oculto");
+        });
+
+        window.addEventListener("appinstalled", () => {
+            tarjetaInstalarApp.classList.add("oculto");
+        });
+
+        // Registrar el service worker (funcionamiento offline básico)
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("../sw.js").catch(() => {});
+            });
+        }
     </script>
 
 </body>
