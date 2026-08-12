@@ -394,6 +394,104 @@
             margin-bottom: 20px;
             font-size: 14px;
         }
+
+        /* ===== Modal de Apreciación: pestañas modernas ===== */
+        .apr-cabecera {
+            background: var(--color-primario-claro);
+            border: 1px solid #e0e7ff;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+        }
+
+        .apr-cabecera-fila {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .apr-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 6px;
+            background: #f1f5f9;
+            border-radius: 14px;
+            margin-bottom: 18px;
+            position: sticky;
+            top: -1rem;
+            z-index: 5;
+        }
+
+        .apr-tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            border: none;
+            background: transparent;
+            color: var(--color-texto);
+            font-weight: 600;
+            font-size: 13.5px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background .15s ease, color .15s ease, transform .1s ease;
+            white-space: nowrap;
+        }
+
+        .apr-tab-btn:hover { background: #e2e8f0; }
+
+        .apr-tab-btn.activo {
+            background: var(--color-primario);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(79, 70, 229, .3);
+        }
+
+        .apr-tab-btn .apr-tab-icono { font-size: 15px; }
+
+        .apr-tab-btn .apr-tab-badge {
+            background: rgba(0, 0, 0, .12);
+            border-radius: 999px;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 1px 7px;
+            margin-left: 2px;
+        }
+
+        .apr-tab-btn.activo .apr-tab-badge { background: rgba(255, 255, 255, .25); }
+
+        .apr-tab-pane { display: none; }
+        .apr-tab-pane.activo { display: block; animation: aprFadeIn .18s ease; }
+
+        @keyframes aprFadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .apr-panel-seccion {
+            background: #fff;
+            border: 1px solid var(--color-borde);
+            border-radius: 14px;
+            padding: 16px 18px;
+        }
+
+        .apr-panel-seccion h6 {
+            margin-top: 0 !important;
+        }
+
+        .apr-nota-final-panel {
+            background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+            border: 1px solid #bbf7d0;
+        }
+
+        .apr-nota-final-panel table thead th { background: #059669; }
+
+        @media (max-width: 600px) {
+            .apr-tabs { position: static; }
+            .apr-tab-btn { flex: 1 1 auto; justify-content: center; }
+        }
     </style>
 </head>
 
