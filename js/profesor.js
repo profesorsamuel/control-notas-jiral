@@ -303,8 +303,16 @@ let agregarColumnaVaciaSolicitada = false;
 // sistema nuevo.
 let estadoApreciacionesNuevas = {};
 
+// Antes esta función usaba el correo como identificador cuando el
+// estudiante tenía cuenta, y el id solo cuando no tenía. El problema:
+// si a un estudiante le quitaban la cuenta después, sus notas viejas
+// (guardadas bajo ese correo) quedaban "huérfanas" y dejaban de
+// aparecer, aunque seguían intactas en la base de datos. Para evitar
+// que esto vuelva a pasar, ahora usamos SIEMPRE el id del estudiante
+// (que nunca cambia) como identificador único, sin importar si tiene
+// o no cuenta.
 function claveEstudiante(est) {
-    return est.correo ? `correo:${est.correo}` : `id:${est.id}`;
+    return `id:${est.id}`;
 }
 
 // Cuántos estudiantes ya tienen una nota guardada (no vacía) en esta
@@ -1012,7 +1020,7 @@ function renderTabla() {
                 <td class="celda-nota">
                     <input type="text" inputmode="decimal" class="form-control form-control-sm input-nota-grupo"
                         data-col="${colIndex}" data-correo="${sinCuenta ? "" : escapeHtml(est.correo)}"
-                        data-estudiante-id="${sinCuenta ? escapeHtml(est.id) : ""}" data-nota-id="${n ? n.id : ""}"
+                        data-estudiante-id="${escapeHtml(est.id)}" data-nota-id="${n ? n.id : ""}"
                         data-tipo="${c.tipo}" data-numero="${c.numero}" data-ultimo-valor-guardado="${valor}"
                         value="${valor}" placeholder="–">
                 </td>`;
@@ -1218,28 +1226,45 @@ async function cargarSalon() {
     grupoActual = (estudiantesSalon || []).filter((e) => !e.es_prueba);
     estudiantesOcultos.clear();
 
-    const correos = grupoActual.map((e) => e.correo).filter(Boolean);
-    const idsSinCuenta = grupoActual.filter((e) => !e.correo).map((e) => e.id);
+    // A partir de ahora, el "id" del estudiante es la fuente de verdad
+    // para relacionar sus notas (nunca cambia, a diferencia del correo,
+    // que puede quitarse o cambiarse si le tocan la cuenta). Guardamos
+    // un mapa correo->id para poder rescatar también las notas viejas
+    // que solo tienen "correo" (por si todavía no se han migrado).
+    const todosLosIds = grupoActual.map((e) => e.id);
+    const correoAId = {};
+    grupoActual.forEach((e) => { if (e.correo) correoAId[e.correo] = e.id; });
+    const correosActuales = Object.keys(correoAId);
 
     historiaPorEstudiante = {};
     const casillasEncontradas = new Set();
 
-    function registrar(clave, n) {
-        (historiaPorEstudiante[clave] ??= {})[claveCasilla(n.tipo, n.numero)] = n;
+    function registrar(estudianteId, n) {
+        (historiaPorEstudiante[`id:${estudianteId}`] ??= {})[claveCasilla(n.tipo, n.numero)] = n;
         casillasEncontradas.add(claveCasilla(n.tipo, n.numero));
     }
 
-    if (correos.length > 0) {
-        const { data } = await supabase.from("notas").select("id, correo, tipo, numero, nota, tema")
-            .eq("materia", materia).eq("trimestre", trimestre).in("correo", correos)
+    // Fuente principal: notas ya conectadas por estudiante_id.
+    if (todosLosIds.length > 0) {
+        const { data } = await supabase.from("notas").select("id, estudiante_id, correo, tipo, numero, nota, tema")
+            .eq("materia", materia).eq("trimestre", trimestre).in("estudiante_id", todosLosIds)
             .is("eliminado_en", null);
-        (data || []).forEach((n) => registrar(`correo:${n.correo}`, n));
+        (data || []).forEach((n) => registrar(n.estudiante_id, n));
     }
-    if (idsSinCuenta.length > 0) {
-        const { data } = await supabase.from("notas").select("id, estudiante_id, tipo, numero, nota, tema")
-            .eq("materia", materia).eq("trimestre", trimestre).in("estudiante_id", idsSinCuenta)
+    // Fuente de respaldo: notas antiguas que todavía solo tienen
+    // "correo" (sin estudiante_id). Se conectan usando el correo ACTUAL
+    // del estudiante. Si más adelante le quitan la cuenta, esta rama ya
+    // no las encontraría — por eso guardarNotas() ahora siempre rellena
+    // también el estudiante_id, para que esto no dependa del correo.
+    if (correosActuales.length > 0) {
+        const { data } = await supabase.from("notas").select("id, estudiante_id, correo, tipo, numero, nota, tema")
+            .eq("materia", materia).eq("trimestre", trimestre).in("correo", correosActuales)
             .is("eliminado_en", null);
-        (data || []).forEach((n) => registrar(`id:${n.estudiante_id}`, n));
+        (data || []).forEach((n) => {
+            if (n.estudiante_id) return; // ya se registró arriba
+            const idEst = correoAId[n.correo];
+            if (idEst) registrar(idEst, n);
+        });
     }
 
     temasCasillasBD = {};
@@ -1338,7 +1363,7 @@ window.__recargarSalonProfesor = cargarSalon;
 // datos reflejen el cambio al instante, sin tener que volver a
 // presionar "Cargar salón".
 function actualizarHistorialEnMemoria(item, temaPorCasilla, idInsertado) {
-    const claveEst = item.correo ? `correo:${item.correo}` : `id:${item.estudianteId}`;
+    const claveEst = `id:${item.estudianteId}`;
     const claveCas = claveCasilla(item.tipo, item.numero);
     const notaId = item.notaId || idInsertado;
 
