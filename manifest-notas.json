@@ -1,0 +1,32 @@
+{
+  "name": "Notas · C.E.B.G. El Jiral",
+  "short_name": "Notas El Jiral",
+  "description": "Consulta tus calificaciones por materia durante el trimestre, desde cualquier dispositivo.",
+  "start_url": "./pages/inicio.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#14213d",
+  "theme_color": "#14213d",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "./img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./img/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
