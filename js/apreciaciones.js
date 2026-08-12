@@ -276,11 +276,23 @@ export async function inicializarPanelPesosGlobal() {
 export async function obtenerRangoFechas(materia, trimestre, numeroApreciacion) {
     const { data, error } = await supabase
         .from("apreciaciones_estado")
-        .select("fecha_inicio, fecha_fin")
+        .select("fecha_inicio, fecha_fin, fechas_asistencia_excluidas")
         .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion)
         .maybeSingle();
-    if (error) { console.error(error); return { fecha_inicio: null, fecha_fin: null }; }
-    return data || { fecha_inicio: null, fecha_fin: null };
+    if (error) { console.error(error); return { fecha_inicio: null, fecha_fin: null, fechas_asistencia_excluidas: [] }; }
+    return data || { fecha_inicio: null, fecha_fin: null, fechas_asistencia_excluidas: [] };
+}
+
+// Fechas de asistencia que el docente marcó como "no contar en el
+// promedio de esta Apreciación" (ej. una fecha mal tomada). No borra
+// la asistencia real -solo la excluye de este cálculo-, y queda
+// guardado en la base de datos (no se pierde al recargar la página).
+export async function guardarFechasAsistenciaExcluidas(materia, trimestre, numeroApreciacion, fechas) {
+    const { error } = await supabase.from("apreciaciones_estado")
+        .update({ fechas_asistencia_excluidas: fechas, updated_at: new Date().toISOString() })
+        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
+    if (error) console.error("No se pudo guardar las fechas de asistencia excluidas:", error);
+    return !error;
 }
 
 export async function guardarRangoFechas(materia, trimestre, numeroApreciacion, fechaInicio, fechaFin) {
@@ -591,6 +603,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
     const estado_ = {
         materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes, soloLectura, pesos,
         fechaInicio: rango.fecha_inicio, fechaFin: rango.fecha_fin,
+        fechasAsistenciaExcluidas: new Set(rango.fechas_asistencia_excluidas || []),
         asistenciaFechas: [...asistenciaTabla.fechas], asistenciaPorFecha: { ...asistenciaTabla.porFecha },
         comportamientoFechas: [...comportamientoTabla.fechas], comportamientoPorFecha: { ...comportamientoTabla.porFecha },
         actividadesClase, actividadesCasa,
@@ -695,7 +708,14 @@ function actividadBloqueadaParaEstudiante(a, estudianteId, asistenciaPorFecha) {
 function calcularNotaFinalEstudiante(estado_, estudianteId) {
     const { asistenciaFechas, asistenciaPorFecha, comportamientoFechas, actividadesClase, actividadesCasa, valoresAsistencia, pesos } = estado_;
 
-    const valoresAsist = asistenciaFechas
+    // Las fechas que el docente marcó como "excluir" (ej. una asistencia
+    // mal tomada) NO cuentan en el promedio de Asistencia ni en el
+    // Comportamiento automático de ese día -aunque la asistencia real
+    // siga existiendo en el sistema general de Asistencia-.
+    const excluidas = estado_.fechasAsistenciaExcluidas || new Set();
+    const fechasAsistenciaValidas = asistenciaFechas.filter((f) => !excluidas.has(f));
+
+    const valoresAsist = fechasAsistenciaValidas
         .map((f) => asistenciaPorFecha[f]?.[estudianteId])
         .filter((v) => v !== undefined)
         .map((estadoDia) => valoresAsistencia[estadoDia])
@@ -703,9 +723,10 @@ function calcularNotaFinalEstudiante(estado_, estudianteId) {
     const notaAsistencia = promedio(valoresAsist);
 
     // Unimos las fechas de comportamiento agregadas a mano con las de
-    // asistencia (así los días de clase cuentan aunque no se haya
-    // tocado nada ahí todavía).
-    const fechasComportamiento = [...new Set([...comportamientoFechas, ...asistenciaFechas])];
+    // asistencia válidas (excluyendo las marcadas), así los días de
+    // clase cuentan aunque no se haya tocado nada ahí todavía, pero una
+    // fecha excluida no vuelve a colarse por este lado.
+    const fechasComportamiento = [...new Set([...comportamientoFechas, ...fechasAsistenciaValidas])];
     const valoresComportamiento = fechasComportamiento
         .map((f) => valorComportamientoEfectivo(estado_, f, estudianteId))
         .filter((v) => v !== undefined);
@@ -846,6 +867,10 @@ function pintarModal(estado_) {
 
     const rangoDefinido = !!(fechaInicio && fechaFin);
     const columnasOcultas = estado_.columnasOcultas;
+    // Para Asistencia, "ocultar" y "excluir del cálculo" son la misma
+    // cosa (a diferencia de Comportamiento/Actividades, que sí tienen
+    // su propio botón de eliminar real). Se mantienen sincronizadas.
+    columnasOcultas.asistencia = new Set(estado_.fechasAsistenciaExcluidas);
 
     // --- Selector de columnas reutilizable: "Seleccionar todas / Ninguna"
     // + un checkbox por columna (fecha o actividad), igual que en la
@@ -909,9 +934,10 @@ function pintarModal(estado_) {
 
         const selector = bloqueSelectorColumnas("asistencia", asistenciaFechas.map((f) => ({ clave: f, etiqueta: f })));
         const fechasVisibles = asistenciaFechas.filter((f) => !columnasOcultas.asistencia.has(f));
+        const nota = `<p class="small text-muted mb-2">Desmarca una fecha para <strong>excluirla del promedio</strong> de esta Apreciación (por ejemplo, una asistencia mal tomada). No borra la asistencia real, solo deja de contar aquí.</p>`;
 
         if (fechasVisibles.length === 0) {
-            return `${selector}<p class="text-muted small">Ocultaste todas las fechas. Marca "Ver todas" arriba para volver a verlas.</p>`;
+            return `${nota}${selector}<p class="text-muted small">Excluiste todas las fechas. Marca "Ver todas" arriba para volver a contarlas.</p>`;
         }
 
         const encabezado = fechasVisibles.map((f) => `<th class="text-center small" style="min-width:90px;">${escapeHtml(f)}</th>`).join("");
@@ -925,6 +951,7 @@ function pintarModal(estado_) {
         }).join("");
 
         return `
+            ${nota}
             ${selector}
             <table class="table table-sm table-bordered align-middle mb-2">
                 <thead><tr><th class="small">Estudiante</th>${encabezado}</tr></thead>
@@ -1068,12 +1095,25 @@ function pintarModal(estado_) {
 
     // --- Listeners: selector de columnas (Asistencia / Comportamiento /
     // Actividades en clase / Actividades para la casa) ---
+    // Para "asistencia", además de actualizar la vista hay que guardar
+    // en la base de datos qué fechas quedaron excluidas, para que el
+    // cálculo del promedio las respete de verdad y no se pierda al
+    // recargar la página.
+    function sincronizarExclusionAsistencia() {
+        estado_.fechasAsistenciaExcluidas = new Set(columnasOcultas.asistencia);
+        guardarFechasAsistenciaExcluidas(
+            estado_.materia, estado_.trimestre, estado_.numeroApreciacion,
+            [...estado_.fechasAsistenciaExcluidas]
+        );
+    }
+
     el.cuerpo.querySelectorAll(".check-columna-apreciacion").forEach((chk) => {
         chk.addEventListener("change", () => {
             const seccion = chk.dataset.seccion;
             const clave = chk.dataset.clave;
             if (chk.checked) columnasOcultas[seccion].delete(clave);
             else columnasOcultas[seccion].add(clave);
+            if (seccion === "asistencia") sincronizarExclusionAsistencia();
             pintarModal(estado_);
             calcularYPintarNotasFinales(estado_);
         });
@@ -1081,7 +1121,9 @@ function pintarModal(estado_) {
 
     el.cuerpo.querySelectorAll(".btn-columnas-todas").forEach((btn) => {
         btn.addEventListener("click", () => {
-            columnasOcultas[btn.dataset.seccion].clear();
+            const seccion = btn.dataset.seccion;
+            columnasOcultas[seccion].clear();
+            if (seccion === "asistencia") sincronizarExclusionAsistencia();
             pintarModal(estado_);
             calcularYPintarNotasFinales(estado_);
         });
@@ -1093,6 +1135,7 @@ function pintarModal(estado_) {
             const items = { asistencia: asistenciaFechas, comportamiento: [...new Set([...comportamientoFechas, ...asistenciaFechas])], clase: actividadesClase, casa: actividadesCasa }[seccion];
             const claves = seccion === "clase" || seccion === "casa" ? items.map((a) => a.id) : items;
             claves.forEach((c) => columnasOcultas[seccion].add(c));
+            if (seccion === "asistencia") sincronizarExclusionAsistencia();
             pintarModal(estado_);
             calcularYPintarNotasFinales(estado_);
         });
