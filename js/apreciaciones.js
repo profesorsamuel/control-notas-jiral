@@ -175,6 +175,41 @@ export async function reiniciarApreciacionActiva(materia, trimestre, numeroAprec
     return !!seReinicio;
 }
 
+// Elimina POR COMPLETO una Apreciación 4+: a diferencia de
+// reiniciarApreciacionActiva (que borra el contenido pero deja la
+// columna activa esperando que se vuelva a usar), esta función borra
+// también la fila de estado, así que la columna desaparece de la
+// tabla como si nunca hubiera existido. Útil cuando se agregó una
+// columna de más por error (ej. "+" tocado sin querer).
+export async function eliminarApreciacionColumna(materia, trimestre, numeroApreciacion) {
+    const { error: errNotas } = await supabase.from("notas").delete()
+        .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", "apreciacion").eq("numero", numeroApreciacion);
+    if (errNotas) { console.error("No se pudo borrar las notas de la apreciación:", errNotas); return { ok: false, error: errNotas }; }
+
+    const { data: actividades, error: errBuscarAct } = await supabase.from("actividades_apreciacion")
+        .select("id").eq("materia", materia).eq("trimestre", trimestre).eq("numero_apreciacion", numeroApreciacion);
+    if (errBuscarAct) { console.error("No se pudo buscar las actividades de la apreciación:", errBuscarAct); return { ok: false, error: errBuscarAct }; }
+
+    const idsActividades = (actividades || []).map((a) => a.id);
+    if (idsActividades.length > 0) {
+        const { error: errCalif } = await supabase.from("actividades_calificaciones").delete().in("actividad_id", idsActividades);
+        if (errCalif) { console.error("No se pudo borrar las calificaciones de actividades:", errCalif); return { ok: false, error: errCalif }; }
+
+        const { error: errAct } = await supabase.from("actividades_apreciacion").delete().in("id", idsActividades);
+        if (errAct) { console.error("No se pudo borrar las actividades:", errAct); return { ok: false, error: errAct }; }
+    }
+
+    const { error: errComportamiento } = await supabase.from("comportamiento_detalle").delete()
+        .eq("materia", materia).eq("trimestre", trimestre).eq("numero_apreciacion", numeroApreciacion);
+    if (errComportamiento) { console.error("No se pudo borrar el comportamiento de la apreciación:", errComportamiento); return { ok: false, error: errComportamiento }; }
+
+    const { error: errEstado } = await supabase.from("apreciaciones_estado").delete()
+        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
+    if (errEstado) { console.error("No se pudo borrar el estado de la apreciación:", errEstado); return { ok: false, error: errEstado }; }
+
+    return { ok: true };
+}
+
 const ICONO_ESTADO = { completada: "✓", activa: "🟢", bloqueada: "🔒" };
 
 export function iconoApreciacion(estado) {
