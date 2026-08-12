@@ -502,8 +502,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         return `${tipo === "apreciacion" ? "Aprec." : "Ejer."} ${numero}`;
     }
 
+    // Siempre usa el id del estudiante como identificador (ver nota en
+    // la carga de notas más abajo sobre por qué ya no se usa el correo).
     function claveEstudiante(est) {
-        return est.correo ? `correo:${est.correo}` : `id:${est.id}`;
+        return `id:${est.id}`;
     }
 
     function obtenerTemaCasilla(tipo, numero) {
@@ -1061,7 +1063,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             class="form-control form-control-sm input-nota-grupo"
                             data-col="${colIndex}"
                             data-correo="${sinCuenta ? "" : escapeHtmlAdmin(est.correo)}"
-                            data-estudiante-id="${sinCuenta ? escapeHtmlAdmin(est.id) : ""}"
+                            data-estudiante-id="${escapeHtmlAdmin(est.id)}"
                             data-nota-id="${n ? n.id : ""}"
                             data-tipo="${c.tipo}"
                             data-numero="${c.numero}"
@@ -1175,8 +1177,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         grupoActualNotas = (estudiantesSalon || []).filter((e) => !e.es_prueba);
 
-        const correosDelGrupo = grupoActualNotas.map((e) => e.correo).filter(Boolean);
-        const idsSinCuenta = grupoActualNotas.filter((e) => !e.correo).map((e) => e.id);
+        // El id del estudiante es la fuente de verdad para relacionar
+        // sus notas (nunca cambia, a diferencia del correo, que puede
+        // quitarse o cambiarse si le tocan la cuenta). Mantenemos un
+        // mapa correo->id para poder rescatar también las notas viejas
+        // que solo tienen "correo" y todavía no se migraron.
+        const todosLosIdsNotas = grupoActualNotas.map((e) => e.id);
+        const correoAIdNotas = {};
+        grupoActualNotas.forEach((e) => { if (e.correo) correoAIdNotas[e.correo] = e.id; });
+        const correosActualesNotas = Object.keys(correoAIdNotas);
 
         historiaPorEstudiante = {};
         const casillasEncontradas = new Set();
@@ -1185,42 +1194,52 @@ document.addEventListener("DOMContentLoaded", async () => {
         // tema asignado (antes se forzaban siempre las 10 de Apreciación
         // y las 10 de Ejercicio, aunque estuvieran vacías).
 
-        function registrarNotaEnHistorial(clave, n) {
+        function registrarNotaEnHistorial(estudianteId, n) {
+            const clave = `id:${estudianteId}`;
             if (!historiaPorEstudiante[clave]) historiaPorEstudiante[clave] = {};
             const claveCas = claveCasilla(n.tipo, n.numero);
             historiaPorEstudiante[clave][claveCas] = n;
             casillasEncontradas.add(claveCas);
         }
 
-        if (correosDelGrupo.length > 0) {
-            const { data: notasCorreo, error: errNotas } = await supabase
+        // Fuente principal: notas ya conectadas por estudiante_id.
+        if (todosLosIdsNotas.length > 0) {
+            const { data: notasPorId, error: errNotasId } = await supabase
                 .from("notas")
-                .select("id, correo, tipo, numero, nota, tema")
+                .select("id, estudiante_id, correo, tipo, numero, nota, tema")
                 .eq("materia", materia)
                 .eq("trimestre", trimestre)
-                .in("correo", correosDelGrupo)
+                .in("estudiante_id", todosLosIdsNotas)
                 .is("eliminado_en", null);
 
-            if (errNotas) {
-                console.error("❌ Error al cargar historial de notas:", errNotas);
-            } else if (notasCorreo) {
-                notasCorreo.forEach((n) => registrarNotaEnHistorial(`correo:${n.correo}`, n));
+            if (errNotasId) {
+                console.error("❌ Error al cargar historial de notas:", errNotasId);
+            } else if (notasPorId) {
+                notasPorId.forEach((n) => registrarNotaEnHistorial(n.estudiante_id, n));
             }
         }
 
-        if (idsSinCuenta.length > 0) {
-            const { data: notasSinCuenta, error: errNotasSinCuenta } = await supabase
+        // Fuente de respaldo: notas antiguas que todavía solo tienen
+        // "correo" (sin estudiante_id), conectadas por el correo ACTUAL
+        // del estudiante. guardarNotas() ahora siempre rellena también
+        // el estudiante_id, para que esto ya no dependa del correo.
+        if (correosActualesNotas.length > 0) {
+            const { data: notasPorCorreo, error: errNotasCorreo } = await supabase
                 .from("notas")
-                .select("id, estudiante_id, tipo, numero, nota, tema")
+                .select("id, estudiante_id, correo, tipo, numero, nota, tema")
                 .eq("materia", materia)
                 .eq("trimestre", trimestre)
-                .in("estudiante_id", idsSinCuenta)
+                .in("correo", correosActualesNotas)
                 .is("eliminado_en", null);
 
-            if (errNotasSinCuenta) {
-                console.error("❌ Error al cargar historial de notas (sin cuenta):", errNotasSinCuenta);
-            } else if (notasSinCuenta) {
-                notasSinCuenta.forEach((n) => registrarNotaEnHistorial(`id:${n.estudiante_id}`, n));
+            if (errNotasCorreo) {
+                console.error("❌ Error al cargar historial de notas (por correo):", errNotasCorreo);
+            } else if (notasPorCorreo) {
+                notasPorCorreo.forEach((n) => {
+                    if (n.estudiante_id) return; // ya se registró arriba
+                    const idEst = correoAIdNotas[n.correo];
+                    if (idEst) registrarNotaEnHistorial(idEst, n);
+                });
             }
         }
 
@@ -1676,29 +1695,40 @@ document.addEventListener("DOMContentLoaded", async () => {
         const estudiantes = (estudiantesSalon || []).filter((e) => !e.es_prueba);
         if (estudiantes.length === 0) return { estudiantes: [], materias: [] };
 
-        const correosConCuenta = estudiantes.map((e) => e.correo).filter(Boolean);
-        const idsSinCuenta = estudiantes.filter((e) => !e.correo).map((e) => e.id);
+        // El id del estudiante es la fuente de verdad (ver nota en
+        // cargarSalon()/cargarNotasGrupo() sobre por qué). Se busca
+        // siempre por estudiante_id, y por correo solo como respaldo
+        // para notas antiguas todavía no migradas.
+        const todosLosIdsVG = estudiantes.map((e) => e.id);
+        const correoAIdVG = {};
+        estudiantes.forEach((e) => { if (e.correo) correoAIdVG[e.correo] = e.id; });
+        const correosActualesVG = Object.keys(correoAIdVG);
 
         let notas = [];
+        const idsYaVistos = new Set();
 
-        if (correosConCuenta.length > 0) {
+        if (todosLosIdsVG.length > 0) {
             const { data, error } = await supabase
                 .from("notas")
                 .select("correo, estudiante_id, materia, tipo, numero, nota, tema, estado")
                 .eq("trimestre", trimestre)
-                .in("correo", correosConCuenta);
+                .in("estudiante_id", todosLosIdsVG);
             if (error) throw error;
-            notas = notas.concat(data || []);
+            (data || []).forEach((n) => { idsYaVistos.add(n.estudiante_id); notas.push(n); });
         }
 
-        if (idsSinCuenta.length > 0) {
+        if (correosActualesVG.length > 0) {
             const { data, error } = await supabase
                 .from("notas")
                 .select("correo, estudiante_id, materia, tipo, numero, nota, tema, estado")
                 .eq("trimestre", trimestre)
-                .in("estudiante_id", idsSinCuenta);
+                .in("correo", correosActualesVG);
             if (error) throw error;
-            notas = notas.concat(data || []);
+            (data || []).forEach((n) => {
+                if (n.estudiante_id) return; // ya se contó arriba
+                const idEst = correoAIdVG[n.correo];
+                if (idEst && !idsYaVistos.has(idEst)) notas.push({ ...n, estudiante_id: idEst });
+            });
         }
 
         const [{ data: columnasDef }, { data: temasCasillas }] = await Promise.all([
@@ -1736,7 +1766,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
-        const claveEstudianteVG = (n) => n.correo ? `correo:${n.correo}` : `id:${n.estudiante_id}`;
+        const claveEstudianteVG = (n) => `id:${n.estudiante_id}`;
         const notasPorEstudianteMateria = {};
 
         notas.forEach((n) => {
@@ -1758,7 +1788,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const temas = temaPorCasilla[materia] || {};
 
             const filas = estudiantes.map((est) => {
-                const claveEst = est.correo ? `correo:${est.correo}` : `id:${est.id}`;
+                const claveEst = `id:${est.id}`;
                 const notasEstMateria = notasPorEstudianteMateria[claveEst]?.[materia] || {};
 
                 const celdasApr = apr.map((n) => notasEstMateria[claveCasillaVG("apreciacion", n)] || null);
