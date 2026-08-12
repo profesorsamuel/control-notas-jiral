@@ -359,7 +359,7 @@ export async function guardarRangoFechas(materia, trimestre, numeroApreciacion, 
     return { ok: !error, error };
 }
 
-export async function obtenerAsistenciaPorRango(materia, salon, fechaInicio, fechaFin) {
+export async function obtenerAsistenciaPorRango(materia, salon, fechaInicio, fechaFin, correoProfesor) {
     if (!fechaInicio || !fechaFin) return { fechas: [], porFecha: {}, idPorFecha: {} };
 
     const { data: sesiones, error } = await supabase
@@ -370,25 +370,109 @@ export async function obtenerAsistenciaPorRango(materia, salon, fechaInicio, fec
         .order("fecha", { ascending: true });
 
     if (error) { console.error(error); return { fechas: [], porFecha: {}, idPorFecha: {} }; }
-    if (!sesiones || sesiones.length === 0) return { fechas: [], porFecha: {}, idPorFecha: {} };
 
-    const { data: detalles, error: errDet } = await supabase
-        .from("asistencia_detalle")
-        .select("asistencia_id, estudiante_id, estado")
-        .in("asistencia_id", sesiones.map((s) => s.id));
-    if (errDet) { console.error(errDet); return { fechas: [], porFecha: {}, idPorFecha: {} }; }
-
-    const fechaPorSesion = Object.fromEntries(sesiones.map((s) => [s.id, s.fecha]));
-    const fechas = sesiones.map((s) => s.fecha);
-    // id de la sesión ("asistencias.id") por fecha, para poder corregir
-    // una casilla puntual sin tener que volver a consultar todo.
-    const idPorFecha = Object.fromEntries(sesiones.map((s) => [s.fecha, s.id]));
+    const fechaPorSesion = Object.fromEntries((sesiones || []).map((s) => [s.id, s.fecha]));
+    const idPorFecha = Object.fromEntries((sesiones || []).map((s) => [s.fecha, s.id]));
     const porFecha = {};
-    (detalles || []).forEach((d) => {
-        const fecha = fechaPorSesion[d.asistencia_id];
-        (porFecha[fecha] ??= {})[d.estudiante_id] = d.estado;
-    });
+
+    if (sesiones && sesiones.length > 0) {
+        const { data: detalles, error: errDet } = await supabase
+            .from("asistencia_detalle")
+            .select("asistencia_id, estudiante_id, estado")
+            .in("asistencia_id", sesiones.map((s) => s.id));
+        if (errDet) { console.error(errDet); return { fechas: [], porFecha: {}, idPorFecha: {} }; }
+        (detalles || []).forEach((d) => {
+            const fecha = fechaPorSesion[d.asistencia_id];
+            (porFecha[fecha] ??= {})[d.estudiante_id] = d.estado;
+        });
+    }
+
+    // Días de clase reales de esta materia/salón (según el horario del
+    // profesor) dentro del rango, AUNQUE todavía no se haya pasado lista
+    // ese día. Así la Apreciación muestra el día desde ya (con "Presente"
+    // por defecto, corregible con un clic) en vez de esperar a que se
+    // tome asistencia primero en la otra pantalla.
+    const diasHorario = await averiguarDiasDeClaseApr(materia, salon, correoProfesor);
+    const fechasHorario = diasHorario.size > 0
+        ? generarFechasRangoApr(fechaInicio, fechaFin, diasHorario)
+        : [];
+
+    // Unimos: fechas con sesión real ya creada + fechas de horario sin
+    // sesión todavía, sin repetir, en orden.
+    const fechas = [...new Set([...(sesiones || []).map((s) => s.fecha), ...fechasHorario])].sort();
+
     return { fechas, porFecha, idPorFecha };
+}
+
+const DIAS_SEMANA_APR = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+
+function quitarAcentosApr(texto) {
+    return String(texto ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+// Qué días de la semana (lunes, martes...) tiene clase esta materia en
+// este salón, según profesor_materias (sistema viejo) + horario_profesor
+// (sistema nuevo). Igual criterio que la cuadrícula del trimestre en
+// Asistencia, para que ambas pantallas muestren los mismos días.
+async function averiguarDiasDeClaseApr(materia, salon, correoProfesor) {
+    if (!correoProfesor) return new Set();
+
+    const [{ data: filasViejas }, { data: filasHorario }] = await Promise.all([
+        supabase.from("profesor_materias").select("dia").eq("correo_profesor", correoProfesor).eq("materia", materia).eq("salon", salon),
+        supabase.from("horario_profesor").select("dia").eq("correo_profesor", correoProfesor).eq("materia", materia).eq("salon", salon).eq("tipo", "clase"),
+    ]);
+
+    const dias = new Set();
+    [...(filasViejas || []), ...(filasHorario || [])].forEach((f) => {
+        const dia = quitarAcentosApr((f.dia || "").trim().toLowerCase());
+        if (dia) dias.add(dia);
+    });
+    return dias;
+}
+
+// Fechas ISO (ascendente) entre desde/hasta cuyo día de la semana esté
+// en diasPermitidos (Set de strings sin acentos, ej. {"lunes","miercoles"}).
+function generarFechasRangoApr(desdeISO, hastaISO, diasPermitidos) {
+    const fechas = [];
+    const cursor = new Date(desdeISO + "T00:00:00");
+    const limite = new Date(hastaISO + "T00:00:00");
+
+    while (cursor <= limite && fechas.length < 200) {
+        const diaTexto = DIAS_SEMANA_APR[cursor.getDay()];
+        if (diasPermitidos.has(diaTexto)) {
+            const y = cursor.getFullYear();
+            const m = String(cursor.getMonth() + 1).padStart(2, "0");
+            const d = String(cursor.getDate()).padStart(2, "0");
+            fechas.push(`${y}-${m}-${d}`);
+        }
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return fechas;
+}
+
+// Asegura que exista la cabecera ("asistencias") de materia/salon/fecha,
+// creándola si hace falta (ej. un día de horario que nunca se abrió en
+// la pantalla de Asistencia), y guarda (upsert) el estado de un
+// estudiante para esa fecha. Devuelve el id de la cabecera para poder
+// reusarlo sin volver a crearla en el siguiente clic.
+export async function guardarCorreccionAsistenciaConCabecera({ asistenciaId, materia, salon, fecha, correoProfesor, estudianteId, estado }) {
+    let idFinal = asistenciaId;
+
+    if (!idFinal) {
+        const { data: cabecera, error: errCabecera } = await supabase
+            .from("asistencias")
+            .upsert(
+                { correo_profesor: correoProfesor, materia, salon, fecha },
+                { onConflict: "materia,salon,fecha" }
+            )
+            .select("id")
+            .single();
+        if (errCabecera) { console.error("No se pudo crear la clase de ese día:", errCabecera); return { ok: false }; }
+        idFinal = cabecera.id;
+    }
+
+    const ok = await guardarCorreccionAsistencia(idFinal, estudianteId, estado);
+    return { ok, asistenciaId: idFinal };
 }
 
 // Guarda (upsert) la corrección de UN estudiante en UNA fecha, dentro del
@@ -645,7 +729,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
 
     const [pesos, asistenciaTabla, comportamientoTabla, actividadesClase, actividadesCasa] = await Promise.all([
         obtenerConfigPesos(),
-        obtenerAsistenciaPorRango(materia, salon, rango.fecha_inicio, rango.fecha_fin),
+        obtenerAsistenciaPorRango(materia, salon, rango.fecha_inicio, rango.fecha_fin, correoProfesor),
         obtenerComportamientoTabla(materia, trimestre, numeroApreciacion),
         obtenerActividades(materia, trimestre, numeroApreciacion, "clase"),
         obtenerActividades(materia, trimestre, numeroApreciacion, "casa"),
@@ -1012,7 +1096,7 @@ function pintarModal(estado_) {
             return `<p class="text-muted small">Define primero el rango de fechas de arriba.</p>`;
         }
         if (asistenciaFechas.length === 0) {
-            return `<p class="text-muted small">No hay asistencia tomada todavía entre ${fechaInicio} y ${fechaFin}.</p>`;
+            return `<p class="text-muted small">No hay días de clase de esta materia (${escapeHtml(estado_.materia)} — ${escapeHtml(estado_.salon)}) entre ${fechaInicio} y ${fechaFin}. Revisa que el horario de esta materia/salón esté configurado (día de la semana), o que ya se haya tomado asistencia manualmente para alguna fecha de este rango.</p>`;
         }
 
         const selector = bloqueSelectorColumnas("asistencia", asistenciaFechas.map((f) => ({ clave: f, etiqueta: f })));
@@ -1323,7 +1407,7 @@ function pintarModal(estado_) {
         estado_.fechaInicioBorrador = null;
         estado_.fechaFinBorrador = null;
 
-        const asistenciaTabla = await obtenerAsistenciaPorRango(estado_.materia, estado_.salon, inicio, fin);
+        const asistenciaTabla = await obtenerAsistenciaPorRango(estado_.materia, estado_.salon, inicio, fin, estado_.correoProfesor);
         estado_.asistenciaFechas = [...asistenciaTabla.fechas];
         estado_.asistenciaPorFecha = { ...asistenciaTabla.porFecha };
         estado_.asistenciaIdPorFecha = { ...asistenciaTabla.idPorFecha };
@@ -1336,23 +1420,28 @@ function pintarModal(estado_) {
     // Al hacer clic se avanza al siguiente estado del ciclo (igual que en
     // la pantalla de Asistencia) y se guarda de una vez en la base de
     // datos — misma tabla que usa Asistencia y la cuadrícula del
-    // trimestre, así que ambos lados quedan sincronizados.
+    // trimestre, así que ambos lados quedan sincronizados. Si ese día
+    // todavía no existe como clase en Asistencia (nunca se pasó lista),
+    // se crea aquí mismo al primer clic.
     el.cuerpo.querySelectorAll(".btn-asistencia-apr").forEach((btn) => {
         btn.addEventListener("click", async () => {
             const fecha = btn.dataset.fecha;
             const estudianteId = btn.dataset.estudianteId;
-            const asistenciaId = btn.dataset.asistenciaId || estado_.asistenciaIdPorFecha?.[fecha];
-            if (!asistenciaId) { alert("No se encontró la clase de ese día. Recarga e intenta de nuevo."); return; }
+            const asistenciaId = btn.dataset.asistenciaId || estado_.asistenciaIdPorFecha?.[fecha] || null;
 
             const actual = btn.dataset.estado;
             const indice = CICLO_ASISTENCIA_APR.indexOf(actual);
             const nuevoEstado = CICLO_ASISTENCIA_APR[(indice + 1) % CICLO_ASISTENCIA_APR.length];
 
             btn.disabled = true;
-            const ok = await guardarCorreccionAsistencia(asistenciaId, estudianteId, nuevoEstado);
+            const resultado = await guardarCorreccionAsistenciaConCabecera({
+                asistenciaId, materia: estado_.materia, salon: estado_.salon, fecha,
+                correoProfesor: estado_.correoProfesor, estudianteId, estado: nuevoEstado,
+            });
             btn.disabled = false;
-            if (!ok) { alert("No se pudo guardar la corrección. Revisa tu conexión e intenta de nuevo."); return; }
+            if (!resultado.ok) { alert("No se pudo guardar la corrección. Revisa tu conexión e intenta de nuevo."); return; }
 
+            estado_.asistenciaIdPorFecha[fecha] = resultado.asistenciaId;
             (estado_.asistenciaPorFecha[fecha] ??= {})[estudianteId] = nuevoEstado;
             pintarModal(estado_);
             calcularYPintarNotasFinales(estado_);
