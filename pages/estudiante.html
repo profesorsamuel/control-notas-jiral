@@ -158,6 +158,34 @@
             display: none;
         }
 
+        .filtro-secciones {
+            max-width: 900px;
+            margin-bottom: 14px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-toggle-seccion {
+            padding: 7px 12px;
+            border: 1px solid #1f4e79;
+            background: white;
+            color: #1f4e79;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-toggle-seccion:hover {
+            background: #e8ecfb;
+        }
+
+        .btn-toggle-seccion[aria-pressed="true"] {
+            background: #1f4e79;
+            color: white;
+        }
+
         .scroll-hint {
             display: none;
             font-size: 13px;
@@ -817,6 +845,15 @@
         <span id="avisoSoloLectura" class="aviso-solo-lectura">
             🔒 Este no es el trimestre activo: solo puedes consultar, no editar.
         </span>
+    </div>
+
+    <div class="filtro-secciones">
+        <button type="button" id="btnToggleApreciacion" class="btn-toggle-seccion" aria-pressed="false">
+            🙈 Ocultar Apreciación
+        </button>
+        <button type="button" id="btnToggleEjercicio" class="btn-toggle-seccion" aria-pressed="false">
+            🙈 Ocultar Ejercicio
+        </button>
     </div>
 
     <p class="scroll-hint">📱 Desliza la tabla hacia los lados para ver todas las columnas →</p>
