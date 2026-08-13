@@ -293,6 +293,7 @@ async function cargarInformacion(salon) {
         const correoCalculado = correoDe(est);
         const extra = datosPorCorreo[(correoCalculado || "").toLowerCase()] || null;
         return {
+            id: est.id,
             correo: correoCalculado,
             // true cuando el estudiante todavía no se ha registrado y el
             // correo se calculó a partir de su cédula (no viene de "estudiantes").
@@ -316,9 +317,15 @@ async function cargarInformacion(salon) {
     renderizarTabla(ordenarFilas(filasActuales));
 }
 
-// Columnas de "datos_estudiante" que se pueden editar desde aquí,
-// y qué tipo de casilla usar para cada una.
+// Columnas de "datos_estudiante" (o de "estudiantes", ver "tabla")
+// que se pueden editar desde aquí, y qué tipo de casilla usar.
+// "tabla" indica a qué tabla se guarda cada campo; si no se indica,
+// se asume "datos_estudiante" (identificado por correo). Los campos
+// con tabla: "estudiantes" se identifican por "id" y solo se dejan
+// editar en modo administrador (ver renderizarTabla).
 const CAMPOS_EDITABLES = {
+    nombre: { columnaBD: "nombre", tipo: "text", tabla: "estudiantes", requerido: true },
+    salon: { columnaBD: "salon", tipo: "text", tabla: "estudiantes", requerido: true },
     genero: { columnaBD: "genero", tipo: "select" },
     cedula: { columnaBD: "cedula", tipo: "text" },
     fechaNacimiento: { columnaBD: "fecha_nacimiento", tipo: "date" },
@@ -333,11 +340,14 @@ function celdaEditable(fila, campo) {
     const { tipo } = CAMPOS_EDITABLES[campo];
     const valor = fila[campo] ?? "";
 
+    // data-id identifica la fila de forma confiable aunque todavía no
+    // tenga correo (dos estudiantes sin correo ni cédula tendrían
+    // data-correo="" igual, y no se podrían distinguir entre sí).
     if (tipo === "select") {
         const v = String(valor).trim().toUpperCase();
         const sel = v === "M" || v === "MASCULINO" ? "M" : (v === "F" || v === "FEMENINO" ? "F" : "");
         return `
-            <select class="celda-editable" data-correo="${escapeHtml(fila.correo || "")}" data-campo="${campo}">
+            <select class="celda-editable" data-id="${fila.id}" data-correo="${escapeHtml(fila.correo || "")}" data-campo="${campo}">
                 <option value="">–</option>
                 <option value="M" ${sel === "M" ? "selected" : ""}>M</option>
                 <option value="F" ${sel === "F" ? "selected" : ""}>F</option>
@@ -345,22 +355,79 @@ function celdaEditable(fila, campo) {
     }
 
     const valorInput = tipo === "date" ? escapeHtml(valor) : escapeHtml(valor);
-    return `<input class="celda-editable" type="${tipo}" data-correo="${escapeHtml(fila.correo || "")}" data-campo="${campo}" value="${valorInput}">`;
+    return `<input class="celda-editable" type="${tipo}" data-id="${fila.id}" data-correo="${escapeHtml(fila.correo || "")}" data-campo="${campo}" value="${valorInput}">`;
 }
 
 async function guardarCampo(input) {
-    const correo = input.dataset.correo;
     const campo = input.dataset.campo;
-    if (!correo || !campo || !CAMPOS_EDITABLES[campo]) return;
+    if (!campo || !CAMPOS_EDITABLES[campo]) return;
 
-    const { columnaBD } = CAMPOS_EDITABLES[campo];
+    const id = Number(input.dataset.id);
+    const fila = filasActuales.find((f) => f.id === id);
+    if (!fila) return;
+
+    const { columnaBD, tabla, requerido } = CAMPOS_EDITABLES[campo];
     const valorCrudo = input.value.trim();
     const valor = valorCrudo === "" ? null : valorCrudo;
 
     input.classList.remove("guardado", "error");
 
-    const fila = filasActuales.find((f) => f.correo === correo);
-    const yaTeniaFila = fila ? fila.tieneDatos : false;
+    // --- Campos que viven en "estudiantes" (nombre, salón) ---------
+    // Se identifican por "id" (siempre existe, es la fila fuente del
+    // listado) y solo el administrador puede editarlos.
+    if (tabla === "estudiantes") {
+        if (modo !== "admin") return; // el consejero no debería llegar aquí (no se renderizan como input), pero por seguridad se bloquea igual.
+
+        if (requerido && !valor) {
+            input.classList.add("error");
+            input.title = "Este campo no puede quedar vacío.";
+            alert("Este campo no puede quedar vacío.");
+            input.value = fila[campo] ?? "";
+            return;
+        }
+
+        const { error } = await supabase.from("estudiantes").update({ [columnaBD]: valor }).eq("id", id);
+
+        if (error) {
+            console.error("❌ Error al guardar:", error);
+            input.classList.add("error");
+            input.title = "No se pudo guardar: " + error.message;
+            alert("No se pudo guardar el cambio.\n\n" + [error.message, error.details, error.hint].filter(Boolean).join("\n"));
+            return;
+        }
+
+        input.title = "";
+        input.classList.add("guardado");
+        setTimeout(() => input.classList.remove("guardado"), 1500);
+        fila[campo] = valor;
+        return;
+    }
+
+    // --- Campos que viven en "datos_estudiante" (el resto) ---------
+    // Si la fila todavía no tiene correo (el estudiante no se ha
+    // registrado y tampoco tenía cédula guardada en "estudiantes"),
+    // no hay forma de identificarlo en "datos_estudiante" hasta que
+    // se le asigne una cédula. Si justo se está guardando la cédula
+    // ahora mismo, se calcula el correo interno con ella (mismo
+    // criterio que usa registro.js) y se usa desde este momento.
+    let correo = fila.correo;
+    if (!correo) {
+        if (campo === "cedula" && valor) {
+            correo = cedulaAEmail(valor);
+        } else {
+            input.classList.add("error");
+            input.title = "Este estudiante todavía no tiene cédula asignada.";
+            alert(
+                "Este estudiante no se ha registrado y tampoco tiene cédula guardada, " +
+                "así que no hay forma de identificarlo para guardar sus datos.\n\n" +
+                "Escribe primero su cédula en la columna \"Cédula\"; después de guardarla " +
+                "podrás llenar el resto de sus datos con normalidad."
+            );
+            return;
+        }
+    }
+
+    const yaTeniaFila = fila.tieneDatos;
 
     let error;
     if (yaTeniaFila) {
@@ -392,17 +459,29 @@ async function guardarCampo(input) {
     input.classList.add("guardado");
     setTimeout(() => input.classList.remove("guardado"), 1500);
 
-    if (fila) {
-        fila[campo] = valor;
-        if (!yaTeniaFila) {
-            fila.tieneDatos = true;
-            const tr = input.closest("tr");
-            if (tr) tr.classList.remove("fila-incompleta");
-            const incompletos = filasActuales.filter((f) => !f.tieneDatos).length;
-            textoResumen.textContent =
-                `${filasActuales.length} estudiante${filasActuales.length === 1 ? "" : "s"}` +
-                (incompletos > 0 ? ` · ${incompletos} sin datos llenados todavía` : "");
+    fila[campo] = valor;
+
+    if (!fila.correo) {
+        // Primera vez que esta fila consigue un correo (se acaba de
+        // escribir la cédula): lo guardamos y actualizamos los demás
+        // campos editables de la misma fila en el DOM para que ya
+        // apunten a este correo, sin necesidad de recargar la página.
+        fila.correo = correo;
+        fila.correoGenerado = true;
+        const tr = input.closest("tr");
+        if (tr) {
+            tr.querySelectorAll(".celda-editable").forEach((el) => { el.dataset.correo = correo; });
         }
+    }
+
+    if (!yaTeniaFila) {
+        fila.tieneDatos = true;
+        const tr = input.closest("tr");
+        if (tr) tr.classList.remove("fila-incompleta");
+        const incompletos = filasActuales.filter((f) => !f.tieneDatos).length;
+        textoResumen.textContent =
+            `${filasActuales.length} estudiante${filasActuales.length === 1 ? "" : "s"}` +
+            (incompletos > 0 ? ` · ${incompletos} sin datos llenados todavía` : "");
     }
 }
 
@@ -426,8 +505,8 @@ function renderizarTabla(filas) {
     tabla.innerHTML = filas.map((f, i) => `
         <tr class="${f.tieneDatos ? "" : "fila-incompleta"}">
             <td>${i + 1}</td>
-            <td class="nombre">${escapeHtml(f.nombre)}</td>
-            <td data-col="salon">${escapeHtml(f.salon)}</td>
+            <td class="nombre">${modo === "admin" ? celdaEditable(f, "nombre") : escapeHtml(f.nombre)}</td>
+            <td data-col="salon">${modo === "admin" ? celdaEditable(f, "salon") : escapeHtml(f.salon)}</td>
             <td data-col="genero">${celdaEditable(f, "genero")}</td>
             <td data-col="cedula">${celdaEditable(f, "cedula")}</td>
             <td data-col="fechaNacimiento">${celdaEditable(f, "fechaNacimiento")}</td>
