@@ -53,22 +53,66 @@
         .fila-filtros { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
         .texto-fijo { font-weight: 700; color: #991b1b; font-size: 1rem; padding: 8px 0; }
 
+        /* ---- Selector de salones tipo "chips", multi-selección ---- */
+        .chips-salones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+        .chip-salon {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 20px; border: 1px solid #cbd5e1;
+            background: #f8fafc; cursor: pointer; font-size: .85rem; user-select: none;
+            transition: background .12s, border-color .12s, color .12s;
+        }
+        .chip-salon:hover { border-color: #991b1b; }
+        .chip-salon.activo { background: #991b1b; border-color: #991b1b; color: #fff; font-weight: 700; }
+        .acciones-chips { display: flex; gap: 12px; margin-top: 6px; }
+        .acciones-chips button {
+            border: none; background: none; color: #991b1b; font-size: .78rem;
+            font-weight: 700; padding: 0; cursor: pointer; text-decoration: underline;
+        }
+
         .btn-riesgo { background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%); border: none; color: #fff; }
         .btn-riesgo:hover { color: #fff; opacity: .92; }
         .btn-riesgo:disabled { opacity: .6; }
 
-        #zonaReporte h2 { font-size: 1rem; color: #991b1b; margin: 18px 0 6px; }
-        #zonaReporte h2 .conteo { font-weight: normal; color: #64748b; font-size: .82rem; }
-        #zonaReporte .docente-linea { font-size: .78rem; color: #64748b; margin: -4px 0 8px; }
-        #zonaReporte table { border-collapse: collapse; width: 100%; font-size: .84rem; margin-bottom: 6px; }
+        /* ---- Membrete / ficha formal por materia (pantalla + impresión) ---- */
+        .membrete-escuela { text-align: center; margin-bottom: 14px; }
+        .membrete-escuela h1 { font-size: 1.15rem; color: #7f1d1d; margin: 0; letter-spacing: .5px; }
+        .membrete-escuela .subt-membrete { font-size: .82rem; color: #64748b; margin: 2px 0 0; }
+        .membrete-escuela .fecha-membrete { font-size: .78rem; color: #94a3b8; margin: 2px 0 0; }
+
+        .titulo-salon {
+            font-size: 1.02rem; color: #fff; background: #7f1d1d;
+            padding: 7px 14px; border-radius: 8px 8px 0 0; margin: 22px 0 0;
+        }
+        .ficha-materia {
+            border: 1px solid #991b1b; border-top: none; border-radius: 0 0 8px 8px;
+            padding: 14px 16px 10px; margin-bottom: 14px;
+        }
+        .ficha-materia:first-of-type { margin-top: 0; }
+        .datos-ficha {
+            display: flex; flex-wrap: wrap; gap: 4px 28px; font-size: .86rem;
+            border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px;
+        }
+        .datos-ficha span { color: #334155; }
+        .datos-ficha b { color: #7f1d1d; }
+
+        #zonaReporte h2.conteo-materia { font-size: .95rem; color: #991b1b; margin: 0 0 6px; }
+        #zonaReporte h2.conteo-materia .conteo { font-weight: normal; color: #64748b; font-size: .8rem; }
+        #zonaReporte table { border-collapse: collapse; width: 100%; font-size: .84rem; margin-bottom: 4px; }
         #zonaReporte th, #zonaReporte td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: center; }
         #zonaReporte th { background: #991b1b; color: #fff; }
         #zonaReporte td.nombre { text-align: left; font-weight: 600; }
         #zonaReporte td.final { font-weight: 700; color: #991b1b; background: #fef2f2; }
 
-        #resumenTop {
-            display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 4px;
+        .linea-envio {
+            margin-top: 10px; font-size: .84rem; color: #334155;
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
         }
+        .linea-envio .casilla {
+            display: inline-block; width: 14px; height: 14px; border: 1.4px solid #334155;
+            border-radius: 3px; margin-left: 10px;
+        }
+
+        #resumenTop { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
         .pastilla-resumen {
             background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;
             border-radius: 10px; padding: 8px 14px; font-size: .84rem; font-weight: 700;
@@ -86,6 +130,7 @@
             body { background: #fff; padding: 0; }
             .contenido { max-width: 100%; margin: 0; padding: 0; }
             .tarjeta { box-shadow: none; padding: 0; margin-bottom: 10px; }
+            .ficha-materia { break-inside: avoid; }
         }
     </style>
 </head>
@@ -106,12 +151,16 @@
     <div class="contenido">
 
         <div class="tarjeta no-imprimir">
-            <div class="fila-filtros">
+            <div class="fila-filtros" style="align-items:flex-start;">
                 <div id="bloqueSalonSelect" style="display:none;">
-                    <label for="selectSalonRiesgo">Salón</label>
-                    <select id="selectSalonRiesgo">
-                        <option value="">Cargando...</option>
-                    </select>
+                    <label>Salón(es)</label>
+                    <div class="chips-salones" id="chipsSalonesRiesgo">
+                        <span class="small text-muted">Cargando...</span>
+                    </div>
+                    <div class="acciones-chips">
+                        <button type="button" id="btnSalonesTodos">Seleccionar todos</button>
+                        <button type="button" id="btnSalonesNinguno">Ninguno</button>
+                    </div>
                 </div>
                 <div id="bloqueSalonFijo" style="display:none;">
                     <label>Salón</label>
@@ -148,8 +197,11 @@
             </div>
 
             <div id="contenidoImprimible">
-                <h1 style="font-size:1.1rem; color:#991b1b; margin-bottom:2px;" id="tituloReporte">Estudiantes en riesgo</h1>
-                <p class="small text-muted" id="subtituloReporte"></p>
+                <div class="membrete-escuela">
+                    <h1>C.E.B.G. EL JIRAL</h1>
+                    <p class="subt-membrete">Reporte de estudiantes en riesgo académico</p>
+                    <p class="fecha-membrete" id="fechaMembrete"></p>
+                </div>
                 <div id="resumenTop"></div>
                 <div id="zonaReporte"></div>
             </div>
@@ -157,12 +209,13 @@
             <div class="nota-envio no-imprimir">
                 <i class="fa-solid fa-circle-info me-1"></i>
                 Este reporte se puede imprimir o descargar en PDF para entregarlo o enviarlo por correo a los
-                padres de familia de los estudiantes en riesgo, o al consejero(a) del salón.
+                padres de familia de los estudiantes en riesgo, o al consejero(a) del salón. Cada materia trae
+                una casilla para marcar a mano si ya se le entregó a consejería.
             </div>
         </div>
 
         <div class="tarjeta estado-vacio no-imprimir" id="tarjetaVacia">
-            Elige un salón y un trimestre, luego pulsa "Generar reporte".
+            Elige uno o más salones y un trimestre, luego pulsa "Generar reporte".
         </div>
 
     </div>
