@@ -205,8 +205,11 @@ async function calcularRiesgoPorMateria(materia, trimestre, estudiantes) {
         if (!g) return;
         const promApr = prom(g.apr), promEje = prom(g.eje), promExa = prom(g.exa);
         const presentes = [promApr, promEje, promExa].filter((v) => v !== null);
-        const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
-        // "En riesgo" = 2.9999... o menos (por debajo de 3.0).
+        const promFinalCrudo = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
+        // Redondeamos a 1 decimal ANTES de comparar, para que un promedio
+        // que se muestra como "3.0" (ej. 2.96) no aparezca como en riesgo.
+        const promFinal = promFinalCrudo !== null ? Math.round(promFinalCrudo * 10) / 10 : null;
+        // "En riesgo" = por debajo de 3.0, usando el valor ya redondeado.
         if (promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR) {
             resultado.push({ nombre: est.nombre, promApr, promEje, promExa, promFinal });
         }
