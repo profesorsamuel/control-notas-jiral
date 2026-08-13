@@ -177,6 +177,18 @@ async function calcularRiesgoPorMateria(materia, trimestre, estudiantes) {
     const ids = estudiantes.map((e) => e.id);
     if (ids.length === 0) return [];
 
+    const porEstudiante = {};
+    function registrarNota(estudianteId, tipo, nota) {
+        if (nota === null || nota === undefined) return;
+        const num = Number(nota);
+        if (isNaN(num)) return;
+        const grupo = (porEstudiante[estudianteId] ??= { apr: [], eje: [], exa: [] });
+        if (tipo === "apreciacion") grupo.apr.push(num);
+        else if (tipo === "examen") grupo.exa.push(num);
+        else grupo.eje.push(num);
+    }
+
+    // Fuente principal: notas ya conectadas por estudiante_id.
     const { data: notas, error } = await supabase
         .from("notas")
         .select("estudiante_id, tipo, nota")
@@ -185,17 +197,32 @@ async function calcularRiesgoPorMateria(materia, trimestre, estudiantes) {
         .is("eliminado_en", null);
 
     if (error) { console.error(error); return []; }
+    (notas || []).forEach((n) => registrarNota(n.estudiante_id, n.tipo, n.nota));
 
-    const porEstudiante = {};
-    (notas || []).forEach((n) => {
-        if (n.nota === null || n.nota === undefined) return;
-        const num = Number(n.nota);
-        if (isNaN(num)) return;
-        const grupo = (porEstudiante[n.estudiante_id] ??= { apr: [], eje: [], exa: [] });
-        if (n.tipo === "apreciacion") grupo.apr.push(num);
-        else if (n.tipo === "examen") grupo.exa.push(num);
-        else grupo.eje.push(num);
-    });
+    // Fuente de respaldo: notas antiguas que todavía solo tienen "correo"
+    // (sin estudiante_id), igual que hace profesor.js y cuadro_aprobados.js.
+    // Sin esto, un estudiante con notas viejas aparecía como "sin
+    // calificaciones" y quedaba fuera del reporte de riesgo aunque su
+    // promedio real estuviera por debajo del mínimo.
+    const correoAId = {};
+    estudiantes.forEach((e) => { if (e.correo) correoAId[e.correo] = e.id; });
+    const correosActuales = Object.keys(correoAId);
+    if (correosActuales.length > 0) {
+        const { data: notasPorCorreo, error: errCorreo } = await supabase
+            .from("notas")
+            .select("estudiante_id, correo, tipo, nota")
+            .eq("materia", materia).eq("trimestre", trimestre)
+            .in("correo", correosActuales)
+            .is("eliminado_en", null);
+        if (errCorreo) { console.error(errCorreo); }
+        else {
+            (notasPorCorreo || []).forEach((n) => {
+                if (n.estudiante_id) return; // ya se registró arriba
+                const idEst = correoAId[n.correo];
+                if (idEst) registrarNota(idEst, n.tipo, n.nota);
+            });
+        }
+    }
 
     const prom = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
 
@@ -275,7 +302,7 @@ btnGenerarReporte.addEventListener("click", async () => {
 
             const { data: estudiantesSalon, error: errEst } = await supabase
                 .from("estudiantes")
-                .select("id, nombre, es_prueba")
+                .select("id, nombre, correo, es_prueba")
                 .eq("salon", salon)
                 .order("nombre", { ascending: true });
 
