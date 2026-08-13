@@ -362,8 +362,11 @@ async function guardarCampo(input) {
     const campo = input.dataset.campo;
     if (!campo || !CAMPOS_EDITABLES[campo]) return;
 
-    const id = Number(input.dataset.id);
-    const fila = filasActuales.find((f) => f.id === id);
+    // El "id" de "estudiantes" es un UUID (texto), no un número: no se
+    // debe convertir con Number() (eso daba NaN y hacía que nunca se
+    // encontrara la fila, fallando el guardado en silencio).
+    const id = input.dataset.id;
+    const fila = filasActuales.find((f) => String(f.id) === String(id));
     if (!fila) return;
 
     const { columnaBD, tabla, requerido } = CAMPOS_EDITABLES[campo];
