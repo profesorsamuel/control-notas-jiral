@@ -4,7 +4,7 @@
 // Las llamadas a Supabase (datos del horario) NUNCA se cachean: siempre van
 // directo a la red para que el horario mostrado sea siempre el real.
 
-const CACHE_NOMBRE = "timbre-jiral-v3";
+const CACHE_NOMBRE = "timbre-jiral-v4";
 
 const ARCHIVOS_SHELL = [
   "./pages/timbre.html",
@@ -47,20 +47,42 @@ self.addEventListener("fetch", (evento) => {
     return;
   }
 
-  evento.respondWith(
-    caches.match(evento.request).then((respuestaCache) => {
-      const buscarEnRed = fetch(evento.request)
-        .then((respuestaRed) => {
-          if (respuestaRed && respuestaRed.status === 200) {
-            const copia = respuestaRed.clone();
-            caches.open(CACHE_NOMBRE).then((cache) => cache.put(evento.request, copia));
-          }
-          return respuestaRed;
-        })
-        .catch(() => respuestaCache);
+  // Solo el "cascarón" (ARCHIVOS_SHELL) usa cache-first: son páginas que
+  // casi no cambian y así abren al instante incluso sin señal.
+  const esArchivoShell = ARCHIVOS_SHELL.some((ruta) => url.pathname.endsWith(ruta.replace("./", "/")));
 
-      // Cache-first para que abra al instante; se actualiza en segundo plano.
-      return respuestaCache || buscarEnRed;
-    })
+  if (esArchivoShell) {
+    evento.respondWith(
+      caches.match(evento.request).then((respuestaCache) => {
+        const buscarEnRed = fetch(evento.request)
+          .then((respuestaRed) => {
+            if (respuestaRed && respuestaRed.status === 200) {
+              const copia = respuestaRed.clone();
+              caches.open(CACHE_NOMBRE).then((cache) => cache.put(evento.request, copia));
+            }
+            return respuestaRed;
+          })
+          .catch(() => respuestaCache);
+
+        // Cache-first para que abra al instante; se actualiza en segundo plano.
+        return respuestaCache || buscarEnRed;
+      })
+    );
+    return;
+  }
+
+  // Todo lo demás (el resto de páginas y scripts .js) usa network-first:
+  // siempre intenta traer la versión más nueva del servidor, y solo si
+  // no hay conexión cae de vuelta al caché (si existe una copia previa).
+  evento.respondWith(
+    fetch(evento.request)
+      .then((respuestaRed) => {
+        if (respuestaRed && respuestaRed.status === 200) {
+          const copia = respuestaRed.clone();
+          caches.open(CACHE_NOMBRE).then((cache) => cache.put(evento.request, copia));
+        }
+        return respuestaRed;
+      })
+      .catch(() => caches.match(evento.request))
   );
 });
