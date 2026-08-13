@@ -2714,4 +2714,60 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
+    // =================================================
+    // ENVIAR CUADRO DE NOTAS POR CORREO (manual)
+    // =================================================
+    const URL_FUNCION_ENVIAR_CUADRO_NOTAS =
+        "https://luewrpzgetqslxqmdcxv.functions.supabase.co/enviar-cuadro-notas";
+
+    const btnEnviarCuadroNotas = document.getElementById("btnEnviarCuadroNotas");
+    const estadoEnvioCuadroNotas = document.getElementById("estadoEnvioCuadroNotas");
+
+    if (btnEnviarCuadroNotas) {
+        btnEnviarCuadroNotas.addEventListener("click", async () => {
+            const confirmar = confirm(
+                "¿Enviar ahora el cuadro de notas (apreciación y ejercicio) de todos los salones a profesorsamuelortega@gmail.com?"
+            );
+            if (!confirmar) return;
+
+            btnEnviarCuadroNotas.disabled = true;
+            if (estadoEnvioCuadroNotas) {
+                estadoEnvioCuadroNotas.textContent = "⏳ Enviando...";
+                estadoEnvioCuadroNotas.className = "small ms-2 text-muted";
+            }
+
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+
+                const respuesta = await fetch(URL_FUNCION_ENVIAR_CUADRO_NOTAS, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${session?.access_token || ""}`
+                    },
+                    body: JSON.stringify({})
+                });
+
+                const resultado = await respuesta.json();
+
+                if (!respuesta.ok) {
+                    throw new Error(resultado?.error || "Error desconocido al enviar el correo.");
+                }
+
+                if (estadoEnvioCuadroNotas) {
+                    estadoEnvioCuadroNotas.textContent = "✅ Cuadro enviado correctamente.";
+                    estadoEnvioCuadroNotas.className = "small ms-2 text-success";
+                }
+            } catch (error) {
+                console.error("❌ Error al enviar el cuadro de notas:", error);
+                if (estadoEnvioCuadroNotas) {
+                    estadoEnvioCuadroNotas.textContent = "❌ " + error.message;
+                    estadoEnvioCuadroNotas.className = "small ms-2 text-danger";
+                }
+            } finally {
+                btnEnviarCuadroNotas.disabled = false;
+            }
+        });
+    }
+
 });
