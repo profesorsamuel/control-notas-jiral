@@ -1233,7 +1233,7 @@ function pintarModal(estado_) {
             }).join("");
             const partes = calcularNotasParcialesEstudiante(estado_, est.id);
             const notaSeccion = tipoActividad === "clase" ? partes.notaActClase : partes.notaActCasa;
-            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}${soloLectura ? "" : "<td></td>"}<td class="text-center fw-bold">${formatearPromedioSeccion(notaSeccion)}</td></tr>`;
+            return `<tr><td class="small">${escapeHtml(est.nombre)}</td>${celdas}${soloLectura ? "" : "<td></td>"}<td class="text-center fw-bold" id="aprPromActividad-${tipoActividad}-${est.id}">${formatearPromedioSeccion(notaSeccion)}</td></tr>`;
         }).join("");
 
         const mensajeVacio = lista.length === 0
@@ -1507,6 +1507,16 @@ function pintarModal(estado_) {
             if (listaCasa) listaCasa.notas[estudianteId] = nota;
 
             await guardarCalificacionActividad(actividadId, estudianteId, nota);
+
+            // Repintar el promedio de ESTA sección (clase/casa) para este
+            // estudiante sin repintar todo el modal, para no perder el
+            // foco de la casilla mientras se sigue escribiendo.
+            const tipoActividad = listaClase ? "clase" : "casa";
+            const partes = calcularNotasParcialesEstudiante(estado_, estudianteId);
+            const notaSeccion = tipoActividad === "clase" ? partes.notaActClase : partes.notaActCasa;
+            const celdaProm = document.getElementById(`aprPromActividad-${tipoActividad}-${estudianteId}`);
+            if (celdaProm) celdaProm.textContent = formatearPromedioSeccion(notaSeccion);
+
             calcularYPintarNotasFinales(estado_);
         });
     });
