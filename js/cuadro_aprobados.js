@@ -185,9 +185,12 @@ async function calcularDatosSalon(salon, materia, trimestre) {
         salon,
         etiqueta: mapaSalones[salon]?.nombre_visible || salon,
         matricula: lista.length,
-        aprobados: { M: 0, F: 0 },
-        reprobados: { M: 0, F: 0 },
-        sinCalif: { M: 0, F: 0 },
+        // total = cuenta real de estudiantes en esa categoría (siempre correcta,
+        // tenga o no género registrado). M/F = desglose, solo cuando el
+        // género sí está registrado (por eso M+F puede ser menor que total).
+        aprobados: { M: 0, F: 0, total: 0 },
+        reprobados: { M: 0, F: 0, total: 0 },
+        sinCalif: { M: 0, F: 0, total: 0 },
         reprobadosNombres: [],
         sinGeneroCantidad: 0,
     };
@@ -202,15 +205,18 @@ async function calcularDatosSalon(salon, materia, trimestre) {
             : [];
 
         if (!promedios.length) {
+            resumen.sinCalif.total++;
             if (g) resumen.sinCalif[g]++;
             return;
         }
         const promFinal = promedios.reduce((a, b) => a + b, 0) / promedios.length;
         if (promFinal < PROMEDIO_MINIMO_APROBAR) {
+            resumen.reprobados.total++;
             if (g) resumen.reprobados[g]++;
             resumen.reprobadosNombres.push(est.nombre);
-        } else if (g) {
-            resumen.aprobados[g]++;
+        } else {
+            resumen.aprobados.total++;
+            if (g) resumen.aprobados[g]++;
         }
     });
 
@@ -250,30 +256,24 @@ function celdaEditable(valor) {
 function construirTablaHtml(filas) {
     const totales = {
         matricula: 0,
-        aprobados: { M: 0, F: 0 },
-        reprobados: { M: 0, F: 0 },
-        sinCalif: { M: 0, F: 0 },
+        aprobados: { M: 0, F: 0, total: 0 },
+        reprobados: { M: 0, F: 0, total: 0 },
+        sinCalif: { M: 0, F: 0, total: 0 },
     };
     filas.forEach((f) => {
         totales.matricula += f.matricula;
-        totales.aprobados.M += f.aprobados.M; totales.aprobados.F += f.aprobados.F;
-        totales.reprobados.M += f.reprobados.M; totales.reprobados.F += f.reprobados.F;
-        totales.sinCalif.M += f.sinCalif.M; totales.sinCalif.F += f.sinCalif.F;
+        totales.aprobados.M += f.aprobados.M; totales.aprobados.F += f.aprobados.F; totales.aprobados.total += f.aprobados.total;
+        totales.reprobados.M += f.reprobados.M; totales.reprobados.F += f.reprobados.F; totales.reprobados.total += f.reprobados.total;
+        totales.sinCalif.M += f.sinCalif.M; totales.sinCalif.F += f.sinCalif.F; totales.sinCalif.total += f.sinCalif.total;
     });
-    const totAprob = totales.aprobados.M + totales.aprobados.F;
-    const totRepr = totales.reprobados.M + totales.reprobados.F;
-    const totSinCalif = totales.sinCalif.M + totales.sinCalif.F;
 
     const filasHtml = filas.map((f) => {
-        const totAp = f.aprobados.M + f.aprobados.F;
-        const totRe = f.reprobados.M + f.reprobados.F;
-        const totSc = f.sinCalif.M + f.sinCalif.F;
         return `<tr>
             ${celda(`<strong>${escapeHtml(f.etiqueta)}</strong>`)}
             ${celda(f.matricula)}
-            ${celda(f.aprobados.M)}${celda(f.aprobados.F)}${celda(`<strong>${totAp}</strong>`)}${celda(formatearPct(totAp, f.matricula))}
-            ${celda(f.reprobados.M)}${celda(f.reprobados.F)}${celda(`<strong>${totRe}</strong>`)}${celda(formatearPct(totRe, f.matricula))}
-            ${celda(f.sinCalif.M)}${celda(f.sinCalif.F)}${celda(`<strong>${totSc}</strong>`)}${celda(formatearPct(totSc, f.matricula))}
+            ${celda(f.aprobados.M)}${celda(f.aprobados.F)}${celda(`<strong>${f.aprobados.total}</strong>`)}${celda(formatearPct(f.aprobados.total, f.matricula))}
+            ${celda(f.reprobados.M)}${celda(f.reprobados.F)}${celda(`<strong>${f.reprobados.total}</strong>`)}${celda(formatearPct(f.reprobados.total, f.matricula))}
+            ${celda(f.sinCalif.M)}${celda(f.sinCalif.F)}${celda(`<strong>${f.sinCalif.total}</strong>`)}${celda(formatearPct(f.sinCalif.total, f.matricula))}
             ${celdaEditable(0)}${celdaEditable(0)}
         </tr>`;
     }).join("");
@@ -281,9 +281,9 @@ function construirTablaHtml(filas) {
     const filaTotales = `<tr class="fila-totales">
         ${celda("<strong>TOTALES</strong>")}
         ${celda(`<strong>${totales.matricula}</strong>`)}
-        ${celda(`<strong>${totales.aprobados.M}</strong>`)}${celda(`<strong>${totales.aprobados.F}</strong>`)}${celda(`<strong>${totAprob}</strong>`)}${celda(`<strong>${formatearPct(totAprob, totales.matricula)}</strong>`)}
-        ${celda(`<strong>${totales.reprobados.M}</strong>`)}${celda(`<strong>${totales.reprobados.F}</strong>`)}${celda(`<strong>${totRepr}</strong>`)}${celda(`<strong>${formatearPct(totRepr, totales.matricula)}</strong>`)}
-        ${celda(`<strong>${totales.sinCalif.M}</strong>`)}${celda(`<strong>${totales.sinCalif.F}</strong>`)}${celda(`<strong>${totSinCalif}</strong>`)}${celda(`<strong>${formatearPct(totSinCalif, totales.matricula)}</strong>`)}
+        ${celda(`<strong>${totales.aprobados.M}</strong>`)}${celda(`<strong>${totales.aprobados.F}</strong>`)}${celda(`<strong>${totales.aprobados.total}</strong>`)}${celda(`<strong>${formatearPct(totales.aprobados.total, totales.matricula)}</strong>`)}
+        ${celda(`<strong>${totales.reprobados.M}</strong>`)}${celda(`<strong>${totales.reprobados.F}</strong>`)}${celda(`<strong>${totales.reprobados.total}</strong>`)}${celda(`<strong>${formatearPct(totales.reprobados.total, totales.matricula)}</strong>`)}
+        ${celda(`<strong>${totales.sinCalif.M}</strong>`)}${celda(`<strong>${totales.sinCalif.F}</strong>`)}${celda(`<strong>${totales.sinCalif.total}</strong>`)}${celda(`<strong>${formatearPct(totales.sinCalif.total, totales.matricula)}</strong>`)}
         ${celdaEditable(0)}${celdaEditable(0)}
     </tr>`;
 
@@ -329,8 +329,9 @@ function construirEncabezadoHtml(filas) {
     const jornada = selectJornada.value || "—";
     const niveles = construirTextoNiveles(filas.map((f) => f.salon));
 
-    const avisoSinGenero = filas.some((f) => f.sinGeneroCantidad > 0)
-        ? `<div class="aviso-genero">⚠️ Hay estudiantes sin género registrado en "Información de estudiantes"; no se cuentan en M/F pero sí afectan la matrícula total. Complétalo para que las columnas cuadren exactamente.</div>`
+    const totalSinGenero = filas.reduce((a, f) => a + f.sinGeneroCantidad, 0);
+    const avisoSinGenero = totalSinGenero > 0
+        ? `<div class="aviso-genero">⚠️ ${totalSinGenero} estudiante(s) no tienen el campo "Género" lleno en "Información de estudiantes". Los totales de APROBADOS/REPROBADOS/SIN CALIFICACIONES sí son correctos, pero el desglose por columnas M/F de esos estudiantes no se puede mostrar hasta que se les registre el género (Panel Admin → Información de estudiantes → columna "Género").</div>`
         : "";
 
     return `
