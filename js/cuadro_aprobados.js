@@ -191,7 +191,18 @@ async function calcularDatosSalon(salon, materia, trimestre) {
     }
 
     const gruposPorEstudiante = {};
+    function registrarNota(estudianteId, tipo, nota) {
+        if (nota === null || nota === undefined || nota === "") return;
+        const val = parseFloat(nota);
+        if (Number.isNaN(val)) return;
+        const g = (gruposPorEstudiante[estudianteId] ??= { apr: [], eje: [], exa: [] });
+        if (tipo === "apreciacion") g.apr.push(val);
+        else if (tipo === "examen") g.exa.push(val);
+        else g.eje.push(val);
+    }
+
     if (ids.length > 0) {
+        // Fuente principal: notas ya conectadas por estudiante_id.
         const { data: notas, error: errNotas } = await supabase
             .from("notas")
             .select("estudiante_id, tipo, nota")
@@ -201,15 +212,33 @@ async function calcularDatosSalon(salon, materia, trimestre) {
             .is("eliminado_en", null);
         if (errNotas) throw new Error(`Notas de ${salon}: ${errNotas.message}`);
 
+        const conNota = new Set();
         (notas || []).forEach((n) => {
-            if (n.nota === null || n.nota === undefined || n.nota === "") return;
-            const val = parseFloat(n.nota);
-            if (Number.isNaN(val)) return;
-            const g = (gruposPorEstudiante[n.estudiante_id] ??= { apr: [], eje: [], exa: [] });
-            if (n.tipo === "apreciacion") g.apr.push(val);
-            else if (n.tipo === "examen") g.exa.push(val);
-            else g.eje.push(val);
+            registrarNota(n.estudiante_id, n.tipo, n.nota);
+            conNota.add(n.estudiante_id);
         });
+
+        // Fuente de respaldo: notas antiguas que todavía solo tienen "correo"
+        // (sin estudiante_id), igual que hace profesor.js. Sin esto, un
+        // estudiante con notas viejas aparecía como "sin calificaciones".
+        const correoAId = {};
+        lista.forEach((e) => { if (e.correo) correoAId[e.correo] = e.id; });
+        const correosActuales = Object.keys(correoAId);
+        if (correosActuales.length > 0) {
+            const { data: notasPorCorreo, error: errNotasCorreo } = await supabase
+                .from("notas")
+                .select("estudiante_id, correo, tipo, nota")
+                .eq("materia", materia)
+                .eq("trimestre", trimestre)
+                .in("correo", correosActuales)
+                .is("eliminado_en", null);
+            if (errNotasCorreo) throw new Error(`Notas (por correo) de ${salon}: ${errNotasCorreo.message}`);
+            (notasPorCorreo || []).forEach((n) => {
+                if (n.estudiante_id) return; // ya se registró arriba
+                const idEst = correoAId[n.correo];
+                if (idEst) registrarNota(idEst, n.tipo, n.nota);
+            });
+        }
     }
 
     const resumen = {
@@ -223,6 +252,7 @@ async function calcularDatosSalon(salon, materia, trimestre) {
         reprobados: { M: 0, F: 0, total: 0 },
         sinCalif: { M: 0, F: 0, total: 0 },
         reprobadosNombres: [],
+        sinCalifNombres: [],
         sinGeneroCantidad: 0,
         sinGeneroNombres: [],
     };
@@ -242,6 +272,7 @@ async function calcularDatosSalon(salon, materia, trimestre) {
         if (!promedios.length) {
             resumen.sinCalif.total++;
             if (g) resumen.sinCalif[g]++;
+            resumen.sinCalifNombres.push(est.nombre);
             return;
         }
         const promFinal = promedios.reduce((a, b) => a + b, 0) / promedios.length;
@@ -357,6 +388,17 @@ function construirNombresReprobados(filas) {
     `).join("");
 }
 
+function construirNombresSinCalificacion(filas) {
+    const conNombres = filas.filter((f) => f.sinCalifNombres.length > 0);
+    if (!conNombres.length) return `<span class="small text-muted">No hay estudiantes sin calificaciones en los grados seleccionados.</span>`;
+    return conNombres.map((f) => `
+        <div style="margin-bottom:6px;">
+            <strong>${escapeHtml(f.etiqueta)}:</strong>
+            ${f.sinCalifNombres.map(escapeHtml).join(", ")}
+        </div>
+    `).join("");
+}
+
 function construirEncabezadoHtml(filas) {
     const materia = selectMateria.value;
     const trimestre = selectTrimestre.value;
@@ -419,6 +461,10 @@ function construirNotasHtml() {
         <div class="fila-reprobados">
             <strong>Nombre de los estudiantes reprobados en su asignatura:</strong>
             <div id="listaReprobados">${construirNombresReprobados(window.__ultimasFilasCuadro || [])}</div>
+        </div>
+        <div class="fila-reprobados">
+            <strong>Nombre de los estudiantes sin calificaciones:</strong>
+            <div id="listaSinCalificacion">${construirNombresSinCalificacion(window.__ultimasFilasCuadro || [])}</div>
         </div>
         <div class="nota-pie">
             <strong>NOTA:</strong>
