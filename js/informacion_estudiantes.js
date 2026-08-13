@@ -283,16 +283,24 @@ async function guardarCampo(input) {
     if (yaTeniaFila) {
         ({ error } = await supabase.from("datos_estudiante").update({ [columnaBD]: valor }).eq("correo", correo));
     } else {
-        ({ error } = await supabase.from("datos_estudiante").insert([{ correo, [columnaBD]: valor }]));
+        // Primera vez que se guarda algo de este estudiante desde aquí:
+        // se manda también su nombre (ya lo tenemos del listado), por si
+        // esa columna es obligatoria en tu base de datos.
+        const payload = { correo, [columnaBD]: valor };
+        if (fila?.nombre) payload.nombre_apellido = fila.nombre;
+        ({ error } = await supabase.from("datos_estudiante").insert([payload]));
     }
 
     if (error) {
         console.error("❌ Error al guardar:", error);
         input.classList.add("error");
         input.title = "No se pudo guardar: " + error.message;
+        const detalle = [error.message, error.details, error.hint].filter(Boolean).join("\n");
         alert(
-            "No se pudo guardar el cambio. Es posible que falte permiso en Supabase (RLS) " +
-            "para que un admin/consejero edite \"datos_estudiante\".\n\nDetalle: " + error.message
+            "No se pudo guardar el cambio.\n\n" + detalle +
+            "\n\nSi el mensaje habla de una columna que 'no puede ser nula' (NOT NULL), " +
+            "hay que quitarle esa restricción en Supabase a las columnas de \"datos_estudiante\" " +
+            "para poder editarlas una por una desde aquí."
         );
         return;
     }
