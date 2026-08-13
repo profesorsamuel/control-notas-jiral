@@ -101,6 +101,13 @@
                     </button>
                 </div>
                 <div class="col">
+                    <button type="button" class="btn btn-outline-success w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-notas-seccion-envio">
+                        <i class="fa-solid fa-envelope fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Enviar cuadro</span>
+                        <span class="small text-muted d-none d-md-block">Por correo</span>
+                    </button>
+                </div>
+                <div class="col">
                     <button type="button" class="btn btn-outline-info w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-vista-general">
                         <i class="fa-solid fa-table-list fa-2x d-block mb-2" aria-hidden="true"></i>
                         <span class="fw-semibold d-block">Vista general</span>
@@ -485,6 +492,32 @@
 
                 </div>
 
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== ENVIAR CUADRO DE NOTAS POR CORREO ===================== -->
+        <div id="panel-notas-seccion-envio" class="panel-seccion d-none">
+        <section class="card shadow border-success border-2 mb-4">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-envelope me-2" aria-hidden="true"></i>
+                    Enviar cuadro de notas por correo
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Arma un cuadro con las notas de <strong>Apreciación</strong> y
+                    <strong>Ejercicio</strong> de todos los salones y lo envía a
+                    <strong>profesorsamuelortega@gmail.com</strong>. También se envía
+                    solo, automáticamente, 10 minutos después de la última vez que
+                    alguien edite una nota.
+                </p>
+                <button type="button" id="btnEnviarCuadroNotas" class="btn btn-success">
+                    <i class="fa-solid fa-paper-plane me-1"></i>
+                    Enviar cuadro ahora
+                </button>
+                <span id="estadoEnvioCuadroNotas" class="small ms-2"></span>
             </div>
         </section>
         </div>
