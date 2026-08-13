@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Información de estudiantes · Centro Básico General El Jiral</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+    body { background: #f1f5f9; padding: 24px 12px; font-family: "Segoe UI", Arial, sans-serif; }
+    .tarjeta-principal { max-width: 1300px; margin: 0 auto; }
+    .encabezado {
+        background: linear-gradient(90deg, #1e3a8a, #1f4e79); color: #fff;
+        padding: 18px 24px; border-radius: 16px; margin-bottom: 18px;
+        display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    }
+    .encabezado h1 { font-size: 1.25rem; margin: 0; font-weight: 700; }
+    .tarjeta { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,.06); padding: 18px 22px; margin-bottom: 18px; }
+    .barra-selector { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+    .barra-selector select, .barra-selector input { padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; }
+    .barra-selector select { min-width: 190px; }
+    .barra-selector input { min-width: 220px; flex: 1; }
+    #textoResumen { font-size: .82rem; color: #64748b; margin-top: 6px; }
+    table.tabla-info { font-size: .85rem; }
+    table.tabla-info th { white-space: nowrap; background: #eef2ff; }
+    table.tabla-info td.nombre { font-weight: 600; white-space: nowrap; }
+    .pastilla-genero { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
+    .pastilla-genero.M { background: #dbeafe; color: #1e40af; }
+    .pastilla-genero.F { background: #fce7f3; color: #9d174d; }
+    .pastilla-genero.sin { background: #f1f5f9; color: #94a3b8; }
+    .fila-incompleta { background: #fff7ed; }
+    .fila-incompleta td.nombre::after {
+        content: "⚠️ sin datos"; display: block; font-weight: 400; font-size: .7rem; color: #c2410c;
+    }
+    @media print {
+        .no-imprimir { display: none !important; }
+        body { background: #fff; padding: 0; }
+        .tarjeta { box-shadow: none; padding: 0; }
+    }
+</style>
+</head>
+<body>
+
+<div class="tarjeta-principal">
+
+    <div class="encabezado no-imprimir">
+        <h1><i class="fa-solid fa-address-card me-2"></i>Información de estudiantes</h1>
+        <div id="navCambiarPanel"></div>
+    </div>
+
+    <div class="tarjeta no-imprimir">
+        <div class="barra-selector">
+            <label for="selectSalonInfo" class="fw-bold">Salón:</label>
+            <select id="selectSalonInfo">
+                <option value="">Cargando salones...</option>
+            </select>
+            <input type="text" id="buscarEstudianteInfo" placeholder="🔎 Buscar por nombre o cédula...">
+            <button class="btn btn-outline-primary btn-sm" id="btnImprimirInfo">
+                <i class="fa-solid fa-print me-1"></i>Imprimir / PDF
+            </button>
+        </div>
+        <div id="textoResumen"></div>
+    </div>
+
+    <div class="tarjeta">
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle tabla-info">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Estudiante</th>
+                        <th>Salón</th>
+                        <th>Género</th>
+                        <th>Cédula</th>
+                        <th>F. Nacimiento</th>
+                        <th>Celular estudiante</th>
+                        <th>Padre / Acudiente</th>
+                        <th>Celular acudiente 1</th>
+                        <th>Teléfono acudiente 2</th>
+                        <th>Correo de contacto</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaInfoEstudiantes">
+                    <tr><td colspan="11" class="text-center text-muted py-4">Elige un salón arriba (o "Todos los salones").</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script type="module" src="../js/informacion_estudiantes.js"></script>
+</body>
+</html>
