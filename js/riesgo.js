@@ -1,20 +1,19 @@
 // =========================================================
 // riesgo.js — Página aparte: "Estudiantes en riesgo"
 // =========================================================
-// Antes esto era un botón escondido dentro de "Registrar notas" en
-// profesor.html, que solo abría una ventana de impresión con las
-// materias del docente logueado. Ahora es una página propia,
-// enlazada desde el menú de arriba en profesor.html, consejero.html
-// y admin.html, que además se puede descargar en PDF (no solo
-// imprimir) para enviarla a los padres o al consejero(a) del salón.
-//
 // El "modo" (quién puede ver qué) llega por la URL, según desde
 // dónde se entró:
 //   riesgo.html?modo=profesor   -> solo sus propios salones/materias
 //   riesgo.html?modo=consejero  -> su salón asignado, TODAS las materias
-//   riesgo.html?modo=admin      -> cualquier salón, TODAS las materias
+//   riesgo.html?modo=admin      -> cualquier salón (o varios a la vez),
+//                                   TODAS las materias
 // Si no llega el parámetro (o la cuenta no tiene ese rol), se elige
 // automáticamente el mejor rol disponible: admin > consejero > profesor.
+//
+// "En riesgo" = promedio final por debajo de 3.0 (o sea, 2.9 y menos),
+// con la misma fórmula que la columna "Prom. Final" del panel del
+// docente: promedio de Apreciación, Ejercicio y Examen, cada categoría
+// con el mismo peso, ignorando las que todavía no tengan notas.
 // =========================================================
 
 import { supabase } from "./supabase.js";
@@ -37,7 +36,9 @@ function escapeHtml(str) {
 const enlaceVolver = document.getElementById("enlaceVolver");
 const bloqueSalonSelect = document.getElementById("bloqueSalonSelect");
 const bloqueSalonFijo = document.getElementById("bloqueSalonFijo");
-const selectSalonRiesgo = document.getElementById("selectSalonRiesgo");
+const chipsSalonesRiesgo = document.getElementById("chipsSalonesRiesgo");
+const btnSalonesTodos = document.getElementById("btnSalonesTodos");
+const btnSalonesNinguno = document.getElementById("btnSalonesNinguno");
 const textoSalonFijo = document.getElementById("textoSalonFijo");
 const selectTrimestreRiesgo = document.getElementById("selectTrimestreRiesgo");
 const btnGenerarReporte = document.getElementById("btnGenerarReporte");
@@ -45,8 +46,7 @@ const textoAyudaScope = document.getElementById("textoAyudaScope");
 const tarjetaReporte = document.getElementById("tarjetaReporte");
 const tarjetaVacia = document.getElementById("tarjetaVacia");
 const textoGenerado = document.getElementById("textoGenerado");
-const tituloReporte = document.getElementById("tituloReporte");
-const subtituloReporte = document.getElementById("subtituloReporte");
+const fechaMembrete = document.getElementById("fechaMembrete");
 const resumenTop = document.getElementById("resumenTop");
 const zonaReporte = document.getElementById("zonaReporte");
 const contenidoImprimible = document.getElementById("contenidoImprimible");
@@ -58,9 +58,10 @@ const btnDescargarPdf = document.getElementById("btnDescargarPdf");
 // ---------------------------------------------------------------
 let modo = null; // "profesor" | "consejero" | "admin"
 let correoCuenta = "";
-let salonesProfesor = []; // [{salon, materias:[...]}]
+let salonesProfesor = []; // [{salon, materias:[...]}] -- solo lo del docente
 let salonConsejero = "";
-let salonesTodos = []; // [{codigo, nombre_visible}] para admin
+let salonesTodos = []; // [{codigo, nombre_visible}] -- para admin
+let salonesSeleccionados = new Set();
 
 async function iniciar() {
     const { data: { user }, error } = await supabase.auth.getUser();
@@ -108,11 +109,8 @@ async function iniciar() {
         salonesProfesor = Object.entries(porSalon).map(([salon, mats]) => ({ salon, materias: [...mats] }));
         salonesProfesor.sort((a, b) => a.salon.localeCompare(b.salon));
 
-        bloqueSalonSelect.style.display = "";
-        selectSalonRiesgo.innerHTML = salonesProfesor
-            .map((s) => `<option value="${escapeHtml(s.salon)}">${escapeHtml(s.salon)}</option>`)
-            .join("");
-        textoAyudaScope.textContent = "Se revisan solo las materias que tú dictas en el salón elegido.";
+        pintarChipsSalones(salonesProfesor.map((s) => ({ valor: s.salon, etiqueta: s.salon })));
+        textoAyudaScope.textContent = "Se revisan solo las materias que tú dictas en cada salón elegido.";
     } else if (modo === "consejero") {
         enlaceVolver.href = "consejero.html";
         salonConsejero = (consejeroInfo.salon || "").trim().toUpperCase();
@@ -127,19 +125,53 @@ async function iniciar() {
             .eq("activo", true)
             .order("orden", { ascending: true });
         salonesTodos = salones || [];
-        bloqueSalonSelect.style.display = "";
-        selectSalonRiesgo.innerHTML = salonesTodos
-            .map((s) => `<option value="${escapeHtml(s.codigo)}">${escapeHtml(s.nombre_visible || s.codigo)}</option>`)
-            .join("");
-        textoAyudaScope.textContent = "Se revisan todas las materias registradas en el salón elegido.";
+
+        pintarChipsSalones(salonesTodos.map((s) => ({ valor: s.codigo, etiqueta: s.nombre_visible || s.codigo })));
+        textoAyudaScope.textContent = "Se revisan todas las materias registradas en cada salón elegido.";
     }
 }
 
 // ---------------------------------------------------------------
-// 2) Cálculo de riesgo por materia (misma fórmula que la columna
-//    "Prom. Final" del panel del docente: promedio de Apreciación,
-//    Ejercicio y Examen, cada categoría con el mismo peso, ignorando
-//    las que todavía no tengan notas).
+// Chips de salón (multi-selección) para profesor / admin
+// ---------------------------------------------------------------
+function pintarChipsSalones(opciones) {
+    bloqueSalonSelect.style.display = "";
+    if (opciones.length === 0) {
+        chipsSalonesRiesgo.innerHTML = `<span class="small text-muted">No hay salones disponibles.</span>`;
+        return;
+    }
+    chipsSalonesRiesgo.innerHTML = opciones.map((o) => `
+        <span class="chip-salon" data-valor="${escapeHtml(o.valor)}">${escapeHtml(o.etiqueta)}</span>
+    `).join("");
+
+    chipsSalonesRiesgo.querySelectorAll(".chip-salon").forEach((chip) => {
+        chip.addEventListener("click", () => {
+            const valor = chip.dataset.valor;
+            if (salonesSeleccionados.has(valor)) {
+                salonesSeleccionados.delete(valor);
+                chip.classList.remove("activo");
+            } else {
+                salonesSeleccionados.add(valor);
+                chip.classList.add("activo");
+            }
+        });
+    });
+}
+
+btnSalonesTodos.addEventListener("click", () => {
+    chipsSalonesRiesgo.querySelectorAll(".chip-salon").forEach((chip) => {
+        salonesSeleccionados.add(chip.dataset.valor);
+        chip.classList.add("activo");
+    });
+});
+
+btnSalonesNinguno.addEventListener("click", () => {
+    salonesSeleccionados.clear();
+    chipsSalonesRiesgo.querySelectorAll(".chip-salon").forEach((chip) => chip.classList.remove("activo"));
+});
+
+// ---------------------------------------------------------------
+// 2) Cálculo de riesgo por materia (promedio final < 3.0)
 // ---------------------------------------------------------------
 async function calcularRiesgoPorMateria(materia, trimestre, estudiantes) {
     const ids = estudiantes.map((e) => e.id);
@@ -174,6 +206,7 @@ async function calcularRiesgoPorMateria(materia, trimestre, estudiantes) {
         const promApr = prom(g.apr), promEje = prom(g.eje), promExa = prom(g.exa);
         const presentes = [promApr, promEje, promExa].filter((v) => v !== null);
         const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
+        // "En riesgo" = 2.9999... o menos (por debajo de 3.0).
         if (promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR) {
             resultado.push({ nombre: est.nombre, promApr, promEje, promExa, promFinal });
         }
@@ -183,9 +216,8 @@ async function calcularRiesgoPorMateria(materia, trimestre, estudiantes) {
     return resultado;
 }
 
-// Materias a revisar según el modo + salón elegido, y (si aplica) el
-// nombre del/de la docente de cada una, para que el reporte diga a
-// quién más se le puede escribir además del padre de familia.
+// Materias a revisar en un salón, y (si aplica) el nombre del/de la
+// docente de cada una, para el membrete del reporte.
 async function obtenerMateriasYDocentes(salon) {
     if (modo === "profesor") {
         const entrada = salonesProfesor.find((s) => s.salon === salon);
@@ -219,40 +251,43 @@ async function obtenerMateriasYDocentes(salon) {
 // 3) Generar el reporte en pantalla
 // ---------------------------------------------------------------
 btnGenerarReporte.addEventListener("click", async () => {
-    const salon = modo === "consejero" ? salonConsejero : selectSalonRiesgo.value;
+    const salones = modo === "consejero"
+        ? (salonConsejero ? [salonConsejero] : [])
+        : [...salonesSeleccionados];
+
+    if (salones.length === 0) return alert("Elige al menos un salón.");
+
     const trimestre = selectTrimestreRiesgo.value;
-    if (!salon) return alert("Elige un salón.");
 
     btnGenerarReporte.disabled = true;
     const textoOriginal = btnGenerarReporte.innerHTML;
     btnGenerarReporte.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Buscando...`;
 
     try {
-        const materiasInfo = await obtenerMateriasYDocentes(salon);
-        if (materiasInfo.length === 0) {
-            tarjetaReporte.style.display = "none";
-            tarjetaVacia.style.display = "";
-            tarjetaVacia.textContent = "No hay materias registradas para este salón.";
-            return;
+        const reportePorSalon = [];
+
+        for (const salon of salones.sort()) {
+            const materiasInfo = await obtenerMateriasYDocentes(salon);
+            if (materiasInfo.length === 0) continue;
+
+            const { data: estudiantesSalon, error: errEst } = await supabase
+                .from("estudiantes")
+                .select("id, nombre, es_prueba")
+                .eq("salon", salon)
+                .order("nombre", { ascending: true });
+
+            if (errEst) { console.error(errEst); continue; }
+            const estudiantes = (estudiantesSalon || []).filter((e) => !e.es_prueba);
+
+            const porMateria = [];
+            for (const { materia, docentes } of materiasInfo) {
+                const enRiesgo = await calcularRiesgoPorMateria(materia, trimestre, estudiantes);
+                porMateria.push({ materia, docentes, enRiesgo });
+            }
+            reportePorSalon.push({ salon, porMateria });
         }
 
-        const { data: estudiantesSalon, error: errEst } = await supabase
-            .from("estudiantes")
-            .select("id, nombre, es_prueba")
-            .eq("salon", salon)
-            .order("nombre", { ascending: true });
-
-        if (errEst) { alert("No se pudo cargar el salón: " + errEst.message); return; }
-
-        const estudiantes = (estudiantesSalon || []).filter((e) => !e.es_prueba);
-
-        const porMateria = [];
-        for (const { materia, docentes } of materiasInfo) {
-            const enRiesgo = await calcularRiesgoPorMateria(materia, trimestre, estudiantes);
-            porMateria.push({ materia, docentes, enRiesgo });
-        }
-
-        renderizarReporte(salon, trimestre, porMateria);
+        renderizarReporte(trimestre, reportePorSalon);
     } catch (err) {
         console.error(err);
         alert("No se pudo generar el reporte: " + err.message);
@@ -262,10 +297,18 @@ btnGenerarReporte.addEventListener("click", async () => {
     }
 });
 
-function renderizarReporte(salon, trimestre, porMateria) {
-    const conRiesgo = porMateria.filter((m) => m.enRiesgo.length > 0);
-    const totalEnRiesgo = conRiesgo.reduce((a, m) => a + m.enRiesgo.length, 0);
-    const estudiantesUnicos = new Set(conRiesgo.flatMap((m) => m.enRiesgo.map((e) => e.nombre))).size;
+function renderizarReporte(trimestre, reportePorSalon) {
+    // Solo las materias que sí tienen estudiantes en riesgo.
+    const salonesConRiesgo = reportePorSalon
+        .map((s) => ({ salon: s.salon, materias: s.porMateria.filter((m) => m.enRiesgo.length > 0) }))
+        .filter((s) => s.materias.length > 0);
+
+    const totalEnRiesgo = salonesConRiesgo.reduce(
+        (a, s) => a + s.materias.reduce((b, m) => b + m.enRiesgo.length, 0), 0
+    );
+    const estudiantesUnicos = new Set(
+        salonesConRiesgo.flatMap((s) => s.materias.flatMap((m) => m.enRiesgo.map((e) => `${s.salon}-${e.nombre}`)))
+    ).size;
 
     tarjetaVacia.style.display = "none";
     tarjetaReporte.style.display = "";
@@ -274,13 +317,11 @@ function renderizarReporte(salon, trimestre, porMateria) {
         day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
     });
     textoGenerado.textContent = `Generado el ${fechaGeneracion}`;
-
-    tituloReporte.textContent = `⚠️ Estudiantes en riesgo de fracasar el trimestre — Salón ${salon}`;
-    subtituloReporte.textContent = `${trimestre} · Nota final por debajo de ${PROMEDIO_MINIMO_APROBAR.toFixed(1)} · Generado el ${fechaGeneracion}`;
+    fechaMembrete.textContent = `${trimestre} · Fecha de impresión: ${fechaGeneracion}`;
 
     if (totalEnRiesgo === 0) {
         resumenTop.innerHTML = "";
-        zonaReporte.innerHTML = `<p class="text-success text-center py-3">✅ Ningún estudiante del salón ${escapeHtml(salon)} está por debajo de ${PROMEDIO_MINIMO_APROBAR.toFixed(1)} en ${escapeHtml(trimestre)}.</p>`;
+        zonaReporte.innerHTML = `<p class="text-success text-center py-3">✅ Ningún estudiante de los salones elegidos está por debajo de ${PROMEDIO_MINIMO_APROBAR.toFixed(1)} en ${escapeHtml(trimestre)}.</p>`;
         btnImprimir.style.display = "none";
         btnDescargarPdf.style.display = "none";
         return;
@@ -291,32 +332,45 @@ function renderizarReporte(salon, trimestre, porMateria) {
 
     resumenTop.innerHTML = `
         <span class="pastilla-resumen">${estudiantesUnicos} estudiante${estudiantesUnicos === 1 ? "" : "s"} en riesgo</span>
-        <span class="pastilla-resumen">${conRiesgo.length} materia${conRiesgo.length === 1 ? "" : "s"} afectada${conRiesgo.length === 1 ? "" : "s"}</span>`;
+        <span class="pastilla-resumen">${salonesConRiesgo.length} salón${salonesConRiesgo.length === 1 ? "" : "es"} afectado${salonesConRiesgo.length === 1 ? "" : "s"}</span>`;
 
-    zonaReporte.innerHTML = conRiesgo.map(({ materia, docentes, enRiesgo }) => {
-        const filas = enRiesgo.map((e, i) => `
-            <tr>
-                <td>${i + 1}</td>
-                <td class="nombre">${escapeHtml(e.nombre)}</td>
-                <td>${e.promApr !== null ? e.promApr.toFixed(1) : "–"}</td>
-                <td>${e.promEje !== null ? e.promEje.toFixed(1) : "–"}</td>
-                <td>${e.promExa !== null ? e.promExa.toFixed(1) : "–"}</td>
-                <td class="final">${e.promFinal.toFixed(1)}</td>
-            </tr>`).join("");
+    zonaReporte.innerHTML = salonesConRiesgo.map(({ salon, materias }) => {
+        const fichas = materias.map(({ materia, docentes, enRiesgo }) => {
+            const filas = enRiesgo.map((e, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td class="nombre">${escapeHtml(e.nombre)}</td>
+                    <td>${e.promApr !== null ? e.promApr.toFixed(1) : "–"}</td>
+                    <td>${e.promEje !== null ? e.promEje.toFixed(1) : "–"}</td>
+                    <td>${e.promExa !== null ? e.promExa.toFixed(1) : "–"}</td>
+                    <td class="final">${e.promFinal.toFixed(1)}</td>
+                </tr>`).join("");
 
-        const lineaDocente = docentes.length
-            ? `<p class="docente-linea">Docente: ${escapeHtml(docentes.join(", "))}</p>`
-            : "";
+            const nombreDocente = docentes.length ? docentes.join(", ") : "—";
 
-        return `
-            <h2>${escapeHtml(materia)} <span class="conteo">(${enRiesgo.length} en riesgo)</span></h2>
-            ${lineaDocente}
-            <table>
-                <thead>
-                    <tr><th>#</th><th>Estudiante</th><th>Prom. Aprec.</th><th>Prom. Ejer.</th><th>Prom. Examen</th><th>Prom. Final</th></tr>
-                </thead>
-                <tbody>${filas}</tbody>
-            </table>`;
+            return `
+                <div class="ficha-materia">
+                    <h2 class="conteo-materia">${escapeHtml(materia)} <span class="conteo">(${enRiesgo.length} en riesgo)</span></h2>
+                    <div class="datos-ficha">
+                        <span><b>Profesor:</b> ${escapeHtml(nombreDocente)}</span>
+                        <span><b>Materia:</b> ${escapeHtml(materia)}</span>
+                        <span><b>Salón:</b> ${escapeHtml(salon)}</span>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr><th>#</th><th>Estudiante</th><th>Prom. Aprec.</th><th>Prom. Ejer.</th><th>Prom. Examen</th><th>Prom. Final</th></tr>
+                        </thead>
+                        <tbody>${filas}</tbody>
+                    </table>
+                    <div class="linea-envio">
+                        Enviado a consejero(a) del salón:
+                        <span class="casilla"></span> Sí
+                        <span class="casilla"></span> No
+                    </div>
+                </div>`;
+        }).join("");
+
+        return `<h2 class="titulo-salon">Salón ${escapeHtml(salon)}</h2>${fichas}`;
     }).join("");
 }
 
@@ -353,8 +407,10 @@ btnDescargarPdf.addEventListener("click", async () => {
             alturaRestante -= pageHeight;
         }
 
-        const salon = modo === "consejero" ? salonConsejero : selectSalonRiesgo.value;
-        pdf.save(`Estudiantes_en_riesgo_${salon}.pdf`);
+        const nombreSalones = modo === "consejero"
+            ? salonConsejero
+            : [...salonesSeleccionados].sort().join("-");
+        pdf.save(`Estudiantes_en_riesgo_${nombreSalones || "reporte"}.pdf`);
     } catch (err) {
         console.error(err);
         alert("No se pudo generar el PDF: " + err.message);
