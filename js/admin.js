@@ -63,9 +63,6 @@
                 <button id="btnDescargarRespaldo" type="button" class="btn btn-outline-light btn-sm me-2">
                     <i class="fa-solid fa-file-excel me-1"></i>Descargar respaldo
                 </button>
-                <a href="riesgo.html?modo=admin" class="btn btn-outline-light btn-sm me-2">
-                    <i class="fa-solid fa-triangle-exclamation me-1"></i>Riesgo
-                </a>
                 <span id="navCambiarPanel" class="me-2"></span>
                 <span id="nombreAdmin" class="me-3 small"></span>
                 <button id="btnCerrarSesion" class="btn btn-outline-light btn-sm">
@@ -213,6 +210,13 @@
                         <i class="fa-solid fa-eye fa-2x d-block mb-2" aria-hidden="true"></i>
                         <span class="fw-semibold d-block">Monitor de estudiantes</span>
                         <span class="small text-muted d-none d-md-block">Horario y tareas por salón, en vivo</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="informacion_estudiantes.html" target="_blank" class="btn btn-outline-success w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-address-card fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Información de estudiantes</span>
+                        <span class="small text-muted d-none d-md-block">Cédula, teléfonos y acudiente, por salón</span>
                     </a>
                 </div>
                 <div class="col">
