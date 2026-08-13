@@ -32,13 +32,6 @@ function formatearFecha(fechaTexto) {
     return `${dia}/${mes}/${anio}`;
 }
 
-function pastillaGenero(g) {
-    const valor = String(g ?? "").trim().toUpperCase();
-    if (valor === "M" || valor === "MASCULINO") return `<span class="pastilla-genero M">M</span>`;
-    if (valor === "F" || valor === "FEMENINO") return `<span class="pastilla-genero F">F</span>`;
-    return `<span class="pastilla-genero sin">–</span>`;
-}
-
 const selectSalon = document.getElementById("selectSalonInfo");
 const inputBuscar = document.getElementById("buscarEstudianteInfo");
 const btnImprimir = document.getElementById("btnImprimirInfo");
@@ -220,6 +213,7 @@ async function cargarInformacion(salon) {
     filasActuales = estudiantes.map((est) => {
         const extra = datosPorCorreo[(est.correo || "").toLowerCase()] || null;
         return {
+            correo: est.correo,
             nombre: est.nombre,
             salon: est.salon,
             // Si el estudiante ya definió su género en "Mis datos", ese manda;
@@ -239,6 +233,95 @@ async function cargarInformacion(salon) {
     renderizarTabla(filasActuales);
 }
 
+// Columnas de "datos_estudiante" que se pueden editar desde aquí,
+// y qué tipo de casilla usar para cada una.
+const CAMPOS_EDITABLES = {
+    genero: { columnaBD: "genero", tipo: "select" },
+    cedula: { columnaBD: "cedula", tipo: "text" },
+    fechaNacimiento: { columnaBD: "fecha_nacimiento", tipo: "date" },
+    celularEstudiante: { columnaBD: "celular_estudiante", tipo: "tel" },
+    nombrePadreAcudiente: { columnaBD: "nombre_padre_acudiente", tipo: "text" },
+    celularAcudiente1: { columnaBD: "celular_acudiente1", tipo: "tel" },
+    telefonoAcudiente2: { columnaBD: "telefono_acudiente2", tipo: "tel" },
+    correoContacto: { columnaBD: "correo_contacto", tipo: "email" },
+};
+
+function celdaEditable(fila, campo) {
+    const { tipo } = CAMPOS_EDITABLES[campo];
+    const valor = fila[campo] ?? "";
+
+    if (tipo === "select") {
+        const v = String(valor).trim().toUpperCase();
+        const sel = v === "M" || v === "MASCULINO" ? "M" : (v === "F" || v === "FEMENINO" ? "F" : "");
+        return `
+            <select class="celda-editable" data-correo="${escapeHtml(fila.correo || "")}" data-campo="${campo}">
+                <option value="">–</option>
+                <option value="M" ${sel === "M" ? "selected" : ""}>M</option>
+                <option value="F" ${sel === "F" ? "selected" : ""}>F</option>
+            </select>`;
+    }
+
+    const valorInput = tipo === "date" ? escapeHtml(valor) : escapeHtml(valor);
+    return `<input class="celda-editable" type="${tipo}" data-correo="${escapeHtml(fila.correo || "")}" data-campo="${campo}" value="${valorInput}">`;
+}
+
+async function guardarCampo(input) {
+    const correo = input.dataset.correo;
+    const campo = input.dataset.campo;
+    if (!correo || !campo || !CAMPOS_EDITABLES[campo]) return;
+
+    const { columnaBD } = CAMPOS_EDITABLES[campo];
+    const valorCrudo = input.value.trim();
+    const valor = valorCrudo === "" ? null : valorCrudo;
+
+    input.classList.remove("guardado", "error");
+
+    const fila = filasActuales.find((f) => f.correo === correo);
+    const yaTeniaFila = fila ? fila.tieneDatos : false;
+
+    let error;
+    if (yaTeniaFila) {
+        ({ error } = await supabase.from("datos_estudiante").update({ [columnaBD]: valor }).eq("correo", correo));
+    } else {
+        ({ error } = await supabase.from("datos_estudiante").insert([{ correo, [columnaBD]: valor }]));
+    }
+
+    if (error) {
+        console.error("❌ Error al guardar:", error);
+        input.classList.add("error");
+        input.title = "No se pudo guardar: " + error.message;
+        alert(
+            "No se pudo guardar el cambio. Es posible que falte permiso en Supabase (RLS) " +
+            "para que un admin/consejero edite \"datos_estudiante\".\n\nDetalle: " + error.message
+        );
+        return;
+    }
+
+    input.title = "";
+    input.classList.add("guardado");
+    setTimeout(() => input.classList.remove("guardado"), 1500);
+
+    if (fila) {
+        fila[campo] = valor;
+        if (!yaTeniaFila) {
+            fila.tieneDatos = true;
+            const tr = input.closest("tr");
+            if (tr) tr.classList.remove("fila-incompleta");
+            const incompletos = filasActuales.filter((f) => !f.tieneDatos).length;
+            textoResumen.textContent =
+                `${filasActuales.length} estudiante${filasActuales.length === 1 ? "" : "s"}` +
+                (incompletos > 0 ? ` · ${incompletos} sin datos llenados todavía` : "");
+        }
+    }
+}
+
+tabla.addEventListener("change", (e) => {
+    if (e.target.classList.contains("celda-editable")) guardarCampo(e.target);
+});
+tabla.addEventListener("blur", (e) => {
+    if (e.target.classList.contains("celda-editable") && e.target.tagName === "INPUT") guardarCampo(e.target);
+}, true);
+
 // ---------------------------------------------------------------
 // 4) Pintar la tabla (según lo cargado + el texto de búsqueda)
 // ---------------------------------------------------------------
@@ -254,14 +337,14 @@ function renderizarTabla(filas) {
             <td>${i + 1}</td>
             <td class="nombre">${escapeHtml(f.nombre)}</td>
             <td data-col="salon">${escapeHtml(f.salon)}</td>
-            <td data-col="genero">${pastillaGenero(f.genero)}</td>
-            <td data-col="cedula">${escapeHtml(f.cedula) || "–"}</td>
-            <td data-col="fechaNacimiento">${formatearFecha(f.fechaNacimiento)}</td>
-            <td data-col="celularEstudiante">${escapeHtml(f.celularEstudiante) || "–"}</td>
-            <td data-col="nombrePadreAcudiente">${escapeHtml(f.nombrePadreAcudiente) || "–"}</td>
-            <td data-col="celularAcudiente1">${escapeHtml(f.celularAcudiente1) || "–"}</td>
-            <td data-col="telefonoAcudiente2">${escapeHtml(f.telefonoAcudiente2) || "–"}</td>
-            <td data-col="correoContacto">${escapeHtml(f.correoContacto) || "–"}</td>
+            <td data-col="genero">${celdaEditable(f, "genero")}</td>
+            <td data-col="cedula">${celdaEditable(f, "cedula")}</td>
+            <td data-col="fechaNacimiento">${celdaEditable(f, "fechaNacimiento")}</td>
+            <td data-col="celularEstudiante">${celdaEditable(f, "celularEstudiante")}</td>
+            <td data-col="nombrePadreAcudiente">${celdaEditable(f, "nombrePadreAcudiente")}</td>
+            <td data-col="celularAcudiente1">${celdaEditable(f, "celularAcudiente1")}</td>
+            <td data-col="telefonoAcudiente2">${celdaEditable(f, "telefonoAcudiente2")}</td>
+            <td data-col="correoContacto">${celdaEditable(f, "correoContacto")}</td>
         </tr>`).join("");
 
     aplicarColumnasVisibles();
