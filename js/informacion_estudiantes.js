@@ -44,6 +44,63 @@ const inputBuscar = document.getElementById("buscarEstudianteInfo");
 const btnImprimir = document.getElementById("btnImprimirInfo");
 const textoResumen = document.getElementById("textoResumen");
 const tabla = document.getElementById("tablaInfoEstudiantes");
+const menuColumnas = document.getElementById("menuColumnas");
+
+// Columnas que se pueden ocultar/mostrar (# y Estudiante siempre se ven).
+const COLUMNAS = [
+    { key: "salon", label: "Salón" },
+    { key: "genero", label: "Género" },
+    { key: "cedula", label: "Cédula" },
+    { key: "fechaNacimiento", label: "F. Nacimiento" },
+    { key: "celularEstudiante", label: "Celular estudiante" },
+    { key: "nombrePadreAcudiente", label: "Padre / Acudiente" },
+    { key: "celularAcudiente1", label: "Celular acudiente 1" },
+    { key: "telefonoAcudiente2", label: "Teléfono acudiente 2" },
+    { key: "correoContacto", label: "Correo de contacto" },
+];
+const CLAVE_COLUMNAS_OCULTAS = "infoEstudiantes_columnasOcultas";
+
+function cargarColumnasOcultas() {
+    try {
+        const guardado = JSON.parse(localStorage.getItem(CLAVE_COLUMNAS_OCULTAS) || "[]");
+        return new Set(Array.isArray(guardado) ? guardado : []);
+    } catch {
+        return new Set();
+    }
+}
+let columnasOcultas = cargarColumnasOcultas();
+
+function guardarColumnasOcultas() {
+    localStorage.setItem(CLAVE_COLUMNAS_OCULTAS, JSON.stringify([...columnasOcultas]));
+}
+
+function aplicarColumnasVisibles() {
+    COLUMNAS.forEach(({ key }) => {
+        const oculta = columnasOcultas.has(key);
+        document.querySelectorAll(`[data-col="${key}"]`).forEach((el) => {
+            el.style.display = oculta ? "none" : "";
+        });
+    });
+}
+
+function pintarMenuColumnas() {
+    menuColumnas.innerHTML = COLUMNAS.map(({ key, label }) => `
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="col_${key}" data-col-checkbox="${key}" ${columnasOcultas.has(key) ? "" : "checked"}>
+            <label class="form-check-label" for="col_${key}">${escapeHtml(label)}</label>
+        </div>`).join("");
+
+    menuColumnas.querySelectorAll("[data-col-checkbox]").forEach((chk) => {
+        chk.addEventListener("click", (e) => e.stopPropagation());
+        chk.addEventListener("change", () => {
+            const key = chk.dataset.colCheckbox;
+            if (chk.checked) columnasOcultas.delete(key);
+            else columnasOcultas.add(key);
+            guardarColumnasOcultas();
+            aplicarColumnasVisibles();
+        });
+    });
+}
 
 let modo = null; // "admin" | "consejero"
 let salonConsejero = "";
@@ -117,18 +174,26 @@ async function cargarInformacion(salon) {
     tabla.innerHTML = `<tr><td colspan="11" class="text-center text-muted py-4">Cargando...</td></tr>`;
     textoResumen.textContent = "";
 
-    let consultaEstudiantes = supabase
-        .from("estudiantes")
-        .select("id, nombre, salon, correo, genero")
-        .eq("es_prueba", false)
-        .order("salon", { ascending: true })
-        .order("nombre", { ascending: true });
-
-    if (salon && salon !== "__todos__") {
-        consultaEstudiantes = consultaEstudiantes.eq("salon", salon);
+    function construirConsulta(camposExtra) {
+        let q = supabase
+            .from("estudiantes")
+            .select(`id, nombre, salon, correo, genero${camposExtra}`)
+            .eq("es_prueba", false)
+            .order("salon", { ascending: true })
+            .order("nombre", { ascending: true });
+        if (salon && salon !== "__todos__") q = q.eq("salon", salon);
+        return q;
     }
 
-    const { data: estudiantes, error: errEst } = await consultaEstudiantes;
+    // Algunos estudiantes ya tienen su cédula guardada desde que se
+    // registraron (columna "cedula" en "estudiantes"), aunque nunca
+    // hayan llenado el formulario de "Mis datos". Se intenta traer
+    // esa columna; si no existe en tu base, se sigue sin ella.
+    let estudiantes, errEst;
+    ({ data: estudiantes, error: errEst } = await construirConsulta(", cedula"));
+    if (errEst) {
+        ({ data: estudiantes, error: errEst } = await construirConsulta(""));
+    }
 
     if (errEst) {
         console.error("❌ Error al cargar estudiantes:", errEst);
@@ -160,7 +225,7 @@ async function cargarInformacion(salon) {
             // Si el estudiante ya definió su género en "Mis datos", ese manda;
             // si no, se usa el que se le haya puesto directo en el listado.
             genero: extra?.genero || est.genero || null,
-            cedula: extra?.cedula || null,
+            cedula: extra?.cedula || est.cedula || null,
             fechaNacimiento: extra?.fecha_nacimiento || null,
             celularEstudiante: extra?.celular_estudiante || null,
             nombrePadreAcudiente: extra?.nombre_padre_acudiente || null,
@@ -188,16 +253,18 @@ function renderizarTabla(filas) {
         <tr class="${f.tieneDatos ? "" : "fila-incompleta"}">
             <td>${i + 1}</td>
             <td class="nombre">${escapeHtml(f.nombre)}</td>
-            <td>${escapeHtml(f.salon)}</td>
-            <td>${pastillaGenero(f.genero)}</td>
-            <td>${escapeHtml(f.cedula) || "–"}</td>
-            <td>${formatearFecha(f.fechaNacimiento)}</td>
-            <td>${escapeHtml(f.celularEstudiante) || "–"}</td>
-            <td>${escapeHtml(f.nombrePadreAcudiente) || "–"}</td>
-            <td>${escapeHtml(f.celularAcudiente1) || "–"}</td>
-            <td>${escapeHtml(f.telefonoAcudiente2) || "–"}</td>
-            <td>${escapeHtml(f.correoContacto) || "–"}</td>
+            <td data-col="salon">${escapeHtml(f.salon)}</td>
+            <td data-col="genero">${pastillaGenero(f.genero)}</td>
+            <td data-col="cedula">${escapeHtml(f.cedula) || "–"}</td>
+            <td data-col="fechaNacimiento">${formatearFecha(f.fechaNacimiento)}</td>
+            <td data-col="celularEstudiante">${escapeHtml(f.celularEstudiante) || "–"}</td>
+            <td data-col="nombrePadreAcudiente">${escapeHtml(f.nombrePadreAcudiente) || "–"}</td>
+            <td data-col="celularAcudiente1">${escapeHtml(f.celularAcudiente1) || "–"}</td>
+            <td data-col="telefonoAcudiente2">${escapeHtml(f.telefonoAcudiente2) || "–"}</td>
+            <td data-col="correoContacto">${escapeHtml(f.correoContacto) || "–"}</td>
         </tr>`).join("");
+
+    aplicarColumnasVisibles();
 
     const incompletos = filas.filter((f) => !f.tieneDatos).length;
     textoResumen.textContent =
@@ -226,3 +293,4 @@ inputBuscar.addEventListener("input", () => {
 btnImprimir.addEventListener("click", () => window.print());
 
 iniciar();
+pintarMenuColumnas();
