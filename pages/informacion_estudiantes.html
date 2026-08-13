@@ -24,6 +24,11 @@
     #textoResumen { font-size: .82rem; color: #64748b; margin-top: 6px; }
     table.tabla-info { font-size: .85rem; }
     table.tabla-info th { white-space: nowrap; background: #eef2ff; }
+    table.tabla-info th.th-ordenable { cursor: pointer; user-select: none; }
+    table.tabla-info th.th-ordenable:hover { background: #e0e7ff; }
+    table.tabla-info th.th-ordenable .icono-orden { font-size: .7rem; color: #94a3b8; margin-left: 4px; }
+    table.tabla-info th.th-ordenable.orden-asc .icono-orden,
+    table.tabla-info th.th-ordenable.orden-desc .icono-orden { color: #1e3a8a; }
     table.tabla-info td.nombre { font-weight: 600; white-space: nowrap; }
     .pastilla-genero { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
     .pastilla-genero.M { background: #dbeafe; color: #1e40af; }
@@ -88,16 +93,16 @@
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>Estudiante</th>
-                        <th data-col="salon">Salón</th>
-                        <th data-col="genero">Género</th>
-                        <th data-col="cedula">Cédula</th>
-                        <th data-col="fechaNacimiento">F. Nacimiento</th>
-                        <th data-col="celularEstudiante">Celular estudiante</th>
-                        <th data-col="nombrePadreAcudiente">Padre / Acudiente</th>
-                        <th data-col="celularAcudiente1">Celular acudiente 1</th>
-                        <th data-col="telefonoAcudiente2">Teléfono acudiente 2</th>
-                        <th data-col="correoContacto">Correo de contacto</th>
+                        <th class="th-ordenable" data-sort="nombre">Estudiante <i class="fa-solid fa-sort icono-orden"></i></th>
+                        <th class="th-ordenable" data-col="salon" data-sort="salon">Salón <i class="fa-solid fa-sort icono-orden"></i></th>
+                        <th class="th-ordenable" data-col="genero" data-sort="genero">Género <i class="fa-solid fa-sort icono-orden"></i></th>
+                        <th class="th-ordenable" data-col="cedula" data-sort="cedula">Cédula <i class="fa-solid fa-sort icono-orden"></i></th>
+                        <th class="th-ordenable" data-col="fechaNacimiento" data-sort="fechaNacimiento">F. Nacimiento <i class="fa-solid fa-sort icono-orden"></i></th>
+                        <th class="th-ordenable" data-col="celularEstudiante" data-sort="celularEstudiante">Celular estudiante <i class="fa-solid fa-sort icono-orden"></i></th>
+                        <th class="th-ordenable" data-col="nombrePadreAcudiente" data-sort="nombrePadreAcudiente">Padre / Acudiente <i class="fa-solid fa-sort icono-orden"></i></th>
+                        <th class="th-ordenable" data-col="celularAcudiente1" data-sort="celularAcudiente1">Celular acudiente 1 <i class="fa-solid fa-sort icono-orden"></i></th>
+                        <th class="th-ordenable" data-col="telefonoAcudiente2" data-sort="telefonoAcudiente2">Teléfono acudiente 2 <i class="fa-solid fa-sort icono-orden"></i></th>
+                        <th class="th-ordenable" data-col="correoContacto" data-sort="correoContacto">Correo de contacto <i class="fa-solid fa-sort icono-orden"></i></th>
                     </tr>
                 </thead>
                 <tbody id="tablaInfoEstudiantes">
