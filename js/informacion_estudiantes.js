@@ -486,7 +486,14 @@ async function guardarCampo(input) {
 }
 
 tabla.addEventListener("change", (e) => {
-    if (e.target.classList.contains("celda-editable")) guardarCampo(e.target);
+    // Los <input> de texto ya se guardan con el evento "blur" de abajo.
+    // Si también se guardaran aquí, un input dispararía guardarCampo()
+    // DOS veces casi al mismo tiempo (blur y change), y las dos
+    // llamadas intentarían crear/actualizar la misma fila en paralelo
+    // (p. ej. dos INSERT con el mismo correo para un estudiante nuevo),
+    // lo que hacía fallar el guardado silenciosamente. Por eso aquí
+    // solo se procesan los <select> (género), que no disparan "blur".
+    if (e.target.classList.contains("celda-editable") && e.target.tagName !== "INPUT") guardarCampo(e.target);
 });
 tabla.addEventListener("blur", (e) => {
     if (e.target.classList.contains("celda-editable") && e.target.tagName === "INPUT") guardarCampo(e.target);
