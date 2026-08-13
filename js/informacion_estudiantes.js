@@ -414,6 +414,12 @@ async function guardarCampo(input) {
     // ahora mismo, se calcula el correo interno con ella (mismo
     // criterio que usa registro.js) y se usa desde este momento.
     let correo = fila.correo;
+    // true cuando el correo de esta fila se acaba de calcular a partir de
+    // la cédula que se está guardando en este mismo guardarCampo() (o sea,
+    // la fila no tenía correo todavía). Se usa más abajo para además
+    // guardar esta cédula en "estudiantes" (ver por qué en el comentario
+    // de esa parte).
+    const correoRecienCalculadoDeCedula = !correo && campo === "cedula" && !!valor;
     if (!correo) {
         if (campo === "cedula" && valor) {
             correo = cedulaAEmail(valor);
@@ -459,6 +465,28 @@ async function guardarCampo(input) {
             "para poder editarlas una por una desde aquí."
         );
         return;
+    }
+
+    // Si el correo de esta fila se acaba de calcular a partir de la
+    // cédula (el estudiante no tenía correo ni cédula guardados antes),
+    // esa cédula también hay que guardarla en "estudiantes" — no solo en
+    // "datos_estudiante". Si no se hace, la próxima vez que se cargue esta
+    // página, correoDe() en cargarInformacion() no tiene de dónde volver a
+    // calcular este mismo correo (porque "estudiantes.cedula" seguiría
+    // vacío), así que esta fila "se pierde" del cruce con "datos_estudiante"
+    // y se ve otra vez como si no tuviera ningún dato guardado, aunque la
+    // fila sí exista en la base de datos bajo el correo calculado.
+    if (correoRecienCalculadoDeCedula) {
+        const { error: errCedulaEstudiantes } = await supabase
+            .from("estudiantes")
+            .update({ cedula: valor })
+            .eq("id", fila.id);
+        if (errCedulaEstudiantes) {
+            console.error("❌ Error al sincronizar cédula en \"estudiantes\":", errCedulaEstudiantes);
+            // No se corta el flujo: el dato en "datos_estudiante" ya se
+            // guardó bien; esto solo afecta que se vuelva a encontrar la
+            // próxima vez que se recargue la página.
+        }
     }
 
     input.title = "";
