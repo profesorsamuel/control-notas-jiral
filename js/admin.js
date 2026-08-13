@@ -1,2768 +1,1160 @@
-import { supabase } from "./supabase.js";
-import { pintarCambiarPanel } from "./roles.js";
-import { registrarSalida } from "./accesos.js";
+<!DOCTYPE html>
+<html lang="es">
 
-document.addEventListener("DOMContentLoaded", async () => {
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    pintarCambiarPanel("admin");
+    <title>Panel de administrador | Control de Notas</title>
 
-    const mensajeAdmin = document.getElementById("mensajeAdmin");
-    const nombreAdmin = document.getElementById("nombreAdmin");
-    const btnCerrarSesion = document.getElementById("btnCerrarSesion");
-    const btnRecargarUsuarios = document.getElementById("btnRecargarUsuarios");
-    const btnRecargarNotas = document.getElementById("btnRecargarNotas");
-    const btnDescargarRespaldo = document.getElementById("btnDescargarRespaldo");
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="../img/login-favicon.ico">
 
-    function mostrarMensaje(texto, tipo = "danger") {
-        mensajeAdmin.textContent = texto;
-        mensajeAdmin.className = `alert alert-${tipo}`;
-    }
+    <!-- Bootstrap -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
 
-    // =================================================
-    // 1) VERIFICAR SESIÓN Y ROL DE ADMIN
-    // =================================================
+    <!-- Font Awesome -->
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        rel="stylesheet"
+    >
 
-    const { data: { user }, error: errUser } = await supabase.auth.getUser();
+    <!-- CSS del proyecto -->
+    <link rel="stylesheet" href="../css/style.css">
 
-    if (errUser || !user) {
-        window.location.href = "login.html";
-        return;
-    }
+    <style>
+        .input-nota-grupo {
+            padding: 2px 2px !important;
+            font-size: 12px !important;
+            text-align: center;
+            -moz-appearance: textfield;
+        }
+        .input-nota-grupo::-webkit-outer-spin-button,
+        .input-nota-grupo::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
 
-    const { data: perfil, error: errPerfil } = await supabase
-        .from("usuarios")
-        .select("correo, rol")
-        .eq("auth_user_id", user.id)
-        .single();
+</head>
 
-    if (errPerfil || !perfil || perfil.rol !== "admin") {
-        console.error("❌ Acceso denegado, no es admin:", errPerfil);
-        alert("⛔ No tienes permisos de administrador.");
-        window.location.href = "login.html";
-        return;
-    }
+<body class="bg-light">
 
-    nombreAdmin.textContent = perfil.correo;
+    <!-- BARRA SUPERIOR -->
+    <nav class="navbar navbar-dark bg-primary shadow-sm">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fa-solid fa-user-shield me-2" aria-hidden="true"></i>
+                Panel de administrador
+            </span>
+            <div class="d-flex align-items-center text-white">
+                <a href="asignaciones.html" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fa-solid fa-people-roof me-1"></i>Asignaciones
+                </a>
+                <a href="salones.html" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fa-solid fa-school me-1"></i>Salones
+                </a>
+                <button type="button" class="btn btn-outline-light btn-sm me-2" data-bs-toggle="modal" data-bs-target="#modalElegirHorario">
+                    <i class="fa-solid fa-calendar-days me-1"></i>Horario
+                </button>
+                <button id="btnDescargarRespaldo" type="button" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fa-solid fa-file-excel me-1"></i>Descargar respaldo
+                </button>
+                <a href="riesgo.html?modo=admin" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i>Riesgo
+                </a>
+                <span id="navCambiarPanel" class="me-2"></span>
+                <span id="nombreAdmin" class="me-3 small"></span>
+                <button id="btnCerrarSesion" class="btn btn-outline-light btn-sm">
+                    <i class="fa-solid fa-right-from-bracket me-1" aria-hidden="true"></i>
+                    Salir
+                </button>
+            </div>
+        </div>
+    </nav>
 
-    // =================================================
-    // 2) CERRAR SESIÓN
-    // =================================================
+    <main class="container py-4">
 
-    btnCerrarSesion.addEventListener("click", async () => {
-        await registrarSalida();
-        await supabase.auth.signOut();
-        window.location.href = "login.html";
-    });
+        <div id="mensajeAdmin" class="alert d-none" role="alert"></div>
 
-    // =================================================
-    // 2.5) GESTIONAR ESTUDIANTES (nombre, cédula, salón)
-    // =================================================
+        <!-- ===================== MENÚ PRINCIPAL (BOTONES) ===================== -->
+        <div id="menuAdminPrincipal" class="mb-4">
+            <h1 class="h4 mb-3 text-secondary">¿Qué querés hacer?</h1>
 
-    const estFiltroSalon = document.getElementById("estFiltroSalon");
-    const tablaEstudiantesAdmin = document.getElementById("tablaEstudiantesAdmin");
-    const estadoGuardadoEstudiantes = document.getElementById("estadoGuardadoEstudiantes");
-    const nuevoEstNombre = document.getElementById("nuevoEstNombre");
-    const nuevoEstCedula = document.getElementById("nuevoEstCedula");
-    const nuevoEstSalon = document.getElementById("nuevoEstSalon");
-    const nuevoEstSalonOtro = document.getElementById("nuevoEstSalonOtro");
-    const bloqueOtroSalon = document.getElementById("bloqueOtroSalon");
-    const btnAgregarEstudiante = document.getElementById("btnAgregarEstudiante");
-    const mensajeEstudiantesAdmin = document.getElementById("mensajeEstudiantesAdmin");
-
-    function mostrarMensajeEstudiantes(texto, tipo = "danger") {
-        mensajeEstudiantesAdmin.textContent = texto;
-        mensajeEstudiantesAdmin.className = `alert alert-${tipo} mt-3 mb-0`;
-    }
-
-    function ocultarMensajeEstudiantes() {
-        mensajeEstudiantesAdmin.className = "alert d-none mt-3 mb-0";
-    }
-
-    function avisoGuardado(texto, esError = false) {
-        estadoGuardadoEstudiantes.textContent = texto;
-        estadoGuardadoEstudiantes.className = `small ${esError ? "text-danger" : "text-success"}`;
-        setTimeout(() => {
-            estadoGuardadoEstudiantes.textContent = "";
-        }, 2000);
-    }
-
-    nuevoEstSalon.addEventListener("change", () => {
-        bloqueOtroSalon.style.display = nuevoEstSalon.value === "__otro__" ? "block" : "none";
-    });
-
-    // Cédula "marcador": cuando aún no se consigue la cédula real de un
-    // estudiante, se usa este texto como señal visual de "falta agregar".
-    // Se resalta en rojo junto con las cédulas vacías para que salte a la vista.
-    const CEDULA_PENDIENTE = "8-123-4567";
-
-    function cedulaEstaPendiente(valor) {
-        const limpio = (valor || "").trim();
-        return !limpio || limpio === CEDULA_PENDIENTE;
-    }
-
-    function filaEstudianteHtml(est) {
-        const registrado = !!est.correo;
-        const chip = registrado
-            ? `<span class="badge bg-success">Registrado</span>`
-            : `<span class="badge bg-secondary">Sin registrar</span>`;
-        const pendiente = cedulaEstaPendiente(est.cedula);
-
-        return `
-            <tr data-id="${est.id}">
-                <td>
-                    <input type="text" class="form-control form-control-sm campo-nombre" value="${escapeHtmlAdmin(est.nombre || "")}">
-                </td>
-                <td>
-                    <input type="text" class="form-control form-control-sm campo-cedula${pendiente ? " border-danger text-danger fw-bold" : ""}" value="${escapeHtmlAdmin(est.cedula || "")}" placeholder="8-123-4567" title="${pendiente ? "Falta agregar la cédula real de este estudiante" : ""}">
-                </td>
-                <td>
-                    <input type="text" class="form-control form-control-sm campo-salon" value="${escapeHtmlAdmin(est.salon || "")}">
-                </td>
-                <td>${chip}</td>
-                <td class="text-center">
-                    <div class="form-check form-switch mb-0 d-inline-block">
-                        <input class="form-check-input estudiante-permiso-switch" type="checkbox"
-                            role="switch"
-                            ${!registrado ? "disabled" : ""}
-                            title="${!registrado ? "El estudiante debe registrarse (tener correo) antes de darle este permiso" : "Permite publicar tareas para todo el salón"}"
-                            ${est.puede_publicar_tareas ? "checked" : ""}>
-                    </div>
-                </td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-sm btn-outline-danger btn-borrar-estudiante" title="Eliminar estudiante">
-                        <i class="fa-solid fa-trash"></i>
+            <!-- ---- Académico ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2 mt-3">
+                <i class="fa-solid fa-graduation-cap me-1"></i> Académico
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 mb-4">
+                <div class="col">
+                    <button type="button" class="btn btn-outline-success w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-estudiantes">
+                        <i class="fa-solid fa-user-pen fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Gestionar estudiantes</span>
+                        <span class="small text-muted d-none d-md-block">Nombre y cédula</span>
                     </button>
-                </td>
-            </tr>
-        `;
-    }
-
-    // (usa la función escapeHtmlAdmin ya definida más abajo en este archivo)
-
-    async function cargarEstudiantesAdmin() {
-        tablaEstudiantesAdmin.innerHTML = `
-            <tr><td colspan="6" class="text-center text-muted py-3">Cargando...</td></tr>
-        `;
-
-        let consulta = supabase
-            .from("estudiantes")
-            .select("id, codigo, nombre, cedula, salon, correo, es_prueba, puede_publicar_tareas")
-            .eq("es_prueba", false)
-            .order("salon", { ascending: true })
-            .order("nombre", { ascending: true });
-
-        if (estFiltroSalon.value) {
-            consulta = consulta.eq("salon", estFiltroSalon.value);
-        }
-
-        const { data, error } = await consulta;
-
-        if (error) {
-            console.error("❌ Error al cargar estudiantes:", error);
-            tablaEstudiantesAdmin.innerHTML = `
-                <tr><td colspan="6" class="text-center text-danger py-3">No se pudo cargar la lista.</td></tr>
-            `;
-            return;
-        }
-
-        if (!data || data.length === 0) {
-            tablaEstudiantesAdmin.innerHTML = `
-                <tr><td colspan="6" class="text-center text-muted py-3">No hay estudiantes en este salón todavía.</td></tr>
-            `;
-            return;
-        }
-
-        tablaEstudiantesAdmin.innerHTML = data.map(filaEstudianteHtml).join("");
-
-        // Guardar nombre/cédula/salón al salir de la casilla (blur)
-        tablaEstudiantesAdmin.querySelectorAll("tr[data-id]").forEach((fila) => {
-            const id = fila.dataset.id;
-            const inputNombre = fila.querySelector(".campo-nombre");
-            const inputCedula = fila.querySelector(".campo-cedula");
-            const inputSalon = fila.querySelector(".campo-salon");
-            const btnBorrar = fila.querySelector(".btn-borrar-estudiante");
-            const permisoSwitch = fila.querySelector(".estudiante-permiso-switch");
-
-            async function guardarCampo(campo, valor) {
-                const cambios = { [campo]: valor.trim() || null };
-                const { error: errGuardar } = await supabase
-                    .from("estudiantes")
-                    .update(cambios)
-                    .eq("id", id);
-
-                if (errGuardar) {
-                    console.error(`❌ Error al guardar ${campo}:`, errGuardar);
-                    avisoGuardado(
-                        errGuardar.code === "23505"
-                            ? "⚠️ Esa cédula ya está en uso por otro estudiante."
-                            : "❌ No se pudo guardar",
-                        true
-                    );
-                    return;
-                }
-                avisoGuardado("✅ Guardado");
-            }
-
-            inputNombre.addEventListener("blur", () => guardarCampo("nombre", inputNombre.value));
-            inputCedula.addEventListener("blur", () => {
-                guardarCampo("cedula", inputCedula.value);
-                inputCedula.classList.toggle("border-danger", cedulaEstaPendiente(inputCedula.value));
-                inputCedula.classList.toggle("text-danger", cedulaEstaPendiente(inputCedula.value));
-                inputCedula.classList.toggle("fw-bold", cedulaEstaPendiente(inputCedula.value));
-                inputCedula.title = cedulaEstaPendiente(inputCedula.value)
-                    ? "Falta agregar la cédula real de este estudiante"
-                    : "";
-            });
-            inputSalon.addEventListener("blur", () => guardarCampo("salon", inputSalon.value));
-
-            if (permisoSwitch) {
-                permisoSwitch.addEventListener("change", async () => {
-                    const nuevoValor = permisoSwitch.checked;
-                    const { error: errPermiso } = await supabase
-                        .from("estudiantes")
-                        .update({ puede_publicar_tareas: nuevoValor })
-                        .eq("id", id);
-
-                    if (errPermiso) {
-                        console.error("❌ Error al actualizar permiso de publicar tareas:", errPermiso);
-                        avisoGuardado("❌ No se pudo guardar el permiso", true);
-                        permisoSwitch.checked = !nuevoValor;
-                        return;
-                    }
-
-                    avisoGuardado(nuevoValor ? "✅ Ahora puede publicar tareas" : "Permiso quitado");
-                });
-            }
-
-            btnBorrar.addEventListener("click", async () => {
-                const nombreActual = inputNombre.value || "este estudiante";
-                if (!confirm(`¿Eliminar a ${nombreActual}? Esto no borra sus notas, solo su ficha de estudiante.`)) return;
-
-                const { error: errBorrar } = await supabase
-                    .from("estudiantes")
-                    .delete()
-                    .eq("id", id);
-
-                if (errBorrar) {
-                    console.error("❌ Error al eliminar estudiante:", errBorrar);
-                    avisoGuardado("❌ No se pudo eliminar", true);
-                    return;
-                }
-
-                fila.remove();
-            });
-        });
-    }
-
-    estFiltroSalon.addEventListener("change", cargarEstudiantesAdmin);
-
-    // Se expone por si el script de navegación del menú (en admin.html)
-    // necesita volver a llamarla, pero ya no depende de eso: la cargamos
-    // ahora mismo para que la tabla nunca se quede en "Cargando...".
-    window.cargarEstudiantesAdmin = cargarEstudiantesAdmin;
-    cargarEstudiantesAdmin();
-
-    btnAgregarEstudiante.addEventListener("click", async () => {
-        ocultarMensajeEstudiantes();
-
-        const nombre = nuevoEstNombre.value.trim();
-        const cedula = nuevoEstCedula.value.trim();
-        const salon = nuevoEstSalon.value === "__otro__"
-            ? nuevoEstSalonOtro.value.trim()
-            : nuevoEstSalon.value;
-
-        if (!nombre || !salon) {
-            mostrarMensajeEstudiantes("Por favor completa al menos el nombre y el salón.", "warning");
-            return;
-        }
-
-        btnAgregarEstudiante.disabled = true;
-        const textoOriginalBoton = btnAgregarEstudiante.innerHTML;
-        btnAgregarEstudiante.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
-
-        try {
-            // -------- 1) Verificar que la cédula no exista ya (si se dio una) --------
-            if (cedula) {
-                const { data: existente, error: errBuscar } = await supabase
-                    .from("estudiantes")
-                    .select("id")
-                    .eq("cedula", cedula)
-                    .maybeSingle();
-
-                if (errBuscar) {
-                    throw new Error("No se pudo verificar la cédula: " + errBuscar.message);
-                }
-                if (existente) {
-                    mostrarMensajeEstudiantes("⚠️ Esa cédula ya está en uso por otro estudiante.", "warning");
-                    return;
-                }
-            }
-
-            // -------- 2) Calcular el siguiente código dentro de ese salón --------
-            // "codigo" es un número entero en la base de datos, así que no puede
-            // ser un texto tipo "EST-...". Se calcula como el siguiente número
-            // disponible dentro del salón (1, 2, 3...).
-            const { data: ultimoCodigo, error: errCodigo } = await supabase
-                .from("estudiantes")
-                .select("codigo")
-                .eq("salon", salon)
-                .order("codigo", { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-            if (errCodigo) {
-                throw new Error("No se pudo calcular el código: " + errCodigo.message);
-            }
-
-            const siguienteCodigo = ultimoCodigo ? (Number(ultimoCodigo.codigo) + 1) : 1;
-
-            // -------- 3) Insertar el estudiante --------
-            const { error } = await supabase
-                .from("estudiantes")
-                .insert([{
-                    codigo: siguienteCodigo,
-                    nombre,
-                    cedula: cedula || null,
-                    salon,
-                    es_prueba: false
-                }]);
-
-            if (error) {
-                // 23505 = cédula o (salón, código) duplicado
-                if (error.code === "23505") {
-                    throw new Error("⚠️ Esa cédula ya está en uso, o hubo un choque de código. Intenta de nuevo.");
-                }
-                // 42501 = RLS bloqueó el insert (sin permiso)
-                if (error.code === "42501") {
-                    throw new Error("No tienes permiso para agregar estudiantes en este salón.");
-                }
-                throw new Error(error.message);
-            }
-
-            mostrarMensajeEstudiantes(`✅ ${nombre} fue agregado(a) a ${salon} con el código ${siguienteCodigo}.`, "success");
-            nuevoEstNombre.value = "";
-            nuevoEstCedula.value = "";
-            nuevoEstSalonOtro.value = "";
-
-            // Si el salón filtrado coincide (o está en "Todos"), refresca la tabla
-            if (!estFiltroSalon.value || estFiltroSalon.value === salon) {
-                await cargarEstudiantesAdmin();
-            }
-
-        } catch (err) {
-            console.error("❌ Error al agregar estudiante:", err);
-            mostrarMensajeEstudiantes(err.message || "❌ No se pudo agregar el estudiante.", "danger");
-        } finally {
-            btnAgregarEstudiante.disabled = false;
-            btnAgregarEstudiante.innerHTML = textoOriginalBoton;
-        }
-    });
-
-    // =================================================
-    // 3) CARGAR USUARIOS REGISTRADOS
-    // =================================================
-
-    async function cargarUsuarios() {
-
-        const tablaUsuarios = document.getElementById("tablaUsuarios");
-        tablaUsuarios.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">Cargando usuarios...</td></tr>`;
-
-        const { data, error } = await supabase
-            .from("usuarios")
-            .select("correo, rol, activo, created_at")
-            .order("created_at", { ascending: false });
-
-        if (error) {
-            console.error("❌ Error al cargar usuarios:", error);
-            tablaUsuarios.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Error: ${error.message}</td></tr>`;
-            return;
-        }
-
-        if (!data || data.length === 0) {
-            tablaUsuarios.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>`;
-            return;
-        }
-
-        tablaUsuarios.innerHTML = "";
-
-        data.forEach((u) => {
-
-            const fila = document.createElement("tr");
-
-            const fecha = u.created_at
-                ? new Date(u.created_at).toLocaleString("es-PA")
-                : "-";
-
-            const btnInspeccionar = u.correo 
-                ? `<a href="estudiante.html?correo=${encodeURIComponent(u.correo)}" target="_blank" class="btn btn-sm btn-outline-primary py-0">👁️ Ver Boletín</a>`
-                : '-';
-
-            fila.innerHTML = `
-                <td>${u.correo ?? "-"}</td>
-                <td><span class="badge bg-secondary">${u.rol ?? "-"}</span></td>
-                <td>${u.activo ? "✅" : "❌"}</td>
-                <td>${fecha}</td>
-                <td>${btnInspeccionar}</td>
-            `;
-
-            tablaUsuarios.appendChild(fila);
-        });
-    }
-
-    // =================================================
-    // 4) CARGAR NOTAS DE TODOS LOS ESTUDIANTES
-    // =================================================
-
-    async function cargarNotas() {
-
-        const cabeceraNotas = document.getElementById("cabeceraNotas");
-        const tablaNotas = document.getElementById("tablaNotas");
-
-        tablaNotas.innerHTML = `<tr><td class="text-center text-muted py-4">Cargando notas...</td></tr>`;
-        cabeceraNotas.innerHTML = "";
-
-        const { data, error } = await supabase
-            .from("notas")
-            .select("*")
-            .order("id", { ascending: false });
-
-        if (error) {
-            console.error("❌ Error al cargar notas:", error);
-            tablaNotas.innerHTML = `<tr><td class="text-center text-danger py-4">Error: ${error.message}</td></tr>`;
-            return;
-        }
-
-        if (!data || data.length === 0) {
-            tablaNotas.innerHTML = `<tr><td class="text-center text-muted py-4">No hay notas registradas.</td></tr>`;
-            return;
-        }
-
-        const columnas = Object.keys(data[0]);
-
-        const filaCabecera = document.createElement("tr");
-        columnas.forEach((col) => {
-            const th = document.createElement("th");
-            th.textContent = col;
-            filaCabecera.appendChild(th);
-        });
-        filaCabecera.innerHTML += `<th>Acción</th>`;
-        cabeceraNotas.appendChild(filaCabecera);
-
-        tablaNotas.innerHTML = "";
-
-        data.forEach((registro) => {
-            const fila = document.createElement("tr");
-            columnas.forEach((col) => {
-                const td = document.createElement("td");
-                td.textContent = registro[col] ?? "-";
-                fila.appendChild(td);
-            });
-
-            const tdAccion = document.createElement("td");
-            tdAccion.innerHTML = registro.correo 
-                ? `<a href="estudiante.html?correo=${encodeURIComponent(registro.correo)}" target="_blank" class="btn btn-sm btn-outline-primary py-0">👁️ Ver</a>`
-                : '-';
-            fila.appendChild(tdAccion);
-
-            tablaNotas.appendChild(fila);
-        });
-    }
-
-    // =================================================
-    // 5) AGREGAR NOTAS POR SECCIÓN
-    // =================================================
-
-    function escapeHtmlAdmin(str) {
-        return String(str ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
-    }
-
-    const notasSalon = document.getElementById("notasSalon");
-    const notasMateria = document.getElementById("notasMateria");
-    const notasTrimestre = document.getElementById("notasTrimestre");
-    const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
-    const tablaNotasGrupo = document.getElementById("tablaNotasGrupo");
-    const btnGuardarNotasGrupo = document.getElementById("btnGuardarNotasGrupo");
-    const estadoGuardadoNotas = document.getElementById("estadoGuardadoNotas");
-
-    let grupoActualNotas = [];
-    let historiaPorEstudiante = {}; 
-    let casillasTabla = [];         
-    let temasCasillasBD = {};       
-
-    function claveCasilla(tipo, numero) {
-        return `${tipo}-${numero}`;
-    }
-
-    function etiquetaCasilla(tipo, numero) {
-        return `${tipo === "apreciacion" ? "Aprec." : "Ejer."} ${numero}`;
-    }
-
-    // Siempre usa el id del estudiante como identificador (ver nota en
-    // la carga de notas más abajo sobre por qué ya no se usa el correo).
-    function claveEstudiante(est) {
-        return `id:${est.id}`;
-    }
-
-    function obtenerTemaCasilla(tipo, numero) {
-        const clave = claveCasilla(tipo, numero);
-
-        if (temasCasillasBD[clave]) return temasCasillasBD[clave];
-
-        for (const claveEst in historiaPorEstudiante) {
-            const nota = historiaPorEstudiante[claveEst][clave];
-            if (nota && nota.tema) return nota.tema;
-        }
-
-        return "";
-    }
-
-    async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
-
-        const salon = notasSalon.value;
-        const materia = notasMateria.value.trim();
-        const trimestre = notasTrimestre.value;
-        const valorGuardar = nuevoTema || null;
-
-        const { error: errorTemaTabla } = await supabase
-            .from("temas_casillas")
-            .upsert(
-                {
-                    salon,
-                    materia,
-                    trimestre,
-                    tipo,
-                    numero,
-                    tema: valorGuardar,
-                    updated_at: new Date().toISOString()
-                },
-                { onConflict: "salon,materia,trimestre,tipo,numero" }
-            );
-
-        if (errorTemaTabla) {
-            console.error("❌ Error al guardar el tema de la casilla:", errorTemaTabla);
-            estadoGuardadoNotas.textContent = `⚠️ No se pudo guardar el tema de ${etiquetaCasilla(tipo, numero)}.`;
-            estadoGuardadoNotas.className = "small text-danger";
-            return;
-        }
-
-        temasCasillasBD[claveCasilla(tipo, numero)] = valorGuardar || "";
-
-        const correosDelGrupo = grupoActualNotas.map((e) => e.correo).filter(Boolean);
-        const idsSinCuenta = grupoActualNotas.filter((e) => !e.correo).map((e) => e.id);
-
-        if (correosDelGrupo.length > 0) {
-            await supabase
-                .from("notas")
-                .update({ tema: valorGuardar })
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .eq("tipo", tipo)
-                .eq("numero", numero)
-                .in("correo", correosDelGrupo);
-        }
-
-        if (idsSinCuenta.length > 0) {
-            await supabase
-                .from("notas")
-                .update({ tema: valorGuardar })
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .eq("tipo", tipo)
-                .eq("numero", numero)
-                .in("estudiante_id", idsSinCuenta);
-        }
-
-        const clave = claveCasilla(tipo, numero);
-        Object.keys(historiaPorEstudiante).forEach((claveEst) => {
-            if (historiaPorEstudiante[claveEst][clave]) {
-                historiaPorEstudiante[claveEst][clave].tema = valorGuardar;
-            }
-        });
-
-        estadoGuardadoNotas.textContent = `✅ Tema de "${etiquetaCasilla(tipo, numero)}" actualizado.`;
-        estadoGuardadoNotas.className = "small text-success";
-    }
-
-    async function eliminarColumnaCasilla(tipo, numero) {
-        const salon = notasSalon.value;
-        const materia = notasMateria.value.trim();
-        const trimestre = notasTrimestre.value;
-        const etiqueta = etiquetaCasilla(tipo, numero);
-
-        const confirmar = confirm(`¿Estás seguro de que deseas mover a la papelera la casilla "${etiqueta}" (${materia} - ${salon}) y todas las notas registradas en ella? (Se podrá restaurar después, como hace el/la docente.)`);
-        if (!confirmar) return;
-
-        estadoGuardadoNotas.textContent = `Eliminando columna ${etiqueta}...`;
-        estadoGuardadoNotas.className = "small text-primary";
-
-        try {
-            const ahora = new Date().toISOString();
-
-            // Borrado suave (igual que en el panel del docente): así queda
-            // disponible para restaurar desde la papelera y no desaparece
-            // de golpe y para siempre en TODOS los salones que comparten
-            // esta materia y trimestre.
-            await supabase.from("notas")
-                .update({ eliminado_en: ahora, eliminado_por: perfil.correo })
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .eq("tipo", tipo)
-                .eq("numero", numero)
-                .is("eliminado_en", null);
-
-            await supabase.from("temas_casillas")
-                .update({ eliminado_en: ahora, eliminado_por: perfil.correo })
-                .eq("salon", salon)
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .eq("tipo", tipo)
-                .eq("numero", numero)
-                .is("eliminado_en", null);
-
-            await supabase.from("columnas_materia")
-                .delete()
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .eq("tipo", tipo)
-                .eq("numero", numero);
-
-            estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} movida a la papelera.`;
-            estadoGuardadoNotas.className = "small text-success";
-
-            cargarGrupoNotas();
-            cargarNotas();
-
-        } catch (error) {
-            console.error("❌ Error al eliminar casilla:", error);
-            estadoGuardadoNotas.textContent = `⚠️ Error al eliminar la casilla: ${error.message || String(error)}`;
-            estadoGuardadoNotas.className = "small text-danger";
-        }
-    }
-
-    (async function precargarTrimestreActivo() {
-        const { data: cfg } = await supabase
-            .from("configuracion")
-            .select("trimestre_activo")
-            .maybeSingle();
-
-        if (cfg?.trimestre_activo && notasTrimestre) {
-            notasTrimestre.value = cfg.trimestre_activo;
-        }
-    })();
-
-    // =================================================
-    // 2.6) TRIMESTRES: FECHAS Y CÁLCULO DEL TRIMESTRE ACTIVO
-    // =================================================
-    // El admin define fecha de inicio y de fin de cada trimestre.
-    // A partir de esas fechas, el sistema calcula solo cuál trimestre
-    // corresponde según el día de hoy, y lo guarda en
-    // configuracion.trimestre_activo (columna que ya usan tanto este
-    // panel como el del docente para precargar el selector de notas).
-
-    const t1Inicio = document.getElementById("t1Inicio");
-    const t1Fin = document.getElementById("t1Fin");
-    const t2Inicio = document.getElementById("t2Inicio");
-    const t2Fin = document.getElementById("t2Fin");
-    const t3Inicio = document.getElementById("t3Inicio");
-    const t3Fin = document.getElementById("t3Fin");
-    const btnGuardarTrimestres = document.getElementById("btnGuardarTrimestres");
-    const mensajeTrimestres = document.getElementById("mensajeTrimestres");
-    const estadoGuardadoTrimestres = document.getElementById("estadoGuardadoTrimestres");
-    const trimestreActivoCalculado = document.getElementById("trimestreActivoCalculado");
-    const trimestreActivoDetalle = document.getElementById("trimestreActivoDetalle");
-
-    function mostrarMensajeTrimestres(texto, tipo = "danger") {
-        if (!mensajeTrimestres) return;
-        mensajeTrimestres.textContent = texto;
-        mensajeTrimestres.className = `alert alert-${tipo}`;
-    }
-
-    function ocultarMensajeTrimestres() {
-        if (!mensajeTrimestres) return;
-        mensajeTrimestres.className = "alert d-none";
-    }
-
-    // Recibe las 3 parejas de fechas (strings "YYYY-MM-DD") y devuelve
-    // "Trimestre 1" / "Trimestre 2" / "Trimestre 3", o null si la fecha
-    // de hoy no cae dentro de ningún rango configurado.
-    function calcularTrimestreActivo(fechas) {
-        const hoy = new Date().toISOString().slice(0, 10);
-        const rangos = [
-            { nombre: "Trimestre 1", inicio: fechas.t1Inicio, fin: fechas.t1Fin },
-            { nombre: "Trimestre 2", inicio: fechas.t2Inicio, fin: fechas.t2Fin },
-            { nombre: "Trimestre 3", inicio: fechas.t3Inicio, fin: fechas.t3Fin }
-        ];
-
-        for (const rango of rangos) {
-            if (!rango.inicio || !rango.fin) continue;
-            if (hoy >= rango.inicio && hoy <= rango.fin) return rango.nombre;
-        }
-        return null;
-    }
-
-    function formatearFechaCorta(fechaIso) {
-        if (!fechaIso) return "?";
-        const [anio, mes, dia] = fechaIso.split("-");
-        return `${dia}/${mes}/${anio}`;
-    }
-
-    function actualizarTrimestreActivoUI(fechas) {
-        const activo = calcularTrimestreActivo(fechas);
-
-        if (activo) {
-            trimestreActivoCalculado.textContent = activo;
-            trimestreActivoCalculado.className = "fw-bold text-success";
-        } else {
-            trimestreActivoCalculado.textContent = "Ninguno (fuera de rango)";
-            trimestreActivoCalculado.className = "fw-bold text-danger";
-        }
-
-        if (trimestreActivoDetalle) {
-            const partes = [];
-            if (fechas.t1Inicio && fechas.t1Fin) partes.push(`T1: ${formatearFechaCorta(fechas.t1Inicio)}–${formatearFechaCorta(fechas.t1Fin)}`);
-            if (fechas.t2Inicio && fechas.t2Fin) partes.push(`T2: ${formatearFechaCorta(fechas.t2Inicio)}–${formatearFechaCorta(fechas.t2Fin)}`);
-            if (fechas.t3Inicio && fechas.t3Fin) partes.push(`T3: ${formatearFechaCorta(fechas.t3Inicio)}–${formatearFechaCorta(fechas.t3Fin)}`);
-            trimestreActivoDetalle.textContent = partes.join("   ·   ");
-        }
-
-        return activo;
-    }
-
-    async function cargarConfigTrimestres() {
-        ocultarMensajeTrimestres();
-
-        const { data: cfg, error } = await supabase
-            .from("configuracion")
-            .select("t1_inicio, t1_fin, t2_inicio, t2_fin, t3_inicio, t3_fin, trimestre_activo")
-            .eq("id", 1)
-            .maybeSingle();
-
-        if (error) {
-            console.error("❌ Error al cargar fechas de trimestres:", error);
-            mostrarMensajeTrimestres("No se pudieron cargar las fechas de los trimestres.");
-            return;
-        }
-
-        if (t1Inicio) t1Inicio.value = cfg?.t1_inicio || "";
-        if (t1Fin) t1Fin.value = cfg?.t1_fin || "";
-        if (t2Inicio) t2Inicio.value = cfg?.t2_inicio || "";
-        if (t2Fin) t2Fin.value = cfg?.t2_fin || "";
-        if (t3Inicio) t3Inicio.value = cfg?.t3_inicio || "";
-        if (t3Fin) t3Fin.value = cfg?.t3_fin || "";
-
-        actualizarTrimestreActivoUI({
-            t1Inicio: cfg?.t1_inicio, t1Fin: cfg?.t1_fin,
-            t2Inicio: cfg?.t2_inicio, t2Fin: cfg?.t2_fin,
-            t3Inicio: cfg?.t3_inicio, t3Fin: cfg?.t3_fin
-        });
-    }
-
-    async function guardarConfigTrimestres() {
-        ocultarMensajeTrimestres();
-
-        const fechas = {
-            t1Inicio: t1Inicio.value || null, t1Fin: t1Fin.value || null,
-            t2Inicio: t2Inicio.value || null, t2Fin: t2Fin.value || null,
-            t3Inicio: t3Inicio.value || null, t3Fin: t3Fin.value || null
-        };
-
-        // Validaciones básicas: cada trimestre con inicio y fin en orden,
-        // y que no se pisen entre sí (el fin de uno antes del inicio del siguiente).
-        const pares = [
-            ["Trimestre 1", fechas.t1Inicio, fechas.t1Fin],
-            ["Trimestre 2", fechas.t2Inicio, fechas.t2Fin],
-            ["Trimestre 3", fechas.t3Inicio, fechas.t3Fin]
-        ];
-
-        for (const [nombre, inicio, fin] of pares) {
-            if (inicio && fin && inicio > fin) {
-                mostrarMensajeTrimestres(`⚠️ En ${nombre}, la fecha de inicio no puede ser después de la fecha de fin.`);
-                return;
-            }
-        }
-
-        if (fechas.t1Fin && fechas.t2Inicio && fechas.t1Fin >= fechas.t2Inicio) {
-            mostrarMensajeTrimestres("⚠️ El Trimestre 1 se pisa con el Trimestre 2. Revisa las fechas.");
-            return;
-        }
-        if (fechas.t2Fin && fechas.t3Inicio && fechas.t2Fin >= fechas.t3Inicio) {
-            mostrarMensajeTrimestres("⚠️ El Trimestre 2 se pisa con el Trimestre 3. Revisa las fechas.");
-            return;
-        }
-
-        const trimestreCalculado = calcularTrimestreActivo(fechas);
-
-        btnGuardarTrimestres.disabled = true;
-        estadoGuardadoTrimestres.textContent = "Guardando...";
-        estadoGuardadoTrimestres.className = "small text-muted";
-
-        const cambios = {
-            t1_inicio: fechas.t1Inicio, t1_fin: fechas.t1Fin,
-            t2_inicio: fechas.t2Inicio, t2_fin: fechas.t2Fin,
-            t3_inicio: fechas.t3Inicio, t3_fin: fechas.t3Fin
-        };
-
-        // Si las fechas ya determinan un trimestre activo, lo actualizamos
-        // de una vez para que el resto del sistema (precarga en este panel
-        // y, en el panel del docente, la próxima vez que se conecte al
-        // sistema) quede al día sin pasos manuales extra.
-        if (trimestreCalculado) {
-            cambios.trimestre_activo = trimestreCalculado;
-        }
-
-        const { error } = await supabase
-            .from("configuracion")
-            .update(cambios)
-            .eq("id", 1);
-
-        btnGuardarTrimestres.disabled = false;
-
-        if (error) {
-            console.error("❌ Error al guardar fechas de trimestres:", error);
-            estadoGuardadoTrimestres.textContent = "❌ Error al guardar";
-            estadoGuardadoTrimestres.className = "small text-danger";
-            return;
-        }
-
-        estadoGuardadoTrimestres.textContent = "✅ Guardado";
-        estadoGuardadoTrimestres.className = "small text-success";
-        setTimeout(() => { estadoGuardadoTrimestres.textContent = ""; }, 2500);
-
-        actualizarTrimestreActivoUI(fechas);
-
-        if (trimestreCalculado && notasTrimestre) {
-            notasTrimestre.value = trimestreCalculado;
-        }
-    }
-
-    if (btnGuardarTrimestres) {
-        btnGuardarTrimestres.addEventListener("click", guardarConfigTrimestres);
-    }
-
-    // Se expone para que el script de navegación del menú (al final de
-    // admin.html) pueda cargar los datos justo al abrir este panel.
-    window.cargarConfigTrimestres = cargarConfigTrimestres;
-
-    // NOTA: "Informática" se agregó como materia real e independiente de
-    // "Contabilidad" (antes el sistema renombraba "Contabilidad" a
-    // "Informática" solo para el salón 8A, lo cual causaba que las notas
-    // de Informática guardadas en otros salones, como 8B, no se pudieran
-    // ver aquí). Ahora ambas son materias normales de la lista y se
-    // asignan a cada profesor(a)/salón desde la pantalla de Asignaciones,
-    // igual que cualquier otra materia.
-    const MATERIAS_BASE = [
-        "Español",
-        "Matemática",
-        "Ciencias Naturales",
-        "Inglés",
-        "Expresión Artística",
-        "Música",
-        "Educación Física",
-        "Familia y Desarrollo Comunitario",
-        "Historia",
-        "Educación Agropecuaria",
-        "Contabilidad",
-        "Informática",
-        "Geografía",
-        "Orientación",
-        "Cívica",
-        "Religión, Moral y Valores"
-    ];
-
-    function materiasParaSalon(salon) {
-        return [...MATERIAS_BASE].sort((a, b) => a.localeCompare(b, "es"));
-    }
-
-    // Aviso: este mapa es solo un valor de respaldo para mostrar un nombre
-    // en el PDF/reportes cuando no se encuentra otro dato; no se actualiza
-    // solo cuando cambias algo en Asignaciones. Si un profesor cambia,
-    // hay que actualizarlo aquí a mano también.
-    const MATERIA_A_PROFESOR = {
-        "Español": "Yadira de Gracia",
-        "Geografía": "Faustina Rodríguez",
-        "Inglés": "Wendy Warren",
-        "Matemática": "Juana Browns",
-        "Ciencias Naturales": "Samuel Ortega",
-        "Cívica": "Juana Browns",
-        "Educación Física": "Guiliam Barría",
-        "Expresión Artística": "Miriam Valencia",
-        "Educación Agropecuaria": "Alexis Del Mar",
-        "Familia y Desarrollo Comunitario": "Erika Pimentel",
-        "Contabilidad": "Alexis Del Mar",
-        "Informática": "Alexis Del Mar",
-        "Orientación": "Willian Mitzi",
-        "Religión, Moral y Valores": "Encelma Álvarez",
-        "Música": "Miriam Valencia"
-    };
-
-    const ETIQUETAS_SALON = { "8A": "8°A", "9A": "9°A", "9B": "9°B", "9C": "9°C" };
-    const PROMEDIO_MINIMO_APROBAR = 3.0;
-
-    function actualizarOpcionesMateria() {
-        const salon = notasSalon.value;
-
-        bloqueTablaNotas.style.display = "none";
-
-        if (!salon) {
-            notasMateria.innerHTML = `<option value="">Seleccione primero un salón</option>`;
-            notasMateria.disabled = true;
-            return;
-        }
-
-        const materias = materiasParaSalon(salon);
-
-        notasMateria.innerHTML =
-            `<option value="">Seleccione una materia</option>` +
-            materias.map((m) => `<option value="${escapeHtmlAdmin(m)}">${escapeHtmlAdmin(m)}</option>`).join("");
-
-        notasMateria.disabled = false;
-    }
-
-    notasSalon.addEventListener("change", actualizarOpcionesMateria);
-    notasMateria.addEventListener("change", () => {
-        if (notasMateria.value.trim()) {
-            cargarGrupoNotas();
-        } else {
-            bloqueTablaNotas.style.display = "none";
-        }
-    });
-
-    function recalcularPromedios() {
-        tablaNotasGrupo.querySelectorAll("tr").forEach((tr) => {
-
-            const inputsFila = tr.querySelectorAll(".input-nota-grupo");
-            if (inputsFila.length === 0) return;
-
-            const aprValores = [];
-            const ejeValores = [];
-
-            inputsFila.forEach((input) => {
-                const valor = input.value.trim();
-                if (valor === "") return;
-
-                const num = parseFloat(valor);
-                if (isNaN(num)) return;
-
-                if (input.dataset.tipo === "apreciacion") aprValores.push(num);
-                else if (input.dataset.tipo === "ejercicio") ejeValores.push(num);
-            });
-
-            const promApr = aprValores.length > 0
-                ? aprValores.reduce((a, b) => a + b, 0) / aprValores.length
-                : null;
-
-            const promEje = ejeValores.length > 0
-                ? ejeValores.reduce((a, b) => a + b, 0) / ejeValores.length
-                : null;
-
-            let promFinal = null;
-            if (promApr !== null && promEje !== null) {
-                promFinal = (promApr + promEje) / 2;
-            } else if (promApr !== null) {
-                promFinal = promApr;
-            } else if (promEje !== null) {
-                promFinal = promEje;
-            }
-
-            const celdaApr = tr.querySelector(".celda-prom-apr");
-            const celdaEje = tr.querySelector(".celda-prom-eje");
-            const celdaFinal = tr.querySelector(".celda-prom-final");
-
-            if (celdaApr) celdaApr.textContent = promApr !== null ? promApr.toFixed(1) : "–";
-            if (celdaEje) celdaEje.textContent = promEje !== null ? promEje.toFixed(1) : "–";
-
-            if (celdaFinal) {
-                celdaFinal.textContent = promFinal !== null ? promFinal.toFixed(1) : "–";
-
-                const enRiesgo = promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR;
-
-                if (enRiesgo) {
-                    tr.classList.add("table-danger");
-                    celdaFinal.classList.add("text-danger");
-                } else {
-                    tr.classList.remove("table-danger");
-                    celdaFinal.classList.remove("text-danger");
-                }
-            }
-        });
-    }
-
-    function renderTablaNotasGrupo() {
-
-        const cabecera = document.getElementById("cabeceraNotasGrupo");
-        const cabeceraTemas = document.getElementById("cabeceraTemasGrupo");
-
-        if (grupoActualNotas.length === 0) {
-            cabecera.innerHTML = `<th style="width:45px;">#</th><th>Estudiante</th>`;
-            cabeceraTemas.innerHTML = "";
-            tablaNotasGrupo.innerHTML = `<tr><td colspan="2" class="text-center text-muted py-3">Este salón aún no tiene estudiantes cargados.</td></tr>`;
-            return;
-        }
-
-        let htmlCabecera = `<th style="width:45px;">#</th><th>Estudiante</th>`;
-
-        casillasTabla.forEach((c) => {
-            const claseTh = "text-muted";
-            htmlCabecera += `
-                <th class="text-center small ${claseTh}" style="width:100px;">
-                    <div>${etiquetaCasilla(c.tipo, c.numero)}</div>
-                    <button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna y sus notas">🗑️</button>
-                </th>`;
-        });
-
-        htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Aprec.</th>`;
-        htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Ejer.</th>`;
-        htmlCabecera += `<th class="text-center small fw-bold table-success" style="width:90px;">Prom. Final</th>`;
-        htmlCabecera += `<th style="width:160px;">Estado</th>`;
-        cabecera.innerHTML = htmlCabecera;
-
-        let htmlTemas = `<th></th><th class="small text-muted fw-normal">Tema de cada casilla:</th>`;
-
-        casillasTabla.forEach((c) => {
-            const temaActual = obtenerTemaCasilla(c.tipo, c.numero);
-            htmlTemas += `
-                <th style="padding:2px 4px;">
-                    <input
-                        type="text"
-                        class="form-control form-control-sm input-tema-columna"
-                        data-tipo="${c.tipo}"
-                        data-numero="${c.numero}"
-                        data-tema-guardado="${escapeHtmlAdmin(temaActual)}"
-                        value="${escapeHtmlAdmin(temaActual)}"
-                        placeholder="Ej: Prueba corta"
-                        style="font-size:11px; font-weight:normal;"
-                    >
-                </th>
-            `;
-        });
-
-        htmlTemas += `<th></th><th></th><th></th><th></th>`; 
-        cabeceraTemas.innerHTML = htmlTemas;
-
-        tablaNotasGrupo.innerHTML = grupoActualNotas.map((est, i) => {
-            const sinCuenta = !est.correo;
-            const historialEst = historiaPorEstudiante[claveEstudiante(est)] || {};
-
-            const columnasNotas = casillasTabla.map((c, colIndex) => {
-                const claveCas = claveCasilla(c.tipo, c.numero);
-                const n = historialEst[claveCas];
-                const valor = (n && n.nota !== null && n.nota !== undefined) ? Number(n.nota).toFixed(1) : "";
-
-                return `
-                    <td>
-                        <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="5"
-                            class="form-control form-control-sm input-nota-grupo"
-                            data-col="${colIndex}"
-                            data-correo="${sinCuenta ? "" : escapeHtmlAdmin(est.correo)}"
-                            data-estudiante-id="${escapeHtmlAdmin(est.id)}"
-                            data-nota-id="${n ? n.id : ""}"
-                            data-tipo="${c.tipo}"
-                            data-numero="${c.numero}"
-                            data-ultimo-valor-guardado="${valor}"
-                            value="${valor}"
-                            placeholder="–"
-                        >
-                    </td>
-                `;
-            }).join("");
-
-            const nombreEnlace = est.correo
-                ? `<a href="estudiante.html?correo=${encodeURIComponent(est.correo)}" target="_blank" class="fw-bold text-decoration-none text-primary" title="Hacer clic para ver/editar las notas individuales de este estudiante">${escapeHtmlAdmin(est.nombre)} 👁️</a>`
-                : escapeHtmlAdmin(est.nombre);
-
-            const badge = sinCuenta
-                ? `<span class="badge bg-warning text-dark">Sin cuenta</span>`
-                : `<a href="estudiante.html?correo=${encodeURIComponent(est.correo)}" target="_blank" class="badge bg-primary text-decoration-none">👁️ Ver Boletín</a>`;
-
-            return `
-                <tr class="${sinCuenta ? "table-warning" : ""}">
-                    <td>${i + 1}</td>
-                    <td>${nombreEnlace}</td>
-                    ${columnasNotas}
-                    <td class="celda-prom-apr text-center fw-bold">–</td>
-                    <td class="celda-prom-eje text-center fw-bold">–</td>
-                    <td class="celda-prom-final text-center fw-bold table-success bg-opacity-25">–</td>
-                    <td>${badge}</td>
-                </tr>
-            `;
-        }).join("");
-
-        recalcularPromedios();
-
-        cabecera.querySelectorAll(".btn-eliminar-columna").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                eliminarColumnaCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10));
-            });
-        });
-
-        tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna").forEach((input) => {
-            input.addEventListener("blur", async () => {
-                const nuevoValor = input.value.trim();
-                if (nuevoValor === input.dataset.temaGuardado) return;
-                await actualizarTemaCasilla(input.dataset.tipo, parseInt(input.dataset.numero, 10), nuevoValor);
-                input.dataset.temaGuardado = nuevoValor;
-            });
-        });
-
-        const todosLosInputs = Array.from(tablaNotasGrupo.querySelectorAll(".input-nota-grupo"));
-        const inputsPorColumna = {};
-
-        todosLosInputs.forEach((input) => {
-            const col = input.dataset.col;
-            if (!inputsPorColumna[col]) inputsPorColumna[col] = [];
-            inputsPorColumna[col].push(input);
-        });
-
-        todosLosInputs.forEach((input) => {
-
-            input.addEventListener("input", recalcularPromedios);
-
-            input.addEventListener("keydown", (e) => {
-                if (e.key === "Enter") {
-                    e.preventDefault();
-
-                    const listaColumna = inputsPorColumna[input.dataset.col] || [];
-                    const posicion = listaColumna.indexOf(input);
-                    const siguiente = listaColumna[posicion + 1];
-
-                    if (siguiente) {
-                        siguiente.focus();
-                        siguiente.select();
-                    }
-                }
-            });
-        });
-    }
-
-    async function cargarGrupoNotas() {
-
-        if (!bloqueTablaNotas || !tablaNotasGrupo) {
-            console.error("❌ No se encontró #bloqueTablaNotas o #tablaNotasGrupo en el HTML. Verifica que subiste la versión actualizada de admin.html.");
-            return;
-        }
-
-        const salon = notasSalon.value;
-        const materia = notasMateria.value.trim();
-        const trimestre = notasTrimestre.value;
-
-        if (!salon || !materia) {
-            bloqueTablaNotas.style.display = "none";
-            return;
-        }
-
-        bloqueTablaNotas.style.display = "block";
-        tablaNotasGrupo.innerHTML = `<tr><td colspan="2" class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm me-2"></span>Cargando estudiantes...</td></tr>`;
-
-        const { data: estudiantesSalon, error: errEst } = await supabase
-            .from("estudiantes")
-            .select("id, codigo, nombre, correo, es_prueba")
-            .eq("salon", salon)
-            .order("nombre", { ascending: true });
-
-        if (errEst) {
-            console.error("❌ Error al cargar estudiantes del salón:", errEst);
-            estadoGuardadoNotas.textContent = "⚠️ Error al cargar estudiantes: " + errEst.message;
-            estadoGuardadoNotas.className = "small text-danger";
-            return;
-        }
-
-        grupoActualNotas = (estudiantesSalon || []).filter((e) => !e.es_prueba);
-
-        // El id del estudiante es la fuente de verdad para relacionar
-        // sus notas (nunca cambia, a diferencia del correo, que puede
-        // quitarse o cambiarse si le tocan la cuenta). Mantenemos un
-        // mapa correo->id para poder rescatar también las notas viejas
-        // que solo tienen "correo" y todavía no se migraron.
-        const todosLosIdsNotas = grupoActualNotas.map((e) => e.id);
-        const correoAIdNotas = {};
-        grupoActualNotas.forEach((e) => { if (e.correo) correoAIdNotas[e.correo] = e.id; });
-        const correosActualesNotas = Object.keys(correoAIdNotas);
-
-        historiaPorEstudiante = {};
-        const casillasEncontradas = new Set();
-
-        // Solo se muestran las casillas que ya tienen alguna nota o un
-        // tema asignado (antes se forzaban siempre las 10 de Apreciación
-        // y las 10 de Ejercicio, aunque estuvieran vacías).
-
-        function registrarNotaEnHistorial(estudianteId, n) {
-            const clave = `id:${estudianteId}`;
-            if (!historiaPorEstudiante[clave]) historiaPorEstudiante[clave] = {};
-            const claveCas = claveCasilla(n.tipo, n.numero);
-            historiaPorEstudiante[clave][claveCas] = n;
-            casillasEncontradas.add(claveCas);
-        }
-
-        // Fuente principal: notas ya conectadas por estudiante_id.
-        if (todosLosIdsNotas.length > 0) {
-            const { data: notasPorId, error: errNotasId } = await supabase
-                .from("notas")
-                .select("id, estudiante_id, correo, tipo, numero, nota, tema")
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .in("estudiante_id", todosLosIdsNotas)
-                .is("eliminado_en", null);
-
-            if (errNotasId) {
-                console.error("❌ Error al cargar historial de notas:", errNotasId);
-            } else if (notasPorId) {
-                notasPorId.forEach((n) => registrarNotaEnHistorial(n.estudiante_id, n));
-            }
-        }
-
-        // Fuente de respaldo: notas antiguas que todavía solo tienen
-        // "correo" (sin estudiante_id), conectadas por el correo ACTUAL
-        // del estudiante. guardarNotas() ahora siempre rellena también
-        // el estudiante_id, para que esto ya no dependa del correo.
-        if (correosActualesNotas.length > 0) {
-            const { data: notasPorCorreo, error: errNotasCorreo } = await supabase
-                .from("notas")
-                .select("id, estudiante_id, correo, tipo, numero, nota, tema")
-                .eq("materia", materia)
-                .eq("trimestre", trimestre)
-                .in("correo", correosActualesNotas)
-                .is("eliminado_en", null);
-
-            if (errNotasCorreo) {
-                console.error("❌ Error al cargar historial de notas (por correo):", errNotasCorreo);
-            } else if (notasPorCorreo) {
-                notasPorCorreo.forEach((n) => {
-                    if (n.estudiante_id) return; // ya se registró arriba
-                    const idEst = correoAIdNotas[n.correo];
-                    if (idEst) registrarNotaEnHistorial(idEst, n);
-                });
-            }
-        }
-
-        temasCasillasBD = {};
-
-        const { data: temasGuardados, error: errTemas } = await supabase
-            .from("temas_casillas")
-            .select("tipo, numero, tema")
-            .eq("salon", salon)
-            .eq("materia", materia)
-            .eq("trimestre", trimestre)
-            .is("eliminado_en", null);
-
-        if (errTemas) {
-            console.error("❌ Error al cargar temas de casillas:", errTemas);
-        } else if (temasGuardados) {
-            temasGuardados.forEach((t) => {
-                const claveCas = claveCasilla(t.tipo, t.numero);
-                temasCasillasBD[claveCas] = t.tema || "";
-                if (t.tema) casillasEncontradas.add(claveCas);
-            });
-        }
-
-        casillasTabla = [...casillasEncontradas]
-            .map((c) => {
-                const separador = c.lastIndexOf("-");
-                return {
-                    tipo: c.slice(0, separador),
-                    numero: parseInt(c.slice(separador + 1), 10)
-                };
-            })
-            .sort((a, b) => {
-                if (a.tipo !== b.tipo) return a.tipo === "apreciacion" ? -1 : 1;
-                return a.numero - b.numero;
-            });
-
-        renderTablaNotasGrupo();
-        bloqueTablaNotas.style.display = "block";
-    }
-
-    window.cargarGrupoNotas = cargarGrupoNotas;
-
-    // =================================================
-    // IMPRIMIR / EXPORTAR NOTAS EN PDF
-    // =================================================
-
-    const btnImprimirPDF = document.getElementById("btnImprimirPDF");
-
-    function formatearFechaImpresion() {
-        const ahora = new Date();
-        const fecha = ahora.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "numeric" });
-        const hora = ahora.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
-        return `${fecha}, ${hora}`;
-    }
-
-    function calcularPromediosFila(historialEst) {
-        const aprValores = casillasTabla
-            .filter((c) => c.tipo === "apreciacion")
-            .map((c) => historialEst[claveCasilla(c.tipo, c.numero)])
-            .filter((n) => n && n.nota !== null && n.nota !== undefined)
-            .map((n) => Number(n.nota));
-
-        const ejeValores = casillasTabla
-            .filter((c) => c.tipo === "ejercicio")
-            .map((c) => historialEst[claveCasilla(c.tipo, c.numero)])
-            .filter((n) => n && n.nota !== null && n.nota !== undefined)
-            .map((n) => Number(n.nota));
-
-        const promApr = aprValores.length > 0 ? aprValores.reduce((a, b) => a + b, 0) / aprValores.length : null;
-        const promEje = ejeValores.length > 0 ? ejeValores.reduce((a, b) => a + b, 0) / ejeValores.length : null;
-
-        let promFinal = null;
-        if (promApr !== null && promEje !== null) promFinal = (promApr + promEje) / 2;
-        else if (promApr !== null) promFinal = promApr;
-        else if (promEje !== null) promFinal = promEje;
-
-        return { promApr, promEje, promFinal };
-    }
-
-    function imprimirPDFGrupo() {
-        if (!grupoActualNotas || grupoActualNotas.length === 0) {
-            alert("⚠️ Primero elige un salón y una materia con estudiantes cargados.");
-            return;
-        }
-
-        if (typeof window.jspdf === "undefined") {
-            alert("⚠️ No se pudo cargar la librería de PDF. Revisa tu conexión e intenta de nuevo.");
-            return;
-        }
-
-        const salon = notasSalon.value;
-        const materia = notasMateria.value.trim();
-        const trimestre = notasTrimestre.value;
-
-        const etiquetaSalon = ETIQUETAS_SALON[salon] || salon;
-        const nombreDocente = MATERIA_A_PROFESOR[materia] || "—";
-
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: "landscape" });
-
-        doc.setFontSize(14);
-        doc.text("Reporte de notas", 14, 15);
-
-        doc.setFontSize(10);
-        doc.text(`Salón: ${etiquetaSalon}`, 14, 23);
-        doc.text(`Materia: ${materia}`, 14, 29);
-        doc.text(`Profesor(a): ${nombreDocente}`, 14, 35);
-        doc.text(`Trimestre: ${trimestre || "—"}`, 14, 41);
-        doc.text(`Fecha de impresión: ${formatearFechaImpresion()}`, 14, 47);
-
-        const columnas = [
-            "#",
-            "Estudiante",
-            ...casillasTabla.map((c) => etiquetaCasilla(c.tipo, c.numero)),
-            "Prom. Aprec.",
-            "Prom. Ejer.",
-            "Prom. Final"
-        ];
-
-        const filas = grupoActualNotas.map((est, i) => {
-            const historialEst = historiaPorEstudiante[claveEstudiante(est)] || {};
-
-            const valoresCasillas = casillasTabla.map((c) => {
-                const n = historialEst[claveCasilla(c.tipo, c.numero)];
-                return (n && n.nota !== null && n.nota !== undefined) ? Number(n.nota).toFixed(1) : "–";
-            });
-
-            const { promApr, promEje, promFinal } = calcularPromediosFila(historialEst);
-
-            return [
-                i + 1,
-                est.nombre,
-                ...valoresCasillas,
-                promApr !== null ? promApr.toFixed(1) : "–",
-                promEje !== null ? promEje.toFixed(1) : "–",
-                promFinal !== null ? promFinal.toFixed(1) : "–"
-            ];
-        });
-
-        doc.autoTable({
-            head: [columnas],
-            body: filas,
-            startY: 53,
-            styles: { fontSize: 8, halign: "center", cellPadding: 2 },
-            headStyles: { fillColor: [13, 110, 253] },
-            columnStyles: { 1: { halign: "left" } },
-            didParseCell: (data) => {
-                // Resalta en rojo el promedio final de quien está reprobando
-                if (data.section === "body" && data.column.index === columnas.length - 1) {
-                    const valor = parseFloat(data.cell.raw);
-                    if (!isNaN(valor) && valor < PROMEDIO_MINIMO_APROBAR) {
-                        data.cell.styles.textColor = [220, 53, 69];
-                        data.cell.styles.fontStyle = "bold";
-                    }
-                }
-            }
-        });
-
-        const nombreArchivo = `Notas_${etiquetaSalon.replace("°", "")}_${materia.replace(/\s+/g, "_")}_${(trimestre || "").replace(/\s+/g, "_")}.pdf`;
-        doc.save(nombreArchivo);
-    }
-
-    if (btnImprimirPDF) {
-        btnImprimirPDF.addEventListener("click", imprimirPDFGrupo);
-    }
-
-    // =================================================
-    // GUARDAR NOTAS
-    // =================================================
-
-    // =================================================
-    // AVISO POR CORREO: si pasan 5 minutos sin que el admin
-    // guarde nada nuevo en esta tabla de notas, se manda un
-    // correo con la tabla de lo que cambió desde el último
-    // aviso. Misma lógica que ya existe en profesor.js.
-    // =================================================
-    const EMAILJS_SERVICE_ID = "service_avsesik";
-    const EMAILJS_TEMPLATE_ID = "template_00nky6m";
-    const EMAILJS_PUBLIC_KEY = "2PasfycZJSW6hDpqg";
-    const MINUTOS_INACTIVIDAD_RESPALDO = 5;
-
-    if (window.emailjs) {
-        window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-    }
-
-    let cambiosPendientesRespaldoAdmin = [];
-    let temporizadorRespaldoAdmin = null;
-
-    function nombreEstudiantePorItemAdmin(item) {
-        const est = grupoActualNotas.find((e) =>
-            (item.correo && e.correo === item.correo) || (item.estudianteId && String(e.id) === String(item.estudianteId))
-        );
-        return est ? est.nombre : (item.correo || item.estudianteId || "—");
-    }
-
-    function registrarCambioParaRespaldoAdmin(item) {
-        cambiosPendientesRespaldoAdmin.push({
-            estudiante: nombreEstudiantePorItemAdmin(item),
-            casilla: etiquetaCasilla(item.tipo, item.numero),
-            nota: item.nota,
-            hora: new Date().toLocaleString("es-PA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
-        });
-        reiniciarTemporizadorRespaldoAdmin();
-    }
-
-    function reiniciarTemporizadorRespaldoAdmin() {
-        if (temporizadorRespaldoAdmin) clearTimeout(temporizadorRespaldoAdmin);
-        temporizadorRespaldoAdmin = setTimeout(enviarRespaldoPorCorreoAdmin, MINUTOS_INACTIVIDAD_RESPALDO * 60 * 1000);
-    }
-
-    async function enviarRespaldoPorCorreoAdmin() {
-        if (!window.emailjs || cambiosPendientesRespaldoAdmin.length === 0) return;
-
-        const filas = cambiosPendientesRespaldoAdmin.map((c) =>
-            `<tr>` +
-            `<td style="padding:4px 8px;border:1px solid #ccc;">${escapeHtmlAdmin(c.estudiante)}</td>` +
-            `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtmlAdmin(c.casilla)}</td>` +
-            `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtmlAdmin(String(c.nota))}</td>` +
-            `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${escapeHtmlAdmin(c.hora)}</td>` +
-            `</tr>`
-        ).join("");
-
-        const tablaHtml = `
-            <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;">
-                <thead>
-                    <tr>
-                        <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Estudiante</th>
-                        <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Casilla</th>
-                        <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Nota</th>
-                        <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Hora</th>
-                    </tr>
-                </thead>
-                <tbody>${filas}</tbody>
-            </table>`;
-
-        const parametros = {
-            profesor: `Administrador (${perfil.correo})`,
-            materia: notasMateria.value,
-            salon: notasSalon.value,
-            trimestre: notasTrimestre.value,
-            fecha: new Date().toLocaleString("es-PA"),
-            tabla_notas: tablaHtml,
-        };
-
-        try {
-            await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, parametros);
-            cambiosPendientesRespaldoAdmin = [];
-        } catch (err) {
-            console.error("❌ No se pudo enviar el respaldo automático por correo:", err);
-            reiniciarTemporizadorRespaldoAdmin();
-        }
-    }
-
-    async function guardarNotasGrupo(esAutomatico = false) {
-
-        const materia = notasMateria.value.trim();
-        const trimestre = notasTrimestre.value;
-        const hoy = new Date().toISOString().slice(0, 10);
-
-        const inputsTema = Array.from(tablaNotasGrupo.parentElement.querySelectorAll(".input-tema-columna"));
-        const temaPorCasilla = {};
-        for (const inputTema of inputsTema) {
-            const valorActual = inputTema.value.trim();
-            temaPorCasilla[claveCasilla(inputTema.dataset.tipo, parseInt(inputTema.dataset.numero, 10))] = valorActual || null;
-            if (valorActual !== inputTema.dataset.temaGuardado) {
-                await actualizarTemaCasilla(inputTema.dataset.tipo, parseInt(inputTema.dataset.numero, 10), valorActual);
-                inputTema.dataset.temaGuardado = valorActual;
-            }
-        }
-
-        const inputs = tablaNotasGrupo.querySelectorAll(".input-nota-grupo");
-        const aGuardar = [];
-
-        inputs.forEach((input) => {
-            const valor = input.value.trim();
-            if (valor === "") return;
-
-            const notaNum = parseFloat(valor);
-            if (isNaN(notaNum)) return;
-
-            if (esAutomatico && input.dataset.ultimoValorGuardado === valor) return;
-
-            aGuardar.push({
-                input,
-                correo: input.dataset.correo || null,
-                estudianteId: input.dataset.estudianteId || null,
-                notaId: input.dataset.notaId || null,
-                tipo: input.dataset.tipo,
-                numero: parseInt(input.dataset.numero, 10),
-                nota: notaNum
-            });
-        });
-
-        if (aGuardar.length === 0) {
-            if (!esAutomatico) alert("No escribiste ninguna nota para guardar.");
-            return;
-        }
-
-        if (!esAutomatico) btnGuardarNotasGrupo.disabled = true;
-
-        estadoGuardadoNotas.textContent = esAutomatico
-            ? "Autoguardando..."
-            : `Guardando 0 / ${aGuardar.length}...`;
-        estadoGuardadoNotas.className = "small text-primary";
-
-        let exitosas = 0;
-        let fallidas = 0;
-
-        for (let i = 0; i < aGuardar.length; i++) {
-
-            const item = aGuardar[i];
-
-            if (item.notaId) {
-
-                const { error } = await supabase
-                    .from("notas")
-                    .update({
-                        nota: item.nota,
-                        fecha: hoy
-                    })
-                    .eq("id", item.notaId);
-
-                if (error) {
-                    console.error("❌ Error al actualizar nota:", item, error);
-                    fallidas++;
-                } else {
-                    exitosas++;
-                    item.input.dataset.ultimoValorGuardado = String(item.nota);
-                    registrarCambioParaRespaldoAdmin(item);
-                }
-
-            } else {
-
-                const { data: insertado, error } = await supabase
-                    .from("notas")
-                    .insert([{
-                        correo: item.correo,
-                        estudiante_id: item.estudianteId,
-                        materia,
-                        tipo: item.tipo,
-                        numero: item.numero,
-                        tema: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || null,
-                        actividad: temaPorCasilla[claveCasilla(item.tipo, item.numero)] || `${item.tipo === "apreciacion" ? "Apreciación" : "Ejercicio"} ${item.numero}`,
-                        fecha: hoy,
-                        nota: item.nota,
-                        observacion: item.correo
-                            ? "Agregada por el administrador"
-                            : "Agregada por el administrador (estudiante aún sin cuenta)",
-                        trimestre,
-                        estado: "Activa"
-                    }])
-                    .select("id");
-
-                if (error) {
-                    console.error("❌ Error al insertar nota:", item, error);
-                    fallidas++;
-                } else {
-                    exitosas++;
-                    item.input.dataset.ultimoValorGuardado = String(item.nota);
-
-                    if (insertado && insertado[0]) {
-                        item.input.dataset.notaId = insertado[0].id;
-                    }
-                    registrarCambioParaRespaldoAdmin(item);
-                }
-            }
-
-            if (!esAutomatico) {
-                estadoGuardadoNotas.textContent = `Guardando ${i + 1} / ${aGuardar.length}...`;
-            }
-        }
-
-        if (!esAutomatico) btnGuardarNotasGrupo.disabled = false;
-
-        const horaActual = new Date().toLocaleTimeString("es-PA", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit"
-        });
-
-        if (fallidas === 0) {
-            estadoGuardadoNotas.textContent = esAutomatico
-                ? `✅ Autoguardado (${exitosas}) a las ${horaActual}`
-                : `✅ ${exitosas} nota(s) guardada(s) correctamente.`;
-            estadoGuardadoNotas.className = "small text-success";
-        } else {
-            estadoGuardadoNotas.textContent = `⚠️ ${exitosas} guardada(s), ${fallidas} con error.`;
-            estadoGuardadoNotas.className = "small text-danger";
-        }
-
-        if (!esAutomatico) {
-            cargarGrupoNotas();
-            cargarNotas();
-        }
-    }
-
-    if (btnGuardarNotasGrupo) {
-        btnGuardarNotasGrupo.addEventListener("click", () => guardarNotasGrupo(false));
-    }
-
-    setInterval(() => {
-        if (bloqueTablaNotas && bloqueTablaNotas.style.display !== "none") {
-            guardarNotasGrupo(true);
-        }
-    }, 30000);
-
-    // =================================================
-    // 5.5) VISTA GENERAL POR SALÓN
-    // =================================================
-
-    const vistaGeneralSalon = document.getElementById("vistaGeneralSalon");
-    const vistaGeneralTrimestre = document.getElementById("vistaGeneralTrimestre");
-    const btnCargarVistaGeneral = document.getElementById("btnCargarVistaGeneral");
-    const vistaGeneralContenedor = document.getElementById("vistaGeneralContenedor");
-    const vistaGeneralFiltroMateria = document.getElementById("vistaGeneralFiltroMateria");
-
-    let datosVistaGeneral = null;
-
-    function claveCasillaVG(tipo, numero) {
-        return `${tipo}|${numero}`;
-    }
-
-    // Al abrir el panel, precarga el trimestre que el administrador
-    // tiene configurado como activo (igual que en "Agregar notas"),
-    // para que no se quede en "Trimestre 1" por defecto y parezca
-    // que no hay notas cuando en realidad están en otro trimestre.
-    let vistaGeneralTrimestreYaPrecargado = false;
-    async function precargarTrimestreActivoVistaGeneral() {
-        if (vistaGeneralTrimestreYaPrecargado || !vistaGeneralTrimestre) return;
-        vistaGeneralTrimestreYaPrecargado = true;
-
-        const { data: cfg, error } = await supabase
-            .from("configuracion")
-            .select("trimestre_activo")
-            .limit(1)
-            .single();
-
-        if (!error && cfg?.trimestre_activo) {
-            vistaGeneralTrimestre.value = cfg.trimestre_activo;
-        }
-    }
-    window.precargarTrimestreActivoVistaGeneral = precargarTrimestreActivoVistaGeneral;
-
-    async function construirDatosVistaGeneral(salon, trimestre) {
-        const { data: estudiantesSalon, error: errEst } = await supabase
-            .from("estudiantes")
-            .select("id, codigo, nombre, correo, es_prueba")
-            .eq("salon", salon)
-            .order("nombre", { ascending: true });
-
-        if (errEst) throw errEst;
-
-        const estudiantes = (estudiantesSalon || []).filter((e) => !e.es_prueba);
-        if (estudiantes.length === 0) return { estudiantes: [], materias: [] };
-
-        // El id del estudiante es la fuente de verdad (ver nota en
-        // cargarSalon()/cargarNotasGrupo() sobre por qué). Se busca
-        // siempre por estudiante_id, y por correo solo como respaldo
-        // para notas antiguas todavía no migradas.
-        const todosLosIdsVG = estudiantes.map((e) => e.id);
-        const correoAIdVG = {};
-        estudiantes.forEach((e) => { if (e.correo) correoAIdVG[e.correo] = e.id; });
-        const correosActualesVG = Object.keys(correoAIdVG);
-
-        let notas = [];
-        const idsYaVistos = new Set();
-
-        if (todosLosIdsVG.length > 0) {
-            const { data, error } = await supabase
-                .from("notas")
-                .select("correo, estudiante_id, materia, tipo, numero, nota, tema, estado")
-                .eq("trimestre", trimestre)
-                .in("estudiante_id", todosLosIdsVG);
-            if (error) throw error;
-            (data || []).forEach((n) => { idsYaVistos.add(n.estudiante_id); notas.push(n); });
-        }
-
-        if (correosActualesVG.length > 0) {
-            const { data, error } = await supabase
-                .from("notas")
-                .select("correo, estudiante_id, materia, tipo, numero, nota, tema, estado")
-                .eq("trimestre", trimestre)
-                .in("correo", correosActualesVG);
-            if (error) throw error;
-            (data || []).forEach((n) => {
-                if (n.estudiante_id) return; // ya se contó arriba
-                const idEst = correoAIdVG[n.correo];
-                if (idEst && !idsYaVistos.has(idEst)) notas.push({ ...n, estudiante_id: idEst });
-            });
-        }
-
-        const [{ data: columnasDef }, { data: temasCasillas }] = await Promise.all([
-            supabase.from("columnas_materia").select("materia, tipo, numero").eq("trimestre", trimestre),
-            supabase.from("temas_casillas").select("materia, tipo, numero, tema").eq("trimestre", trimestre).eq("salon", salon)
-        ]);
-
-        const columnasPorMateria = {};
-        const temaPorCasilla = {};
-
-        function agregarCol(materia, tipo, numero) {
-            if (!materia || !tipo || !numero) return;
-            if (!columnasPorMateria[materia]) columnasPorMateria[materia] = { apreciacion: new Set(), ejercicio: new Set() };
-            if (columnasPorMateria[materia][tipo]) columnasPorMateria[materia][tipo].add(numero);
-        }
-
-        function guardarTemaSiFalta(materia, tipo, numero, tema) {
-            if (!tema || !tema.trim()) return;
-            if (!temaPorCasilla[materia]) temaPorCasilla[materia] = {};
-            const clave = claveCasillaVG(tipo, numero);
-            if (!temaPorCasilla[materia][clave]) temaPorCasilla[materia][clave] = tema.trim();
-        }
-
-        (columnasDef || []).forEach((c) => agregarCol(c.materia, c.tipo, c.numero));
-        (temasCasillas || []).forEach((c) => {
-            agregarCol(c.materia, c.tipo, c.numero);
-            guardarTemaSiFalta(c.materia, c.tipo, c.numero, c.tema);
-        });
-
-        notas.forEach((n) => {
-            const tipoNorm = (n.tipo || "").toLowerCase();
-            if (tipoNorm === "apreciacion" || tipoNorm === "ejercicio") {
-                agregarCol(n.materia, tipoNorm, n.numero);
-                guardarTemaSiFalta(n.materia, tipoNorm, n.numero, n.tema);
-            }
-        });
-
-        const claveEstudianteVG = (n) => `id:${n.estudiante_id}`;
-        const notasPorEstudianteMateria = {};
-
-        notas.forEach((n) => {
-            const claveEst = claveEstudianteVG(n);
-            if (!notasPorEstudianteMateria[claveEst]) notasPorEstudianteMateria[claveEst] = {};
-            if (!notasPorEstudianteMateria[claveEst][n.materia]) notasPorEstudianteMateria[claveEst][n.materia] = {};
-            notasPorEstudianteMateria[claveEst][n.materia][claveCasillaVG(n.tipo, n.numero)] = n;
-        });
-
-        const materiasOrdenadas = materiasParaSalon(salon);
-        const materias = [];
-
-        materiasOrdenadas.forEach((materia) => {
-            const cols = columnasPorMateria[materia];
-            if (!cols) return;
-
-            const apr = [...cols.apreciacion].sort((a, b) => a - b);
-            const eje = [...cols.ejercicio].sort((a, b) => a - b);
-            const temas = temaPorCasilla[materia] || {};
-
-            const filas = estudiantes.map((est) => {
-                const claveEst = `id:${est.id}`;
-                const notasEstMateria = notasPorEstudianteMateria[claveEst]?.[materia] || {};
-
-                const celdasApr = apr.map((n) => notasEstMateria[claveCasillaVG("apreciacion", n)] || null);
-                const celdasEje = eje.map((n) => notasEstMateria[claveCasillaVG("ejercicio", n)] || null);
-
-                const valoresApr = celdasApr.filter((n) => n && n.estado !== "Intencional");
-                const valoresEje = celdasEje.filter((n) => n && n.estado !== "Intencional");
-
-                const promApr = valoresApr.length > 0
-                    ? valoresApr.reduce((a, b) => a + Number(b.nota), 0) / valoresApr.length : null;
-                const promEje = valoresEje.length > 0
-                    ? valoresEje.reduce((a, b) => a + Number(b.nota), 0) / valoresEje.length : null;
-
-                let promFinal = null;
-                if (promApr !== null && promEje !== null) promFinal = (promApr + promEje) / 2;
-                else if (promApr !== null) promFinal = promApr;
-                else if (promEje !== null) promFinal = promEje;
-
-                return {
-                    nombre: est.nombre,
-                    correo: est.correo,
-                    sinCuenta: !est.correo,
-                    celdasApr, celdasEje,
-                    promApr, promEje, promFinal
-                };
-            });
-
-            const tieneNotasReales = filas.some((f) => 
-                f.celdasApr.some((n) => n !== null && n.nota !== null && n.nota !== undefined) || 
-                f.celdasEje.some((n) => n !== null && n.nota !== null && n.nota !== undefined)
-            );
-
-            if (tieneNotasReales) {
-                materias.push({ materia, apr, eje, temas, filas });
-            }
-        });
-
-        return { estudiantes, materias };
-    }
-
-    function renderVistaGeneralHTML(datos, salon, trimestre, filtroMateria) {
-        if (datos.materias.length === 0) {
-            vistaGeneralContenedor.innerHTML = `<p class="text-muted">Todavía no hay ninguna nota registrada para este salón en ${escapeHtmlAdmin(trimestre)}.</p>`;
-            return;
-        }
-
-        const materiasAMostrar = filtroMateria
-            ? datos.materias.filter((m) => m.materia === filtroMateria)
-            : datos.materias;
-
-        let html = `<h4 class="mb-3">${ETIQUETAS_SALON[salon] || salon} — ${escapeHtmlAdmin(trimestre)}</h4>`;
-
-        materiasAMostrar.forEach(({ materia, apr, eje, temas, filas }) => {
-            const profesor = MATERIA_A_PROFESOR[materia] || "(sin asignar)";
-
-            let filaEncabezado = `<tr><th style="min-width:160px;">Estudiante</th>`;
-            apr.forEach((n) => { filaEncabezado += `<th class="text-center">Apr.${n}</th>`; });
-            if (apr.length > 0) filaEncabezado += `<th class="text-center fw-bold">Prom.Apr.</th>`;
-            eje.forEach((n) => { filaEncabezado += `<th class="text-center">Eje.${n}</th>`; });
-            if (eje.length > 0) filaEncabezado += `<th class="text-center fw-bold">Prom.Eje.</th>`;
-            filaEncabezado += `<th class="text-center fw-bold table-success">Prom.Final</th></tr>`;
-
-            let filaTemas = `<tr class="table-light"><th class="small text-muted fw-normal">Tema:</th>`;
-            apr.forEach((n) => {
-                const tema = temas[claveCasillaVG("apreciacion", n)] || "-";
-                filaTemas += `<th class="small text-muted fw-normal fst-italic">${escapeHtmlAdmin(tema)}</th>`;
-            });
-            if (apr.length > 0) filaTemas += `<th></th>`;
-            eje.forEach((n) => {
-                const tema = temas[claveCasillaVG("ejercicio", n)] || "-";
-                filaTemas += `<th class="small text-muted fw-normal fst-italic">${escapeHtmlAdmin(tema)}</th>`;
-            });
-            if (eje.length > 0) filaTemas += `<th></th>`;
-            filaTemas += `<th></th></tr>`;
-
-            const celdaHtml = (n) => {
-                if (!n) return `<td class="text-center text-muted">—</td>`;
-                if (n.estado === "Intencional") return `<td class="text-center" title="Falta intencional">⚠️</td>`;
-                return `<td class="text-center">${escapeHtmlAdmin(Number(n.nota).toFixed(1))}</td>`;
-            };
-
-            let filasCuerpo = "";
-            filas.forEach((fila) => {
-                const enRiesgo = fila.promFinal !== null && fila.promFinal < PROMEDIO_MINIMO_APROBAR;
-
-                const nombreClickeable = fila.correo
-                    ? `<a href="estudiante.html?correo=${encodeURIComponent(fila.correo)}" target="_blank" class="fw-bold text-decoration-none text-primary" title="Hacer clic para abrir y editar el boletín de este estudiante">${escapeHtmlAdmin(fila.nombre)} 👁️</a>`
-                    : escapeHtmlAdmin(fila.nombre);
-
-                filasCuerpo += `<tr class="${enRiesgo ? "table-danger" : (fila.sinCuenta ? "table-warning" : "")}">`;
-                filasCuerpo += `<td>${nombreClickeable}${fila.sinCuenta ? ' <span class="badge bg-warning text-dark">sin cuenta</span>' : ""}</td>`;
-                fila.celdasApr.forEach((n) => { filasCuerpo += celdaHtml(n); });
-                if (apr.length > 0) filasCuerpo += `<td class="text-center fw-bold">${fila.promApr !== null ? fila.promApr.toFixed(1) : "-"}</td>`;
-                fila.celdasEje.forEach((n) => { filasCuerpo += celdaHtml(n); });
-                if (eje.length > 0) filasCuerpo += `<td class="text-center fw-bold">${fila.promEje !== null ? fila.promEje.toFixed(1) : "-"}</td>`;
-                filasCuerpo += `<td class="text-center fw-bold ${enRiesgo ? "text-danger" : ""}">${fila.promFinal !== null ? fila.promFinal.toFixed(1) : "-"}</td>`;
-                filasCuerpo += `</tr>`;
-            });
-
-            html += `
-                <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
-                    <h6 class="m-0 font-weight-bold">${escapeHtmlAdmin(materia)}</h6>
-                    <span class="small text-muted"><strong>Profesor(a):</strong> ${escapeHtmlAdmin(profesor)}</span>
                 </div>
-                <div class="table-responsive mb-2">
-                    <table class="table table-sm table-bordered align-middle">
-                        <thead class="table-light">${filaEncabezado}${filaTemas}</thead>
-                        <tbody>${filasCuerpo}</tbody>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-notas-seccion">
+                        <i class="fa-solid fa-clipboard-list fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Agregar notas</span>
+                        <span class="small text-muted d-none d-md-block">Por sección</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-info w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-vista-general">
+                        <i class="fa-solid fa-table-list fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Vista general</span>
+                        <span class="small text-muted d-none d-md-block">Todas las materias</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-notas-todos">
+                        <i class="fa-solid fa-file-lines fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Notas de todos</span>
+                        <span class="small text-muted d-none d-md-block">Todos los estudiantes</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-warning w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-trimestres">
+                        <i class="fa-solid fa-calendar-days fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Trimestres</span>
+                        <span class="small text-muted d-none d-md-block">Fechas y trimestre activo</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <a href="datos.html" target="_blank" class="btn btn-outline-info w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-address-card fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Datos de estudiantes</span>
+                        <span class="small text-muted d-none d-md-block">Acudientes y contacto</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ---- Asistencia ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2">
+                <i class="fa-solid fa-clipboard-check me-1"></i> Asistencia
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 mb-4">
+                <div class="col">
+                    <a href="tomar-asistencia.html" target="_blank" class="btn btn-outline-success w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-square-check fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Tomar asistencia</span>
+                        <span class="small text-muted d-none d-md-block">Registro del día</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="historial-asistencia.html" target="_blank" class="btn btn-outline-secondary w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-clock-rotate-left fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Historial de asistencia</span>
+                        <span class="small text-muted d-none d-md-block">Por estudiante o salón</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="estadisticas_asistencias.html" target="_blank" class="btn btn-outline-info w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-chart-pie fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Estadísticas de asistencia</span>
+                        <span class="small text-muted d-none d-md-block">Resumen general</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="excepciones_horario.html" target="_blank" class="btn btn-outline-warning w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-calendar-xmark fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Excepciones de horario</span>
+                        <span class="small text-muted d-none d-md-block">Días y horas especiales</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ---- Personas ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2">
+                <i class="fa-solid fa-people-group me-1"></i> Personas
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 mb-4">
+                <div class="col">
+                    <button type="button" class="btn btn-outline-success w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-profesores">
+                        <i class="fa-solid fa-chalkboard-user fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Gestionar profesores</span>
+                        <span class="small text-muted d-none d-md-block">Salón y permisos</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-usuarios">
+                        <i class="fa-solid fa-users fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Usuarios registrados</span>
+                        <span class="small text-muted d-none d-md-block">Ver todos</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <a href="consejero.html" target="_blank" class="btn btn-outline-secondary w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-comments fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Consejería</span>
+                        <span class="small text-muted d-none d-md-block">Panel del consejero</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-secondary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-consejeros">
+                        <i class="fa-solid fa-user-check fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Gestionar consejeros</span>
+                        <span class="small text-muted d-none d-md-block">Autorizar edición de horario por salón</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <a href="mi_horario.html" target="_blank" class="btn btn-outline-primary w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-calendar-week fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Mi horario</span>
+                        <span class="small text-muted d-none d-md-block">Horario personal</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="monitor_estudiantes.html" target="_blank" class="btn btn-outline-danger w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-eye fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Monitor de estudiantes</span>
+                        <span class="small text-muted d-none d-md-block">Horario y tareas por salón, en vivo</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="timbre.html" target="_blank" class="btn btn-outline-dark w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-bell fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Horario de Dirección</span>
+                        <span class="small text-muted d-none d-md-block">Solo marca las horas (Timbre)</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="horario_profesores.html" target="_blank" class="btn btn-outline-dark w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-chalkboard-user fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Horario de profesores</span>
+                        <span class="small text-muted d-none d-md-block">Ver o editar el horario de cualquier profesor(a)</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="horario_salon.html" target="_blank" class="btn btn-outline-dark w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-school fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Horario por salón</span>
+                        <span class="small text-muted d-none d-md-block">Cargar el horario completo de cada salón</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ---- Sistema ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2">
+                <i class="fa-solid fa-gear me-1"></i> Sistema
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+                <div class="col">
+                    <button type="button" class="btn btn-outline-warning w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-preguntas">
+                        <i class="fa-solid fa-key fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Preguntas de seguridad</span>
+                        <span class="small text-muted d-none d-md-block">De un estudiante</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-secondary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-actividad">
+                        <i class="fa-solid fa-chart-line fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Actividad</span>
+                        <span class="small text-muted d-none d-md-block">Visitas a la plataforma</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-danger w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-consultas">
+                        <i class="fa-solid fa-magnifying-glass-chart fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Control de consultas</span>
+                        <span class="small text-muted d-none d-md-block">Quién revisó sus notas</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <a href="consulta.html" target="_blank" class="btn btn-outline-info w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-magnifying-glass fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Consulta</span>
+                        <span class="small text-muted d-none d-md-block">Búsqueda rápida</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="estadisticas.html" target="_blank" class="btn btn-outline-secondary w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-right-to-bracket fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Estadísticas de accesos</span>
+                        <span class="small text-muted d-none d-md-block">Entradas y salidas de todos los roles</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra "Volver al menú", visible solo dentro de una sección -->
+        <div id="volverMenuBar" class="d-none mb-3">
+            <button type="button" id="btnVolverMenu" class="btn btn-outline-secondary">
+                <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i> Volver al menú
+            </button>
+        </div>
+
+        <!-- ===================== GESTIONAR ESTUDIANTES ===================== -->
+        <div id="panel-estudiantes" class="panel-seccion d-none">
+        <section class="card shadow border-success border-2 mb-4">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-user-pen me-2" aria-hidden="true"></i>
+                    Gestionar estudiantes (nombre y cédula)
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Revisa y corrige el nombre o la cédula de cualquier estudiante, o agrega
+                    estudiantes nuevos. Los cambios se guardan solos al salir de cada casilla.
+                </p>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-12 col-md-4">
+                        <label for="estFiltroSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-success me-1"></i> Salón
+                        </label>
+                        <select id="estFiltroSalon" class="form-select">
+                            <option value="">Todos los salones</option>
+                            <option value="8A">8°A</option>
+                            <option value="8B">8°B</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-8 text-md-end">
+                        <span id="estadoGuardadoEstudiantes" class="small text-muted"></span>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width:220px;">Nombre</th>
+                                <th style="min-width:150px;">Cédula</th>
+                                <th style="min-width:110px;">Salón</th>
+                                <th style="min-width:120px;">Estado</th>
+                                <th style="min-width:130px;" title="Permite que este estudiante publique tareas para todo su salón">
+                                    Publicar tareas
+                                </th>
+                                <th style="width:60px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaEstudiantesAdmin">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">
+                                    Cargando estudiantes...
+                                </td>
+                            </tr>
+                        </tbody>
                     </table>
                 </div>
-            `;
-        });
 
-        vistaGeneralContenedor.innerHTML = html;
-    }
+                <hr>
 
-    async function cargarVistaGeneral() {
-        const salon = vistaGeneralSalon.value;
-        const trimestre = vistaGeneralTrimestre.value;
+                <h3 class="h6 mb-3">
+                    <i class="fa-solid fa-user-plus text-success me-1"></i>
+                    Agregar estudiante nuevo
+                </h3>
 
-        if (!salon) {
-            alert("Selecciona un salón.");
-            return;
-        }
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label for="nuevoEstNombre" class="form-label fw-semibold">Nombre completo</label>
+                        <input type="text" id="nuevoEstNombre" class="form-control" placeholder="Ej: Pérez, Juan">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label for="nuevoEstCedula" class="form-label fw-semibold">Cédula</label>
+                        <input type="text" id="nuevoEstCedula" class="form-control" placeholder="8-123-4567">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label for="nuevoEstSalon" class="form-label fw-semibold">Salón</label>
+                        <select id="nuevoEstSalon" class="form-select">
+                            <option value="8A">8°A</option>
+                            <option value="8B">8°B</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                            <option value="__otro__">Otro salón...</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-2" id="bloqueOtroSalon" style="display:none;">
+                        <label for="nuevoEstSalonOtro" class="form-label fw-semibold">¿Cuál salón?</label>
+                        <input type="text" id="nuevoEstSalonOtro" class="form-control" placeholder="Ej: 7A">
+                    </div>
+                    <div class="col-12 col-md-1">
+                        <button type="button" id="btnAgregarEstudiante" class="btn btn-success w-100">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
 
-        const textoOriginal = btnCargarVistaGeneral.innerHTML;
-        btnCargarVistaGeneral.disabled = true;
-        btnCargarVistaGeneral.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
-        vistaGeneralContenedor.innerHTML = "";
+                <div id="mensajeEstudiantesAdmin" class="alert d-none mt-3 mb-0" role="alert"></div>
 
-        try {
-            datosVistaGeneral = await construirDatosVistaGeneral(salon, trimestre);
-            datosVistaGeneral.salon = salon;
-            datosVistaGeneral.trimestre = trimestre;
+            </div>
+        </section>
+        </div>
 
-            vistaGeneralFiltroMateria.innerHTML = `<option value="">Todas las materias</option>` +
-                datosVistaGeneral.materias.map((m) => `<option value="${escapeHtmlAdmin(m.materia)}">${escapeHtmlAdmin(m.materia)}</option>`).join("");
+        <!-- ===================== AGREGAR NOTAS POR SECCIÓN ===================== -->
+        <div id="panel-notas-seccion" class="panel-seccion d-none">
+        <section class="card shadow border-primary border-2 mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-clipboard-list me-2" aria-hidden="true"></i>
+                    Agregar notas por sección
+                </h2>
+            </div>
+            <div class="card-body">
 
-            const materiaSeleccionada = vistaGeneralFiltroMateria.value;
-            vistaGeneralFiltroMateria.disabled = datosVistaGeneral.materias.length === 0;
+                <p class="text-muted small mb-4">
+                    Elige el salón y la materia: la tabla carga sola con las
+                    <strong>10 casillas de Apreciación</strong> y las <strong>10 de Ejercicio</strong>
+                    del trimestre activo, para que completes las notas de todo el grupo en una sola vista.
+                </p>
 
-            renderVistaGeneralHTML(datosVistaGeneral, salon, trimestre, materiaSeleccionada);
+                <div class="row g-3 align-items-end">
 
-        } catch (error) {
-            console.error("❌ Error al cargar la vista general:", error);
-            vistaGeneralContenedor.innerHTML = `<p class="text-danger">Error al cargar: ${escapeHtmlAdmin(error.message || String(error))}</p>`;
-        } finally {
-            btnCargarVistaGeneral.disabled = false;
-            btnCargarVistaGeneral.innerHTML = textoOriginal;
-        }
-    }
-
-    if (btnCargarVistaGeneral) {
-        btnCargarVistaGeneral.addEventListener("click", cargarVistaGeneral);
-    }
-
-    if (vistaGeneralFiltroMateria) {
-        vistaGeneralFiltroMateria.addEventListener("change", () => {
-            if (!datosVistaGeneral) return;
-            renderVistaGeneralHTML(datosVistaGeneral, datosVistaGeneral.salon, datosVistaGeneral.trimestre, vistaGeneralFiltroMateria.value);
-        });
-    }
-
-    // =================================================
-    // 6) BOTONES DE RECARGA
-    // =================================================
-
-    btnRecargarUsuarios.addEventListener("click", cargarUsuarios);
-
-    // =================================================
-    // BOTÓN "DESCARGAR RESPALDO" (Excel con todas las tablas)
-    // =================================================
-    const TABLAS_RESPALDO = [
-        "accesos", "actividades_apreciacion", "actividades_calificaciones",
-        "apreciaciones_estado", "asistencia_columnas", "asistencia_detalle",
-        "asistencias", "columnas_materia", "comportamiento_detalle",
-        "config_pesos_apreciacion", "configuracion", "consejeros",
-        "datos_estudiante", "estudiantes", "excepciones_horario",
-        "franjas_horario", "horario_profesor", "horario_salon", "materias",
-        "notas", "profesor_materias", "profesor_salones", "profesores",
-        "salones", "task_assignments", "tasks", "temas_casillas", "usuarios",
-        "visitas"
-    ];
-
-    async function descargarTablaCompleta(nombreTabla) {
-        const TAMANO_PAGINA = 1000;
-        const filas = [];
-        let desde = 0;
-        while (true) {
-            const { data, error } = await supabase
-                .from(nombreTabla)
-                .select("*")
-                .range(desde, desde + TAMANO_PAGINA - 1);
-            if (error) {
-                console.error(`No se pudo leer la tabla "${nombreTabla}":`, error);
-                break;
-            }
-            filas.push(...data);
-            if (data.length < TAMANO_PAGINA) break;
-            desde += TAMANO_PAGINA;
-        }
-        return filas;
-    }
-
-    async function exportarRespaldoCompleto() {
-        const textoOriginal = btnDescargarRespaldo.innerHTML;
-        btnDescargarRespaldo.disabled = true;
-        try {
-            const XLSX = await import("https://esm.sh/xlsx@0.18.5");
-            const libro = XLSX.utils.book_new();
-
-            for (const tabla of TABLAS_RESPALDO) {
-                btnDescargarRespaldo.innerHTML =
-                    `<i class="fa-solid fa-spinner fa-spin me-1"></i>${tabla}...`;
-                const filas = await descargarTablaCompleta(tabla);
-                const hoja = filas.length > 0
-                    ? XLSX.utils.json_to_sheet(filas)
-                    : XLSX.utils.aoa_to_sheet([["(sin datos)"]]);
-                XLSX.utils.book_append_sheet(libro, hoja, tabla.substring(0, 31));
-            }
-
-            const fecha = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(libro, `respaldo_control_notas_${fecha}.xlsx`);
-        } catch (error) {
-            console.error("❌ Error al generar el respaldo:", error);
-            alert("No se pudo generar el respaldo. Revisa tu conexión e intenta de nuevo.");
-        } finally {
-            btnDescargarRespaldo.disabled = false;
-            btnDescargarRespaldo.innerHTML = textoOriginal;
-        }
-    }
-
-    btnDescargarRespaldo.addEventListener("click", exportarRespaldoCompleto);
-    btnRecargarNotas.addEventListener("click", cargarNotas);
-
-    // =================================================
-    // 6.5) GESTIONAR PROFESORES (salones + permiso para
-    // agregar estudiantes). Se guarda solo al marcar/
-    // desmarcar cada casilla, sin necesidad de un botón
-    // "Guardar". Un profesor puede tener varios salones
-    // a la vez (tabla profesor_salones), y la lista de
-    // salones disponibles sale de la tabla "salones"
-    // (administrable en salones.html) en vez de venir
-    // fija en el código.
-    // =================================================
-
-    const tablaProfesoresAdmin = document.getElementById("tablaProfesoresAdmin");
-    const mensajeProfesores = document.getElementById("mensajeProfesores");
-
-    let salonesDisponiblesCache = [];
-
-    function mostrarMensajeProfesores(texto, tipo) {
-        if (!mensajeProfesores) return;
-        mensajeProfesores.textContent = texto;
-        mensajeProfesores.className = `alert alert-${tipo}`;
-        mensajeProfesores.classList.remove("d-none");
-        setTimeout(() => mensajeProfesores.classList.add("d-none"), 3000);
-    }
-
-    async function cargarSalonesDisponiblesCache() {
-        const { data, error } = await supabase
-            .from("salones")
-            .select("codigo, nombre_visible")
-            .eq("activo", true)
-            .order("orden", { ascending: true });
-
-        if (error) {
-            console.error("❌ Error al cargar salones:", error);
-            salonesDisponiblesCache = [];
-            return;
-        }
-        salonesDisponiblesCache = data || [];
-    }
-
-    function textoResumenSalones(codigosSeleccionados) {
-        if (!codigosSeleccionados || codigosSeleccionados.length === 0) return "-- Sin asignar --";
-        return codigosSeleccionados.join(", ");
-    }
-
-    function menuChecksSalones(correo, codigosSeleccionados) {
-        if (salonesDisponiblesCache.length === 0) {
-            return `<span class="text-muted small">No hay salones creados. <a href="salones.html">Crear en Salones</a>.</span>`;
-        }
-
-        const opciones = salonesDisponiblesCache.map((s) => {
-            const marcado = codigosSeleccionados.includes(s.codigo) ? "checked" : "";
-            return `
-                <li class="px-2">
-                    <div class="form-check">
-                        <input class="form-check-input check-salon-profesor" type="checkbox"
-                            value="${escapeHtmlAdmin(s.codigo)}"
-                            data-correo="${escapeHtmlAdmin(correo)}"
-                            id="chk-${escapeHtmlAdmin(correo)}-${escapeHtmlAdmin(s.codigo)}"
-                            ${marcado}>
-                        <label class="form-check-label" for="chk-${escapeHtmlAdmin(correo)}-${escapeHtmlAdmin(s.codigo)}">
-                            ${escapeHtmlAdmin(s.nombre_visible)}
+                    <div class="col-6 col-md-4">
+                        <label for="notasSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-primary me-1"></i> Salón
                         </label>
+                        <select id="notasSalon" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="8A">8°A</option>
+                            <option value="8B">8°B</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
                     </div>
-                </li>`;
-        }).join("");
 
-        return `
-            <div class="dropdown">
-                <button class="btn btn-outline-secondary btn-sm dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                    ${escapeHtmlAdmin(textoResumenSalones(codigosSeleccionados))}
+                    <div class="col-6 col-md-4">
+                        <label for="notasMateria" class="form-label fw-semibold">
+                            <i class="fa-solid fa-book text-primary me-1"></i> Materia
+                        </label>
+                        <select id="notasMateria" class="form-select" disabled>
+                            <option value="">Seleccione primero un salón</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <label for="notasTrimestre" class="form-label fw-semibold">
+                            <i class="fa-solid fa-calendar text-primary me-1"></i> Trimestre activo
+                        </label>
+                        <input type="text" id="notasTrimestre" class="form-control fw-bold text-primary" readonly value="—">
+                    </div>
+
+                </div>
+
+                <!-- TABLA DEL GRUPO (se llena automáticamente al elegir salón y materia) -->
+                <div id="bloqueTablaNotas" class="mt-4" style="display:none;">
+
+                    <hr>
+
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+                        <button type="button" id="btnGuardarNotasGrupo" class="btn btn-success">
+                            <i class="fa-solid fa-floppy-disk me-1"></i>
+                            Guardar todas las notas
+                        </button>
+                        <button type="button" id="btnImprimirPDF" class="btn btn-outline-danger">
+                            <i class="fa-solid fa-file-pdf me-1"></i>
+                            Imprimir PDF
+                        </button>
+                        <span id="estadoGuardadoNotas" class="small"></span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle border">
+                            <thead class="table-light">
+                                <tr id="cabeceraNotasGrupo">
+                                    <th style="width:45px;">#</th>
+                                    <th>Estudiante</th>
+                                </tr>
+                                <tr id="cabeceraTemasGrupo"></tr>
+                            </thead>
+                            <tbody id="tablaNotasGrupo"></tbody>
+                        </table>
+                    </div>
+
+                    <p class="text-muted small mt-2 mb-0">
+                        <i class="fa-solid fa-circle-info me-1"></i>
+                        Haz clic sobre el nombre azul de cualquier estudiante para abrir y revisar su boletín personal. 
+                        Presiona <kbd>Enter</kbd> para bajar a la siguiente fila dentro de la misma columna. 
+                        El sistema <strong>autoguarda cada 30 segundos</strong> lo que hayas cambiado.
+                    </p>
+
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== VISTA GENERAL POR SALÓN ===================== -->
+        <div id="panel-vista-general" class="panel-seccion d-none">
+        <section class="card shadow border-info border-2 mb-4">
+            <div class="card-header bg-info text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-table-list me-2" aria-hidden="true"></i>
+                    Vista general de calificaciones (todas las materias)
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Elige un salón y un trimestre para ver, una tabla por materia, a todos los
+                    estudiantes de ese salón con sus notas. Haz clic sobre el nombre del estudiante para abrir su boletín individual.
+                </p>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-6 col-md-3">
+                        <label for="vistaGeneralSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-info me-1"></i> Salón
+                        </label>
+                        <select id="vistaGeneralSalon" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="8A">8°A</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label for="vistaGeneralTrimestre" class="form-label fw-semibold">
+                            <i class="fa-solid fa-calendar text-info me-1"></i> Trimestre
+                        </label>
+                        <select id="vistaGeneralTrimestre" class="form-select">
+                            <option value="Trimestre 1">Trimestre 1</option>
+                            <option value="Trimestre 2">Trimestre 2</option>
+                            <option value="Trimestre 3">Trimestre 3</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <button type="button" id="btnCargarVistaGeneral" class="btn btn-info text-white w-100">
+                            <i class="fa-solid fa-magnifying-glass me-1"></i>
+                            Cargar vista general
+                        </button>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label for="vistaGeneralFiltroMateria" class="form-label fw-semibold">
+                            <i class="fa-solid fa-filter text-info me-1"></i> Filtrar por materia
+                        </label>
+                        <select id="vistaGeneralFiltroMateria" class="form-select" disabled>
+                            <option value="">Todas las materias</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="vistaGeneralContenedor" class="mt-4"></div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== ACTIVIDAD DE ESTUDIANTES ===================== -->
+        <div id="panel-actividad" class="panel-seccion d-none">
+        <section class="card shadow border-secondary border-2 mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-chart-line me-2" aria-hidden="true"></i>
+                    Actividad de estudiantes (visitas a la plataforma)
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Cuántas veces entró cada estudiante desde que se activó este
+                    seguimiento, en cuántos días distintos, y aproximadamente cuánto
+                    tiempo estuvo conectado en total.
+                </p>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-6 col-md-3">
+                        <label for="visitasSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-secondary me-1"></i> Salón
+                        </label>
+                        <select id="visitasSalon" class="form-select">
+                            <option value="">Todos los salones</option>
+                            <option value="8A">8°A</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <button type="button" id="btnCargarVisitas" class="btn btn-secondary w-100">
+                            <i class="fa-solid fa-magnifying-glass me-1"></i> Ver actividad
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Estudiante</th>
+                                <th id="thSalonVisitas" class="text-center" style="display:none;">Salón</th>
+                                <th class="text-center">Visitas</th>
+                                <th class="text-center">Días distintos</th>
+                                <th class="text-center">Tiempo total</th>
+                                <th class="text-center">Primera visita</th>
+                                <th class="text-center">Última visita</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaVisitas">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">
+                                    Elegí un salón (o "Todos los salones") y tocá "Ver actividad".
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== CONTROL DE CONSULTAS DE NOTAS ===================== -->
+        <div id="panel-consultas" class="panel-seccion d-none">
+        <section class="card shadow border-danger border-2 mb-4">
+            <div class="card-header bg-danger text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-magnifying-glass-chart me-2" aria-hidden="true"></i>
+                    Control de consultas de notas
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Cada vez que alguien busca notas desde "Ver mis notas" con una cédula (tenga o no
+                    cuenta creada) queda registrado aquí, junto con si descargó el PDF y cuándo fue.
+                </p>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-6 col-md-3">
+                        <label for="consultasSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-secondary me-1"></i> Salón
+                        </label>
+                        <select id="consultasSalon" class="form-select">
+                            <option value="">Todos los salones</option>
+                            <option value="8A">8°A</option>
+                            <option value="8B">8°B</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label for="consultasOrden" class="form-label fw-semibold">
+                            <i class="fa-solid fa-arrow-down-wide-short text-secondary me-1"></i> Ordenar por
+                        </label>
+                        <select id="consultasOrden" class="form-select">
+                            <option value="fecha_desc">Visita más reciente primero</option>
+                            <option value="fecha_asc">Visita más antigua primero</option>
+                            <option value="nombre">Nombre (A-Z)</option>
+                            <option value="cantidad">Quién más consulta primero</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="consultasBuscar" class="form-label fw-semibold">
+                            <i class="fa-solid fa-magnifying-glass text-secondary me-1"></i> Buscar
+                        </label>
+                        <input type="text" id="consultasBuscar" class="form-control" placeholder="Nombre o cédula...">
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <button type="button" id="btnCargarConsultas" class="btn btn-danger w-100">
+                            <i class="fa-solid fa-rotate me-1"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasTotal">0</div>
+                            <div class="small text-muted">Consultas totales</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasDistintos">0</div>
+                            <div class="small text-muted">Estudiantes distintos</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasPdf">0</div>
+                            <div class="small text-muted">Descargaron PDF</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasSin">0</div>
+                            <div class="small text-muted">Nunca han revisado</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="h6 mb-3">
+                    <i class="fa-solid fa-trophy text-warning me-1"></i>
+                    Quiénes más revisan sus notas (top 5)
+                </h3>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Estudiante</th>
+                                <th id="thSalonTopConsultas" class="text-center" style="display:none;">Salón</th>
+                                <th class="text-center">Veces que revisó</th>
+                                <th class="text-center">Descargó PDF</th>
+                                <th class="text-center">Última visita</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaTopConsultas">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="h6 mb-3">
+                    <i class="fa-solid fa-list me-1"></i>
+                    Historial completo de consultas
+                </h3>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Estudiante</th>
+                                <th id="thSalonConsultas" class="text-center" style="display:none;">Salón</th>
+                                <th class="text-center">Cédula</th>
+                                <th class="text-center">Encontrado</th>
+                                <th class="text-center">Descargó PDF</th>
+                                <th>Fecha de la visita</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaConsultasAdmin">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">
+                                    Elegí un salón (o "Todos los salones") y tocá "Actualizar".
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== PREGUNTAS DE SEGURIDAD ===================== -->
+        <div id="panel-preguntas" class="panel-seccion d-none">
+        <section class="card shadow border-warning border-2 mb-4">
+            <div class="card-header bg-warning">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-key me-2" aria-hidden="true"></i>
+                    Preguntas de seguridad de un estudiante
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Elegí el salón y el estudiante para generar un enlace de recuperación
+                    de contraseña y enviárselo por WhatsApp o correo. Al abrirlo, el
+                    estudiante responde ahí mismo sus 3 preguntas de seguridad y pone
+                    una contraseña nueva (solo funciona si ya tiene las preguntas
+                    configuradas — las configura él mismo la primera vez que entra al sistema).
+                </p>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-6 col-md-3">
+                        <label for="pregSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-warning me-1"></i> Salón
+                        </label>
+                        <select id="pregSalon" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="8A">8°A</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="pregEstudiante" class="form-label fw-semibold">
+                            <i class="fa-solid fa-user-graduate text-warning me-1"></i> Estudiante
+                        </label>
+                        <select id="pregEstudiante" class="form-select" disabled>
+                            <option value="">Seleccione primero un salón</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- ENLACE PARA QUE EL ESTUDIANTE RECUPERE SU CONTRASEÑA ÉL MISMO -->
+                <div id="bloqueEnlaceRecuperacion" class="alert alert-light border mb-0" style="display:none;">
+                    <label class="form-label fw-semibold mb-1">
+                        <i class="fa-solid fa-link text-warning me-1"></i>
+                        Enlace para que el estudiante recupere su contraseña
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" id="enlaceRecuperacion" class="form-control" readonly>
+                        <button type="button" id="btnCopiarEnlace" class="btn btn-outline-secondary">
+                            <i class="fa-solid fa-copy"></i> Copiar
+                        </button>
+                        <a id="btnEnviarWhatsapp" href="#" target="_blank" class="btn btn-success">
+                            <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                        </a>
+                    </div>
+                    <p class="text-muted small mt-2 mb-0">
+                        Enviaselo por WhatsApp o pegalo en un correo. Al abrirlo, el estudiante
+                        va directo a responder sus 3 preguntas de seguridad y poner una
+                        contraseña nueva.
+                    </p>
+                    <div id="mensajePregSeguridad" class="alert d-none mt-2 mb-0" role="alert"></div>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== USUARIOS ===================== -->
+        <div id="panel-usuarios" class="panel-seccion d-none">
+        <section class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-users me-2 text-primary" aria-hidden="true"></i>
+                    Usuarios registrados
+                </h2>
+                <button id="btnRecargarUsuarios" class="btn btn-sm btn-outline-secondary">
+                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
                 </button>
-                <ul class="dropdown-menu p-1" style="min-width:180px; max-height:240px; overflow-y:auto;">
-                    ${opciones}
-                </ul>
-            </div>`;
-    }
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Correo</th>
+                                <th>Rol</th>
+                                <th>Activo</th>
+                                <th>Registrado</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaUsuarios">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    Cargando usuarios...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        </div>
 
-    async function cargarProfesoresAdmin() {
-        if (!tablaProfesoresAdmin) return;
+        <!-- ===================== NOTAS ===================== -->
+        <div id="panel-notas-todos" class="panel-seccion d-none">
+        <section class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-file-lines me-2 text-primary" aria-hidden="true"></i>
+                    Notas de todos los estudiantes
+                </h2>
+                <button id="btnRecargarNotas" class="btn btn-sm btn-outline-secondary">
+                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0 align-middle">
+                        <thead id="cabeceraNotas" class="table-light"></thead>
+                        <tbody id="tablaNotas">
+                            <tr>
+                                <td class="text-center text-muted py-4">
+                                    Cargando notas...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        </div>
 
-        tablaProfesoresAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando profesores...</td></tr>`;
+        <!-- ===================== GESTIONAR PROFESORES ===================== -->
+        <div id="panel-profesores" class="panel-seccion d-none">
+        <section class="card shadow border-success border-2 mb-4">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-chalkboard-user me-2" aria-hidden="true"></i>
+                    Gestionar profesores
+                </h2>
+            </div>
+            <div class="card-body">
 
-        await cargarSalonesDisponiblesCache();
+                <p class="text-muted small mb-3">
+                    Asigna el salón de cada profesor y activa el permiso para que pueda
+                    agregar estudiantes nuevos (con cédula) desde su propio panel.
+                    Los cambios se guardan solos al elegir una opción.
+                </p>
 
-        const { data: profesores, error } = await supabase
-            .from("profesores")
-            .select("correo_profesor, nombre_profesor, puede_agregar_estudiantes")
-            .order("nombre_profesor", { ascending: true });
+                <div id="mensajeProfesores" class="alert d-none" role="alert"></div>
 
-        if (error) {
-            console.error("❌ Error al cargar profesores:", error);
-            tablaProfesoresAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-3">No se pudieron cargar los profesores.</td></tr>`;
-            return;
-        }
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width:200px;">Profesor(a)</th>
+                                <th style="min-width:220px;">Correo</th>
+                                <th style="min-width:140px;">Salón</th>
+                                <th style="min-width:160px;">Puede agregar estudiantes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaProfesoresAdmin">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">Cargando profesores...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
-        if (!profesores || profesores.length === 0) {
-            tablaProfesoresAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Todavía no hay profesores registrados.</td></tr>`;
-            return;
-        }
+            </div>
+        </section>
+        </div>
 
-        const { data: asignacionesSalon } = await supabase
-            .from("profesor_salones")
-            .select("correo_profesor, salon_codigo");
+        <!-- ===================== GESTIONAR CONSEJEROS (permiso de horario) ===================== -->
+        <div id="panel-consejeros" class="panel-seccion d-none">
+        <section class="card shadow border-secondary border-2 mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-user-check me-2" aria-hidden="true"></i>
+                    Gestionar consejeros
+                </h2>
+            </div>
+            <div class="card-body">
 
-        const salonesPorCorreo = {};
-        (asignacionesSalon || []).forEach((fila) => {
-            if (!salonesPorCorreo[fila.correo_profesor]) salonesPorCorreo[fila.correo_profesor] = [];
-            salonesPorCorreo[fila.correo_profesor].push(fila.salon_codigo);
-        });
+                <p class="text-muted small mb-3">
+                    Cada consejero(a) ya tiene un salón asignado (registrado en la tabla
+                    <code>consejeros</code>). Activa este permiso para que, además del
+                    administrador, esa persona pueda cargar y editar el horario completo
+                    de <strong>su propio salón</strong> desde "Horario por salón". El
+                    cambio se guarda solo al marcar/desmarcar.
+                </p>
 
-        tablaProfesoresAdmin.innerHTML = profesores.map((p) => `
-            <tr>
-                <td>
-                    <a href="profesores.html?correo=${encodeURIComponent(p.correo_profesor || "")}" title="Ver en el directorio de profesores">
-                        ${escapeHtmlAdmin(p.nombre_profesor || "(sin nombre)")}
-                    </a>
-                </td>
-                <td class="small">${escapeHtmlAdmin(p.correo_profesor || "-")}</td>
-                <td style="min-width:190px;">
-                    ${menuChecksSalones(p.correo_profesor, salonesPorCorreo[p.correo_profesor] || [])}
-                </td>
-                <td>
-                    <div class="form-check form-switch mb-0">
-                        <input class="form-check-input profesor-permiso-switch" type="checkbox"
-                            role="switch"
-                            data-correo="${escapeHtmlAdmin(p.correo_profesor)}"
-                            ${p.puede_agregar_estudiantes ? "checked" : ""}>
+                <div id="mensajeConsejeros" class="alert d-none" role="alert"></div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width:200px;">Consejero(a)</th>
+                                <th style="min-width:220px;">Correo</th>
+                                <th style="min-width:100px;">Salón</th>
+                                <th style="min-width:200px;">Puede editar el horario de su salón</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaConsejerosAdmin">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">Cargando consejeros...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== TRIMESTRES (fechas y trimestre activo) ===================== -->
+        <div id="panel-trimestres" class="panel-seccion d-none">
+        <section class="card shadow border-warning border-2 mb-4">
+            <div class="card-header bg-warning">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-calendar-days me-2" aria-hidden="true"></i>
+                    Trimestres — fechas y trimestre activo
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Definí la fecha de inicio y de fin de cada trimestre. El sistema calcula
+                    solo, según la fecha de hoy, cuál trimestre está activo para toda la
+                    escuela — ya no hace falta cambiarlo a mano desde el panel del docente.
+                </p>
+
+                <div id="mensajeTrimestres" class="alert d-none" role="alert"></div>
+
+                <div class="alert alert-light border d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+                    <span>
+                        <i class="fa-solid fa-circle-check text-success me-1"></i>
+                        <strong>Trimestre activo ahora mismo:</strong>
+                        <span id="trimestreActivoCalculado" class="fw-bold">—</span>
+                    </span>
+                    <span id="trimestreActivoDetalle" class="small text-muted"></span>
+                </div>
+
+                <div class="row g-4">
+
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <h3 class="h6 text-primary mb-3">
+                                <i class="fa-solid fa-1 me-1"></i> Trimestre 1
+                            </h3>
+                            <label for="t1Inicio" class="form-label small fw-semibold">Inicio</label>
+                            <input type="date" id="t1Inicio" class="form-control mb-2">
+                            <label for="t1Fin" class="form-label small fw-semibold">Fin</label>
+                            <input type="date" id="t1Fin" class="form-control">
+                        </div>
                     </div>
-                </td>
-            </tr>
-        `).join("");
 
-        // -------- Marcar / desmarcar un salón --------
-        tablaProfesoresAdmin.querySelectorAll(".check-salon-profesor").forEach((check) => {
-            check.addEventListener("change", async () => {
-                const correo = check.dataset.correo;
-                const salonCodigo = check.value;
-
-                let errUpdate;
-                if (check.checked) {
-                    ({ error: errUpdate } = await supabase
-                        .from("profesor_salones")
-                        .upsert([{ correo_profesor: correo, salon_codigo: salonCodigo }], { onConflict: "correo_profesor,salon_codigo" }));
-                } else {
-                    ({ error: errUpdate } = await supabase
-                        .from("profesor_salones")
-                        .delete()
-                        .eq("correo_profesor", correo)
-                        .eq("salon_codigo", salonCodigo));
-                }
-
-                if (errUpdate) {
-                    console.error("❌ Error al actualizar salones del profesor:", errUpdate);
-                    mostrarMensajeProfesores("No se pudo guardar el salón: " + errUpdate.message, "danger");
-                    check.checked = !check.checked;
-                    return;
-                }
-
-                // Actualiza el texto del botón sin recargar toda la tabla
-                const boton = check.closest(".dropdown").querySelector(".dropdown-toggle");
-                const marcados = Array.from(
-                    check.closest(".dropdown-menu").querySelectorAll(".check-salon-profesor:checked")
-                ).map((c) => c.value);
-                boton.textContent = textoResumenSalones(marcados);
-
-                mostrarMensajeProfesores(`Salones actualizados para ${correo}.`, "success");
-            });
-        });
-
-        // -------- Cambiar permiso de agregar estudiantes --------
-        tablaProfesoresAdmin.querySelectorAll(".profesor-permiso-switch").forEach((toggle) => {
-            toggle.addEventListener("change", async () => {
-                const correo = toggle.dataset.correo;
-                const nuevoValor = toggle.checked;
-
-                const { error: errUpdate } = await supabase
-                    .from("profesores")
-                    .update({ puede_agregar_estudiantes: nuevoValor })
-                    .eq("correo_profesor", correo);
-
-                if (errUpdate) {
-                    console.error("❌ Error al actualizar permiso del profesor:", errUpdate);
-                    mostrarMensajeProfesores("No se pudo guardar el permiso: " + errUpdate.message, "danger");
-                    // Revertir el switch visualmente si falló el guardado
-                    toggle.checked = !nuevoValor;
-                    return;
-                }
-
-                mostrarMensajeProfesores(
-                    nuevoValor
-                        ? `✅ ${correo} ahora puede agregar estudiantes.`
-                        : `${correo} ya no puede agregar estudiantes.`,
-                    "success"
-                );
-            });
-        });
-    }
-
-    // Se expone para que el script de navegación del menú (en admin.html)
-    // pueda cargar la tabla la primera vez que se abre esta sección.
-    window.cargarProfesoresAdmin = cargarProfesoresAdmin;
-
-    // =================================================
-    // 6.6) GESTIONAR CONSEJEROS (permiso para editar el
-    // horario de su propio salón). Cada consejero ya está
-    // ligado a un salón en la tabla "consejeros"; aquí solo
-    // se prende/apaga la casilla puede_editar_horario. Se
-    // guarda solo al marcar/desmarcar, igual que con profesores.
-    // =================================================
-
-    const tablaConsejerosAdmin = document.getElementById("tablaConsejerosAdmin");
-    const mensajeConsejeros = document.getElementById("mensajeConsejeros");
-
-    function mostrarMensajeConsejeros(texto, tipo) {
-        if (!mensajeConsejeros) return;
-        mensajeConsejeros.textContent = texto;
-        mensajeConsejeros.className = `alert alert-${tipo}`;
-        mensajeConsejeros.classList.remove("d-none");
-        setTimeout(() => mensajeConsejeros.classList.add("d-none"), 3000);
-    }
-
-    async function cargarConsejerosAdmin() {
-        if (!tablaConsejerosAdmin) return;
-
-        tablaConsejerosAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Cargando consejeros...</td></tr>`;
-
-        const { data: consejeros, error } = await supabase
-            .from("consejeros")
-            .select("correo, nombre, salon, puede_editar_horario")
-            .order("salon", { ascending: true });
-
-        if (error) {
-            console.error("❌ Error al cargar consejeros:", error);
-            tablaConsejerosAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-3">No se pudieron cargar los consejeros.</td></tr>`;
-            return;
-        }
-
-        if (!consejeros || consejeros.length === 0) {
-            tablaConsejerosAdmin.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">Todavía no hay consejeros registrados.</td></tr>`;
-            return;
-        }
-
-        tablaConsejerosAdmin.innerHTML = consejeros.map((c) => `
-            <tr>
-                <td>${escapeHtmlAdmin(c.nombre || "(sin nombre)")}</td>
-                <td class="small">${escapeHtmlAdmin(c.correo || "-")}</td>
-                <td>${escapeHtmlAdmin(c.salon || "-")}</td>
-                <td>
-                    <div class="form-check form-switch mb-0">
-                        <input class="form-check-input consejero-permiso-switch" type="checkbox"
-                            role="switch"
-                            data-correo="${escapeHtmlAdmin(c.correo)}"
-                            ${c.puede_editar_horario ? "checked" : ""}>
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <h3 class="h6 text-primary mb-3">
+                                <i class="fa-solid fa-2 me-1"></i> Trimestre 2
+                            </h3>
+                            <label for="t2Inicio" class="form-label small fw-semibold">Inicio</label>
+                            <input type="date" id="t2Inicio" class="form-control mb-2">
+                            <label for="t2Fin" class="form-label small fw-semibold">Fin</label>
+                            <input type="date" id="t2Fin" class="form-control">
+                        </div>
                     </div>
-                </td>
-            </tr>
-        `).join("");
 
-        tablaConsejerosAdmin.querySelectorAll(".consejero-permiso-switch").forEach((toggle) => {
-            toggle.addEventListener("change", async () => {
-                const correo = toggle.dataset.correo;
-                const nuevoValor = toggle.checked;
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <h3 class="h6 text-primary mb-3">
+                                <i class="fa-solid fa-3 me-1"></i> Trimestre 3
+                            </h3>
+                            <label for="t3Inicio" class="form-label small fw-semibold">Inicio</label>
+                            <input type="date" id="t3Inicio" class="form-control mb-2">
+                            <label for="t3Fin" class="form-label small fw-semibold">Fin</label>
+                            <input type="date" id="t3Fin" class="form-control">
+                        </div>
+                    </div>
 
-                const { error: errUpdate } = await supabase
-                    .from("consejeros")
-                    .update({ puede_editar_horario: nuevoValor })
-                    .eq("correo", correo);
+                </div>
 
-                if (errUpdate) {
-                    console.error("❌ Error al actualizar permiso del consejero:", errUpdate);
-                    mostrarMensajeConsejeros("No se pudo guardar el permiso: " + errUpdate.message, "danger");
-                    toggle.checked = !nuevoValor;
-                    return;
+                <div class="d-flex align-items-center gap-3 mt-4">
+                    <button type="button" id="btnGuardarTrimestres" class="btn btn-warning">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Guardar fechas
+                    </button>
+                    <span id="estadoGuardadoTrimestres" class="small"></span>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+    </main>
+
+    <!-- Modal: elegir horario por profesor o por salón -->
+    <div class="modal fade" id="modalElegirHorario" tabindex="-1" aria-labelledby="modalElegirHorarioLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalElegirHorarioLabel">
+                        <i class="fa-solid fa-calendar-days me-1"></i> ¿Qué horario querés ver?
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-grid gap-3">
+                        <a href="timbre.html" target="_blank" class="btn btn-outline-dark py-3">
+                            <i class="fa-solid fa-bell fa-lg me-2" aria-hidden="true"></i>
+                            Horario de Dirección (Timbre)
+                            <span class="d-block small text-muted mt-1">Solo marca las horas: inicio y fin de cada periodo</span>
+                        </a>
+                        <a href="horario_profesores.html" target="_blank" class="btn btn-outline-dark py-3">
+                            <i class="fa-solid fa-chalkboard-user fa-lg me-2" aria-hidden="true"></i>
+                            Horario de profesores
+                            <span class="d-block small text-muted mt-1">Ver o editar el horario de cualquier profesor(a)</span>
+                        </a>
+                        <a href="horario_salon.html" target="_blank" class="btn btn-outline-dark py-3">
+                            <i class="fa-solid fa-school fa-lg me-2" aria-hidden="true"></i>
+                            Horario por salón
+                            <span class="d-block small text-muted mt-1">Cargar el horario completo de cada salón</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Librería jsPDF (para generar el reporte de notas por materia en PDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Librería jsPDF-AutoTable -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- EmailJS (para el aviso automático por correo al guardar notas) -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+    <script type="module" src="../js/admin.js"></script>
+
+    <!-- Navegación del menú principal (mostrar/ocultar secciones) -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const menu = document.getElementById("menuAdminPrincipal");
+            const volverBar = document.getElementById("volverMenuBar");
+            const btnVolver = document.getElementById("btnVolverMenu");
+            const paneles = document.querySelectorAll(".panel-seccion");
+            const botonesMenu = document.querySelectorAll(".panel-menu-btn");
+
+            function mostrarPanel(idPanel) {
+                paneles.forEach((p) => p.classList.add("d-none"));
+                const panel = document.getElementById(idPanel);
+                if (panel) panel.classList.remove("d-none");
+                menu.classList.add("d-none");
+                volverBar.classList.remove("d-none");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+
+                if (idPanel === "panel-profesores" && typeof window.cargarProfesoresAdmin === "function") {
+                    window.cargarProfesoresAdmin();
                 }
 
-                mostrarMensajeConsejeros(
-                    nuevoValor
-                        ? `✅ ${correo} ahora puede editar el horario de su salón.`
-                        : `${correo} ya no puede editar el horario de su salón.`,
-                    "success"
-                );
+                if (idPanel === "panel-consejeros" && typeof window.cargarConsejerosAdmin === "function") {
+                    window.cargarConsejerosAdmin();
+                }
+
+                if (idPanel === "panel-trimestres" && typeof window.cargarConfigTrimestres === "function") {
+                    window.cargarConfigTrimestres();
+                }
+
+                if (idPanel === "panel-estudiantes" && typeof window.cargarEstudiantesAdmin === "function") {
+                    window.cargarEstudiantesAdmin();
+                }
+
+                if (idPanel === "panel-consultas" && typeof window.cargarConsultasAdmin === "function") {
+                    window.cargarConsultasAdmin();
+                }
+
+                if (idPanel === "panel-vista-general" && typeof window.precargarTrimestreActivoVistaGeneral === "function") {
+                    window.precargarTrimestreActivoVistaGeneral();
+                }
+            }
+
+            function mostrarMenu() {
+                paneles.forEach((p) => p.classList.add("d-none"));
+                menu.classList.remove("d-none");
+                volverBar.classList.add("d-none");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+
+            botonesMenu.forEach((btn) => {
+                btn.addEventListener("click", () => mostrarPanel(btn.dataset.panel));
             });
-        });
-    }
 
-    window.cargarConsejerosAdmin = cargarConsejerosAdmin;
-
-    // =================================================
-    // 7) PREGUNTAS DE SEGURIDAD DE UN ESTUDIANTE
-    // =================================================
-
-    const pregSalon = document.getElementById("pregSalon");
-    const pregEstudiante = document.getElementById("pregEstudiante");
-    const mensajePregSeguridad = document.getElementById("mensajePregSeguridad");
-
-    function mostrarMensajePreg(texto, tipo) {
-        mensajePregSeguridad.textContent = texto;
-        mensajePregSeguridad.className = `alert alert-${tipo} mt-2 mb-0`;
-    }
-
-    if (pregSalon) {
-        pregSalon.addEventListener("change", async () => {
-            const salon = pregSalon.value;
-
-            pregEstudiante.innerHTML = `<option value="">Cargando...</option>`;
-            pregEstudiante.disabled = true;
-
-            const bloqueEnlace = document.getElementById("bloqueEnlaceRecuperacion");
-            if (bloqueEnlace) bloqueEnlace.style.display = "none";
-            mensajePregSeguridad.className = "alert d-none";
-
-            if (!salon) {
-                pregEstudiante.innerHTML = `<option value="">Seleccione primero un salón</option>`;
-                return;
-            }
-
-            const { data: estudiantesSalon, error } = await supabase
-                .from("estudiantes")
-                .select("correo, nombre, es_prueba")
-                .eq("salon", salon)
-                .order("nombre", { ascending: true });
-
-            if (error) {
-                console.error("❌ Error al cargar estudiantes:", error);
-                pregEstudiante.innerHTML = `<option value="">Error al cargar</option>`;
-                return;
-            }
-
-            const lista = (estudiantesSalon || []).filter((e) => !e.es_prueba && e.correo);
-
-            if (lista.length === 0) {
-                pregEstudiante.innerHTML = `<option value="">No hay estudiantes en este salón</option>`;
-                return;
-            }
-
-            pregEstudiante.innerHTML =
-                `<option value="">Seleccione...</option>` +
-                lista.map((e) => `<option value="${e.correo}">${escapeHtmlAdmin(e.nombre || e.correo)}</option>`).join("");
-
-            pregEstudiante.disabled = false;
-        });
-    }
-
-    if (pregEstudiante) {
-        pregEstudiante.addEventListener("change", () => {
-            mensajePregSeguridad.className = "alert d-none";
-
-            const bloqueEnlace = document.getElementById("bloqueEnlaceRecuperacion");
-            const inputEnlace = document.getElementById("enlaceRecuperacion");
-            const btnWhatsapp = document.getElementById("btnEnviarWhatsapp");
-
-            if (pregEstudiante.value) {
-                const url = `${window.location.origin}/pages/login.html?recuperarCorreo=${encodeURIComponent(pregEstudiante.value)}`;
-                const nombreEst = pregEstudiante.options[pregEstudiante.selectedIndex].text;
-
-                inputEnlace.value = url;
-
-                const mensajeWa = encodeURIComponent(
-                    `Hola ${nombreEst}, para poner una contraseña nueva en el sistema de notas, ` +
-                    `entrá a este enlace y respondé tus 3 preguntas de seguridad:\n${url}`
-                );
-                btnWhatsapp.href = `https://wa.me/?text=${mensajeWa}`;
-
-                bloqueEnlace.style.display = "block";
-            } else {
-                bloqueEnlace.style.display = "none";
+            if (btnVolver) {
+                btnVolver.addEventListener("click", mostrarMenu);
             }
         });
-    }
+    </script>
 
-    document.getElementById("btnCopiarEnlace")?.addEventListener("click", async () => {
-        const inputEnlace = document.getElementById("enlaceRecuperacion");
-        if (!inputEnlace.value) return;
+</body>
 
-        try {
-            await navigator.clipboard.writeText(inputEnlace.value);
-        } catch (err) {
-            inputEnlace.select();
-            document.execCommand("copy");
-        }
-
-        mostrarMensajePreg("🔗 Enlace copiado al portapapeles.", "success");
-    });
-
-    // =================================================
-    // 8) ACTIVIDAD DE ESTUDIANTES (VISITAS A LA PLATAFORMA)
-    // =================================================
-
-    const visitasSalon = document.getElementById("visitasSalon");
-    const btnCargarVisitas = document.getElementById("btnCargarVisitas");
-    const tablaVisitas = document.getElementById("tablaVisitas");
-    const thSalonVisitas = document.getElementById("thSalonVisitas");
-
-    function formatearDuracion(segundosTotales) {
-        const segundos = Math.max(0, Math.round(segundosTotales));
-        const horas = Math.floor(segundos / 3600);
-        const minutos = Math.floor((segundos % 3600) / 60);
-        if (horas > 0) return `${horas}h ${minutos}min`;
-        if (minutos > 0) return `${minutos}min`;
-        return `${segundos}seg`;
-    }
-
-    async function cargarVisitas() {
-        const salon = visitasSalon.value;
-        const mostrarColumnaSalon = !salon;
-        const colspanActual = mostrarColumnaSalon ? 7 : 6;
-
-        if (thSalonVisitas) {
-            thSalonVisitas.style.display = mostrarColumnaSalon ? "" : "none";
-        }
-
-        const textoOriginal = btnCargarVisitas.innerHTML;
-        btnCargarVisitas.disabled = true;
-        btnCargarVisitas.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
-
-        tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-center text-muted py-3">Cargando...</td></tr>`;
-
-        let consultaEstudiantes = supabase
-            .from("estudiantes")
-            .select("correo, nombre, es_prueba, salon")
-            .order("nombre", { ascending: true });
-
-        if (salon) {
-            consultaEstudiantes = consultaEstudiantes.eq("salon", salon);
-        }
-
-        const { data: estudiantesSalon, error: errEst } = await consultaEstudiantes;
-
-        btnCargarVisitas.disabled = false;
-        btnCargarVisitas.innerHTML = textoOriginal;
-
-        if (errEst) {
-            console.error("❌ Error al cargar estudiantes:", errEst);
-            tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-danger text-center py-3">Error al cargar estudiantes.</td></tr>`;
-            return;
-        }
-
-        const estudiantesReales = (estudiantesSalon || []).filter((e) => !e.es_prueba && e.correo);
-
-        if (estudiantesReales.length === 0) {
-            const mensaje = salon ? "No hay estudiantes en este salón." : "No hay estudiantes registrados.";
-            tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-center text-muted py-3">${mensaje}</td></tr>`;
-            return;
-        }
-
-        const correos = estudiantesReales.map((e) => e.correo);
-
-        const { data: visitas, error: errVis } = await supabase
-            .from("visitas")
-            .select("correo, inicio, ultima_actividad")
-            .in("correo", correos);
-
-        if (errVis) {
-            console.error("❌ Error al cargar visitas:", errVis);
-            tablaVisitas.innerHTML = `<tr><td colspan="${colspanActual}" class="text-danger text-center py-3">Error al cargar las visitas.</td></tr>`;
-            return;
-        }
-
-        const resumenPorCorreo = {};
-
-        (visitas || []).forEach((v) => {
-            if (!resumenPorCorreo[v.correo]) {
-                resumenPorCorreo[v.correo] = {
-                    totalVisitas: 0,
-                    tiempoTotalSeg: 0,
-                    primeraVisita: null,
-                    ultimaVisita: null,
-                    diasDistintos: new Set()
-                };
-            }
-
-            const r = resumenPorCorreo[v.correo];
-            const inicio = new Date(v.inicio);
-            const fin = new Date(v.ultima_actividad || v.inicio);
-            const duracionSeg = Math.max(0, (fin - inicio) / 1000);
-
-            r.totalVisitas++;
-            r.tiempoTotalSeg += duracionSeg;
-            r.diasDistintos.add(inicio.toISOString().slice(0, 10));
-
-            if (!r.primeraVisita || inicio < r.primeraVisita) r.primeraVisita = inicio;
-            if (!r.ultimaVisita || fin > r.ultimaVisita) r.ultimaVisita = fin;
-        });
-
-        const opcionesFecha = { day: "2-digit", month: "2-digit", year: "numeric" };
-        const opcionesFechaHora = { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" };
-
-        const filas = estudiantesReales.map((est) => {
-            const r = resumenPorCorreo[est.correo];
-            const celdaSalon = mostrarColumnaSalon
-                ? `<td class="text-center">${escapeHtmlAdmin(est.salon || "—")}</td>`
-                : "";
-
-            if (!r) {
-                return `
-                    <tr class="table-light">
-                        <td>${escapeHtmlAdmin(est.nombre || est.correo)}</td>
-                        ${celdaSalon}
-                        <td class="text-center">0</td>
-                        <td class="text-center">—</td>
-                        <td class="text-center">—</td>
-                        <td class="text-center">—</td>
-                        <td class="text-center text-muted">Nunca entró</td>
-                    </tr>
-                `;
-            }
-
-            return `
-                <tr>
-                    <td>${escapeHtmlAdmin(est.nombre || est.correo)}</td>
-                    ${celdaSalon}
-                    <td class="text-center fw-bold">${r.totalVisitas}</td>
-                    <td class="text-center">${r.diasDistintos.size}</td>
-                    <td class="text-center">${formatearDuracion(r.tiempoTotalSeg)}</td>
-                    <td class="text-center">${r.primeraVisita.toLocaleDateString("es-PA", opcionesFecha)}</td>
-                    <td class="text-center">${r.ultimaVisita.toLocaleString("es-PA", opcionesFechaHora)}</td>
-                </tr>
-            `;
-        });
-
-        tablaVisitas.innerHTML = filas.join("");
-    }
-
-    if (btnCargarVisitas) {
-        btnCargarVisitas.addEventListener("click", cargarVisitas);
-    }
-
-    // =================================================
-    // 9) CONTROL DE CONSULTAS DE NOTAS (¿quién revisó con su cédula?)
-    // =================================================
-    // Reutiliza la misma función que ya usa el panel del consejero
-    // (obtener_consultas_por_salon), pero la llama para cada salón y
-    // junta todo, para poder ver "Todos los salones" a la vez, filtrar,
-    // ordenar por fecha y ver quién consulta con más frecuencia.
-
-    const SALONES_CONSULTAS = ["8A", "8B", "9A", "9B", "9C"];
-
-    const consultasSalonEl = document.getElementById("consultasSalon");
-    const consultasOrdenEl = document.getElementById("consultasOrden");
-    const consultasBuscarEl = document.getElementById("consultasBuscar");
-    const btnCargarConsultas = document.getElementById("btnCargarConsultas");
-    const tablaConsultasAdmin = document.getElementById("tablaConsultasAdmin");
-    const tablaTopConsultas = document.getElementById("tablaTopConsultas");
-    const thSalonConsultas = document.getElementById("thSalonConsultas");
-    const thSalonTopConsultas = document.getElementById("thSalonTopConsultas");
-    const statConsultasTotal = document.getElementById("statConsultasTotal");
-    const statConsultasDistintos = document.getElementById("statConsultasDistintos");
-    const statConsultasPdf = document.getElementById("statConsultasPdf");
-    const statConsultasSin = document.getElementById("statConsultasSin");
-
-    let consultasCargadasAdmin = [];
-    let estudiantesScopeCache = [];
-    let consultasYaCargadasUnaVez = false;
-
-    function formatearFechaConsulta(iso) {
-        if (!iso) return "-";
-        return new Date(iso).toLocaleString("es-PA", {
-            day: "2-digit", month: "2-digit", year: "numeric",
-            hour: "2-digit", minute: "2-digit"
-        });
-    }
-
-    async function obtenerConsultasDeSalones(salones) {
-        const resultados = await Promise.all(salones.map(async (s) => {
-            const { data, error } = await supabase.rpc("obtener_consultas_por_salon", { p_salon: s });
-            if (error) {
-                console.error(`❌ Error al cargar consultas del salón ${s}:`, error);
-                return [];
-            }
-            // Por si la función no trae la columna "salon", se le agrega
-            // aquí mismo (ya sabemos con qué salón se consultó).
-            return (data || []).map((c) => ({ ...c, salon: c.salon || s }));
-        }));
-        return resultados.flat();
-    }
-
-    async function cargarConsultasAdmin() {
-        if (!tablaConsultasAdmin) return;
-
-        const salon = consultasSalonEl.value;
-        const salones = salon ? [salon] : SALONES_CONSULTAS;
-        const mostrarColumnaSalon = !salon;
-
-        if (thSalonConsultas) thSalonConsultas.style.display = mostrarColumnaSalon ? "" : "none";
-        if (thSalonTopConsultas) thSalonTopConsultas.style.display = mostrarColumnaSalon ? "" : "none";
-
-        const textoOriginal = btnCargarConsultas.innerHTML;
-        btnCargarConsultas.disabled = true;
-        btnCargarConsultas.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
-        tablaConsultasAdmin.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Cargando...</td></tr>`;
-        tablaTopConsultas.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Cargando...</td></tr>`;
-
-        try {
-            consultasCargadasAdmin = await obtenerConsultasDeSalones(salones);
-
-            // Total de estudiantes reales en el alcance elegido, para saber
-            // cuántos nunca han revisado sus notas.
-            let consultaEst = supabase
-                .from("estudiantes")
-                .select("nombre, salon, es_prueba")
-                .eq("es_prueba", false);
-            if (salon) consultaEst = consultaEst.eq("salon", salon);
-            const { data: estudiantesScope, error: errEst } = await consultaEst;
-            if (errEst) console.error("❌ Error al cargar estudiantes para el conteo:", errEst);
-            estudiantesScopeCache = estudiantesScope || [];
-
-            renderConsultasAdmin(estudiantesScopeCache);
-        } catch (err) {
-            console.error("❌ Error al cargar el control de consultas:", err);
-            tablaConsultasAdmin.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">No se pudo cargar la información.</td></tr>`;
-            tablaTopConsultas.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">No se pudo cargar la información.</td></tr>`;
-        } finally {
-            btnCargarConsultas.disabled = false;
-            btnCargarConsultas.innerHTML = textoOriginal;
-        }
-    }
-
-    function renderConsultasAdmin(estudiantesScope) {
-        const scope = estudiantesScope || estudiantesScopeCache;
-        const salon = consultasSalonEl.value;
-        const mostrarColumnaSalon = !salon;
-        const texto = (consultasBuscarEl.value || "").trim().toLowerCase();
-        const orden = consultasOrdenEl.value;
-        const colspan = mostrarColumnaSalon ? 6 : 5;
-
-        // ---- Conteo por estudiante (para el top y para "sin consultar") ----
-        const conteoPorNombre = {};
-        consultasCargadasAdmin.forEach((c) => {
-            if (!c.encontrado || !c.nombre) return;
-            if (!conteoPorNombre[c.nombre]) {
-                conteoPorNombre[c.nombre] = {
-                    nombre: c.nombre, salon: c.salon, cedula: c.cedula,
-                    cantidad: 0, conPdf: 0, ultima: null
-                };
-            }
-            const r = conteoPorNombre[c.nombre];
-            r.cantidad++;
-            if (c.pdf_descargado) r.conPdf++;
-            const fecha = new Date(c.creado_en);
-            if (!r.ultima || fecha > r.ultima) r.ultima = fecha;
-        });
-
-        const nombresQueConsultaron = new Set(Object.keys(conteoPorNombre));
-        const totalConPdf = consultasCargadasAdmin.filter((c) => c.pdf_descargado).length;
-
-        const nombresDelAlcance = new Set((scope || []).map((e) => (e.nombre || "").trim()));
-        let sinConsultar = 0;
-        nombresDelAlcance.forEach((n) => {
-            if (!nombresQueConsultaron.has(n)) sinConsultar++;
-        });
-
-        statConsultasTotal.textContent = consultasCargadasAdmin.length;
-        statConsultasDistintos.textContent = nombresQueConsultaron.size;
-        statConsultasPdf.textContent = totalConPdf;
-        statConsultasSin.textContent = sinConsultar;
-
-        // ---- Top 5: quiénes más revisan sus notas ----
-        const top = Object.values(conteoPorNombre)
-            .sort((a, b) => b.cantidad - a.cantidad)
-            .slice(0, 5);
-
-        tablaTopConsultas.innerHTML = top.length === 0
-            ? `<tr><td colspan="${colspan}" class="text-center text-muted py-3">Todavía no hay consultas registradas.</td></tr>`
-            : top.map((r, i) => `
-                <tr>
-                    <td class="text-center">${i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</td>
-                    <td>${escapeHtmlAdmin(r.nombre)}</td>
-                    ${mostrarColumnaSalon ? `<td class="text-center">${escapeHtmlAdmin(r.salon || "-")}</td>` : ""}
-                    <td class="text-center fw-bold">${r.cantidad}</td>
-                    <td class="text-center">${r.conPdf > 0 ? `<span class="badge bg-primary">${r.conPdf}</span>` : `<span class="badge bg-light text-muted border">0</span>`}</td>
-                    <td class="text-center">${formatearFechaConsulta(r.ultima)}</td>
-                </tr>
-            `).join("");
-
-        // ---- Historial completo, filtrado y ordenado ----
-        let filtradas = consultasCargadasAdmin.filter((c) => {
-            if (!texto) return true;
-            const nombre = (c.nombre || "").toLowerCase();
-            const cedula = (c.cedula || "").toLowerCase();
-            return nombre.includes(texto) || cedula.includes(texto);
-        });
-
-        filtradas = filtradas.slice().sort((a, b) => {
-            if (orden === "fecha_asc") return new Date(a.creado_en) - new Date(b.creado_en);
-            if (orden === "nombre") return (a.nombre || "").localeCompare(b.nombre || "", "es");
-            if (orden === "cantidad") {
-                const cantA = conteoPorNombre[a.nombre]?.cantidad || 0;
-                const cantB = conteoPorNombre[b.nombre]?.cantidad || 0;
-                return cantB - cantA;
-            }
-            // "fecha_desc" (por defecto): más reciente primero
-            return new Date(b.creado_en) - new Date(a.creado_en);
-        });
-
-        if (filtradas.length === 0) {
-            tablaConsultasAdmin.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted py-3">No hay consultas para este filtro.</td></tr>`;
-            return;
-        }
-
-        tablaConsultasAdmin.innerHTML = filtradas.map((c) => `
-            <tr>
-                <td>${escapeHtmlAdmin(c.nombre || "(cédula no encontrada)")}</td>
-                ${mostrarColumnaSalon ? `<td class="text-center">${escapeHtmlAdmin(c.salon || "-")}</td>` : ""}
-                <td class="text-center">${escapeHtmlAdmin(c.cedula || "-")}</td>
-                <td class="text-center">
-                    ${c.encontrado
-                        ? `<span class="badge bg-success">Sí</span>`
-                        : `<span class="badge bg-secondary">No</span>`}
-                </td>
-                <td class="text-center">
-                    ${c.pdf_descargado
-                        ? `<span class="badge bg-primary">Sí</span>`
-                        : `<span class="badge bg-light text-muted border">No</span>`}
-                </td>
-                <td>${formatearFechaConsulta(c.creado_en)}</td>
-            </tr>
-        `).join("");
-    }
-
-    if (btnCargarConsultas) {
-        btnCargarConsultas.addEventListener("click", cargarConsultasAdmin);
-    }
-    if (consultasSalonEl) {
-        consultasSalonEl.addEventListener("change", cargarConsultasAdmin);
-    }
-    if (consultasOrdenEl) {
-        consultasOrdenEl.addEventListener("change", () => renderConsultasAdmin());
-    }
-    if (consultasBuscarEl) {
-        consultasBuscarEl.addEventListener("input", () => renderConsultasAdmin());
-    }
-
-    // Se expone para que admin.html la llame la primera vez que se
-    // abre esta sección (igual que ya hace con estudiantes/profesores).
-    window.cargarConsultasAdmin = () => {
-        if (!consultasYaCargadasUnaVez) {
-            consultasYaCargadasUnaVez = true;
-            cargarConsultasAdmin();
-        }
-    };
-
-});
+</html>
