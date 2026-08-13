@@ -422,6 +422,36 @@ async function guardarCampo(input) {
     const correoRecienCalculadoDeCedula = !correo && campo === "cedula" && !!valor;
     if (!correo) {
         if (campo === "cedula" && valor) {
+            // Antes de usar esta cédula (para generar el correo interno y
+            // guardarla también en "estudiantes"), se revisa que no
+            // pertenezca ya a otro estudiante. Si no se hiciera esta
+            // revisión antes, se terminaba guardando el dato en
+            // "datos_estudiante" igual, y solo al sincronizarlo con
+            // "estudiantes" saltaba un error críptico de Supabase (además
+            // de dejar un registro huérfano en "datos_estudiante").
+            const { data: duplicado, error: errDuplicado } = await supabase
+                .from("estudiantes")
+                .select("id, nombre, salon")
+                .eq("cedula", valor)
+                .neq("id", fila.id)
+                .maybeSingle();
+
+            if (errDuplicado) {
+                console.error("❌ Error al validar cédula duplicada:", errDuplicado);
+            }
+
+            if (duplicado) {
+                input.classList.add("error");
+                input.title = "Esta cédula ya pertenece a otro estudiante.";
+                alert(
+                    `⚠️ La cédula "${valor}" ya está asignada a otro estudiante: ` +
+                    `${duplicado.nombre}${duplicado.salon ? " (salón " + duplicado.salon + ")" : ""}.\n\n` +
+                    "Revisa que no se haya escrito mal, o que no haya un duplicado real en la base de datos."
+                );
+                input.value = fila.cedula ?? "";
+                return;
+            }
+
             correo = cedulaAEmail(valor);
         } else {
             input.classList.add("error");
@@ -483,9 +513,17 @@ async function guardarCampo(input) {
             .eq("id", fila.id);
         if (errCedulaEstudiantes) {
             console.error("❌ Error al sincronizar cédula en \"estudiantes\":", errCedulaEstudiantes);
-            // No se corta el flujo: el dato en "datos_estudiante" ya se
-            // guardó bien; esto solo afecta que se vuelva a encontrar la
-            // próxima vez que se recargue la página.
+            // No se corta el flujo (el dato en "datos_estudiante" ya se
+            // guardó bien), pero si fue justo por cédula duplicada —
+            // p. ej. dos personas guardando la misma cédula casi al mismo
+            // tiempo, después de que la revisión de arriba ya pasó—, se
+            // avisa con un mensaje claro en vez de dejarlo pasar en silencio.
+            if (errCedulaEstudiantes.code === "23505") {
+                alert(
+                    `⚠️ La cédula "${valor}" ya quedó asignada a otro estudiante justo antes de guardar esta.\n\n` +
+                    "Vuelve a intentarlo con la cédula correcta."
+                );
+            }
         }
     }
 
