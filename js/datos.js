@@ -55,6 +55,7 @@ async function cargarDatos() {
         document.getElementById("nombreApellido").value = data.nombre_apellido ?? "";
         document.getElementById("cedula").value = data.cedula ?? "";
         document.getElementById("fechaNacimiento").value = data.fecha_nacimiento ?? "";
+        document.getElementById("genero").value = data.genero ?? "";
         document.getElementById("celularEstudiante").value = data.celular_estudiante ?? "";
         document.getElementById("nombrePadreAcudiente").value = data.nombre_padre_acudiente ?? "";
         document.getElementById("celularAcudiente1").value = data.celular_acudiente1 ?? "";
@@ -96,6 +97,7 @@ form.addEventListener("submit", async (e) => {
         nombre_apellido: document.getElementById("nombreApellido").value.trim(),
         cedula: document.getElementById("cedula").value.trim(),
         fecha_nacimiento: document.getElementById("fechaNacimiento").value,
+        genero: document.getElementById("genero").value,
         celular_estudiante: document.getElementById("celularEstudiante").value.trim(),
         nombre_padre_acudiente: document.getElementById("nombrePadreAcudiente").value.trim(),
         celular_acudiente1: document.getElementById("celularAcudiente1").value.trim(),
