@@ -36,6 +36,16 @@
     .menu-columnas { max-height: 320px; overflow-y: auto; padding: 10px 14px; min-width: 240px; }
     .menu-columnas .form-check { margin-bottom: 6px; }
     .menu-columnas .form-check-label { font-size: .85rem; }
+    input.celda-editable, select.celda-editable {
+        border: 1px solid transparent; background: transparent; font-size: .85rem;
+        padding: 3px 5px; border-radius: 6px; width: 100%; min-width: 90px;
+    }
+    input.celda-editable:hover, select.celda-editable:hover { border-color: #cbd5e1; }
+    input.celda-editable:focus, select.celda-editable:focus {
+        border-color: #2563eb; background: #fff; outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,.15);
+    }
+    input.celda-editable.guardado { border-color: #16a34a; background: #f0fdf4; }
+    input.celda-editable.error, select.celda-editable.error { border-color: #dc2626; background: #fef2f2; }
     @media print {
         .no-imprimir { display: none !important; }
         body { background: #fff; padding: 0; }
@@ -100,5 +110,6 @@
 </div>
 
 <script type="module" src="../js/informacion_estudiantes.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
