@@ -857,14 +857,30 @@ function valorComportamientoEfectivo(estado_, fecha, estudianteId) {
     return undefined;
 }
 
-// Una actividad "de clase" queda bloqueada para un estudiante si ese
-// día (a.fecha) el estudiante estuvo Ausente, Fuga o con Permiso según
-// la asistencia ya registrada. Las actividades "para la casa" no
-// tienen fecha (a.fecha es null) y nunca se bloquean.
+// Una actividad "de clase" queda bloqueada (no cuenta, se ve "—") para
+// un estudiante si ese día (a.fecha) estuvo Ausente o con Permiso
+// según la asistencia ya registrada. Las actividades "para la casa"
+// no tienen fecha (a.fecha es null) y nunca se bloquean.
 function actividadBloqueadaParaEstudiante(a, estudianteId, asistenciaPorFecha) {
     if (!a.fecha) return false;
     const estadoEseDia = asistenciaPorFecha[a.fecha]?.[estudianteId];
-    return estadoEseDia === "ausente" || estadoEseDia === "fuga" || estadoEseDia === "permiso";
+    return estadoEseDia === "ausente" || estadoEseDia === "permiso";
+}
+
+// Si el estudiante estuvo en "Fuga" ese día, la actividad de ese día
+// NO se bloquea: en cambio se fuerza automáticamente a 1.0 (a
+// diferencia de Ausente/Permiso, que se excluyen del promedio). La
+// casilla queda de solo lectura para que no se pueda "arreglar" a mano.
+function actividadForzadaFugaParaEstudiante(a, estudianteId, asistenciaPorFecha) {
+    if (!a.fecha) return false;
+    return asistenciaPorFecha[a.fecha]?.[estudianteId] === "fuga";
+}
+
+// Valor efectivo de una actividad "de clase" para el promedio: 1.0
+// fijo si ese día fue Fuga, o la nota que el docente puso.
+function valorActividadClaseEfectivo(a, estudianteId, asistenciaPorFecha) {
+    if (actividadForzadaFugaParaEstudiante(a, estudianteId, asistenciaPorFecha)) return 1;
+    return a.notas[estudianteId];
 }
 
 function calcularNotasParcialesEstudiante(estado_, estudianteId) {
@@ -900,7 +916,7 @@ function calcularNotasParcialesEstudiante(estado_, estudianteId) {
     const notaActClase = promedio(
         actividadesClase
             .filter((a) => !actividadBloqueadaParaEstudiante(a, estudianteId, asistenciaPorFecha))
-            .map((a) => a.notas[estudianteId])
+            .map((a) => valorActividadClaseEfectivo(a, estudianteId, asistenciaPorFecha))
             .filter((v) => v !== undefined)
     );
     const notaActCasa = promedio(actividadesCasa.map((a) => a.notas[estudianteId]).filter((v) => v !== undefined));
@@ -951,7 +967,7 @@ export function imprimirApreciacion(estado_) {
         if (actividadBloqueadaParaEstudiante(a, est.id, asistenciaPorFecha)) {
             return `<td class="text-muted">—</td>`;
         }
-        const v = a.notas[est.id];
+        const v = valorActividadClaseEfectivo(a, est.id, asistenciaPorFecha);
         return `<td>${(v === null || v === undefined) ? "—" : formatearNotaFinal(String(v))}</td>`;
     }).join("");
 
@@ -1221,7 +1237,10 @@ function pintarModal(estado_) {
         const filas = estudiantes.map((est) => {
             const celdas = listaVisible.map((a) => {
                 if (actividadBloqueadaParaEstudiante(a, est.id, asistenciaPorFecha)) {
-                    return `<td class="text-center text-muted bg-light" title="Este día el estudiante estuvo Ausente, Fuga o con Permiso: no aplica nota.">—</td>`;
+                    return `<td class="text-center text-muted bg-light" title="Este día el estudiante estuvo Ausente o con Permiso: no aplica nota.">—</td>`;
+                }
+                if (actividadForzadaFugaParaEstudiante(a, est.id, asistenciaPorFecha)) {
+                    return `<td class="text-center fw-bold text-danger bg-light" title="Este día el estudiante estuvo en Fuga: nota automática 1.0.">1.0</td>`;
                 }
                 const crudo = a.notas[est.id];
                 const valor = (crudo === null || crudo === undefined) ? "" : formatearNotaFinal(String(crudo));
