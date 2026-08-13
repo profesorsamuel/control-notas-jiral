@@ -173,6 +173,7 @@ const btnEstudiantesSeleccionarTodos = document.getElementById("btnEstudiantesSe
 const btnEstudiantesSeleccionarNinguno = document.getElementById("btnEstudiantesSeleccionarNinguno");
 const btnExportarPdf = document.getElementById("btnExportarPdf");
 const btnExportarJpg = document.getElementById("btnExportarJpg");
+const btnImprimirRiesgo = document.getElementById("btnImprimirRiesgo");
 
 // ---------------------------------------------------------------
 // "Chips" (botoncitos con gancho) para elegir Salón / Materia en vez
@@ -2084,6 +2085,162 @@ btnExportarJpg?.addEventListener("click", async () => {
     } finally {
         btnExportarJpg.disabled = false;
         btnExportarJpg.innerHTML = `<span class="btn-exportar-icono">🖼️</span><span class="btn-exportar-texto">Descargar JPG</span>`;
+    }
+});
+
+// =========================================================
+// ESTUDIANTES EN RIESGO DE FRACASAR EL TRIMESTRE (por salón)
+// =========================================================
+// Reporte de impresión aparte de la tabla: recorre TODAS las materias
+// que este docente dicta en el salón elegido (no solo la que esté
+// cargada en pantalla ahora mismo) y lista, por materia, a los
+// estudiantes cuyo promedio final actual está por debajo de
+// PROMEDIO_MINIMO_APROBAR (3.0). Usa la misma fórmula que ya se ve en
+// la columna "Prom. Final" de la tabla: promedio de Apreciación,
+// Ejercicio y Examen, cada categoría con el mismo peso, ignorando las
+// que todavía no tengan notas.
+async function calcularRiesgoPorMateria(salon, materia, trimestre, estudiantes) {
+    const ids = estudiantes.map((e) => e.id);
+    if (ids.length === 0) return [];
+
+    const { data: notas, error } = await supabase
+        .from("notas")
+        .select("estudiante_id, tipo, numero, nota")
+        .eq("materia", materia).eq("trimestre", trimestre)
+        .in("estudiante_id", ids)
+        .is("eliminado_en", null);
+
+    if (error) { console.error(error); return []; }
+
+    const porEstudiante = {};
+    (notas || []).forEach((n) => {
+        if (n.nota === null || n.nota === undefined) return;
+        const num = Number(n.nota);
+        if (isNaN(num)) return;
+        const grupo = (porEstudiante[n.estudiante_id] ??= { apr: [], eje: [], exa: [] });
+        if (n.tipo === "apreciacion") grupo.apr.push(num);
+        else if (n.tipo === "examen") grupo.exa.push(num);
+        else grupo.eje.push(num);
+    });
+
+    const prom = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+
+    const resultado = [];
+    estudiantes.forEach((est) => {
+        const g = porEstudiante[est.id];
+        if (!g) return;
+        const promApr = prom(g.apr), promEje = prom(g.eje), promExa = prom(g.exa);
+        const presentes = [promApr, promEje, promExa].filter((v) => v !== null);
+        const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
+        if (promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR) {
+            resultado.push({ nombre: est.nombre, promApr, promEje, promExa, promFinal });
+        }
+    });
+
+    resultado.sort((a, b) => a.promFinal - b.promFinal);
+    return resultado;
+}
+
+btnImprimirRiesgo?.addEventListener("click", async () => {
+    const salon = selectSalonNota.value;
+    const trimestre = selectTrimestreNota.value;
+    if (!salon) return alert("Primero elige un salón.");
+
+    btnImprimirRiesgo.disabled = true;
+    const textoOriginal = btnImprimirRiesgo.innerHTML;
+    btnImprimirRiesgo.innerHTML = `<span class="btn-exportar-icono">⏳</span><span class="btn-exportar-texto">Buscando...</span>`;
+
+    try {
+        const materiasSalon = [...new Set(misAsignaciones.filter((a) => a.salon === salon).map((a) => a.materia))];
+
+        const { data: estudiantesSalon, error: errEst } = await supabase
+            .from("estudiantes")
+            .select("id, nombre, es_prueba")
+            .eq("salon", salon)
+            .order("nombre", { ascending: true });
+
+        if (errEst) { alert("No se pudo cargar el salón: " + errEst.message); return; }
+
+        const estudiantes = (estudiantesSalon || []).filter((e) => !e.es_prueba);
+
+        const porMateria = [];
+        for (const materia of materiasSalon) {
+            const enRiesgo = await calcularRiesgoPorMateria(salon, materia, trimestre, estudiantes);
+            porMateria.push({ materia, enRiesgo });
+        }
+
+        const totalEnRiesgo = porMateria.reduce((a, m) => a + m.enRiesgo.length, 0);
+        if (totalEnRiesgo === 0) {
+            alert(`✅ Ningún estudiante del salón ${salon} está por debajo de ${PROMEDIO_MINIMO_APROBAR.toFixed(1)} en ${trimestre}, en las materias que dictas ahí.`);
+            return;
+        }
+
+        const secciones = porMateria.filter((m) => m.enRiesgo.length > 0).map(({ materia, enRiesgo }) => {
+            const filas = enRiesgo.map((e, i) => `
+                <tr>
+                    <td class="num">${i + 1}</td>
+                    <td class="nombre">${escapeHtml(e.nombre)}</td>
+                    <td>${e.promApr !== null ? e.promApr.toFixed(1) : "–"}</td>
+                    <td>${e.promEje !== null ? e.promEje.toFixed(1) : "–"}</td>
+                    <td>${e.promExa !== null ? e.promExa.toFixed(1) : "–"}</td>
+                    <td class="final">${e.promFinal.toFixed(1)}</td>
+                </tr>`).join("");
+
+            return `
+                <h2>${escapeHtml(materia)} <span class="conteo">(${enRiesgo.length} en riesgo)</span></h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th><th>Estudiante</th><th>Prom. Aprec.</th><th>Prom. Ejer.</th><th>Prom. Examen</th><th>Prom. Final</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filas}</tbody>
+                </table>`;
+        }).join("");
+
+        const fechaGeneracion = new Date().toLocaleString("es-PA", {
+            day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+        });
+
+        const html = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Estudiantes en riesgo — Salón ${escapeHtml(salon)}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; color: #1e293b; }
+                    h1 { font-size: 19px; margin-bottom: 2px; color: #991b1b; }
+                    p.sub { color: #555; margin-top: 0; margin-bottom: 18px; font-size: 12.5px; }
+                    h2 { font-size: 14px; margin: 22px 0 6px; color: #991b1b; }
+                    h2 .conteo { font-weight: normal; color: #64748b; font-size: 12px; }
+                    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+                    th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: center; }
+                    th { background: #991b1b; color: #fff; }
+                    td.nombre { text-align: left; font-weight: bold; white-space: nowrap; }
+                    td.final { font-weight: bold; color: #991b1b; background: #fef2f2; }
+                    @media print { body { padding: 0; } }
+                </style>
+            </head>
+            <body>
+                <h1>⚠️ Estudiantes en riesgo de fracasar el trimestre — Salón ${escapeHtml(salon)}</h1>
+                <p class="sub">${escapeHtml(trimestre)} · Nota final por debajo de ${PROMEDIO_MINIMO_APROBAR.toFixed(1)} · Generado el ${fechaGeneracion}</p>
+                ${secciones}
+            </body>
+            </html>`;
+
+        const ventana = window.open("", "_blank");
+        if (!ventana) { alert("El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para este sitio."); return; }
+        ventana.document.write(html);
+        ventana.document.close();
+        ventana.focus();
+        setTimeout(() => ventana.print(), 400);
+    } catch (err) {
+        console.error(err);
+        alert("No se pudo generar el reporte: " + err.message);
+    } finally {
+        btnImprimirRiesgo.disabled = false;
+        btnImprimirRiesgo.innerHTML = textoOriginal;
     }
 });
 
