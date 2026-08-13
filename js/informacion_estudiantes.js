@@ -432,17 +432,20 @@ async function guardarCampo(input) {
 
     const yaTeniaFila = fila.tieneDatos;
 
-    let error;
-    if (yaTeniaFila) {
-        ({ error } = await supabase.from("datos_estudiante").update({ [columnaBD]: valor }).eq("correo", correo));
-    } else {
-        // Primera vez que se guarda algo de este estudiante desde aquí:
-        // se manda también su nombre (ya lo tenemos del listado), por si
-        // esa columna es obligatoria en tu base de datos.
-        const payload = { correo, [columnaBD]: valor };
-        if (fila?.nombre) payload.nombre_apellido = fila.nombre;
-        ({ error } = await supabase.from("datos_estudiante").insert([payload]));
-    }
+    // Se usa upsert (en vez de decidir "a mano" entre insert/update según
+    // lo que había en memoria) porque si se editan dos campos de la misma
+    // fila muy seguido (p. ej. Género y luego Cédula), el insert() de uno
+    // podía terminar de completarse justo antes que el otro, sin que la
+    // variable local "tieneDatos" se enterara a tiempo — y el segundo
+    // guardado intentaba insertar de nuevo, chocando con un error de
+    // "duplicate key" contra la fila que el primero ya había creado.
+    // upsert con onConflict "correo" resuelve esto solo: si la fila ya
+    // existe, actualiza; si no, la crea. Sin condición de carrera posible.
+    const payload = { correo, [columnaBD]: valor };
+    if (!yaTeniaFila && fila?.nombre) payload.nombre_apellido = fila.nombre;
+    const { error } = await supabase
+        .from("datos_estudiante")
+        .upsert([payload], { onConflict: "correo" });
 
     if (error) {
         console.error("❌ Error al guardar:", error);
