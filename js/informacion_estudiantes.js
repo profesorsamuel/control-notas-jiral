@@ -15,6 +15,7 @@
 
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel, obtenerRolesDeCuenta } from "./roles.js";
+import { cedulaAEmail } from "./utils.js";
 
 function escapeHtml(str) {
     return String(str ?? "")
@@ -259,7 +260,21 @@ async function cargarInformacion(salon) {
         return;
     }
 
-    const correos = estudiantes.map((e) => e.correo).filter(Boolean);
+    // Un estudiante puede no tener "correo" todavía en "estudiantes"
+    // porque no se ha registrado (no ha creado su cuenta de acceso).
+    // Mientras tanto, si ya tenemos su cédula (columna "cedula" en
+    // "estudiantes"), se calcula el mismo correo "interno" que usará
+    // registro.js al crear su cuenta (cedulaAEmail), para poder
+    // guardar sus datos desde ya. Cuando el estudiante se registre,
+    // registro.js hace upsert con onConflict "correo", así que va a
+    // caer en esta misma fila y los datos se fusionan sin duplicarse.
+    function correoDe(est) {
+        if (est.correo) return est.correo;
+        if (est.cedula) return cedulaAEmail(est.cedula);
+        return null;
+    }
+
+    const correos = estudiantes.map((e) => correoDe(e)).filter(Boolean);
 
     const { data: datosExtra, error: errDatos } = correos.length
         ? await supabase.from("datos_estudiante").select("*").in("correo", correos)
@@ -275,9 +290,13 @@ async function cargarInformacion(salon) {
     actualizarIconosOrden();
 
     filasActuales = estudiantes.map((est) => {
-        const extra = datosPorCorreo[(est.correo || "").toLowerCase()] || null;
+        const correoCalculado = correoDe(est);
+        const extra = datosPorCorreo[(correoCalculado || "").toLowerCase()] || null;
         return {
-            correo: est.correo,
+            correo: correoCalculado,
+            // true cuando el estudiante todavía no se ha registrado y el
+            // correo se calculó a partir de su cédula (no viene de "estudiantes").
+            correoGenerado: !est.correo && !!correoCalculado,
             nombre: est.nombre,
             salon: est.salon,
             // Si el estudiante ya definió su género en "Mis datos", ese manda;
