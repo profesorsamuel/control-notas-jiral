@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { cedulaAEmail } from "./utils.js";
 
 // =========================================================
 // 0) UTILIDADES
@@ -149,15 +150,45 @@ function ocultarReporte() {
 // =========================================================
 
 async function calcularDatosSalon(salon, materia, trimestre) {
-    const { data: estudiantesSalon, error: errEst } = await supabase
-        .from("estudiantes")
-        .select("id, nombre, genero, es_prueba")
-        .eq("salon", salon)
-        .order("nombre", { ascending: true });
+    async function consultarEstudiantes(conCedula) {
+        return supabase
+            .from("estudiantes")
+            .select(`id, nombre, correo, genero, es_prueba${conCedula ? ", cedula" : ""}`)
+            .eq("salon", salon)
+            .order("nombre", { ascending: true });
+    }
+    let { data: estudiantesSalon, error: errEst } = await consultarEstudiantes(true);
+    if (errEst) ({ data: estudiantesSalon, error: errEst } = await consultarEstudiantes(false));
     if (errEst) throw new Error(`Estudiantes de ${salon}: ${errEst.message}`);
 
     const lista = (estudiantesSalon || []).filter((e) => !e.es_prueba);
     const ids = lista.map((e) => e.id);
+
+    // El género "de verdad" muchas veces vive en "datos_estudiante" (lo
+    // llena el propio estudiante en "Mis datos"), identificado por correo,
+    // igual que hace informacion_estudiantes.js. El campo genero directo en
+    // "estudiantes" es solo un respaldo si el admin lo puso a mano ahí.
+    function correoDe(est) {
+        if (est.correo) return est.correo;
+        if (est.cedula) return cedulaAEmail(est.cedula);
+        return null;
+    }
+    const correos = lista.map((e) => correoDe(e)).filter(Boolean);
+    let generoPorCorreo = {};
+    if (correos.length) {
+        const { data: datosExtra } = await supabase
+            .from("datos_estudiante")
+            .select("correo, genero")
+            .in("correo", correos);
+        (datosExtra || []).forEach((d) => {
+            if (d.correo) generoPorCorreo[d.correo.toLowerCase()] = d.genero;
+        });
+    }
+    function generoDe(est) {
+        const correo = correoDe(est);
+        const deExtra = correo ? generoPorCorreo[correo.toLowerCase()] : null;
+        return deExtra || est.genero || null;
+    }
 
     const gruposPorEstudiante = {};
     if (ids.length > 0) {
@@ -193,11 +224,15 @@ async function calcularDatosSalon(salon, materia, trimestre) {
         sinCalif: { M: 0, F: 0, total: 0 },
         reprobadosNombres: [],
         sinGeneroCantidad: 0,
+        sinGeneroNombres: [],
     };
 
     lista.forEach((est) => {
-        const g = normalizarGenero(est.genero);
-        if (!g) resumen.sinGeneroCantidad++;
+        const g = normalizarGenero(generoDe(est));
+        if (!g) {
+            resumen.sinGeneroCantidad++;
+            resumen.sinGeneroNombres.push(est.nombre);
+        }
 
         const grupos = gruposPorEstudiante[est.id];
         const promedios = grupos
@@ -329,10 +364,8 @@ function construirEncabezadoHtml(filas) {
     const jornada = selectJornada.value || "—";
     const niveles = construirTextoNiveles(filas.map((f) => f.salon));
 
-    const totalSinGenero = filas.reduce((a, f) => a + f.sinGeneroCantidad, 0);
-    const avisoSinGenero = totalSinGenero > 0
-        ? `<div class="aviso-genero">⚠️ ${totalSinGenero} estudiante(s) no tienen el campo "Género" lleno en "Información de estudiantes". Los totales de APROBADOS/REPROBADOS/SIN CALIFICACIONES sí son correctos, pero el desglose por columnas M/F de esos estudiantes no se puede mostrar hasta que se les registre el género (Panel Admin → Información de estudiantes → columna "Género").</div>`
-        : "";
+    // El aviso de género (con nombres) ya no va dentro del cuadro imprimible:
+    // se muestra aparte, en pantalla, como ayuda de trabajo (ver mostrarAvisoGenero()).
 
     return `
     <div class="encabezado-institucion" contenteditable="true">MINISTERIO DE EDUCACIÓN – DIRECCIÓN REGIONAL DE COLÓN – C.E.B.G. EL JIRAL</div>
@@ -346,8 +379,34 @@ function construirEncabezadoHtml(filas) {
         <div><strong>AÑO ELECTIVO:</strong> ${escapeHtml(String(anio))}</div>
         <div><strong>JORNADA:</strong> ${escapeHtml(jornada)}</div>
     </div>
-    ${avisoSinGenero}
     `;
+}
+
+// Aviso de trabajo (NO se imprime ni sale en el PDF): lista, por grado,
+// los nombres de los estudiantes sin género registrado, para que el
+// profesor sepa exactamente a quién completarle el dato.
+function mostrarAvisoGenero(filas) {
+    const contenedor = document.getElementById("avisoGeneroFaltante");
+    const conFaltantes = filas.filter((f) => f.sinGeneroNombres.length > 0);
+    if (!conFaltantes.length) {
+        contenedor.style.display = "none";
+        contenedor.innerHTML = "";
+        return;
+    }
+    const total = conFaltantes.reduce((a, f) => a + f.sinGeneroNombres.length, 0);
+    contenedor.innerHTML = `
+        <div class="aviso-genero">
+            ⚠️ <strong>${total} estudiante(s)</strong> no tienen el campo "Género" lleno en "Información de estudiantes".
+            Los totales de APROBADOS/REPROBADOS/SIN CALIFICACIONES ya son correctos, pero el desglose M/F de ellos
+            no aparece hasta que les completes el género (Panel Admin → Información de estudiantes → columna "Género").
+            Este aviso no sale en el cuadro impreso ni en el PDF.
+            ${conFaltantes.map((f) => `
+                <div style="margin-top:8px;">
+                    <strong>${escapeHtml(f.etiqueta)}:</strong> ${f.sinGeneroNombres.map(escapeHtml).join(", ")}
+                </div>
+            `).join("")}
+        </div>`;
+    contenedor.style.display = "block";
 }
 
 function construirNotasHtml() {
@@ -403,6 +462,7 @@ btnGenerar.addEventListener("click", async () => {
             ${construirTablaHtml(filas)}
             ${construirNotasHtml()}
         `;
+        mostrarAvisoGenero(filas);
         bloqueReporte.style.display = "block";
         bloqueReporte.scrollIntoView({ behavior: "smooth", block: "start" });
         estadoGeneracion.textContent = "";
