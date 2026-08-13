@@ -235,6 +235,8 @@ function poblarSelectMateria() {
         selectMateriaNota.innerHTML = `<option value="">Seleccione primero un salón</option>`;
         selectMateriaNota.disabled = true;
         renderizarChips(selectMateriaNota, "chipsMateriaNota");
+        if (bloqueTablaNotas) bloqueTablaNotas.style.display = "none";
+        grupoActual = [];
         return;
     }
 
@@ -255,6 +257,13 @@ function poblarSelectMateria() {
         cargarSalon();
         return;
     }
+
+    // Si hay varias materias, todavía no sabemos cuál quiere el docente:
+    // ocultamos la tabla (que puede seguir mostrando el salón/materia
+    // anterior) para no dar la falsa impresión de que ya está viendo
+    // este salón, hasta que elija la materia con un clic.
+    if (bloqueTablaNotas) bloqueTablaNotas.style.display = "none";
+    grupoActual = [];
 
     selectMateriaNota.innerHTML =
         `<option value="">Seleccione una materia</option>` +
