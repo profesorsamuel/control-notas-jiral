@@ -100,6 +100,66 @@ let salonConsejero = "";
 let filasActuales = []; // último set cargado, para poder filtrar por texto sin volver a consultar
 
 // ---------------------------------------------------------------
+// Orden por columna (clic en el encabezado)
+// ---------------------------------------------------------------
+let ordenColumna = null; // clave de la columna por la que se está ordenando
+let ordenDireccion = "asc"; // "asc" | "desc"
+
+function compararValores(a, b) {
+    const va = a ?? "";
+    const vb = b ?? "";
+    // Si ambos valores parecen números, comparar numéricamente.
+    const na = parseFloat(va);
+    const nb = parseFloat(vb);
+    if (va !== "" && vb !== "" && !isNaN(na) && !isNaN(nb) && String(na) === String(va).trim() && String(nb) === String(vb).trim()) {
+        return na - nb;
+    }
+    return String(va).localeCompare(String(vb), "es", { sensitivity: "base", numeric: true });
+}
+
+function ordenarFilas(filas) {
+    if (!ordenColumna) return filas;
+    const copia = [...filas];
+    copia.sort((a, b) => {
+        const cmp = compararValores(a[ordenColumna], b[ordenColumna]);
+        return ordenDireccion === "asc" ? cmp : -cmp;
+    });
+    return copia;
+}
+
+function actualizarIconosOrden() {
+    document.querySelectorAll(".th-ordenable").forEach((th) => {
+        th.classList.remove("orden-asc", "orden-desc");
+        const icono = th.querySelector(".icono-orden");
+        if (th.dataset.sort === ordenColumna) {
+            th.classList.add(ordenDireccion === "asc" ? "orden-asc" : "orden-desc");
+            if (icono) icono.className = `fa-solid ${ordenDireccion === "asc" ? "fa-sort-up" : "fa-sort-down"} icono-orden`;
+        } else if (icono) {
+            icono.className = "fa-solid fa-sort icono-orden";
+        }
+    });
+}
+
+document.querySelectorAll(".th-ordenable").forEach((th) => {
+    th.addEventListener("click", () => {
+        const clave = th.dataset.sort;
+        if (ordenColumna === clave) {
+            ordenDireccion = ordenDireccion === "asc" ? "desc" : "asc";
+        } else {
+            ordenColumna = clave;
+            ordenDireccion = "asc";
+        }
+        actualizarIconosOrden();
+        // Re-aplica también el filtro de búsqueda actual, si hay texto escrito.
+        const texto = inputBuscar.value.trim().toLowerCase();
+        const base = texto
+            ? filasActuales.filter((f) => (f.nombre || "").toLowerCase().includes(texto) || (f.cedula || "").toLowerCase().includes(texto))
+            : filasActuales;
+        renderizarTabla(ordenarFilas(base));
+    });
+});
+
+// ---------------------------------------------------------------
 // 1) Verificar sesión y rol
 // ---------------------------------------------------------------
 async function iniciar() {
@@ -210,6 +270,10 @@ async function cargarInformacion(salon) {
     const datosPorCorreo = {};
     (datosExtra || []).forEach((d) => { datosPorCorreo[(d.correo || "").toLowerCase()] = d; });
 
+    ordenColumna = null;
+    ordenDireccion = "asc";
+    actualizarIconosOrden();
+
     filasActuales = estudiantes.map((est) => {
         const extra = datosPorCorreo[(est.correo || "").toLowerCase()] || null;
         return {
@@ -230,7 +294,7 @@ async function cargarInformacion(salon) {
         };
     });
 
-    renderizarTabla(filasActuales);
+    renderizarTabla(ordenarFilas(filasActuales));
 }
 
 // Columnas de "datos_estudiante" que se pueden editar desde aquí,
@@ -368,13 +432,13 @@ function renderizarTabla(filas) {
 // ---------------------------------------------------------------
 inputBuscar.addEventListener("input", () => {
     const texto = inputBuscar.value.trim().toLowerCase();
-    if (!texto) { renderizarTabla(filasActuales); return; }
+    if (!texto) { renderizarTabla(ordenarFilas(filasActuales)); return; }
 
     const filtradas = filasActuales.filter((f) =>
         (f.nombre || "").toLowerCase().includes(texto) ||
         (f.cedula || "").toLowerCase().includes(texto)
     );
-    renderizarTabla(filtradas);
+    renderizarTabla(ordenarFilas(filtradas));
 });
 
 // ---------------------------------------------------------------
