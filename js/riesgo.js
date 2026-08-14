@@ -89,7 +89,7 @@ async function iniciar() {
         return;
     }
 
-    pintarCambiarPanel("riesgo", "oscuro-sobre-claro");
+    pintarCambiarPanel("riesgo", "claro-sobre-oscuro");
 
     if (modo === "profesor") {
         enlaceVolver.href = "profesor.html";
@@ -154,6 +154,7 @@ function pintarChipsSalones(opciones) {
                 salonesSeleccionados.add(valor);
                 chip.classList.add("activo");
             }
+            dispararAutoGenerar();
         });
     });
 }
@@ -163,12 +164,26 @@ btnSalonesTodos.addEventListener("click", () => {
         salonesSeleccionados.add(chip.dataset.valor);
         chip.classList.add("activo");
     });
+    dispararAutoGenerar();
 });
 
 btnSalonesNinguno.addEventListener("click", () => {
     salonesSeleccionados.clear();
     chipsSalonesRiesgo.querySelectorAll(".chip-salon").forEach((chip) => chip.classList.remove("activo"));
+    dispararAutoGenerar();
 });
+
+// ---------------------------------------------------------------
+// Auto-generar el reporte al tocar un chip de salón (con un pequeño
+// "debounce": si el usuario toca varios salones seguidos, espera a
+// que se detenga un momento antes de generar, para no lanzar una
+// búsqueda por cada clic individual).
+// ---------------------------------------------------------------
+let timerAutoGenerar = null;
+function dispararAutoGenerar() {
+    clearTimeout(timerAutoGenerar);
+    timerAutoGenerar = setTimeout(() => generarReporte({ avisarSiVacio: false }), 250);
+}
 
 // ---------------------------------------------------------------
 // 2) Cálculo de riesgo por materia (promedio final < 3.0)
@@ -280,12 +295,26 @@ async function obtenerMateriasYDocentes(salon) {
 // ---------------------------------------------------------------
 // 3) Generar el reporte en pantalla
 // ---------------------------------------------------------------
-btnGenerarReporte.addEventListener("click", async () => {
+let generandoReporte = false;
+
+async function generarReporte({ avisarSiVacio = true } = {}) {
     const salones = modo === "consejero"
         ? (salonConsejero ? [salonConsejero] : [])
         : [...salonesSeleccionados];
 
-    if (salones.length === 0) return alert("Elige al menos un salón.");
+    if (salones.length === 0) {
+        if (avisarSiVacio) alert("Elige al menos un salón.");
+        // Si se vació la selección desde los chips (sin querer avisar),
+        // simplemente ocultamos el reporte y volvemos al estado vacío.
+        tarjetaReporte.style.display = "none";
+        tarjetaVacia.style.display = "";
+        return;
+    }
+
+    // Evita solapar dos generaciones si el usuario toca chips muy rápido
+    // mientras la anterior todavía está buscando en la base de datos.
+    if (generandoReporte) return;
+    generandoReporte = true;
 
     const trimestre = selectTrimestreRiesgo.value;
 
@@ -324,8 +353,11 @@ btnGenerarReporte.addEventListener("click", async () => {
     } finally {
         btnGenerarReporte.disabled = false;
         btnGenerarReporte.innerHTML = textoOriginal;
+        generandoReporte = false;
     }
-});
+}
+
+btnGenerarReporte.addEventListener("click", () => generarReporte({ avisarSiVacio: true }));
 
 function renderizarReporte(trimestre, reportePorSalon) {
     // Solo las materias que sí tienen estudiantes en riesgo.
