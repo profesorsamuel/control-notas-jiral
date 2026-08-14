@@ -1,8 +1,6 @@
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
-import { calcularColumnasApreciacionesNuevas, activarApreciacionSiguiente, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas, eliminarApreciacionColumna, inicializarPanelPesosGlobal } from "./apreciaciones.js";
-
-inicializarPanelPesosGlobal();
+import { calcularColumnasApreciacionesNuevas, activarApreciacionSiguiente, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas, eliminarApreciacionColumna } from "./apreciaciones.js";
 
 // =========================================================
 // 0) UTILIDADES
