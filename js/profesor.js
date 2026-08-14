@@ -1592,35 +1592,93 @@ async function enviarRespaldoPorCorreo() {
 // respaldo, sin esperar los MINUTOS_INACTIVIDAD_RESPALDO. Útil si el
 // docente quiere mandar el correo justo después de terminar de anotar,
 // en vez de esperar a que pase el tiempo de inactividad.
+// Construye una tabla HTML con TODAS las notas tal como están cargadas
+// ahora mismo en pantalla (todos los estudiantes del salón x todas las
+// casillas visibles de la materia/trimestre actuales), sin importar si
+// se modificaron o no en esta sesión. Es lo que usa el botón
+// "Enviar notas ahora" para mandar una foto completa del estado actual.
+function construirTablaSnapshotActual() {
+    const columnas = casillasTabla.slice();
+    ordenarCasillas(columnas);
+
+    const encabezado = columnas.map((c) =>
+        `<th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">${escapeHtml(etiquetaCasilla(c.tipo, c.numero))}</th>`
+    ).join("");
+
+    const filas = grupoActual.map((est) => {
+        const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
+        const celdas = columnas.map((c) => {
+            const nota = historial[claveCasilla(c.tipo, c.numero)];
+            const valor = nota && nota.nota !== null && nota.nota !== undefined && nota.nota !== ""
+                ? escapeHtml(String(nota.nota))
+                : "-";
+            return `<td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${valor}</td>`;
+        }).join("");
+
+        return `<tr>` +
+            `<td style="padding:4px 8px;border:1px solid #ccc;">${escapeHtml(est.nombre || "-")}</td>` +
+            celdas +
+            `</tr>`;
+    }).join("");
+
+    return `
+        <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;">
+            <thead>
+                <tr>
+                    <th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">Estudiante</th>
+                    ${encabezado}
+                </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+        </table>`;
+}
+
 document.getElementById("btnEnviarRespaldoAhora")?.addEventListener("click", async (e) => {
     const boton = e.currentTarget;
     const estado = document.getElementById("estadoEnviarRespaldo");
 
-    if (cambiosPendientesRespaldo.length === 0) {
-        estado.textContent = "ℹ️ No hay notas nuevas pendientes de enviar por correo.";
-        estado.className = "small text-muted";
+    if (!selectSalonNota.value || !selectMateriaNota.value) {
+        estado.textContent = "⚠️ Primero selecciona un salón y una materia.";
+        estado.className = "small text-danger";
         return;
     }
 
-    if (temporizadorRespaldo) clearTimeout(temporizadorRespaldo);
+    if (grupoActual.length === 0 || casillasTabla.length === 0) {
+        estado.textContent = "ℹ️ No hay notas cargadas todavía para enviar.";
+        estado.className = "small text-muted";
+        return;
+    }
 
     boton.disabled = true;
     const textoOriginal = boton.textContent;
     boton.textContent = "Enviando...";
     estado.textContent = "";
 
-    await enviarRespaldoPorCorreo();
+    const parametros = {
+        profesor: nombreProfesor,
+        materia: selectMateriaNota.value,
+        salon: selectSalonNota.value,
+        trimestre: selectTrimestreNota.value,
+        fecha: new Date().toLocaleString("es-PA"),
+        tabla_notas: construirTablaSnapshotActual(),
+    };
 
-    if (cambiosPendientesRespaldo.length === 0) {
+    try {
+        await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, parametros);
         estado.textContent = "✅ Notas enviadas por correo.";
         estado.className = "small text-success";
-    } else {
-        estado.textContent = "❌ No se pudo enviar el correo. Se reintentará automáticamente.";
+        // Ya que se mandó una foto completa y actualizada, no hace falta
+        // además mandar el respaldo por inactividad con los mismos cambios.
+        cambiosPendientesRespaldo = [];
+        if (temporizadorRespaldo) clearTimeout(temporizadorRespaldo);
+    } catch (err) {
+        console.error("❌ No se pudo enviar el correo:", err);
+        estado.textContent = "❌ No se pudo enviar el correo. Revisa la consola para más detalles.";
         estado.className = "small text-danger";
+    } finally {
+        boton.disabled = false;
+        boton.textContent = textoOriginal;
     }
-
-    boton.disabled = false;
-    boton.textContent = textoOriginal;
 });
 
 // Auto-guardado real: cada celda se guarda sola al salir de ella (blur)
