@@ -408,6 +408,13 @@ function render() {
                         Falta un ejercicio de la clase 3 y el examen final.
                     </p>
                 ` : ""}
+                ${materia === "Informática" ? `
+                    <p class="aviso-leyenda-card">
+                        ℹ️ Nota 1 es de la clase 1. Nota 2 es la práctica 1. Nota 3 es de la clase 2.
+                        Nota 4 es la práctica 2.<br>
+                        Falta la nota del álbum virtual.
+                    </p>
+                ` : ""}
             </div>
         `;
     });
