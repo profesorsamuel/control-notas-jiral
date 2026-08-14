@@ -20,12 +20,14 @@ function mostrarEstado(mensaje, esError = false) {
 }
 
 const TAMANO_MAXIMO_MB = 50;
+const BUCKET = "planificacion-curricular";
 
 // =========================================================
 // ESTADO
 // =========================================================
 
 let correoProfesor = "";
+let idProfesor = "";
 let misMaterias = []; // [{materia, salon}, ...]
 
 let archivoLibro = null;
@@ -37,6 +39,7 @@ let archivoPrograma = null;
 
 const selectMateria = document.getElementById("selectMateriaPlanificacion");
 const btnAnalizarPdfs = document.getElementById("btnAnalizarPdfs");
+const contenedorResultado = document.getElementById("resultadoTemas");
 
 const zonas = {
     libro: {
@@ -68,6 +71,7 @@ async function verificarSesion() {
     }
 
     correoProfesor = (user.email || "").trim().toLowerCase();
+    idProfesor = user.id;
 
     const { data: materias, error: errMaterias } = await supabase
         .from("profesor_materias")
@@ -206,27 +210,112 @@ function actualizarBotonAnalizar() {
 selectMateria.addEventListener("change", actualizarBotonAnalizar);
 
 // =========================================================
-// 5) ANALIZAR PDFS
+// 5) SUBIR UN ARCHIVO AL BUCKET (carpeta = uid del profesor)
+// =========================================================
+
+async function subirArchivo(archivo, nombreDestino) {
+    const ruta = `${idProfesor}/${nombreDestino}`;
+
+    const { error } = await supabase.storage
+        .from(BUCKET)
+        .upload(ruta, archivo, { upsert: true, contentType: "application/pdf" });
+
+    if (error) {
+        throw new Error(`Error al subir ${nombreDestino}: ${error.message}`);
+    }
+
+    return ruta;
+}
+
+// =========================================================
+// 6) PINTAR LA TABLA DE TEMAS DETECTADOS
+// =========================================================
+
+function pintarTablaTemas(temas) {
+    if (!temas || temas.length === 0) {
+        contenedorResultado.innerHTML = "";
+        return;
+    }
+
+    const filas = temas.map((t) => `
+        <tr>
+            <td>${t.trimestre}</td>
+            <td>${escapeHtml(t.area)}</td>
+            <td>${escapeHtml(t.unidad)}</td>
+            <td>${escapeHtml(t.leccion)}</td>
+            <td class="text-end">${t.pagina}</td>
+        </tr>
+    `).join("");
+
+    contenedorResultado.innerHTML = `
+        <div class="alert alert-success py-2 px-3 mb-2" style="font-size:.85rem;">
+            ✅ Se detectaron <strong>${temas.length}</strong> lecciones. Revísalas antes de confirmar.
+        </div>
+        <div class="table-responsive" style="max-height:320px; overflow:auto; border:1px solid #eee; border-radius:8px;">
+            <table class="table table-sm table-striped mb-0" style="font-size:.78rem;">
+                <thead class="table-light" style="position:sticky; top:0;">
+                    <tr>
+                        <th>Trim.</th>
+                        <th>Área</th>
+                        <th>Unidad</th>
+                        <th>Lección</th>
+                        <th class="text-end">Pág.</th>
+                    </tr>
+                </thead>
+                <tbody>${filas}</tbody>
+            </table>
+        </div>
+        <div class="text-center mt-3">
+            <button class="btn btn-sm btn-outline-secondary" disabled>
+                Confirmar y guardar (siguiente paso pequeño)
+            </button>
+        </div>
+    `;
+}
+
+// =========================================================
+// 7) ANALIZAR PDFS
 // -----------------------------------------------------------
-// Paso pequeño 1 (este archivo): valida materia + 2 PDFs y los
-// deja listos en memoria (archivoLibro / archivoPrograma).
-// Paso pequeño 2 (siguiente entrega): esta función llamará a la
-// Edge Function "parsear-libro" con supabase.functions.invoke(),
-// mostrará la tabla de temas detectados para revisar/corregir, y
-// al confirmar hará el insert en "temas_programa".
+// Paso pequeño 2 (este archivo): sube libro + programa a Storage,
+// llama la Edge Function "parsear-libro" y muestra la tabla.
+// Paso pequeño 3 (siguiente entrega): botón "Confirmar y guardar"
+// hace el insert real en "temas_programa", y se agrega la Edge
+// Function "parsear-programa" para el segundo PDF.
 // =========================================================
 
 async function analizarPdfs() {
     if (!selectMateria.value || !archivoLibro || !archivoPrograma) return;
 
     btnAnalizarPdfs.disabled = true;
-    mostrarEstado("Archivos listos. La conexión con el analizador (Edge Function) se agrega en el siguiente paso.");
+    contenedorResultado.innerHTML = "";
+    mostrarEstado("Subiendo archivos...");
 
-    console.log("📖 Materia seleccionada:", selectMateria.value);
-    console.log("📖 Libro:", archivoLibro.name, archivoLibro.size, "bytes");
-    console.log("📖 Programa:", archivoPrograma.name, archivoPrograma.size, "bytes");
+    try {
+        const rutaLibro = await subirArchivo(archivoLibro, "libro.pdf");
+        await subirArchivo(archivoPrograma, "programa.pdf");
 
-    btnAnalizarPdfs.disabled = false;
+        mostrarEstado("Analizando el libro (esto puede tardar unos segundos)...");
+
+        const { data, error } = await supabase.functions.invoke("parsear-libro", {
+            body: { path: rutaLibro },
+        });
+
+        if (error) {
+            throw new Error(error.message || "Error al llamar la función de análisis.");
+        }
+
+        if (!data || !data.ok) {
+            throw new Error((data && data.error) || "No se pudo analizar el libro.");
+        }
+
+        mostrarEstado(`Listo. Se detectaron ${data.total} lecciones del libro.`);
+        pintarTablaTemas(data.temas);
+    } catch (err) {
+        console.error("❌ Error al analizar PDFs:", err);
+        mostrarEstado(err.message || "Ocurrió un error al analizar los archivos.", true);
+    } finally {
+        btnAnalizarPdfs.disabled = false;
+    }
 }
 
 btnAnalizarPdfs.addEventListener("click", analizarPdfs);
