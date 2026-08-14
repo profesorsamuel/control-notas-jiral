@@ -125,6 +125,32 @@
 
         .estado-vacio { text-align: center; color: #94a3b8; padding: 30px 10px; }
 
+        /* ---- Botón de WhatsApp por estudiante ---- */
+        .btn-whatsapp-fila {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 30px; height: 30px; border-radius: 50%;
+            background: #25D366; color: #fff; border: none; cursor: pointer; font-size: .95rem;
+            transition: opacity .12s;
+        }
+        .btn-whatsapp-fila:hover { opacity: .85; }
+        .btn-whatsapp-fila:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+        /* ---- Caja para editar el mensaje de WhatsApp (aplica a todos) ---- */
+        .caja-mensaje-wa {
+            background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px;
+            padding: 14px 16px; margin-bottom: 16px;
+        }
+        .caja-mensaje-wa label { font-weight: 700; color: #166534; font-size: .84rem; display: block; margin-bottom: 6px; }
+        .caja-mensaje-wa textarea {
+            width: 100%; border: 1px solid #86efac; border-radius: 8px; padding: 10px 12px;
+            font-family: inherit; font-size: .86rem; resize: vertical; min-height: 90px; box-sizing: border-box;
+        }
+        .caja-mensaje-wa .ayuda-placeholders { font-size: .76rem; color: #15803d; margin: 8px 0 0; }
+        .caja-mensaje-wa .ayuda-placeholders code {
+            background: #dcfce7; padding: 1px 5px; border-radius: 4px; font-size: .74rem;
+        }
+        .caja-mensaje-wa .acciones-mensaje { margin-top: 8px; display: flex; justify-content: flex-end; }
+
         @media print {
             .no-imprimir { display: none !important; }
             body { background: #fff; padding: 0; }
@@ -192,6 +218,23 @@
                     </button>
                     <button type="button" id="btnDescargarPdf" class="btn btn-riesgo btn-sm">
                         <i class="fa-solid fa-file-pdf me-1"></i>Descargar PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="caja-mensaje-wa no-imprimir" id="cajaMensajeWhatsapp" style="display:none;">
+                <label for="textareaMensajeWhatsapp"><i class="fa-brands fa-whatsapp me-1"></i>Mensaje para enviar por WhatsApp a los padres/acudientes</label>
+                <textarea id="textareaMensajeWhatsapp" rows="4"></textarea>
+                <p class="ayuda-placeholders">
+                    Escribe el mensaje una sola vez; se usa igual para todos. Puedes usar
+                    <code>{ESTUDIANTE}</code> <code>{MATERIA}</code> <code>{SALON}</code>
+                    <code>{PROFESOR}</code> <code>{TRIMESTRE}</code> <code>{PADRE}</code>
+                    y cada uno se completa solo al enviar. Luego pulsa el botón
+                    <i class="fa-brands fa-whatsapp" style="color:#25D366;"></i> junto a cada estudiante en la tabla.
+                </p>
+                <div class="acciones-mensaje">
+                    <button type="button" id="btnRestaurarMensajeWa" class="btn btn-outline-secondary btn-sm">
+                        <i class="fa-solid fa-rotate-left me-1"></i>Restaurar mensaje predeterminado
                     </button>
                 </div>
             </div>
