@@ -340,12 +340,15 @@ async function guardarProgramaEnBaseDeDatos() {
     btnConfirmar.disabled = true;
     btnConfirmar.textContent = "Guardando...";
 
-    const filasAInsertar = bloquesProgramaDetectados.map((b) => ({
+    const filasAInsertar = bloquesProgramaDetectados.map((b, i) => ({
+        profesor_id: idProfesor,
+        correo_profesor: correoProfesor,
         materia: selectMateria.value,
         grado: b.grado,
         area: b.area,
-        objetivo_aprendizaje: b.objetivos.join("\n"),
+        objetivos: b.objetivos.join("\n"),
         contenido_raw: b.contenido_raw,
+        orden: i,
     }));
 
     const { error } = await supabase.from("contenidos_curriculares").insert(filasAInsertar);
@@ -373,7 +376,9 @@ async function guardarTemasEnBaseDeDatos() {
     btnConfirmar.disabled = true;
     btnConfirmar.textContent = "Guardando...";
 
-    const filasAInsertar = temasDetectados.map((t) => ({
+    const filasAInsertar = temasDetectados.map((t, i) => ({
+        profesor_id: idProfesor,
+        correo_profesor: correoProfesor,
         id_docente: idProfesor,
         materia: selectMateria.value,
         grado: selectGrado.value,
@@ -382,6 +387,8 @@ async function guardarTemasEnBaseDeDatos() {
         unidad: t.unidad,
         leccion: t.leccion,
         pagina: t.pagina,
+        orden: i,
+        confirmado: true,
     }));
 
     const { error } = await supabase.from("temas_programa").insert(filasAInsertar);
