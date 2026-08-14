@@ -401,6 +401,13 @@ function render() {
                         promedio puede cambiar.
                     </p>
                 ` : ""}
+                ${materia === "Ciencias Naturales" ? `
+                    <p class="aviso-leyenda-card">
+                        ℹ️ Nota 1 es de la clase 1. Nota 2 es de la clase 2. Nota 3 es el proyecto científico.
+                        Nota 4 es de la clase 3. Nota 5 es la feria científica.<br>
+                        Falta un ejercicio de la clase 3 y el examen final.
+                    </p>
+                ` : ""}
             </div>
         `;
     });
