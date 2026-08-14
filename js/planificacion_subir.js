@@ -460,11 +460,12 @@ async function analizarPdfs() {
         pintarTablaPrograma(dataPrograma.bloques);
 
         if (dataPrograma.diagnostico) {
-            contenedorPrograma.innerHTML += `
-                <div class="alert alert-warning mt-3" style="font-size:.72rem; white-space:pre-wrap;">
-                    <strong>🔍 Diagnóstico temporal (cópiaselo a Claude):</strong>\n${dataPrograma.diagnostico.map((d, i) => `${i + 1}. ${d}`).join("\n")}
-                </div>
-            `;
+            const cajaDiagnostico = document.createElement("div");
+            cajaDiagnostico.className = "alert alert-warning mt-3";
+            cajaDiagnostico.style.fontSize = ".72rem";
+            cajaDiagnostico.style.whiteSpace = "pre-wrap";
+            cajaDiagnostico.innerHTML = `<strong>🔍 Diagnóstico temporal (cópiaselo a Claude):</strong>\n${dataPrograma.diagnostico.map((d, i) => `${i + 1}. ${escapeHtml(d)}`).join("\n")}`;
+            contenedorPrograma.appendChild(cajaDiagnostico);
         }
 
         mostrarEstado(`Listo. ${dataLibro.total} lecciones del libro y ${dataPrograma.total} bloques del programa.`);
