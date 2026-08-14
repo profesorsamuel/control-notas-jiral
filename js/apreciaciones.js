@@ -623,12 +623,12 @@ export async function guardarApreciacionCompleta({
 
         const { data: existente } = await supabase.from("notas").select("id")
             .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", "apreciacion").eq("numero", numeroApreciacion)
-            .eq(est.correo ? "correo" : "estudiante_id", est.correo || est.id)
+            .eq(est.id ? "estudiante_id" : "correo", est.id || est.correo)
             .is("eliminado_en", null).maybeSingle();
 
         const payload = {
             correo: est.correo || null,
-            estudiante_id: est.correo ? null : est.id,
+            estudiante_id: est.id || null,
             materia, trimestre,
             tipo: "apreciacion", numero: numeroApreciacion,
             nota: notaRedondeada,
