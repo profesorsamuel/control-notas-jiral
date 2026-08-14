@@ -519,10 +519,22 @@
     <!-- ================= REGISTRAR / EDITAR NOTAS ================= -->
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
         <h2 style="margin:0;">📝 Registrar notas</h2>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; position:relative;">
             <button type="button" id="btnPapelera" class="btn btn-outline-secondary btn-sm">🗑️ Papelera</button>
-            <button type="button" id="btnEnviarRespaldoAhora" class="btn btn-outline-primary btn-sm">📧 Enviar notas ahora</button>
+            <button type="button" id="btnAbrirEnviarNotas" class="btn btn-outline-primary btn-sm">📧 Enviar notas por correo ▾</button>
             <span id="estadoEnviarRespaldo" class="small" style="align-self:center;"></span>
+
+            <div id="panelEnviarNotas" style="display:none; position:absolute; top:100%; right:0; margin-top:4px; z-index:20; background:#fff; border:1px solid #dee2e6; border-radius:8px; padding:12px; min-width:230px; box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+                <div class="small" style="font-weight:bold; color:var(--color-primario); margin-bottom:6px;">
+                    ¿Qué salones incluir?
+                </div>
+                <div id="listaChecksSalonesEnvio" style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;"></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                    <button type="button" id="btnEnvioSalonesTodos" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Todos</button>
+                    <button type="button" id="btnEnvioSalonesNinguno" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Ninguno</button>
+                </div>
+                <button type="button" id="btnConfirmarEnvioNotas" class="btn btn-primary btn-sm w-100">Enviar correo</button>
+            </div>
         </div>
     </div>
 
