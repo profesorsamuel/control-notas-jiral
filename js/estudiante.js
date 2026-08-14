@@ -192,7 +192,7 @@ async function cargarDatosEstudiante() {
     const [{ data: est }, { data: datos }] = await Promise.all([
         supabase
             .from("estudiantes")
-            .select("codigo, nombre, salon")
+            .select("id, codigo, nombre, salon")
             .eq("correo", usuarioActual.email)
             .maybeSingle(),
         supabase
@@ -952,6 +952,7 @@ async function guardarCelda(inputEl) {
             .from("notas")
             .insert([{
                 correo: usuarioActual.email,
+                estudiante_id: miEstudiante?.id || null,
                 materia,
                 tipo,
                 numero,
