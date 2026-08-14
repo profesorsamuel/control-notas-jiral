@@ -46,6 +46,10 @@ const contenedorPrograma = document.getElementById("resultadoPrograma");
 let temasDetectados = [];
 let bloquesProgramaDetectados = [];
 
+// Etapa 4: saber cuándo ya se guardaron ambos lados para cruzar automáticamente
+let temasYaGuardados = false;
+let programaYaGuardado = false;
+
 const zonas = {
     libro: {
         zona: document.getElementById("zonaLibro"),
@@ -363,6 +367,9 @@ async function guardarProgramaEnBaseDeDatos() {
 
     btnConfirmar.textContent = "✅ Guardado correctamente";
     mostrarEstado(`Se guardaron ${bloquesProgramaDetectados.length} bloques del programa de ${selectMateria.value}.`);
+
+    programaYaGuardado = true;
+    await intentarCruceAutomatico();
 }
 
 // =========================================================
@@ -403,6 +410,102 @@ async function guardarTemasEnBaseDeDatos() {
 
     btnConfirmar.textContent = "✅ Guardado correctamente";
     mostrarEstado(`Se guardaron ${temasDetectados.length} lecciones de ${selectMateria.value} - ${selectGrado.value}° en la base de datos.`);
+
+    temasYaGuardados = true;
+    await intentarCruceAutomatico();
+}
+
+// =========================================================
+// 9) ETAPA 4 — CRUCE AUTOMÁTICO libro <-> programa
+// -----------------------------------------------------------
+// En cuanto ambos lados quedaron guardados, se cruzan por
+// materia + grado + área. Cada lección (temas_programa) queda
+// enlazada al bloque de contenidos (contenidos_curriculares)
+// de su misma área, para poder generar después las opciones
+// de la Etapa 7.
+// =========================================================
+
+async function intentarCruceAutomatico() {
+    if (!temasYaGuardados || !programaYaGuardado) return;
+
+    const materia = selectMateria.value;
+    const grado = selectGrado.value;
+
+    mostrarEstado("Cruzando lecciones con el programa curricular...");
+
+    const { data: temasGuardados, error: errTemas } = await supabase
+        .from("temas_programa")
+        .select("id, area")
+        .eq("profesor_id", idProfesor)
+        .eq("materia", materia)
+        .eq("grado", grado);
+
+    const { data: contenidosGuardados, error: errContenidos } = await supabase
+        .from("contenidos_curriculares")
+        .select("id, area")
+        .eq("profesor_id", idProfesor)
+        .eq("materia", materia)
+        .eq("grado", grado);
+
+    if (errTemas || errContenidos) {
+        console.error("❌ Error al leer para el cruce:", errTemas || errContenidos);
+        mostrarEstado("Se guardó todo, pero hubo un problema al cruzar automáticamente. Puedes seguir de todas formas.", true);
+        return;
+    }
+
+    if (!temasGuardados?.length || !contenidosGuardados?.length) return;
+
+    // Agrupa los bloques del programa por área normalizada (mayúsculas, sin espacios extra)
+    const normalizar = (t) => (t || "").trim().toUpperCase().replace(/\s+/g, " ");
+    const contenidosPorArea = new Map();
+    for (const c of contenidosGuardados) {
+        const clave = normalizar(c.area);
+        if (!contenidosPorArea.has(clave)) contenidosPorArea.set(clave, []);
+        contenidosPorArea.get(clave).push(c.id);
+    }
+
+    const filasCruce = [];
+    const areasSinPareja = new Set();
+
+    for (const t of temasGuardados) {
+        const clave = normalizar(t.area);
+        const contenidosDeEsaArea = contenidosPorArea.get(clave);
+        if (!contenidosDeEsaArea) {
+            areasSinPareja.add(t.area);
+            continue;
+        }
+        for (const contenidoId of contenidosDeEsaArea) {
+            filasCruce.push({
+                profesor_id: idProfesor,
+                correo_profesor: correoProfesor,
+                materia,
+                grado,
+                tema_id: t.id,
+                contenido_id: contenidoId,
+            });
+        }
+    }
+
+    if (filasCruce.length > 0) {
+        const { error: errCruce } = await supabase
+            .from("cruce_tema_contenido")
+            .upsert(filasCruce, { onConflict: "tema_id,contenido_id", ignoreDuplicates: true });
+
+        if (errCruce) {
+            console.error("❌ Error al guardar el cruce:", errCruce);
+            mostrarEstado("Se guardó todo, pero el cruce automático falló: " + errCruce.message, true);
+            return;
+        }
+    }
+
+    if (areasSinPareja.size > 0) {
+        mostrarEstado(
+            `Cruce listo (${filasCruce.length} enlaces). ⚠️ Estas áreas del libro no encontraron pareja exacta en el programa: ${[...areasSinPareja].join(", ")}. Revísalas — puede ser una diferencia de redacción entre el libro y el programa.`,
+            filasCruce.length === 0
+        );
+    } else {
+        mostrarEstado(`Todo listo: ${temasGuardados.length} lecciones cruzadas correctamente con el programa curricular.`);
+    }
 }
 
 // =========================================================
