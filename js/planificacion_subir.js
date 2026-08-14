@@ -19,7 +19,7 @@ function mostrarEstado(mensaje, esError = false) {
     el.style.color = esError ? "#c0392b" : "#2e7d32";
 }
 
-const TAMANO_MAXIMO_MB = 20;
+const TAMANO_MAXIMO_MB = 50;
 
 // =========================================================
 // ESTADO
