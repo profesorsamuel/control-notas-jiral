@@ -476,12 +476,9 @@ async function intentarCruceAutomatico() {
         }
         for (const contenidoId of contenidosDeEsaArea) {
             filasCruce.push({
-                profesor_id: idProfesor,
-                correo_profesor: correoProfesor,
-                materia,
-                grado,
-                tema_id: t.id,
-                contenido_id: contenidoId,
+                id_tema: t.id,
+                id_contenido: contenidoId,
+                similitud: 1, // coincidencia exacta de área por ahora; más adelante se puede afinar
             });
         }
     }
@@ -489,7 +486,7 @@ async function intentarCruceAutomatico() {
     if (filasCruce.length > 0) {
         const { error: errCruce } = await supabase
             .from("cruce_tema_contenido")
-            .upsert(filasCruce, { onConflict: "tema_id,contenido_id", ignoreDuplicates: true });
+            .upsert(filasCruce, { onConflict: "id_tema,id_contenido", ignoreDuplicates: true });
 
         if (errCruce) {
             console.error("❌ Error al guardar el cruce:", errCruce);
