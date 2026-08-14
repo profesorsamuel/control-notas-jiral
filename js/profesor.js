@@ -1513,6 +1513,7 @@ const EMAILJS_SERVICE_ID = "service_avsesik";
 const EMAILJS_TEMPLATE_ID = "template_00nky6m";
 const EMAILJS_PUBLIC_KEY = "2PasfycZJSW6hDpqg";
 const MINUTOS_INACTIVIDAD_RESPALDO = 10;
+const URL_FUNCION_ENVIAR_NOTAS = "https://luewrpzgetqslxqmdcxv.functions.supabase.co/enviar-notas-correo";
 
 if (window.emailjs) {
     window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
@@ -1750,50 +1751,52 @@ btnConfirmarEnvioNotas?.addEventListener("click", async () => {
     const combinaciones = misAsignaciones.filter((a) => salonesElegidos.includes(a.salon));
 
     try {
-        let enviados = 0;
-        const fallidos = [];
+        const secciones = await Promise.all(combinaciones.map(async (a) => {
+            const { estudiantes, historial, casillas } = await consultarSnapshotSalonMateria(a.salon, a.materia, trimestre);
+            const tabla = construirTablaNotasHtml(estudiantes, historial, casillas);
+            return `
+                <h3 style="font-family:Arial,sans-serif;color:#1f4e79;margin:18px 0 6px;">
+                    ${escapeHtml(a.salon)} — ${escapeHtml(a.materia)}
+                </h3>
+                ${tabla}`;
+        }));
 
-        // Se manda UN correo por cada salón/materia, en vez de uno solo con
-        // todo junto: con varios salones a la vez, la tabla combinada supera
-        // el límite de tamaño que permite EmailJS por envío (error 413).
-        for (const a of combinaciones) {
-            try {
-                const { estudiantes, historial, casillas } = await consultarSnapshotSalonMateria(a.salon, a.materia, trimestre);
-                const tabla = construirTablaNotasHtml(estudiantes, historial, casillas);
+        const fecha = new Date().toLocaleString("es-PA");
+        const htmlCompleto = `
+            <div style="font-family:Arial,sans-serif;">
+                <h2 style="color:#1f4e79;">📋 Notas — ${escapeHtml(nombreProfesor)}</h2>
+                <p><strong>Trimestre:</strong> ${escapeHtml(trimestre)}<br>
+                <strong>Generado:</strong> ${escapeHtml(fecha)}</p>
+                ${secciones.join("")}
+            </div>`;
 
-                const parametros = {
-                    profesor: nombreProfesor,
-                    materia: a.materia,
-                    salon: a.salon,
-                    trimestre,
-                    fecha: new Date().toLocaleString("es-PA"),
-                    tabla_notas: tabla,
-                };
+        const { data: { session } } = await supabase.auth.getSession();
 
-                await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, parametros);
-                enviados++;
-            } catch (err) {
-                console.error(`❌ No se pudo enviar ${a.salon} - ${a.materia}:`, err);
-                fallidos.push(`${a.salon} (${a.materia})`);
-            }
+        const respuesta = await fetch(URL_FUNCION_ENVIAR_NOTAS, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+                asunto: `Notas — ${salonesElegidos.join(", ")} — ${trimestre}`,
+                html: htmlCompleto,
+            }),
+        });
+
+        const resultado = await respuesta.json();
+
+        if (!respuesta.ok) {
+            throw new Error(resultado?.error || "El servidor rechazó el envío.");
         }
 
-        if (fallidos.length === 0) {
-            estado.textContent = `✅ ${enviados} correo(s) enviado(s) correctamente.`;
-            estado.className = "small text-success";
-        } else if (enviados > 0) {
-            estado.textContent = `⚠️ ${enviados} enviado(s), pero falló: ${fallidos.join(", ")}.`;
-            estado.className = "small text-danger";
-        } else {
-            estado.textContent = "❌ No se pudo enviar ningún correo. Revisa la consola para más detalles.";
-            estado.className = "small text-danger";
-        }
-
+        estado.textContent = `✅ Notas de ${salonesElegidos.length === 1 ? salonesElegidos[0] : salonesElegidos.length + " salones"} enviadas por correo.`;
+        estado.className = "small text-success";
         cambiosPendientesRespaldo = [];
         if (temporizadorRespaldo) clearTimeout(temporizadorRespaldo);
     } catch (err) {
         console.error("❌ No se pudo enviar el correo:", err);
-        estado.textContent = "❌ No se pudo enviar el correo. Revisa la consola para más detalles.";
+        estado.textContent = "❌ No se pudo enviar el correo: " + err.message;
         estado.className = "small text-danger";
     } finally {
         btnConfirmarEnvioNotas.disabled = false;
