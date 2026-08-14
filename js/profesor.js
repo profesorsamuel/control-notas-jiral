@@ -1750,28 +1750,45 @@ btnConfirmarEnvioNotas?.addEventListener("click", async () => {
     const combinaciones = misAsignaciones.filter((a) => salonesElegidos.includes(a.salon));
 
     try {
-        const secciones = await Promise.all(combinaciones.map(async (a) => {
-            const { estudiantes, historial, casillas } = await consultarSnapshotSalonMateria(a.salon, a.materia, trimestre);
-            const tabla = construirTablaNotasHtml(estudiantes, historial, casillas);
-            return `
-                <h3 style="font-family:Arial,sans-serif;color:#1f4e79;margin:18px 0 6px;">
-                    ${escapeHtml(a.salon)} — ${escapeHtml(a.materia)}
-                </h3>
-                ${tabla}`;
-        }));
+        let enviados = 0;
+        const fallidos = [];
 
-        const parametros = {
-            profesor: nombreProfesor,
-            materia: [...new Set(combinaciones.map((c) => c.materia))].join(", "),
-            salon: salonesElegidos.join(", "),
-            trimestre,
-            fecha: new Date().toLocaleString("es-PA"),
-            tabla_notas: secciones.join(""),
-        };
+        // Se manda UN correo por cada salón/materia, en vez de uno solo con
+        // todo junto: con varios salones a la vez, la tabla combinada supera
+        // el límite de tamaño que permite EmailJS por envío (error 413).
+        for (const a of combinaciones) {
+            try {
+                const { estudiantes, historial, casillas } = await consultarSnapshotSalonMateria(a.salon, a.materia, trimestre);
+                const tabla = construirTablaNotasHtml(estudiantes, historial, casillas);
 
-        await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, parametros);
-        estado.textContent = `✅ Notas de ${salonesElegidos.length === 1 ? salonesElegidos[0] : salonesElegidos.length + " salones"} enviadas por correo.`;
-        estado.className = "small text-success";
+                const parametros = {
+                    profesor: nombreProfesor,
+                    materia: a.materia,
+                    salon: a.salon,
+                    trimestre,
+                    fecha: new Date().toLocaleString("es-PA"),
+                    tabla_notas: tabla,
+                };
+
+                await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, parametros);
+                enviados++;
+            } catch (err) {
+                console.error(`❌ No se pudo enviar ${a.salon} - ${a.materia}:`, err);
+                fallidos.push(`${a.salon} (${a.materia})`);
+            }
+        }
+
+        if (fallidos.length === 0) {
+            estado.textContent = `✅ ${enviados} correo(s) enviado(s) correctamente.`;
+            estado.className = "small text-success";
+        } else if (enviados > 0) {
+            estado.textContent = `⚠️ ${enviados} enviado(s), pero falló: ${fallidos.join(", ")}.`;
+            estado.className = "small text-danger";
+        } else {
+            estado.textContent = "❌ No se pudo enviar ningún correo. Revisa la consola para más detalles.";
+            estado.className = "small text-danger";
+        }
+
         cambiosPendientesRespaldo = [];
         if (temporizadorRespaldo) clearTimeout(temporizadorRespaldo);
     } catch (err) {
