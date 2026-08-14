@@ -1594,10 +1594,11 @@ async function enviarRespaldoPorCorreo() {
 // en vez de esperar a que pase el tiempo de inactividad.
 document.getElementById("btnEnviarRespaldoAhora")?.addEventListener("click", async (e) => {
     const boton = e.currentTarget;
+    const estado = document.getElementById("estadoEnviarRespaldo");
 
     if (cambiosPendientesRespaldo.length === 0) {
-        estadoGuardadoNotas.textContent = "ℹ️ No hay notas nuevas pendientes de enviar por correo.";
-        estadoGuardadoNotas.className = "small text-muted";
+        estado.textContent = "ℹ️ No hay notas nuevas pendientes de enviar por correo.";
+        estado.className = "small text-muted";
         return;
     }
 
@@ -1606,15 +1607,16 @@ document.getElementById("btnEnviarRespaldoAhora")?.addEventListener("click", asy
     boton.disabled = true;
     const textoOriginal = boton.textContent;
     boton.textContent = "Enviando...";
+    estado.textContent = "";
 
     await enviarRespaldoPorCorreo();
 
     if (cambiosPendientesRespaldo.length === 0) {
-        estadoGuardadoNotas.textContent = "✅ Notas enviadas por correo.";
-        estadoGuardadoNotas.className = "small text-success";
+        estado.textContent = "✅ Notas enviadas por correo.";
+        estado.className = "small text-success";
     } else {
-        estadoGuardadoNotas.textContent = "❌ No se pudo enviar el correo. Se reintentará automáticamente.";
-        estadoGuardadoNotas.className = "small text-danger";
+        estado.textContent = "❌ No se pudo enviar el correo. Se reintentará automáticamente.";
+        estado.className = "small text-danger";
     }
 
     boton.disabled = false;
