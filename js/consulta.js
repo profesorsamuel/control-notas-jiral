@@ -280,10 +280,10 @@ function agruparPorMateria(filas) {
 
     filas.forEach((n) => {
         if (!porMateria[n.materia]) {
-            porMateria[n.materia] = { apreciacion: [], ejercicio: [] };
+            porMateria[n.materia] = { apreciacion: [], ejercicio: [], examen: [] };
         }
         const tipoNorm = (n.tipo || "").toLowerCase();
-        if (tipoNorm !== "apreciacion" && tipoNorm !== "ejercicio") return;
+        if (tipoNorm !== "apreciacion" && tipoNorm !== "ejercicio" && tipoNorm !== "examen") return;
 
         const valor = n.estado === "Intencional" ? 0 : Number(n.nota);
         porMateria[n.materia][tipoNorm].push({ numero: n.numero, valor, tema: n.tema });
@@ -313,20 +313,24 @@ function calcularResumenMaterias(filas) {
     const resumen = [];
 
     materias.forEach((materia) => {
-        const datos = porMateria[materia] || { apreciacion: [], ejercicio: [] };
-        if (datos.apreciacion.length === 0 && datos.ejercicio.length === 0) return;
+        const datos = porMateria[materia] || { apreciacion: [], ejercicio: [], examen: [] };
+        if (datos.apreciacion.length === 0 && datos.ejercicio.length === 0 && datos.examen.length === 0) return;
 
         const promApr = calcularPromedio(datos.apreciacion.map((x) => x.valor));
         const promEje = calcularPromedio(datos.ejercicio.map((x) => x.valor));
-        const promFinal = promApr !== null && promEje !== null
-            ? (promApr + promEje) / 2
-            : (promApr ?? promEje);
+        const promExa = calcularPromedio(datos.examen.map((x) => x.valor));
+        // Promedio final = promedio de las categorías que sí tengan datos
+        // (Apreciación, Ejercicio, Examen), cada una con el mismo peso.
+        // Igual fórmula que usa el/la docente en su propio panel.
+        const presentes = [promApr, promEje, promExa].filter((v) => v !== null);
+        const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
 
         resumen.push({
             materia,
             datos,
             promApr,
             promEje,
+            promExa,
             promFinal,
             fracaso: promFinal !== null && promFinal < NOTA_MINIMA_APROBAR
         });
@@ -346,10 +350,11 @@ function render() {
 
     let html = "";
 
-    resumen.forEach(({ materia, datos, promApr, promEje, promFinal, fracaso }) => {
+    resumen.forEach(({ materia, datos, promApr, promEje, promExa, promFinal, fracaso }) => {
         const notasApr = datos.apreciacion.slice().sort((a, b) => a.numero - b.numero);
         const notasEje = datos.ejercicio.slice().sort((a, b) => a.numero - b.numero);
-        const maxCols = Math.max(notasApr.length, notasEje.length, 1);
+        const notasExa = datos.examen.slice().sort((a, b) => a.numero - b.numero);
+        const maxCols = Math.max(notasApr.length, notasEje.length, notasExa.length, 1);
 
         const celdasNota = (lista) => {
             const celdas = lista.map((n) => `<td>${n.valor.toFixed(1)}</td>`);
@@ -359,9 +364,11 @@ function render() {
 
         const filasApr = celdasNota(notasApr);
         const filasEje = celdasNota(notasEje);
+        const filasExa = celdasNota(notasExa);
 
         const claseAprFallo = promApr !== null && promApr < NOTA_MINIMA_APROBAR ? "promedio promedio-fracaso" : "promedio";
         const claseEjeFallo = promEje !== null && promEje < NOTA_MINIMA_APROBAR ? "promedio promedio-fracaso" : "promedio";
+        const claseExaFallo = promExa !== null && promExa < NOTA_MINIMA_APROBAR ? "promedio promedio-fracaso" : "promedio";
         const claseFinal = fracaso ? "promedio-final-linea fracaso" : "promedio-final-linea";
         const claseTarjeta = fracaso ? "materia-card materia-fracaso" : "materia-card";
 
@@ -387,6 +394,11 @@ function render() {
                                 <td><strong>Ejercicio</strong></td>
                                 ${filasEje}
                                 <td class="${claseEjeFallo}">${promEje !== null ? promEje.toFixed(1) : "-"}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Examen</strong></td>
+                                ${filasExa}
+                                <td class="${claseExaFallo}">${promExa !== null ? promExa.toFixed(1) : "-"}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -488,7 +500,8 @@ btnPdf.addEventListener("click", () => {
 
         const notasApr = r.datos.apreciacion.slice().sort((a, b) => a.numero - b.numero).map((n) => n.valor.toFixed(1));
         const notasEje = r.datos.ejercicio.slice().sort((a, b) => a.numero - b.numero).map((n) => n.valor.toFixed(1));
-        const maxCols = Math.max(notasApr.length, notasEje.length, 1);
+        const notasExa = r.datos.examen.slice().sort((a, b) => a.numero - b.numero).map((n) => n.valor.toFixed(1));
+        const maxCols = Math.max(notasApr.length, notasEje.length, notasExa.length, 1);
 
         const rellenar = (arr) => {
             const copia = arr.slice();
@@ -499,10 +512,11 @@ btnPdf.addEventListener("click", () => {
         const encabezado = ["Tipo", ...Array.from({ length: maxCols }, (_, i) => `N°${i + 1}`), "Promedio"];
         const filaApr = ["Apreciación", ...rellenar(notasApr), r.promApr !== null ? r.promApr.toFixed(1) : "-"];
         const filaEje = ["Ejercicio", ...rellenar(notasEje), r.promEje !== null ? r.promEje.toFixed(1) : "-"];
+        const filaExa = ["Examen", ...rellenar(notasExa), r.promExa !== null ? r.promExa.toFixed(1) : "-"];
 
         doc.autoTable({
             head: [encabezado],
-            body: [filaApr, filaEje],
+            body: [filaApr, filaEje, filaExa],
             startY: y,
             styles: {
                 fontSize: 8,
