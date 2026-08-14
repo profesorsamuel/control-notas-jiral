@@ -1592,23 +1592,21 @@ async function enviarRespaldoPorCorreo() {
 // respaldo, sin esperar los MINUTOS_INACTIVIDAD_RESPALDO. Útil si el
 // docente quiere mandar el correo justo después de terminar de anotar,
 // en vez de esperar a que pase el tiempo de inactividad.
-// Construye una tabla HTML con TODAS las notas tal como están cargadas
-// ahora mismo en pantalla (todos los estudiantes del salón x todas las
-// casillas visibles de la materia/trimestre actuales), sin importar si
-// se modificaron o no en esta sesión. Es lo que usa el botón
-// "Enviar notas ahora" para mandar una foto completa del estado actual.
-function construirTablaSnapshotActual() {
-    const columnas = casillasTabla.slice();
+// Construye una tabla HTML con las notas de un grupo de estudiantes ya
+// consultado (usado tanto por el envío del salón/materia actual como
+// por el envío de varios salones a la vez).
+function construirTablaNotasHtml(estudiantes, historial, casillas) {
+    const columnas = casillas.slice();
     ordenarCasillas(columnas);
 
     const encabezado = columnas.map((c) =>
         `<th style="padding:4px 8px;border:1px solid #ccc;background:#f0f0f0;">${escapeHtml(etiquetaCasilla(c.tipo, c.numero))}</th>`
     ).join("");
 
-    const filas = grupoActual.map((est) => {
-        const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
+    const filas = estudiantes.map((est) => {
+        const historialEst = historial[`id:${est.id}`] || {};
         const celdas = columnas.map((c) => {
-            const nota = historial[claveCasilla(c.tipo, c.numero)];
+            const nota = historialEst[claveCasilla(c.tipo, c.numero)];
             const valor = nota && nota.nota !== null && nota.nota !== undefined && nota.nota !== ""
                 ? escapeHtml(String(nota.nota))
                 : "-";
@@ -1629,46 +1627,151 @@ function construirTablaSnapshotActual() {
                     ${encabezado}
                 </tr>
             </thead>
-            <tbody>${filas}</tbody>
+            <tbody>${filas || `<tr><td colspan="${columnas.length + 1}" style="padding:6px;text-align:center;color:#888;">Sin estudiantes</td></tr>`}</tbody>
         </table>`;
 }
 
-document.getElementById("btnEnviarRespaldoAhora")?.addEventListener("click", async (e) => {
-    const boton = e.currentTarget;
-    const estado = document.getElementById("estadoEnviarRespaldo");
+// Consulta en la base de datos las notas de UN salón + UNA materia, tal
+// como están guardadas ahora mismo, sin depender de lo que esté cargado
+// en pantalla. Devuelve { estudiantes, historial, casillas }.
+async function consultarSnapshotSalonMateria(salon, materia, trimestre) {
+    const { data: estudiantesSalon } = await supabase
+        .from("estudiantes")
+        .select("id, nombre, correo, es_prueba")
+        .eq("salon", salon)
+        .order("nombre", { ascending: true });
 
-    if (!selectSalonNota.value || !selectMateriaNota.value) {
-        estado.textContent = "⚠️ Primero selecciona un salón y una materia.";
+    const estudiantes = (estudiantesSalon || []).filter((e) => !e.es_prueba);
+    const todosLosIds = estudiantes.map((e) => e.id);
+    const correoAId = {};
+    estudiantes.forEach((e) => { if (e.correo) correoAId[e.correo] = e.id; });
+    const correosActuales = Object.keys(correoAId);
+
+    const historial = {};
+    const casillasEncontradas = new Set();
+
+    function registrar(estudianteId, n) {
+        (historial[`id:${estudianteId}`] ??= {})[claveCasilla(n.tipo, n.numero)] = n;
+        casillasEncontradas.add(claveCasilla(n.tipo, n.numero));
+    }
+
+    if (todosLosIds.length > 0) {
+        const { data } = await supabase.from("notas").select("estudiante_id, correo, tipo, numero, nota")
+            .eq("materia", materia).eq("trimestre", trimestre).in("estudiante_id", todosLosIds)
+            .is("eliminado_en", null);
+        (data || []).forEach((n) => registrar(n.estudiante_id, n));
+    }
+    if (correosActuales.length > 0) {
+        const { data } = await supabase.from("notas").select("estudiante_id, correo, tipo, numero, nota")
+            .eq("materia", materia).eq("trimestre", trimestre).in("correo", correosActuales)
+            .is("eliminado_en", null);
+        (data || []).forEach((n) => {
+            if (n.estudiante_id) return;
+            const idEst = correoAId[n.correo];
+            if (idEst) registrar(idEst, n);
+        });
+    }
+
+    const casillas = [...casillasEncontradas].map((c) => {
+        const sep = c.lastIndexOf("-");
+        return { tipo: c.slice(0, sep), numero: parseInt(c.slice(sep + 1), 10) };
+    });
+    ordenarCasillas(casillas);
+
+    return { estudiantes, historial, casillas };
+}
+
+// =========================================================
+// PANEL "ENVIAR NOTAS POR CORREO" (selección de salones)
+// =========================================================
+
+const btnAbrirEnviarNotas = document.getElementById("btnAbrirEnviarNotas");
+const panelEnviarNotas = document.getElementById("panelEnviarNotas");
+const listaChecksSalonesEnvio = document.getElementById("listaChecksSalonesEnvio");
+const btnConfirmarEnvioNotas = document.getElementById("btnConfirmarEnvioNotas");
+
+function renderizarChecksSalonesEnvio() {
+    const salones = [...new Set(misAsignaciones.map((a) => a.salon))].sort();
+    listaChecksSalonesEnvio.innerHTML = salones.map((s) => `
+        <label class="small" style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" class="check-salon-envio" value="${escapeHtml(s)}" checked>
+            ${escapeHtml(s)}
+        </label>
+    `).join("");
+}
+
+btnAbrirEnviarNotas?.addEventListener("click", () => {
+    const abierto = panelEnviarNotas.style.display !== "none";
+    if (abierto) {
+        panelEnviarNotas.style.display = "none";
+        return;
+    }
+    renderizarChecksSalonesEnvio();
+    panelEnviarNotas.style.display = "block";
+});
+
+// Cierra el panel si el docente hace clic afuera.
+document.addEventListener("click", (e) => {
+    if (!panelEnviarNotas || panelEnviarNotas.style.display === "none") return;
+    if (panelEnviarNotas.contains(e.target) || btnAbrirEnviarNotas.contains(e.target)) return;
+    panelEnviarNotas.style.display = "none";
+});
+
+document.getElementById("btnEnvioSalonesTodos")?.addEventListener("click", () => {
+    listaChecksSalonesEnvio.querySelectorAll(".check-salon-envio").forEach((chk) => { chk.checked = true; });
+});
+document.getElementById("btnEnvioSalonesNinguno")?.addEventListener("click", () => {
+    listaChecksSalonesEnvio.querySelectorAll(".check-salon-envio").forEach((chk) => { chk.checked = false; });
+});
+
+btnConfirmarEnvioNotas?.addEventListener("click", async () => {
+    const estado = document.getElementById("estadoEnviarRespaldo");
+    const salonesElegidos = Array.from(listaChecksSalonesEnvio.querySelectorAll(".check-salon-envio:checked"))
+        .map((chk) => chk.value);
+
+    if (salonesElegidos.length === 0) {
+        estado.textContent = "⚠️ Elige al menos un salón.";
         estado.className = "small text-danger";
         return;
     }
 
-    if (grupoActual.length === 0 || casillasTabla.length === 0) {
-        estado.textContent = "ℹ️ No hay notas cargadas todavía para enviar.";
-        estado.className = "small text-muted";
-        return;
-    }
-
-    boton.disabled = true;
-    const textoOriginal = boton.textContent;
-    boton.textContent = "Enviando...";
+    panelEnviarNotas.style.display = "none";
+    btnConfirmarEnvioNotas.disabled = true;
+    const textoOriginal = btnAbrirEnviarNotas.textContent;
+    btnAbrirEnviarNotas.textContent = "Enviando...";
+    btnAbrirEnviarNotas.disabled = true;
     estado.textContent = "";
 
-    const parametros = {
-        profesor: nombreProfesor,
-        materia: selectMateriaNota.value,
-        salon: selectSalonNota.value,
-        trimestre: selectTrimestreNota.value,
-        fecha: new Date().toLocaleString("es-PA"),
-        tabla_notas: construirTablaSnapshotActual(),
-    };
+    const trimestre = selectTrimestreNota.value;
+
+    // Solo las combinaciones salón+materia que este docente realmente
+    // da, dentro de los salones elegidos (puede dar más de una materia
+    // por salón, por ejemplo Ciencias Naturales e Informática).
+    const combinaciones = misAsignaciones.filter((a) => salonesElegidos.includes(a.salon));
 
     try {
+        const secciones = await Promise.all(combinaciones.map(async (a) => {
+            const { estudiantes, historial, casillas } = await consultarSnapshotSalonMateria(a.salon, a.materia, trimestre);
+            const tabla = construirTablaNotasHtml(estudiantes, historial, casillas);
+            return `
+                <h3 style="font-family:Arial,sans-serif;color:#1f4e79;margin:18px 0 6px;">
+                    ${escapeHtml(a.salon)} — ${escapeHtml(a.materia)}
+                </h3>
+                ${tabla}`;
+        }));
+
+        const parametros = {
+            profesor: nombreProfesor,
+            materia: [...new Set(combinaciones.map((c) => c.materia))].join(", "),
+            salon: salonesElegidos.join(", "),
+            trimestre,
+            fecha: new Date().toLocaleString("es-PA"),
+            tabla_notas: secciones.join(""),
+        };
+
         await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, parametros);
-        estado.textContent = "✅ Notas enviadas por correo.";
+        estado.textContent = `✅ Notas de ${salonesElegidos.length === 1 ? salonesElegidos[0] : salonesElegidos.length + " salones"} enviadas por correo.`;
         estado.className = "small text-success";
-        // Ya que se mandó una foto completa y actualizada, no hace falta
-        // además mandar el respaldo por inactividad con los mismos cambios.
         cambiosPendientesRespaldo = [];
         if (temporizadorRespaldo) clearTimeout(temporizadorRespaldo);
     } catch (err) {
@@ -1676,8 +1779,9 @@ document.getElementById("btnEnviarRespaldoAhora")?.addEventListener("click", asy
         estado.textContent = "❌ No se pudo enviar el correo. Revisa la consola para más detalles.";
         estado.className = "small text-danger";
     } finally {
-        boton.disabled = false;
-        boton.textContent = textoOriginal;
+        btnConfirmarEnvioNotas.disabled = false;
+        btnAbrirEnviarNotas.textContent = textoOriginal;
+        btnAbrirEnviarNotas.disabled = false;
     }
 });
 
