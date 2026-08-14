@@ -1514,6 +1514,7 @@ const EMAILJS_TEMPLATE_ID = "template_00nky6m";
 const EMAILJS_PUBLIC_KEY = "2PasfycZJSW6hDpqg";
 const MINUTOS_INACTIVIDAD_RESPALDO = 10;
 const URL_FUNCION_ENVIAR_NOTAS = "https://luewrpzgetqslxqmdcxv.functions.supabase.co/enviar-notas-correo";
+const URL_FUNCION_SUBIR_DRIVE = "https://luewrpzgetqslxqmdcxv.functions.supabase.co/subir-notas-drive";
 
 if (window.emailjs) {
     window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
@@ -1725,10 +1726,21 @@ document.getElementById("btnEnvioSalonesNinguno")?.addEventListener("click", () 
     listaChecksSalonesEnvio.querySelectorAll(".check-salon-envio").forEach((chk) => { chk.checked = false; });
 });
 
-btnConfirmarEnvioNotas?.addEventListener("click", async () => {
-    const estado = document.getElementById("estadoEnviarRespaldo");
+// Lee qué salones están marcados en el panel y devuelve, junto con el
+// trimestre actual, solo las combinaciones salón+materia que de verdad
+// da este docente (puede dar más de una materia en el mismo salón).
+// La comparten el botón de correo y el botón de Drive.
+function leerSeleccionSalonesEnvio() {
     const salonesElegidos = Array.from(listaChecksSalonesEnvio.querySelectorAll(".check-salon-envio:checked"))
         .map((chk) => chk.value);
+    const trimestre = selectTrimestreNota.value;
+    const combinaciones = misAsignaciones.filter((a) => salonesElegidos.includes(a.salon));
+    return { salonesElegidos, trimestre, combinaciones };
+}
+
+btnConfirmarEnvioNotas?.addEventListener("click", async () => {
+    const estado = document.getElementById("estadoEnviarRespaldo");
+    const { salonesElegidos, trimestre, combinaciones } = leerSeleccionSalonesEnvio();
 
     if (salonesElegidos.length === 0) {
         estado.textContent = "⚠️ Elige al menos un salón.";
@@ -1742,13 +1754,6 @@ btnConfirmarEnvioNotas?.addEventListener("click", async () => {
     btnAbrirEnviarNotas.textContent = "Enviando...";
     btnAbrirEnviarNotas.disabled = true;
     estado.textContent = "";
-
-    const trimestre = selectTrimestreNota.value;
-
-    // Solo las combinaciones salón+materia que este docente realmente
-    // da, dentro de los salones elegidos (puede dar más de una materia
-    // por salón, por ejemplo Ciencias Naturales e Informática).
-    const combinaciones = misAsignaciones.filter((a) => salonesElegidos.includes(a.salon));
 
     try {
         const secciones = await Promise.all(combinaciones.map(async (a) => {
@@ -1771,6 +1776,8 @@ btnConfirmarEnvioNotas?.addEventListener("click", async () => {
             </div>`;
 
         const { data: { session } } = await supabase.auth.getSession();
+        const base64Excel = await construirExcelSnapshot(combinaciones, trimestre);
+        const nombreArchivoExcel = `Notas ${salonesElegidos.join("-")} - ${trimestre}.xlsx`;
 
         const respuesta = await fetch(URL_FUNCION_ENVIAR_NOTAS, {
             method: "POST",
@@ -1781,6 +1788,7 @@ btnConfirmarEnvioNotas?.addEventListener("click", async () => {
             body: JSON.stringify({
                 asunto: `Notas — ${salonesElegidos.join(", ")} — ${trimestre}`,
                 html: htmlCompleto,
+                adjunto: { nombreArchivo: nombreArchivoExcel, base64Content: base64Excel },
             }),
         });
 
@@ -1800,6 +1808,92 @@ btnConfirmarEnvioNotas?.addEventListener("click", async () => {
         estado.className = "small text-danger";
     } finally {
         btnConfirmarEnvioNotas.disabled = false;
+        btnAbrirEnviarNotas.textContent = textoOriginal;
+        btnAbrirEnviarNotas.disabled = false;
+    }
+});
+
+// Arma un Excel real (.xlsx) con una hoja por cada salón+materia,
+// usando SheetJS (cargado en profesor.html). Devuelve el archivo ya
+// codificado en base64, listo para mandarlo a la función de Drive.
+async function construirExcelSnapshot(combinaciones, trimestre) {
+    const wb = window.XLSX.utils.book_new();
+
+    for (const a of combinaciones) {
+        const { estudiantes, historial, casillas } = await consultarSnapshotSalonMateria(a.salon, a.materia, trimestre);
+        const columnas = casillas.slice();
+        ordenarCasillas(columnas);
+
+        const encabezado = ["Estudiante", ...columnas.map((c) => etiquetaCasilla(c.tipo, c.numero))];
+        const filas = estudiantes.map((est) => {
+            const historialEst = historial[`id:${est.id}`] || {};
+            const valores = columnas.map((c) => {
+                const nota = historialEst[claveCasilla(c.tipo, c.numero)];
+                return nota && nota.nota !== null && nota.nota !== undefined && nota.nota !== "" ? Number(nota.nota) : "";
+            });
+            return [est.nombre || "-", ...valores];
+        });
+
+        const hoja = window.XLSX.utils.aoa_to_sheet([encabezado, ...filas]);
+        // El nombre de hoja de Excel no puede pasar de 31 caracteres ni
+        // llevar / \ ? * [ ].
+        const nombreHoja = `${a.salon} - ${a.materia}`.replace(/[/\\?*[\]]/g, "-").slice(0, 31);
+        window.XLSX.utils.book_append_sheet(wb, hoja, nombreHoja);
+    }
+
+    return window.XLSX.write(wb, { bookType: "xlsx", type: "base64" });
+}
+
+document.getElementById("btnGuardarEnDrive")?.addEventListener("click", async () => {
+    const estado = document.getElementById("estadoEnviarRespaldo");
+    const { salonesElegidos, trimestre, combinaciones } = leerSeleccionSalonesEnvio();
+
+    if (salonesElegidos.length === 0) {
+        estado.textContent = "⚠️ Elige al menos un salón.";
+        estado.className = "small text-danger";
+        return;
+    }
+
+    panelEnviarNotas.style.display = "none";
+    const textoOriginal = btnAbrirEnviarNotas.textContent;
+    btnAbrirEnviarNotas.textContent = "Subiendo a Drive...";
+    btnAbrirEnviarNotas.disabled = true;
+    estado.textContent = "";
+
+    try {
+        const base64Content = await construirExcelSnapshot(combinaciones, trimestre);
+
+        // Nombre con fecha y hora al frente, para que ordenados por
+        // nombre el más reciente siempre quede de último.
+        const ahora = new Date();
+        const pad = (n) => String(n).padStart(2, "0");
+        const marcaTiempo = `${ahora.getFullYear()}-${pad(ahora.getMonth() + 1)}-${pad(ahora.getDate())}_${pad(ahora.getHours())}${pad(ahora.getMinutes())}`;
+        const nombreArchivo = `${marcaTiempo} - Notas ${salonesElegidos.join("-")} - ${trimestre}.xlsx`;
+
+        const { data: { session } } = await supabase.auth.getSession();
+
+        const respuesta = await fetch(URL_FUNCION_SUBIR_DRIVE, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ nombreArchivo, base64Content }),
+        });
+
+        const resultado = await respuesta.json();
+
+        if (!respuesta.ok) {
+            throw new Error(resultado?.error || "El servidor rechazó la subida.");
+        }
+
+        estado.textContent = "✅ Archivo guardado en Google Drive.";
+        estado.className = "small text-success";
+    } catch (err) {
+        console.error("❌ No se pudo guardar en Drive:", err);
+        estado.textContent = "❌ No se pudo guardar en Drive: " + err.message;
+        estado.className = "small text-danger";
+    } finally {
         btnAbrirEnviarNotas.textContent = textoOriginal;
         btnAbrirEnviarNotas.disabled = false;
     }
