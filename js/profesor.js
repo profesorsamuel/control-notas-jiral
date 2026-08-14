@@ -1514,7 +1514,6 @@ const EMAILJS_TEMPLATE_ID = "template_00nky6m";
 const EMAILJS_PUBLIC_KEY = "2PasfycZJSW6hDpqg";
 const MINUTOS_INACTIVIDAD_RESPALDO = 10;
 const URL_FUNCION_ENVIAR_NOTAS = "https://luewrpzgetqslxqmdcxv.functions.supabase.co/enviar-notas-correo";
-const URL_FUNCION_SUBIR_DRIVE = "https://luewrpzgetqslxqmdcxv.functions.supabase.co/subir-notas-drive";
 
 if (window.emailjs) {
     window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
@@ -1843,61 +1842,6 @@ async function construirExcelSnapshot(combinaciones, trimestre) {
 
     return window.XLSX.write(wb, { bookType: "xlsx", type: "base64" });
 }
-
-document.getElementById("btnGuardarEnDrive")?.addEventListener("click", async () => {
-    const estado = document.getElementById("estadoEnviarRespaldo");
-    const { salonesElegidos, trimestre, combinaciones } = leerSeleccionSalonesEnvio();
-
-    if (salonesElegidos.length === 0) {
-        estado.textContent = "⚠️ Elige al menos un salón.";
-        estado.className = "small text-danger";
-        return;
-    }
-
-    panelEnviarNotas.style.display = "none";
-    const textoOriginal = btnAbrirEnviarNotas.textContent;
-    btnAbrirEnviarNotas.textContent = "Subiendo a Drive...";
-    btnAbrirEnviarNotas.disabled = true;
-    estado.textContent = "";
-
-    try {
-        const base64Content = await construirExcelSnapshot(combinaciones, trimestre);
-
-        // Nombre con fecha y hora al frente, para que ordenados por
-        // nombre el más reciente siempre quede de último.
-        const ahora = new Date();
-        const pad = (n) => String(n).padStart(2, "0");
-        const marcaTiempo = `${ahora.getFullYear()}-${pad(ahora.getMonth() + 1)}-${pad(ahora.getDate())}_${pad(ahora.getHours())}${pad(ahora.getMinutes())}`;
-        const nombreArchivo = `${marcaTiempo} - Notas ${salonesElegidos.join("-")} - ${trimestre}.xlsx`;
-
-        const { data: { session } } = await supabase.auth.getSession();
-
-        const respuesta = await fetch(URL_FUNCION_SUBIR_DRIVE, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ nombreArchivo, base64Content }),
-        });
-
-        const resultado = await respuesta.json();
-
-        if (!respuesta.ok) {
-            throw new Error(resultado?.error || "El servidor rechazó la subida.");
-        }
-
-        estado.textContent = "✅ Archivo guardado en Google Drive.";
-        estado.className = "small text-success";
-    } catch (err) {
-        console.error("❌ No se pudo guardar en Drive:", err);
-        estado.textContent = "❌ No se pudo guardar en Drive: " + err.message;
-        estado.className = "small text-danger";
-    } finally {
-        btnAbrirEnviarNotas.textContent = textoOriginal;
-        btnAbrirEnviarNotas.disabled = false;
-    }
-});
 
 // Auto-guardado real: cada celda se guarda sola al salir de ella (blur)
 // o al presionar Enter, sin necesidad de un botón "Guardar". Guardamos
