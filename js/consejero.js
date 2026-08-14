@@ -490,8 +490,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         let html = "";
 
         Object.keys(porMateria).sort().forEach((materia) => {
-            const bloqueApreciacion = renderBloqueTipo("Apreciación", porMateria[materia].apreciacion, materia, "apreciacion", correo);
-            const bloqueEjercicio = renderBloqueTipo("Ejercicio", porMateria[materia].ejercicio, materia, "ejercicio", correo);
+            const bloqueApreciacion = renderBloqueTipo("Apreciación", porMateria[materia].apreciacion, materia, "apreciacion", correo, est.id);
+            const bloqueEjercicio = renderBloqueTipo("Ejercicio", porMateria[materia].ejercicio, materia, "ejercicio", correo, est.id);
 
             if (bloqueApreciacion || bloqueEjercicio) {
                 html += `<h6 class="mt-3">${escapeHtml(materia)}</h6>`;
@@ -605,7 +605,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return max;
     }
 
-    function renderBloqueTipo(etiqueta, casillasObj, materia, tipo, correo) {
+    function renderBloqueTipo(etiqueta, casillasObj, materia, tipo, correo, estudianteId) {
         const max = maxCasillaDelGrupo(materia, tipo);
 
         if (max === 0) return "";
@@ -648,7 +648,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <td>
                             <button type="button" class="btn btn-sm btn-outline-dark"
                                 title="Marcar como falta intencional (cuenta como 0.0 en el promedio)"
-                                onclick="marcarFaltaIntencional('${escapeHtml(correo)}', '${escapeHtml(materia)}', '${tipo}', ${i})">
+                                onclick="marcarFaltaIntencional('${escapeHtml(correo)}', '${estudianteId || ""}', '${escapeHtml(materia)}', '${tipo}', ${i})">
                                 ⚠️ Marcar intencional
                             </button>
                         </td>
@@ -678,7 +678,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // MARCAR CASILLA COMO FALTA INTENCIONAL
     // =====================================================
 
-    window.marcarFaltaIntencional = async function (correo, materia, tipo, numero) {
+    window.marcarFaltaIntencional = async function (correo, estudianteId, materia, tipo, numero) {
         const confirmar = confirm(
             `¿Marcar la casilla ${numero} (${tipo === "apreciacion" ? "Apreciación" : "Ejercicio"}) de "${materia}" ` +
             `como falta intencional?\n\nEsto contará como 0.0 en el promedio del estudiante.`
@@ -691,6 +691,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             .from("notas")
             .insert([{
                 correo,
+                estudiante_id: estudianteId || null,
                 materia,
                 tipo,
                 numero,
