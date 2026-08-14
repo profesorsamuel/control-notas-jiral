@@ -270,50 +270,6 @@ export async function guardarConfigPesos({ peso_asistencia, peso_comportamiento,
     return { ok: !error, error };
 }
 
-// Llena y conecta el panel "⚙️ Fórmula de Apreciación 4+" que vive
-// arriba de todo en la hoja de Registrar notas (no dentro del modal).
-// Se llama una sola vez al cargar la página.
-export async function inicializarPanelPesosGlobal() {
-    const ids = {
-        asistencia: "pesoAsistenciaGlobal",
-        comportamiento: "pesoComportamientoGlobal",
-        actClase: "pesoActClaseGlobal",
-        actCasa: "pesoActCasaGlobal",
-    };
-    const inputAsistencia = document.getElementById(ids.asistencia);
-    if (!inputAsistencia) return; // esta página no tiene el panel (por ejemplo, otra pantalla)
-
-    const pesos = await obtenerConfigPesos();
-    document.getElementById(ids.asistencia).value = pesos.peso_asistencia;
-    document.getElementById(ids.comportamiento).value = pesos.peso_comportamiento;
-    document.getElementById(ids.actClase).value = pesos.peso_actividades_clase;
-    document.getElementById(ids.actCasa).value = pesos.peso_actividades_casa;
-
-    const actualizarSuma = () => {
-        const suma = Object.values(ids).reduce((acc, id) => acc + (parseFloat(document.getElementById(id)?.value) || 0), 0);
-        const indicador = document.getElementById("sumaPesosIndicadorGlobal");
-        if (!indicador) return;
-        indicador.textContent = `Suma actual: ${suma}%`;
-        indicador.className = "small " + (suma === 100 ? "text-success" : "text-danger");
-    };
-    document.querySelectorAll(".input-peso-global").forEach((input) => {
-        input.addEventListener("input", actualizarSuma);
-    });
-    actualizarSuma();
-
-    document.getElementById("btnGuardarPesosGlobal")?.addEventListener("click", async () => {
-        const nuevosPesos = {
-            peso_asistencia: parseFloat(document.getElementById(ids.asistencia).value) || 0,
-            peso_comportamiento: parseFloat(document.getElementById(ids.comportamiento).value) || 0,
-            peso_actividades_clase: parseFloat(document.getElementById(ids.actClase).value) || 0,
-            peso_actividades_casa: parseFloat(document.getElementById(ids.actCasa).value) || 0,
-        };
-        const resultado = await guardarConfigPesos(nuevosPesos);
-        if (!resultado.ok) { alert("❌ " + resultado.error.message); return; }
-        alert("✅ Porcentajes guardados. Se van a usar de aquí en adelante para todas las Apreciaciones 4+.");
-    });
-}
-
 // =========================================================
 // 3) ASISTENCIA — reutiliza el sistema de asistencia existente.
 // =========================================================
@@ -1296,6 +1252,51 @@ function pintarModal(estado_) {
             </div>
         </div>`;
 
+    // --- Fórmula de esta Apreciación (asistencia, comportamiento,
+    // actividades): antes vivía fuera del modal, arriba de "Registrar
+    // notas". Ahora vive aquí porque es lo que regula cómo sale la
+    // nota final de esta apreciación. Sigue siendo una sola
+    // configuración global (aplica a todas las Apreciaciones 4+, en
+    // todas las materias y salones), solo cambió dónde se edita. ---
+    const bloqueFormulaPesos = () => {
+        if (soloLectura) {
+            return `
+                <p class="small text-muted mb-0">
+                    Fórmula usada: Asistencia ${pesos.peso_asistencia}% · Comportamiento ${pesos.peso_comportamiento}% ·
+                    Act. en clase ${pesos.peso_actividades_clase}% · Act. en casa ${pesos.peso_actividades_casa}%
+                </p>`;
+        }
+        return `
+            <details id="detallePesosModal">
+                <summary style="font-weight:bold; color:var(--color-primario, #4f46e5); cursor:pointer; font-size:.9rem;">
+                    ⚙️ Fórmula de esta Apreciación (asistencia, comportamiento, actividades)
+                </summary>
+                <p class="small text-muted" style="margin:8px 0;">
+                    Estos 4 porcentajes deben sumar 100% y aplican para todas las Apreciaciones 4 en adelante, en todas las materias y salones.
+                </p>
+                <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:end;">
+                    <div>
+                        <label class="small text-muted d-block">Asistencia %</label>
+                        <input type="number" min="0" max="100" class="form-control form-control-sm input-peso-modal" id="pesoAsistenciaModal" value="${pesos.peso_asistencia}" style="width:90px;">
+                    </div>
+                    <div>
+                        <label class="small text-muted d-block">Comportamiento %</label>
+                        <input type="number" min="0" max="100" class="form-control form-control-sm input-peso-modal" id="pesoComportamientoModal" value="${pesos.peso_comportamiento}" style="width:90px;">
+                    </div>
+                    <div>
+                        <label class="small text-muted d-block">Act. en clase %</label>
+                        <input type="number" min="0" max="100" class="form-control form-control-sm input-peso-modal" id="pesoActClaseModal" value="${pesos.peso_actividades_clase}" style="width:90px;">
+                    </div>
+                    <div>
+                        <label class="small text-muted d-block">Act. en casa %</label>
+                        <input type="number" min="0" max="100" class="form-control form-control-sm input-peso-modal" id="pesoActCasaModal" value="${pesos.peso_actividades_casa}" style="width:90px;">
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" id="btnGuardarPesosModal">Guardar porcentajes</button>
+                    <span class="small" id="sumaPesosIndicadorModal"></span>
+                </div>
+            </details>`;
+    };
+
     el.cuerpo.innerHTML = `
         <div class="apr-cabecera">
             <div class="apr-cabecera-fila">
@@ -1308,6 +1309,7 @@ function pintarModal(estado_) {
                     ${soloLectura ? "" : `<button type="button" class="btn btn-sm btn-outline-secondary" id="btnVolverModoDirecto">↩️ Usar casilla directa</button>`}
                 </div>
             </div>
+            <div class="mt-2">${bloqueFormulaPesos()}</div>
         </div>
 
         <div class="apr-tabs">${botonesTabs}</div>
@@ -1326,6 +1328,47 @@ function pintarModal(estado_) {
     document.getElementById("btnImprimirApreciacion")?.addEventListener("click", () => {
         imprimirApreciacion(estado_);
     });
+
+    if (!soloLectura) {
+        const idsPesoModal = {
+            asistencia: "pesoAsistenciaModal",
+            comportamiento: "pesoComportamientoModal",
+            actClase: "pesoActClaseModal",
+            actCasa: "pesoActCasaModal",
+        };
+        const actualizarSumaPesosModal = () => {
+            const suma = Object.values(idsPesoModal).reduce(
+                (acc, id) => acc + (parseFloat(document.getElementById(id)?.value) || 0), 0
+            );
+            const indicador = document.getElementById("sumaPesosIndicadorModal");
+            if (!indicador) return;
+            indicador.textContent = `Suma actual: ${suma}%`;
+            indicador.className = "small " + (suma === 100 ? "text-success" : "text-danger");
+        };
+        el.cuerpo.querySelectorAll(".input-peso-modal").forEach((input) => {
+            input.addEventListener("input", actualizarSumaPesosModal);
+        });
+        actualizarSumaPesosModal();
+
+        document.getElementById("btnGuardarPesosModal")?.addEventListener("click", async () => {
+            const nuevosPesos = {
+                peso_asistencia: parseFloat(document.getElementById(idsPesoModal.asistencia).value) || 0,
+                peso_comportamiento: parseFloat(document.getElementById(idsPesoModal.comportamiento).value) || 0,
+                peso_actividades_clase: parseFloat(document.getElementById(idsPesoModal.actClase).value) || 0,
+                peso_actividades_casa: parseFloat(document.getElementById(idsPesoModal.actCasa).value) || 0,
+            };
+            const resultado = await guardarConfigPesos(nuevosPesos);
+            if (!resultado.ok) { alert("❌ " + resultado.error.message); return; }
+
+            // Se guardan en el estado en memoria y se vuelve a dibujar el
+            // modal para que la pestaña "Nota final" recalcule ya mismo
+            // con los porcentajes nuevos, sin tener que cerrar y reabrir.
+            estado_.pesos = nuevosPesos;
+            pintarModal(estado_);
+            calcularYPintarNotasFinales(estado_);
+            alert("✅ Porcentajes guardados. Se van a usar de aquí en adelante para todas las Apreciaciones 4+.");
+        });
+    }
 
     el.cuerpo.querySelectorAll(".apr-tab-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
