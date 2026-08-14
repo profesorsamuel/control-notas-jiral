@@ -52,6 +52,59 @@ const zonaReporte = document.getElementById("zonaReporte");
 const contenidoImprimible = document.getElementById("contenidoImprimible");
 const btnImprimir = document.getElementById("btnImprimir");
 const btnDescargarPdf = document.getElementById("btnDescargarPdf");
+const cajaMensajeWhatsapp = document.getElementById("cajaMensajeWhatsapp");
+const textareaMensajeWhatsapp = document.getElementById("textareaMensajeWhatsapp");
+const btnRestaurarMensajeWa = document.getElementById("btnRestaurarMensajeWa");
+
+// ---------------------------------------------------------------
+// Mensaje de WhatsApp: una sola plantilla editable que se usa para
+// todos los estudiantes en riesgo. Los { } se reemplazan con los
+// datos de cada estudiante al momento de enviar.
+// ---------------------------------------------------------------
+const MENSAJE_WHATSAPP_PREDETERMINADO =
+    "Buenos días/tardes, saludos. Soy el profesor(a) de {MATERIA} del salón {SALON}. " +
+    "Le informo que su acudido(a) {ESTUDIANTE} está presentando bajo rendimiento en las notas " +
+    "de la materia durante el {TRIMESTRE}. De seguir así, esto le traerá fracaso este trimestre. " +
+    "Le recomendamos que mejore en la materia. ¡Gracias por su atención!";
+
+textareaMensajeWhatsapp.value = MENSAJE_WHATSAPP_PREDETERMINADO;
+
+btnRestaurarMensajeWa.addEventListener("click", () => {
+    textareaMensajeWhatsapp.value = MENSAJE_WHATSAPP_PREDETERMINADO;
+});
+
+function soloDigitos(str) {
+    return String(str ?? "").replace(/\D/g, "");
+}
+
+// Arma el número para wa.me: si ya trae el 507 lo deja, si no se lo
+// agrega (los celulares en Panamá se guardan sin código de país).
+function numeroWhatsapp(telefonoCrudo) {
+    const digitos = soloDigitos(telefonoCrudo);
+    if (!digitos) return "";
+    if (digitos.startsWith("507") && digitos.length >= 11) return digitos;
+    return `507${digitos}`;
+}
+
+// Un solo listener para todos los botones de WhatsApp de la tabla
+// (delegado en zonaReporte, que no se reemplaza como elemento, solo
+// su contenido cada vez que se genera el reporte de nuevo).
+zonaReporte.addEventListener("click", (ev) => {
+    const boton = ev.target.closest(".btn-whatsapp-fila");
+    if (!boton || boton.disabled) return;
+
+    const plantilla = textareaMensajeWhatsapp.value.trim() || MENSAJE_WHATSAPP_PREDETERMINADO;
+    const mensaje = plantilla
+        .replaceAll("{ESTUDIANTE}", boton.dataset.estudiante || "")
+        .replaceAll("{MATERIA}", boton.dataset.materia || "")
+        .replaceAll("{SALON}", boton.dataset.salon || "")
+        .replaceAll("{PROFESOR}", boton.dataset.profesor || "")
+        .replaceAll("{TRIMESTRE}", boton.dataset.trimestre || "")
+        .replaceAll("{PADRE}", boton.dataset.padre || "");
+
+    const url = `https://wa.me/${boton.dataset.telefono}?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, "_blank", "noopener");
+});
 
 // ---------------------------------------------------------------
 // 1) Sesión y modo
@@ -253,7 +306,12 @@ async function calcularRiesgoPorMateria(materia, trimestre, estudiantes) {
         const promFinal = promFinalCrudo !== null ? Math.round(promFinalCrudo * 10) / 10 : null;
         // "En riesgo" = por debajo de 3.0, usando el valor ya redondeado.
         if (promFinal !== null && promFinal < PROMEDIO_MINIMO_APROBAR) {
-            resultado.push({ nombre: est.nombre, promApr, promEje, promExa, promFinal });
+            resultado.push({
+                nombre: est.nombre,
+                telefonoAcudiente: est.telefonoAcudiente || "",
+                nombrePadre: est.nombrePadre || "",
+                promApr, promEje, promExa, promFinal,
+            });
         }
     });
 
@@ -338,6 +396,24 @@ async function generarReporte({ avisarSiVacio = true } = {}) {
             if (errEst) { console.error(errEst); continue; }
             const estudiantes = (estudiantesSalon || []).filter((e) => !e.es_prueba);
 
+            // Traer el teléfono/nombre del acudiente de cada estudiante de
+            // este salón, para poder armar el botón de WhatsApp por fila.
+            const correosSalon = estudiantes.map((e) => e.correo).filter(Boolean);
+            if (correosSalon.length > 0) {
+                const { data: datosContacto, error: errContacto } = await supabase
+                    .from("datos_estudiante")
+                    .select("correo, celular_acudiente1, telefono_acudiente2, nombre_padre_acudiente")
+                    .in("correo", correosSalon);
+                if (errContacto) console.error(errContacto);
+                const contactoPorCorreo = {};
+                (datosContacto || []).forEach((d) => { contactoPorCorreo[d.correo] = d; });
+                estudiantes.forEach((e) => {
+                    const c = contactoPorCorreo[e.correo];
+                    e.telefonoAcudiente = c ? (c.celular_acudiente1 || c.telefono_acudiente2 || "") : "";
+                    e.nombrePadre = c ? (c.nombre_padre_acudiente || "") : "";
+                });
+            }
+
             const porMateria = [];
             for (const { materia, docentes } of materiasInfo) {
                 const enRiesgo = await calcularRiesgoPorMateria(materia, trimestre, estudiantes);
@@ -386,11 +462,13 @@ function renderizarReporte(trimestre, reportePorSalon) {
         zonaReporte.innerHTML = `<p class="text-success text-center py-3">✅ Ningún estudiante de los salones elegidos está por debajo de ${PROMEDIO_MINIMO_APROBAR.toFixed(1)} en ${escapeHtml(trimestre)}.</p>`;
         btnImprimir.style.display = "none";
         btnDescargarPdf.style.display = "none";
+        cajaMensajeWhatsapp.style.display = "none";
         return;
     }
 
     btnImprimir.style.display = "";
     btnDescargarPdf.style.display = "";
+    cajaMensajeWhatsapp.style.display = "";
 
     resumenTop.innerHTML = `
         <span class="pastilla-resumen">${estudiantesUnicos} estudiante${estudiantesUnicos === 1 ? "" : "s"} en riesgo</span>
@@ -398,7 +476,28 @@ function renderizarReporte(trimestre, reportePorSalon) {
 
     zonaReporte.innerHTML = salonesConRiesgo.map(({ salon, materias }) => {
         const fichas = materias.map(({ materia, docentes, enRiesgo }) => {
-            const filas = enRiesgo.map((e, i) => `
+            const nombreDocente = docentes.length ? docentes.join(", ") : "—";
+
+            const filas = enRiesgo.map((e, i) => {
+                const numeroWa = numeroWhatsapp(e.telefonoAcudiente);
+                const botonWa = numeroWa
+                    ? `<button type="button" class="btn-whatsapp-fila"
+                            data-estudiante="${escapeHtml(e.nombre)}"
+                            data-materia="${escapeHtml(materia)}"
+                            data-salon="${escapeHtml(salon)}"
+                            data-profesor="${escapeHtml(nombreDocente)}"
+                            data-trimestre="${escapeHtml(trimestre)}"
+                            data-padre="${escapeHtml(e.nombrePadre || "")}"
+                            data-telefono="${numeroWa}"
+                            title="Enviar mensaje por WhatsApp al acudiente">
+                            <i class="fa-brands fa-whatsapp"></i>
+                        </button>`
+                    : `<button type="button" class="btn-whatsapp-fila" disabled
+                            title="Este estudiante no tiene número de WhatsApp del acudiente registrado (se agrega en 'Información de estudiantes')">
+                            <i class="fa-brands fa-whatsapp"></i>
+                        </button>`;
+
+                return `
                 <tr>
                     <td>${i + 1}</td>
                     <td class="nombre">${escapeHtml(e.nombre)}</td>
@@ -406,9 +505,9 @@ function renderizarReporte(trimestre, reportePorSalon) {
                     <td>${e.promEje !== null ? e.promEje.toFixed(1) : "–"}</td>
                     <td>${e.promExa !== null ? e.promExa.toFixed(1) : "–"}</td>
                     <td class="final">${e.promFinal.toFixed(1)}</td>
-                </tr>`).join("");
-
-            const nombreDocente = docentes.length ? docentes.join(", ") : "—";
+                    <td class="no-imprimir">${botonWa}</td>
+                </tr>`;
+            }).join("");
 
             return `
                 <div class="ficha-materia">
@@ -420,7 +519,7 @@ function renderizarReporte(trimestre, reportePorSalon) {
                     </div>
                     <table>
                         <thead>
-                            <tr><th>#</th><th>Estudiante</th><th>Prom. Aprec.</th><th>Prom. Ejer.</th><th>Prom. Examen</th><th>Prom. Final</th></tr>
+                            <tr><th>#</th><th>Estudiante</th><th>Prom. Aprec.</th><th>Prom. Ejer.</th><th>Prom. Examen</th><th>Prom. Final</th><th class="no-imprimir">WhatsApp</th></tr>
                         </thead>
                         <tbody>${filas}</tbody>
                     </table>
