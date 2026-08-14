@@ -291,8 +291,9 @@ async function guardarTemasEnBaseDeDatos() {
     btnConfirmar.disabled = true;
     btnConfirmar.textContent = "Guardando...";
 
-    const filasAInsertar = temasDetectados.map((t) => ({
-        id_docente: idProfesor,
+    const filasAInsertar = temasDetectados.map((t, i) => ({
+        profesor_id: idProfesor,
+        correo_profesor: correoProfesor,
         materia: selectMateria.value,
         grado: selectGrado.value,
         trimestre: t.trimestre,
@@ -300,6 +301,7 @@ async function guardarTemasEnBaseDeDatos() {
         unidad: t.unidad,
         leccion: t.leccion,
         pagina: t.pagina,
+        orden: t.orden ?? i + 1,
     }));
 
     const { error } = await supabase.from("temas_programa").insert(filasAInsertar);
