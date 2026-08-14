@@ -182,29 +182,33 @@ async function cargarLecciones() {
 }
 
 function pintarLecciones(temas, idsYaMarcados) {
-    // Agrupar por área, conservando el orden en que ya vienen
+    // Agrupar por área y, dentro de cada área, por unidad — conservando el orden en que ya vienen
     const grupos = new Map();
     for (const t of temas) {
-        if (!grupos.has(t.area)) grupos.set(t.area, []);
-        grupos.get(t.area).push(t);
+        if (!grupos.has(t.area)) grupos.set(t.area, new Map());
+        const subgrupos = grupos.get(t.area);
+        if (!subgrupos.has(t.unidad)) subgrupos.set(t.unidad, []);
+        subgrupos.get(t.unidad).push(t);
     }
 
     let html = "";
-    for (const [area, lecciones] of grupos) {
-        html += `
-            <div class="grupo-area">
-                <div class="titulo-area">${escapeHtml(area)}</div>
+    for (const [area, subgrupos] of grupos) {
+        html += `<div class="grupo-area"><div class="titulo-area">${escapeHtml(area)}</div>`;
+        for (const [unidad, lecciones] of subgrupos) {
+            html += `
+                <div class="titulo-unidad">${escapeHtml(unidad)}</div>
                 ${lecciones.map((t) => `
                     <label class="fila-leccion" style="cursor:pointer;">
                         <input type="checkbox" class="check-leccion" value="${t.id}" ${idsYaMarcados.has(t.id) ? "checked" : ""}>
                         <div class="detalle-leccion">
                             ${escapeHtml(t.leccion)}
-                            <small>${escapeHtml(t.unidad)} · pág. ${t.pagina}</small>
+                            <small>pág. ${t.pagina}</small>
                         </div>
                     </label>
                 `).join("")}
-            </div>
-        `;
+            `;
+        }
+        html += `</div>`;
     }
 
     listaLecciones.innerHTML = html;
