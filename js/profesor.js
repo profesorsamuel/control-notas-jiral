@@ -1512,7 +1512,7 @@ async function guardarNotas(esAutomatico = false) {
 const EMAILJS_SERVICE_ID = "service_avsesik";
 const EMAILJS_TEMPLATE_ID = "template_00nky6m";
 const EMAILJS_PUBLIC_KEY = "2PasfycZJSW6hDpqg";
-const MINUTOS_INACTIVIDAD_RESPALDO = 30;
+const MINUTOS_INACTIVIDAD_RESPALDO = 10;
 
 if (window.emailjs) {
     window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
@@ -1587,6 +1587,39 @@ async function enviarRespaldoPorCorreo() {
         reiniciarTemporizadorRespaldo();
     }
 }
+
+// Botón "Enviar notas ahora": fuerza el envío inmediato del correo de
+// respaldo, sin esperar los MINUTOS_INACTIVIDAD_RESPALDO. Útil si el
+// docente quiere mandar el correo justo después de terminar de anotar,
+// en vez de esperar a que pase el tiempo de inactividad.
+document.getElementById("btnEnviarRespaldoAhora")?.addEventListener("click", async (e) => {
+    const boton = e.currentTarget;
+
+    if (cambiosPendientesRespaldo.length === 0) {
+        estadoGuardadoNotas.textContent = "ℹ️ No hay notas nuevas pendientes de enviar por correo.";
+        estadoGuardadoNotas.className = "small text-muted";
+        return;
+    }
+
+    if (temporizadorRespaldo) clearTimeout(temporizadorRespaldo);
+
+    boton.disabled = true;
+    const textoOriginal = boton.textContent;
+    boton.textContent = "Enviando...";
+
+    await enviarRespaldoPorCorreo();
+
+    if (cambiosPendientesRespaldo.length === 0) {
+        estadoGuardadoNotas.textContent = "✅ Notas enviadas por correo.";
+        estadoGuardadoNotas.className = "small text-success";
+    } else {
+        estadoGuardadoNotas.textContent = "❌ No se pudo enviar el correo. Se reintentará automáticamente.";
+        estadoGuardadoNotas.className = "small text-danger";
+    }
+
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+});
 
 // Auto-guardado real: cada celda se guarda sola al salir de ella (blur)
 // o al presionar Enter, sin necesidad de un botón "Guardar". Guardamos
