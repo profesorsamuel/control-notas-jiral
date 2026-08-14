@@ -40,6 +40,7 @@ let archivoPrograma = null;
 const selectMateria = document.getElementById("selectMateriaPlanificacion");
 const selectGrado = document.getElementById("selectGradoPlanificacion");
 const btnAnalizarPdfs = document.getElementById("btnAnalizarPdfs");
+const btnCruzarAhora = document.getElementById("btnCruzarAhora");
 const contenedorResultado = document.getElementById("resultadoTemas");
 const contenedorPrograma = document.getElementById("resultadoPrograma");
 
@@ -214,6 +215,7 @@ zonas.programa.input.addEventListener("change", (e) => manejarSeleccion("program
 function actualizarBotonAnalizar() {
     const listo = !!selectMateria.value && !!selectGrado.value && !!archivoLibro && !!archivoPrograma;
     btnAnalizarPdfs.disabled = !listo;
+    btnCruzarAhora.disabled = !(selectMateria.value && selectGrado.value);
 }
 
 selectMateria.addEventListener("change", actualizarBotonAnalizar);
@@ -427,9 +429,17 @@ async function guardarTemasEnBaseDeDatos() {
 
 async function intentarCruceAutomatico() {
     if (!temasYaGuardados || !programaYaGuardado) return;
+    await ejecutarCruce();
+}
 
+async function ejecutarCruce() {
     const materia = selectMateria.value;
     const grado = selectGrado.value;
+
+    if (!materia || !grado) {
+        mostrarEstado("Elige materia y grado antes de cruzar.", true);
+        return;
+    }
 
     mostrarEstado("Cruzando lecciones con el programa curricular...");
 
@@ -453,23 +463,34 @@ async function intentarCruceAutomatico() {
         return;
     }
 
-    if (!temasGuardados?.length || !contenidosGuardados?.length) return;
+    if (!temasGuardados?.length || !contenidosGuardados?.length) {
+        mostrarEstado(`No encontré datos guardados de ${materia} - ${grado}° para cruzar. Primero sube y confirma el libro y el programa de esa materia/grado.`, true);
+        return;
+    }
 
-    // Agrupa los bloques del programa por área normalizada (mayúsculas, sin espacios extra)
-    const normalizar = (t) => (t || "").trim().toUpperCase().replace(/\s+/g, " ");
-    const contenidosPorArea = new Map();
+    // El libro dice "Área 1. Los seres vivos y sus funciones" y el programa dice
+    // "Área 1: CIENCIAS DE LA VIDA" — el TEXTO nunca va a coincidir aunque sea la
+    // misma área, pero el NÚMERO sí es consistente entre ambos documentos.
+    // Por eso cruzamos por número de área, no por el nombre.
+    const extraerNumeroArea = (area) => {
+        const match = (area || "").match(/\d+/);
+        return match ? match[0] : null;
+    };
+
+    const contenidosPorNumeroArea = new Map();
     for (const c of contenidosGuardados) {
-        const clave = normalizar(c.area);
-        if (!contenidosPorArea.has(clave)) contenidosPorArea.set(clave, []);
-        contenidosPorArea.get(clave).push(c.id);
+        const numero = extraerNumeroArea(c.area);
+        if (!numero) continue;
+        if (!contenidosPorNumeroArea.has(numero)) contenidosPorNumeroArea.set(numero, []);
+        contenidosPorNumeroArea.get(numero).push(c.id);
     }
 
     const filasCruce = [];
     const areasSinPareja = new Set();
 
     for (const t of temasGuardados) {
-        const clave = normalizar(t.area);
-        const contenidosDeEsaArea = contenidosPorArea.get(clave);
+        const numero = extraerNumeroArea(t.area);
+        const contenidosDeEsaArea = numero ? contenidosPorNumeroArea.get(numero) : null;
         if (!contenidosDeEsaArea) {
             areasSinPareja.add(t.area);
             continue;
@@ -478,7 +499,7 @@ async function intentarCruceAutomatico() {
             filasCruce.push({
                 id_tema: t.id,
                 id_contenido: contenidoId,
-                similitud: 1, // coincidencia exacta de área por ahora; más adelante se puede afinar
+                similitud: 1, // coincidencia por número de área; más adelante se puede afinar por texto
             });
         }
     }
@@ -578,6 +599,12 @@ async function analizarPdfs() {
 }
 
 btnAnalizarPdfs.addEventListener("click", analizarPdfs);
+
+btnCruzarAhora.addEventListener("click", async () => {
+    btnCruzarAhora.disabled = true;
+    await ejecutarCruce();
+    btnCruzarAhora.disabled = !(selectMateria.value && selectGrado.value);
+});
 
 // =========================================================
 // INICIO
