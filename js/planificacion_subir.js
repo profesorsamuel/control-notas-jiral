@@ -346,6 +346,20 @@ async function guardarProgramaEnBaseDeDatos() {
     btnConfirmar.disabled = true;
     btnConfirmar.textContent = "Guardando...";
 
+    // Si ya había bloques guardados de esta materia (el programa suele cubrir
+    // varios grados a la vez), los reemplazamos. Borra primero sus cruces.
+    const { data: contenidosPrevios } = await supabase
+        .from("contenidos_curriculares")
+        .select("id")
+        .eq("profesor_id", idProfesor)
+        .eq("materia", selectMateria.value);
+
+    if (contenidosPrevios && contenidosPrevios.length > 0) {
+        const idsPrevios = contenidosPrevios.map((c) => c.id);
+        await supabase.from("cruce_tema_contenido").delete().in("id_contenido", idsPrevios);
+        await supabase.from("contenidos_curriculares").delete().in("id", idsPrevios);
+    }
+
     const filasAInsertar = bloquesProgramaDetectados.map((b, i) => ({
         profesor_id: idProfesor,
         correo_profesor: correoProfesor,
@@ -384,6 +398,21 @@ async function guardarTemasEnBaseDeDatos() {
 
     btnConfirmar.disabled = true;
     btnConfirmar.textContent = "Guardando...";
+
+    // Si ya había lecciones guardadas de esta materia/grado, las reemplazamos
+    // (borra primero sus cruces, para no dejar registros huérfanos).
+    const { data: temasPrevios } = await supabase
+        .from("temas_programa")
+        .select("id")
+        .eq("profesor_id", idProfesor)
+        .eq("materia", selectMateria.value)
+        .eq("grado", selectGrado.value);
+
+    if (temasPrevios && temasPrevios.length > 0) {
+        const idsPrevios = temasPrevios.map((t) => t.id);
+        await supabase.from("cruce_tema_contenido").delete().in("id_tema", idsPrevios);
+        await supabase.from("temas_programa").delete().in("id", idsPrevios);
+    }
 
     const filasAInsertar = temasDetectados.map((t, i) => ({
         profesor_id: idProfesor,
