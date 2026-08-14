@@ -73,6 +73,7 @@ const nombreEstudianteEl = document.getElementById("nombreEstudiante");
 const salonEstudianteEl = document.getElementById("salonEstudiante");
 const btnToggleApreciacion = document.getElementById("btnToggleApreciacion");
 const btnToggleEjercicio = document.getElementById("btnToggleEjercicio");
+const btnToggleExamen = document.getElementById("btnToggleExamen");
 
 // =====================================================
 // ESTADO GLOBAL
@@ -93,10 +94,11 @@ let creadoPorPorCasilla = {};
 let nombrePorCorreo = {};
 let columnaEsOficial = {};
 
-// Preferencia del estudiante de ocultar Apreciación o Ejercicio (para ver
-// mejor la tabla en pantallas chicas). Se recuerda entre sesiones.
+// Preferencia del estudiante de ocultar Apreciación, Ejercicio o Examen
+// (para ver mejor la tabla en pantallas chicas). Se recuerda entre sesiones.
 let ocultarApreciacion = localStorage.getItem("ocultarApreciacion") === "true";
 let ocultarEjercicio = localStorage.getItem("ocultarEjercicio") === "true";
+let ocultarExamen = localStorage.getItem("ocultarExamen") === "true";
 
 
 // =====================================================
@@ -120,7 +122,8 @@ function fechaHoy() {
 }
 
 function etiquetaCasillaRespaldo(tipo, numero) {
-    return `${tipo === "apreciacion" ? "Apreciación" : "Ejercicio"} ${numero}`;
+    const nombres = { apreciacion: "Apreciación", ejercicio: "Ejercicio", examen: "Examen" };
+    return `${nombres[tipo] || tipo} ${numero}`;
 }
 
 let toastTimeout = null;
@@ -299,7 +302,7 @@ async function cargarColumnas(trimestre) {
     const agregarColumnaLocal = (materia, tipo, numero) => {
         if (!materia || !tipo || !numero) return false;
         if (!columnasPorMateria[materia]) {
-            columnasPorMateria[materia] = { apreciacion: [], ejercicio: [] };
+            columnasPorMateria[materia] = { apreciacion: [], ejercicio: [], examen: [] };
         }
         const lista = columnasPorMateria[materia][tipo];
         if (!lista) return false;
@@ -315,7 +318,7 @@ async function cargarColumnas(trimestre) {
 
         if (c.tema && c.tema.trim() !== "") {
             if (!temasOficialesPorMateria[c.materia]) {
-                temasOficialesPorMateria[c.materia] = { apreciacion: {}, ejercicio: {} };
+                temasOficialesPorMateria[c.materia] = { apreciacion: {}, ejercicio: {}, examen: {} };
             }
             temasOficialesPorMateria[c.materia][c.tipo][c.numero] = c.tema.trim();
         }
@@ -334,7 +337,7 @@ async function cargarColumnas(trimestre) {
     // 3. Casillas autocompletadas desde la tabla notas de su nivel (9A, 9B, 9C, etc.)
     (notasTodas || []).forEach((n) => {
         const tipoNorm = (n.tipo || "").toLowerCase();
-        if (tipoNorm === "apreciacion" || tipoNorm === "ejercicio") {
+        if (tipoNorm === "apreciacion" || tipoNorm === "ejercicio" || tipoNorm === "examen") {
             agregarColumnaLocal(n.materia, tipoNorm, n.numero);
             const clave = `${n.materia}|${tipoNorm}|${n.numero}`;
             if (!creadoPorPorCasilla[clave] && n.correo) {
@@ -346,6 +349,7 @@ async function cargarColumnas(trimestre) {
     Object.values(columnasPorMateria).forEach((cols) => {
         cols.apreciacion.sort((a, b) => a - b);
         cols.ejercicio.sort((a, b) => a - b);
+        cols.examen.sort((a, b) => a - b);
     });
 }
 
@@ -365,10 +369,10 @@ async function cargarNotasEstudiante(trimestre) {
 
     (data || []).forEach((n) => {
         if (!notasPorMateria[n.materia]) {
-            notasPorMateria[n.materia] = { apreciacion: {}, ejercicio: {} };
+            notasPorMateria[n.materia] = { apreciacion: {}, ejercicio: {}, examen: {} };
         }
         const tipoNorm = (n.tipo || "").toLowerCase();
-        if (tipoNorm === "apreciacion" || tipoNorm === "ejercicio") {
+        if (tipoNorm === "apreciacion" || tipoNorm === "ejercicio" || tipoNorm === "examen") {
             notasPorMateria[n.materia][tipoNorm][n.numero] = n;
         }
     });
@@ -420,7 +424,7 @@ async function cargarCompanerosConNotas(trimestre) {
 
     (notasComp || []).forEach((n) => {
         const tipoNorm = (n.tipo || "").toLowerCase();
-        if (tipoNorm !== "apreciacion" && tipoNorm !== "ejercicio") return;
+        if (tipoNorm !== "apreciacion" && tipoNorm !== "ejercicio" && tipoNorm !== "examen") return;
 
         const clave = `${n.materia}|${tipoNorm}|${n.numero}`;
         const nombre = nombrePorCorreo[n.correo];
@@ -472,14 +476,16 @@ function calcularPromedio(materia, tipo, numeros) {
     return valores.reduce((a, b) => a + b, 0) / valores.length;
 }
 
-function calcularPromedioFinal(materia, apr, eje) {
+function calcularPromedioFinal(materia, apr, eje, exa) {
     const promApr = calcularPromedio(materia, "apreciacion", apr);
     const promEje = calcularPromedio(materia, "ejercicio", eje);
+    const promExa = calcularPromedio(materia, "examen", exa);
 
-    if (promApr !== null && promEje !== null) return (promApr + promEje) / 2;
-    if (promApr !== null) return promApr;
-    if (promEje !== null) return promEje;
-    return null;
+    // Promedio final = promedio de las categorías que sí tengan datos
+    // (Apreciación, Ejercicio, Examen), cada una con el mismo peso.
+    // Misma fórmula que usa el/la docente en su propio panel.
+    const presentes = [promApr, promEje, promExa].filter((v) => v !== null);
+    return presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
 }
 
 // =====================================================
@@ -493,7 +499,8 @@ function celdaNotaHtml(materia, tipo, numero) {
     const temaOficial = temasOficialesPorMateria[materia]?.[tipo]?.[numero];
 
     if (nota && nota.estado === "Intencional") {
-        const claseGrupoFalta = tipo === "apreciacion" ? "grupo-apreciacion" : "grupo-ejercicio";
+        const clasesGrupoFalta = { apreciacion: "grupo-apreciacion", ejercicio: "grupo-ejercicio", examen: "grupo-examen" };
+        const claseGrupoFalta = clasesGrupoFalta[tipo] || "grupo-ejercicio";
         return `
             <td class="${claseGrupoFalta}">
                 <div class="celda-nota solo-lectura" title="Falta marcada por el consejero(a) (cuenta como 0.0)">
@@ -593,7 +600,8 @@ function celdaNotaHtml(materia, tipo, numero) {
         candadoIcono = `<span class="icono-candado" title="El profesor(a) desactivó agregar notas nuevas aquí">🔒</span>`;
     }
 
-    const claseGrupo = tipo === "apreciacion" ? "grupo-apreciacion" : "grupo-ejercicio";
+    const clasesGrupo = { apreciacion: "grupo-apreciacion", ejercicio: "grupo-ejercicio", examen: "grupo-examen" };
+    const claseGrupo = clasesGrupo[tipo] || "grupo-ejercicio";
 
     return `
         <td class="${claseGrupo}${faltaNota ? " celda-falta" : ""}"${tituloTema ? ` title="${tituloTema}"` : ""}>
@@ -630,10 +638,12 @@ function tablaConsolidadaHtml() {
 
     let maxApr = 0;
     let maxEje = 0;
+    let maxExa = 0;
     materias.forEach((m) => {
-        const cols = columnasPorMateria[m] || { apreciacion: [], ejercicio: [] };
+        const cols = columnasPorMateria[m] || { apreciacion: [], ejercicio: [], examen: [] };
         if (cols.apreciacion.length) maxApr = Math.max(maxApr, Math.max(...cols.apreciacion));
         if (cols.ejercicio.length) maxEje = Math.max(maxEje, Math.max(...cols.ejercicio));
+        if (cols.examen.length) maxExa = Math.max(maxExa, Math.max(...cols.examen));
     });
 
     let filaHead1 = `<tr>`;
@@ -645,6 +655,10 @@ function tablaConsolidadaHtml() {
     if (!ocultarEjercicio) {
         filaHead1 += `<th colspan="${maxEje + 1}" class="th-grupo th-ejercicio">Ejercicio</th>`;
         filaHead1 += `<th rowspan="2" class="th-prom">Prom.<br>Eje.</th>`;
+    }
+    if (!ocultarExamen) {
+        filaHead1 += `<th colspan="${maxExa + 1}" class="th-grupo th-examen">Examen</th>`;
+        filaHead1 += `<th rowspan="2" class="th-prom">Prom.<br>Exa.</th>`;
     }
     filaHead1 += `<th rowspan="2" class="th-final">Promedio<br>Final</th>`;
     filaHead1 += `</tr>`;
@@ -658,14 +672,19 @@ function tablaConsolidadaHtml() {
         for (let i = 1; i <= maxEje; i++) filaHead2 += `<th class="th-ejercicio-num">${i}</th>`;
         filaHead2 += `<th class="col-agregar th-ejercicio-num">+</th>`;
     }
+    if (!ocultarExamen) {
+        for (let i = 1; i <= maxExa; i++) filaHead2 += `<th class="th-examen-num">${i}</th>`;
+        filaHead2 += `<th class="col-agregar th-examen-num">+</th>`;
+    }
     filaHead2 += `</tr>`;
 
     let filas = "";
     materias.forEach((materia) => {
-        const cols = columnasPorMateria[materia] || { apreciacion: [], ejercicio: [] };
+        const cols = columnasPorMateria[materia] || { apreciacion: [], ejercicio: [], examen: [] };
         const promApr = calcularPromedio(materia, "apreciacion", cols.apreciacion);
         const promEje = calcularPromedio(materia, "ejercicio", cols.ejercicio);
-        const promFinal = calcularPromedioFinal(materia, cols.apreciacion, cols.ejercicio);
+        const promExa = calcularPromedio(materia, "examen", cols.examen);
+        const promFinal = calcularPromedioFinal(materia, cols.apreciacion, cols.ejercicio, cols.examen);
 
         filas += `<tr>`;
         filas += `<td class="col-materia" title="${escapeHtml(materia)}">${escapeHtml(materiaAbreviada(materia))}</td>`;
@@ -690,6 +709,16 @@ function tablaConsolidadaHtml() {
             filas += `<td class="celda-promedio prom-ejercicio">${promEje !== null ? promEje.toFixed(1) : "-"}</td>`;
         }
 
+        if (!ocultarExamen) {
+            for (let i = 1; i <= maxExa; i++) {
+                filas += cols.examen.includes(i)
+                    ? celdaNotaHtml(materia, "examen", i)
+                    : `<td class="celda-vacia grupo-examen"></td>`;
+            }
+            filas += celdaAgregarHtml(materia, "examen", editando);
+            filas += `<td class="celda-promedio prom-examen">${promExa !== null ? promExa.toFixed(1) : "-"}</td>`;
+        }
+
         let claseFinal = "celda-promedio celda-final";
         if (promFinal !== null) {
             claseFinal += promFinal < 3 ? " reprobado" : " aprobado";
@@ -709,9 +738,11 @@ function tablaConsolidadaHtml() {
 }
 
 function celdaAgregarHtml(materia, tipo, editando) {
-    const claseGrupo = tipo === "apreciacion" ? "grupo-apreciacion" : "grupo-ejercicio";
+    const clasesGrupo = { apreciacion: "grupo-apreciacion", ejercicio: "grupo-ejercicio", examen: "grupo-examen" };
+    const claseGrupo = clasesGrupo[tipo] || "grupo-ejercicio";
     if (!editando) return `<td class="celda-agregar ${claseGrupo}"></td>`;
-    const etiqueta = tipo === "apreciacion" ? "Agregar apreciación" : "Agregar ejercicio";
+    const etiquetas = { apreciacion: "Agregar apreciación", ejercicio: "Agregar ejercicio", examen: "Agregar examen" };
+    const etiqueta = etiquetas[tipo] || "Agregar";
     return `
         <td class="celda-agregar ${claseGrupo}">
             <button
@@ -743,6 +774,12 @@ function actualizarBotonesSeccion() {
             ? "👁️ Mostrar Ejercicio"
             : "🙈 Ocultar Ejercicio";
     }
+    if (btnToggleExamen) {
+        btnToggleExamen.setAttribute("aria-pressed", String(ocultarExamen));
+        btnToggleExamen.textContent = ocultarExamen
+            ? "👁️ Mostrar Examen"
+            : "🙈 Ocultar Examen";
+    }
 }
 
 btnToggleApreciacion?.addEventListener("click", () => {
@@ -755,6 +792,13 @@ btnToggleApreciacion?.addEventListener("click", () => {
 btnToggleEjercicio?.addEventListener("click", () => {
     ocultarEjercicio = !ocultarEjercicio;
     localStorage.setItem("ocultarEjercicio", String(ocultarEjercicio));
+    actualizarBotonesSeccion();
+    render();
+});
+
+btnToggleExamen?.addEventListener("click", () => {
+    ocultarExamen = !ocultarExamen;
+    localStorage.setItem("ocultarExamen", String(ocultarExamen));
     actualizarBotonesSeccion();
     render();
 });
@@ -976,7 +1020,7 @@ async function guardarCelda(inputEl) {
             return;
         }
 
-        if (!notasPorMateria[materia]) notasPorMateria[materia] = { apreciacion: {}, ejercicio: {} };
+        if (!notasPorMateria[materia]) notasPorMateria[materia] = { apreciacion: {}, ejercicio: {}, examen: {} };
         notasPorMateria[materia][tipo][numero] = data;
         registrarCambioParaRespaldoEst(materia, tipo, numero, valor);
     }
@@ -1053,12 +1097,13 @@ async function agregarColumna(materia, tipo) {
     }
 
     if (!columnasPorMateria[materia]) {
-        columnasPorMateria[materia] = { apreciacion: [], ejercicio: [] };
+        columnasPorMateria[materia] = { apreciacion: [], ejercicio: [], examen: [] };
     }
     columnasPorMateria[materia][tipo].push(siguienteNumero);
     creadoPorPorCasilla[`${materia}|${tipo}|${siguienteNumero}`] = usuarioActual.email;
 
-    const etiqueta = tipo === "apreciacion" ? "Apreciación" : "Ejercicio";
+    const etiquetasTipo = { apreciacion: "Apreciación", ejercicio: "Ejercicio", examen: "Examen" };
+    const etiqueta = etiquetasTipo[tipo] || tipo;
     mostrarToast(`✅ ${etiqueta} ${siguienteNumero} agregada`);
     render();
 }
@@ -1070,7 +1115,8 @@ async function agregarColumna(materia, tipo) {
 async function eliminarColumna(materia, tipo, numero) {
     if (!estaEditando()) return;
 
-    const etiqueta = tipo === "apreciacion" ? "Apreciación" : "Ejercicio";
+    const etiquetasTipoEliminar = { apreciacion: "Apreciación", ejercicio: "Ejercicio", examen: "Examen" };
+    const etiqueta = etiquetasTipoEliminar[tipo] || tipo;
 
     const confirmar = confirm(
         `¿Eliminar la columna "${etiqueta} ${numero}" de ${materia}?\n\n` +
@@ -1391,22 +1437,23 @@ document.getElementById("btnPdf")?.addEventListener("click", async () => {
 
     const columnasMap = {};
     (columnas || []).forEach((c) => {
-        if (!columnasMap[c.materia]) columnasMap[c.materia] = { apreciacion: [], ejercicio: [] };
-        if (!columnasMap[c.materia][c.tipo].includes(c.numero)) {
+        if (!columnasMap[c.materia]) columnasMap[c.materia] = { apreciacion: [], ejercicio: [], examen: [] };
+        if (columnasMap[c.materia][c.tipo] && !columnasMap[c.materia][c.tipo].includes(c.numero)) {
             columnasMap[c.materia][c.tipo].push(c.numero);
         }
     });
     Object.values(columnasMap).forEach((c) => {
         c.apreciacion.sort((a, b) => a - b);
         c.ejercicio.sort((a, b) => a - b);
+        c.examen.sort((a, b) => a - b);
     });
 
     const notasMap = {};
     notas.forEach((item) => {
         const mat = item.materia || "Sin Materia";
-        if (!notasMap[mat]) notasMap[mat] = { apreciacion: {}, ejercicio: {} };
+        if (!notasMap[mat]) notasMap[mat] = { apreciacion: {}, ejercicio: {}, examen: {} };
         const tipoNorm = (item.tipo || "").toLowerCase();
-        if (tipoNorm === "apreciacion" || tipoNorm === "ejercicio") {
+        if (tipoNorm === "apreciacion" || tipoNorm === "ejercicio" || tipoNorm === "examen") {
             notasMap[mat][tipoNorm][item.numero] = {
                 nota: Number(item.nota),
                 intencional: item.estado === "Intencional"
@@ -1462,10 +1509,11 @@ document.getElementById("btnPdf")?.addEventListener("click", async () => {
                     pendientesVsGrupo += faltan;
 
                     if (!detallePendientesEstudiante[materiaClave]) {
-                        detallePendientesEstudiante[materiaClave] = { apreciacion: 0, ejercicio: 0 };
+                        detallePendientesEstudiante[materiaClave] = { apreciacion: 0, ejercicio: 0, examen: 0 };
                     }
                     if (tipoClave === "apreciacion") detallePendientesEstudiante[materiaClave].apreciacion += faltan;
                     else if (tipoClave === "ejercicio") detallePendientesEstudiante[materiaClave].ejercicio += faltan;
+                    else if (tipoClave === "examen") detallePendientesEstudiante[materiaClave].examen += faltan;
                 }
             });
         }
@@ -1554,17 +1602,22 @@ document.getElementById("btnPdf")?.addEventListener("click", async () => {
     const head = [["Materia"]];
     let maxAprGlobal = 0;
     let maxEjeGlobal = 0;
+    let maxExaGlobal = 0;
     materiasConDatos.forEach((m) => {
         maxAprGlobal = Math.max(maxAprGlobal, (columnasMap[m]?.apreciacion || []).length
             ? Math.max(...columnasMap[m].apreciacion) : 0);
         maxEjeGlobal = Math.max(maxEjeGlobal, (columnasMap[m]?.ejercicio || []).length
             ? Math.max(...columnasMap[m].ejercicio) : 0);
+        maxExaGlobal = Math.max(maxExaGlobal, (columnasMap[m]?.examen || []).length
+            ? Math.max(...columnasMap[m].examen) : 0);
     });
 
     for (let i = 1; i <= maxAprGlobal; i++) head[0].push(`Apr. ${i}`);
     if (maxAprGlobal > 0) head[0].push("Prom. Apr.");
     for (let i = 1; i <= maxEjeGlobal; i++) head[0].push(`Eje. ${i}`);
     if (maxEjeGlobal > 0) head[0].push("Prom. Eje.");
+    for (let i = 1; i <= maxExaGlobal; i++) head[0].push(`Exa. ${i}`);
+    if (maxExaGlobal > 0) head[0].push("Prom. Exa.");
     head[0].push("Prom. Final");
 
     const body = [];
@@ -1588,20 +1641,25 @@ document.getElementById("btnPdf")?.addEventListener("click", async () => {
     materiasConDatos.forEach((materia) => {
         const aprCols = columnasMap[materia]?.apreciacion || [];
         const ejeCols = columnasMap[materia]?.ejercicio || [];
-        const notasM = notasMap[materia] || { apreciacion: {}, ejercicio: {} };
+        const exaCols = columnasMap[materia]?.examen || [];
+        const notasM = notasMap[materia] || { apreciacion: {}, ejercicio: {}, examen: {} };
 
         const aprValidos = aprCols.map((n) => notasM.apreciacion[n]).filter(Boolean);
         const ejeValidos = ejeCols.map((n) => notasM.ejercicio[n]).filter(Boolean);
+        const exaValidos = exaCols.map((n) => notasM.examen[n]).filter(Boolean);
 
         const promApr = aprValidos.length > 0
             ? aprValidos.reduce((a, b) => a + (b.intencional ? 0 : b.nota), 0) / aprValidos.length : null;
         const promEje = ejeValidos.length > 0
             ? ejeValidos.reduce((a, b) => a + (b.intencional ? 0 : b.nota), 0) / ejeValidos.length : null;
+        const promExa = exaValidos.length > 0
+            ? exaValidos.reduce((a, b) => a + (b.intencional ? 0 : b.nota), 0) / exaValidos.length : null;
 
-        let promFinal = null;
-        if (promApr !== null && promEje !== null) promFinal = (promApr + promEje) / 2;
-        else if (promApr !== null) promFinal = promApr;
-        else if (promEje !== null) promFinal = promEje;
+        // Promedio final = promedio de las categorías que sí tengan datos
+        // (Apreciación, Ejercicio, Examen), cada una con el mismo peso.
+        // Misma fórmula que usa el/la docente en su propio panel.
+        const presentesFinal = [promApr, promEje, promExa].filter((v) => v !== null);
+        const promFinal = presentesFinal.length ? presentesFinal.reduce((a, b) => a + b, 0) / presentesFinal.length : null;
 
         const row = [materia];
 
@@ -1618,6 +1676,13 @@ document.getElementById("btnPdf")?.addEventListener("click", async () => {
                 : "");
         }
         if (maxEjeGlobal > 0) row.push(promEje !== null ? promEje.toFixed(1) : "-");
+
+        for (let i = 1; i <= maxExaGlobal; i++) {
+            row.push(exaCols.includes(i)
+                ? celdaTexto(notasM.examen[i], casillasConNotaGlobal.has(`${materia}|examen|${i}`))
+                : "");
+        }
+        if (maxExaGlobal > 0) row.push(promExa !== null ? promExa.toFixed(1) : "-");
 
         row.push(promFinal !== null ? promFinal.toFixed(1) : "-");
         body.push(row);
@@ -1715,17 +1780,18 @@ document.getElementById("btnPdf")?.addEventListener("click", async () => {
         if (Object.keys(detallePendientesEstudiante).length > 0) {
             const filasDetalle = Object.keys(detallePendientesEstudiante).sort().map((materia) => {
                 const d = detallePendientesEstudiante[materia];
-                const total = d.apreciacion + d.ejercicio;
+                const total = d.apreciacion + d.ejercicio + d.examen;
                 return [
                     materia,
                     d.apreciacion > 0 ? `${d.apreciacion} ?` : "-",
                     d.ejercicio > 0 ? `${d.ejercicio} ?` : "-",
+                    d.examen > 0 ? `${d.examen} ?` : "-",
                     String(total)
                 ];
             });
 
             doc.autoTable({
-                head: [["Materia", "Apreciación pendiente", "Ejercicio pendiente", "Total"]],
+                head: [["Materia", "Apreciación pendiente", "Ejercicio pendiente", "Examen pendiente", "Total"]],
                 body: filasDetalle, startY: y,
                 styles: { fontSize: 8, halign: "center" },
                 headStyles: { fillColor: [180, 0, 0], textColor: 255 },
