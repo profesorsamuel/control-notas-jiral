@@ -38,8 +38,11 @@ let archivoPrograma = null;
 // =========================================================
 
 const selectMateria = document.getElementById("selectMateriaPlanificacion");
+const selectGrado = document.getElementById("selectGradoPlanificacion");
 const btnAnalizarPdfs = document.getElementById("btnAnalizarPdfs");
 const contenedorResultado = document.getElementById("resultadoTemas");
+
+let temasDetectados = [];
 
 const zonas = {
     libro: {
@@ -203,11 +206,12 @@ zonas.programa.input.addEventListener("change", (e) => manejarSeleccion("program
 // =========================================================
 
 function actualizarBotonAnalizar() {
-    const listo = !!selectMateria.value && !!archivoLibro && !!archivoPrograma;
+    const listo = !!selectMateria.value && !!selectGrado.value && !!archivoLibro && !!archivoPrograma;
     btnAnalizarPdfs.disabled = !listo;
 }
 
 selectMateria.addEventListener("change", actualizarBotonAnalizar);
+selectGrado.addEventListener("change", actualizarBotonAnalizar);
 
 // =========================================================
 // 5) SUBIR UN ARCHIVO AL BUCKET (carpeta = uid del profesor)
@@ -266,11 +270,50 @@ function pintarTablaTemas(temas) {
             </table>
         </div>
         <div class="text-center mt-3">
-            <button class="btn btn-sm btn-outline-secondary" disabled>
-                Confirmar y guardar (siguiente paso pequeño)
+            <button class="btn btn-sm btn-success" id="btnConfirmarGuardar">
+                ✅ Confirmar y guardar ${temas.length} lecciones
             </button>
         </div>
     `;
+
+    const btnConfirmar = document.getElementById("btnConfirmarGuardar");
+    btnConfirmar.addEventListener("click", guardarTemasEnBaseDeDatos);
+}
+
+// =========================================================
+// 8) GUARDAR LOS TEMAS CONFIRMADOS EN "temas_programa"
+// =========================================================
+
+async function guardarTemasEnBaseDeDatos() {
+    const btnConfirmar = document.getElementById("btnConfirmarGuardar");
+    if (!btnConfirmar || temasDetectados.length === 0) return;
+
+    btnConfirmar.disabled = true;
+    btnConfirmar.textContent = "Guardando...";
+
+    const filasAInsertar = temasDetectados.map((t) => ({
+        id_docente: idProfesor,
+        materia: selectMateria.value,
+        grado: selectGrado.value,
+        trimestre: t.trimestre,
+        area: t.area,
+        unidad: t.unidad,
+        leccion: t.leccion,
+        pagina: t.pagina,
+    }));
+
+    const { error } = await supabase.from("temas_programa").insert(filasAInsertar);
+
+    if (error) {
+        console.error("❌ Error al guardar temas:", error);
+        mostrarEstado("Error al guardar: " + error.message, true);
+        btnConfirmar.disabled = false;
+        btnConfirmar.textContent = `✅ Confirmar y guardar ${temasDetectados.length} lecciones`;
+        return;
+    }
+
+    btnConfirmar.textContent = "✅ Guardado correctamente";
+    mostrarEstado(`Se guardaron ${temasDetectados.length} lecciones de ${selectMateria.value} - ${selectGrado.value}° en la base de datos.`);
 }
 
 // =========================================================
@@ -309,6 +352,7 @@ async function analizarPdfs() {
         }
 
         mostrarEstado(`Listo. Se detectaron ${data.total} lecciones del libro.`);
+        temasDetectados = data.temas;
         pintarTablaTemas(data.temas);
     } catch (err) {
         console.error("❌ Error al analizar PDFs:", err);
