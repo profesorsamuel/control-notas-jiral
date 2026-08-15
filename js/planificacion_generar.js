@@ -25,6 +25,42 @@ function normalizar(t) {
         .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // quita acentos
 }
 
+const PALABRAS_VACIAS = new Set([
+    "de", "la", "el", "los", "las", "y", "en", "del", "para", "con", "una", "uno",
+    "su", "sus", "que", "se", "por", "un", "al", "es", "como", "sobre",
+]);
+
+function extraerFragmentoRelevante(contenidoRaw, tema) {
+    if (!contenidoRaw) return "No se encontró contenido del programa enlazado a esta lección todavía.";
+
+    const textoNormalizado = normalizar(contenidoRaw);
+    const palabrasClave = normalizar(`${tema.unidad} ${tema.leccion}`)
+        .split(/\s+/)
+        .filter((p) => p.length > 3 && !PALABRAS_VACIAS.has(p));
+
+    let mejorPosicion = -1;
+    let mejorPuntaje = 0;
+
+    for (let i = 0; i < textoNormalizado.length; i += 40) {
+        const ventana = textoNormalizado.slice(i, i + 300);
+        const puntaje = palabrasClave.filter((p) => ventana.includes(p)).length;
+        if (puntaje > mejorPuntaje) {
+            mejorPuntaje = puntaje;
+            mejorPosicion = i;
+        }
+    }
+
+    if (mejorPosicion === -1 || mejorPuntaje === 0) {
+        const recorte = contenidoRaw.slice(0, 500);
+        return recorte + (contenidoRaw.length > 500 ? "…" : "") +
+            "\n\n(No se encontró una coincidencia exacta con el nombre de la lección — se muestra el inicio del contenido del área completa.)";
+    }
+
+    const inicio = Math.max(0, mejorPosicion - 60);
+    const fin = Math.min(contenidoRaw.length, inicio + 650);
+    return (inicio > 0 ? "…" : "") + contenidoRaw.slice(inicio, fin) + (fin < contenidoRaw.length ? "…" : "");
+}
+
 // =========================================================
 // ESTADO
 // =========================================================
@@ -215,7 +251,7 @@ function generarParaLeccion(tema, contenido) {
 
     return {
         area: tema.area,
-        contenidoReferencia: (contenido?.contenido_raw || "").trim() || "No se encontró contenido del programa enlazado a esta lección todavía.",
+        contenidoReferencia: extraerFragmentoRelevante(contenido?.contenido_raw, tema),
         opciones: {
             competencia: [competenciaA, competenciaB],
             objetivo: [objetivoA, objetivoB],
