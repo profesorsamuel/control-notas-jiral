@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generar planificación · Centro Básico General El Jiral</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+    body {
+        background: linear-gradient(135deg, #4b3fb3, #2f7bd1);
+        min-height: 100vh;
+        font-family: "Segoe UI", Arial, sans-serif;
+        padding: 24px 12px;
+    }
+    .tarjeta-principal {
+        max-width: 900px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 12px 30px rgba(0,0,0,.25);
+        overflow: hidden;
+    }
+    .encabezado-planificacion {
+        background: linear-gradient(90deg, #3a6fd8, #5a4fcf);
+        color: #fff;
+        padding: 18px 24px;
+        text-align: center;
+    }
+    .encabezado-planificacion h1 { font-size: 1.25rem; margin: 0; font-weight: 700; }
+    .encabezado-planificacion p { margin: 4px 0 0; font-size: .82rem; opacity: .9; }
+    .barra-acciones { padding: 14px 24px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; border-bottom: 1px solid #eee; }
+
+    .cuerpo-form { padding: 22px 24px; }
+    .cuerpo-form label { font-size: .85rem; font-weight: 600; margin-top: 14px; display: block; }
+    .cuerpo-form select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #ddd; margin-top: 4px; }
+    .texto-ayuda { font-size: .78rem; color: #777; margin-top: 4px; }
+    .fila-selectores { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 480px) { .fila-selectores { grid-template-columns: 1fr; } }
+    .acciones-form { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+    #estadoGenerar { text-align: center; padding: 6px 24px 18px; font-size: .85rem; min-height: 20px; }
+
+    .lecciones-generadas { padding: 0 24px 24px; }
+    .tarjeta-leccion { border: 1px solid #e2e2f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+    .tarjeta-leccion .cabecera-leccion {
+        background: #f4f5fb; padding: 10px 16px; font-weight: 700; font-size: .9rem; color: #3a3a6a;
+    }
+    .tarjeta-leccion .cabecera-leccion small { display: block; font-weight: 400; color: #777; font-size: .75rem; }
+
+    .campo-formato { padding: 10px 16px; border-top: 1px solid #f0f0f5; }
+    .campo-formato .titulo-campo { font-weight: 700; font-size: .78rem; color: #5a4fcf; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; }
+    .opcion-radio { display: block; padding: 8px 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; font-size: .82rem; cursor: pointer; }
+    .opcion-radio:hover { background: #f8f9ff; }
+    .opcion-radio input { margin-right: 8px; }
+    .opcion-radio .etiqueta-opcion { font-weight: 700; color: #5a4fcf; }
+
+    .caja-contenido-real { background: #fffaf0; border: 1px solid #f0e0b8; border-radius: 8px; padding: 10px; font-size: .78rem; white-space: pre-wrap; max-height: 160px; overflow: auto; }
+
+    .acciones-guardar-leccion { text-align: right; padding: 10px 16px; background: #fafafa; }
+</style>
+</head>
+<body>
+
+<div class="tarjeta-principal">
+    <div class="encabezado-planificacion">
+        <h1>✨ Generar planificación</h1>
+        <p>Opciones automáticas por cada lección de la semana</p>
+    </div>
+
+    <div class="barra-acciones">
+        <a href="planificacion_semana.html" class="btn btn-outline-secondary btn-sm">↩️ Regresar a Semana</a>
+    </div>
+
+    <div class="cuerpo-form">
+        <div class="fila-selectores">
+            <div>
+                <label for="selectMateriaGenerar">Materia</label>
+                <select id="selectMateriaGenerar">
+                    <option value="">Cargando materias...</option>
+                </select>
+            </div>
+            <div>
+                <label for="selectGradoGenerar">Grado</label>
+                <select id="selectGradoGenerar">
+                    <option value="">Selecciona un grado</option>
+                    <option value="7">7°</option>
+                    <option value="8">8°</option>
+                    <option value="9">9°</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="fila-selectores" style="margin-top:14px;">
+            <div>
+                <label for="selectTrimestreGenerar">Trimestre</label>
+                <select id="selectTrimestreGenerar">
+                    <option value="">Selecciona</option>
+                    <option value="1">Trimestre 1</option>
+                    <option value="2">Trimestre 2</option>
+                    <option value="3">Trimestre 3</option>
+                </select>
+            </div>
+            <div>
+                <label for="inputSemanaGenerar">N.º de semana</label>
+                <input type="number" id="inputSemanaGenerar" min="1" max="16" class="form-control" placeholder="Ej. 4">
+            </div>
+        </div>
+
+        <div class="acciones-form">
+            <button class="btn btn-sm btn-primary" id="btnGenerar" disabled>✨ Generar opciones</button>
+        </div>
+    </div>
+
+    <div id="estadoGenerar"></div>
+    <div id="leccionesGeneradas" class="lecciones-generadas"></div>
+</div>
+
+<script type="module" src="../js/planificacion_generar.js"></script>
+</body>
+</html>
