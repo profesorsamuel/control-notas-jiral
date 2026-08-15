@@ -4,17 +4,15 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Planificador MEDUCA · Centro Básico General El Jiral</title>
   <link rel="stylesheet" href="../css/planificador_meduca.css">
+  <link rel="stylesheet" href="../css/planificador_multitemas.css">
 </head>
 <body>
 <header><a href="profesor.html">← Panel docente</a><div><b>Planificador MEDUCA</b><small> Ciencias Naturales · 7.º, 8.º y 9.º</small></div><span>Gratis y sin API</span></header>
 <main>
   <section class="hero"><div><p class="tag">PROGRAMA CURRICULAR MEDUCA 2026</p><h1>Planificación docente<br><em>lista para adaptar.</em></h1><p>Seleccione un contenido, genere una propuesta y revise cada campo antes de guardar o imprimir.</p></div><aside><b>Fuentes</b><p>✓ Programa curricular oficial</p><p id="estadoLibro">✓ Libro del estudiante de 9.º</p><small>El programa oficial siempre tiene prioridad.</small></aside></section>
-  <section class="card controls"><h2><i>1</i> Prepare la semana</h2><div class="selectors"><label>Grado<select id="grado"><option value="7">7.º grado</option><option value="8">8.º grado</option><option value="9" selected>9.º grado</option></select></label><label>Trimestre<select id="trimestre"><option>I</option><option>II</option><option>III</option></select></label><label>Contenido<select id="tema"></select></label><button id="generar">✦ Generar propuesta</button></div><p class="notice">La propuesta es una ayuda. El docente revisa y aprueba el contenido final.</p></section>
+  <section class="card controls"><h2><i>1</i> Prepare las semanas</h2><div class="selectors"><label>Grado<select id="grado"><option value="7">7.º grado</option><option value="8">8.º grado</option><option value="9" selected>9.º grado</option></select></label><label>Trimestre<select id="trimestre"><option>I</option><option>II</option><option>III</option></select></label><label>Primera semana<input id="semanaInicial" type="number" min="1" value="1"></label><label>Fecha de inicio editable<input id="fechaInicio" type="date"></label><button id="generar">✦ Generar planificaciones</button></div><p id="rango" class="notice">Las fechas se cargarán desde la configuración de trimestres.</p><div class="libres"><h3>Días libres</h3><p>Agregue la fecha y el motivo. Aparecerán en la planificación de la semana correspondiente.</p><div class="libre-form"><input id="fechaLibre" type="date" aria-label="Fecha libre"><input id="motivoLibre" placeholder="Motivo: feriado, jornada docente, receso..." aria-label="Motivo del día libre"><button id="agregarLibre" type="button">+ Agregar</button></div><div id="listaLibres"></div></div><div class="temas-head"><b>Seleccione uno o varios temas</b><button id="todos" class="light" type="button">Marcar todos</button></div><div id="temas" class="temas-lista"></div></section>
   <section class="card"><div class="bar"><h2><i>2</i> Revise la planificación</h2><div><button id="limpiar" class="light">Limpiar</button><button id="guardar" class="light">Guardar borrador</button><button id="imprimir">Imprimir / PDF</button></div></div>
-    <form id="plan"><div class="official"><b>MINISTERIO DE EDUCACIÓN</b><label>DIRECCIÓN REGIONAL DE EDUCACIÓN DE <input name="regional"></label><strong>SECUENCIA DIDÁCTICA SEMANAL O QUINCENAL</strong></div>
-      <div class="meta"><label>Asignatura<input value="Ciencias Naturales" readonly></label><label>Horas semanales<input name="horas" value="5"></label><label>Grado<input id="gradoVista" readonly></label><label>Docente(s)<input name="docente"></label><label>Semana<input name="semana" placeholder="Del __ al __"></label><label>Trimestre<input id="trimestreVista" readonly></label></div>
-      <div id="campos"></div><div class="firmas"><span>(15) Firma del docente ____________________</span><span>(16) Firma del coordinador ____________________</span></div>
-    </form>
+    <div id="planes"><p class="vacio">Seleccione los temas y pulse “Generar planificaciones”.</p></div>
   </section>
 </main><footer>Centro Básico General El Jiral · Los borradores se guardan en este dispositivo.</footer>
 <script type="module" src="../js/planificador_meduca.js"></script>
