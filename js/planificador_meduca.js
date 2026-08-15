@@ -67,6 +67,41 @@ const temas9 = {
   ]
 };
 
+const libresT3 = [
+  {
+    fecha: "2026-10-27",
+    motivo: "Día del Estudiante - día cívico escolar"
+  },
+  {
+    fecha: "2026-11-02",
+    motivo: "Día de los Difuntos"
+  },
+  {
+    fecha: "2026-11-03",
+    motivo: "Separación de Panamá de Colombia"
+  },
+  {
+    fecha: "2026-11-04",
+    motivo: "Día de los Símbolos Patrios"
+  },
+  {
+    fecha: "2026-11-05",
+    motivo: "Consolidación de la Separación"
+  },
+  {
+    fecha: "2026-11-10",
+    motivo: "Primer Grito de Independencia"
+  },
+  {
+    fecha: "2026-12-01",
+    motivo: "Día del Maestro - libre para estudiantes"
+  },
+  {
+    fecha: "2026-12-08",
+    motivo: "Día de la Madre"
+  }
+];
+
 const campos = [
   ["area", "(7) Área"],
   ["competencia", "(8) Competencia(s) y rasgos"],
@@ -96,12 +131,14 @@ let fechas = {};
 let libres = [];
 
 function temasActuales() {
-  return grado.value === "9"
-    ? temas9[trimestre.value]
-    : temas[grado.value];
+  if (grado.value === "9") {
+    return temas9[trimestre.value];
+  }
+
+  return temas[grado.value];
 }
 
-function mostrarListaTemas() {
+function lista() {
   const contenedor = $("#temas");
 
   contenedor.innerHTML = temasActuales()
@@ -121,20 +158,27 @@ function mostrarListaTemas() {
   );
 }
 
-function convertirFecha(fecha) {
-  if (!fecha) return null;
+function isoLocal(fechaTexto) {
+  if (!fechaTexto) return null;
 
-  const [anio, mes, dia] = fecha.split("-").map(Number);
+  const [anio, mes, dia] = fechaTexto
+    .split("-")
+    .map(Number);
+
   return new Date(anio, mes - 1, dia);
 }
 
-function sumarDias(fecha, cantidad) {
+function sumar(fecha, cantidadDias) {
   const nuevaFecha = new Date(fecha);
-  nuevaFecha.setDate(nuevaFecha.getDate() + cantidad);
+
+  nuevaFecha.setDate(
+    nuevaFecha.getDate() + cantidadDias
+  );
+
   return nuevaFecha;
 }
 
-function formatearFecha(fecha) {
+function fmt(fecha) {
   return fecha.toLocaleDateString("es-PA", {
     day: "2-digit",
     month: "long",
@@ -142,70 +186,69 @@ function formatearFecha(fecha) {
   });
 }
 
-function obtenerInicioElegido() {
+function inicioElegido() {
   const numeroTrimestre = {
     I: 1,
     II: 2,
     III: 3
   }[trimestre.value];
 
-  const campoConfigurado =
+  const clave =
     `t${numeroTrimestre}_inicio`;
 
-  return convertirFecha(
+  return isoLocal(
     $("#fechaInicio").value ||
-    fechas[campoConfigurado]
+    fechas[clave]
   );
 }
 
-function obtenerIntervaloSemana(numeroSemana) {
-  const fechaInicial = obtenerInicioElegido();
+function intervaloSemana(numeroSemana) {
+  const inicio = inicioElegido();
 
-  if (!fechaInicial) return null;
+  if (!inicio) return null;
 
-  const lunes = sumarDias(
-    fechaInicial,
+  const lunes = sumar(
+    inicio,
     (numeroSemana - 1) * 7
   );
 
   return {
     lunes,
-    viernes: sumarDias(lunes, 4)
+    viernes: sumar(lunes, 4)
   };
 }
 
-function mostrarRangoSemana(numeroSemana) {
-  const intervalo =
-    obtenerIntervaloSemana(numeroSemana);
+function rangoSemana(numeroSemana) {
+  const rango = intervaloSemana(numeroSemana);
 
-  if (!intervalo) {
+  if (!rango) {
     return `Semana ${numeroSemana}`;
   }
 
   return (
-    `del ${formatearFecha(intervalo.lunes)} ` +
-    `al ${formatearFecha(intervalo.viernes)}`
+    `del ${fmt(rango.lunes)} ` +
+    `al ${fmt(rango.viernes)}`
   );
 }
 
-function obtenerDiasLibresSemana(numeroSemana) {
-  const intervalo =
-    obtenerIntervaloSemana(numeroSemana);
+function libresSemana(numeroSemana) {
+  const rango = intervaloSemana(numeroSemana);
 
-  if (!intervalo) return [];
+  if (!rango) return [];
 
   return libres.filter(diaLibre => {
-    const fecha = convertirFecha(diaLibre.fecha);
+    const fecha = isoLocal(diaLibre.fecha);
 
     return (
-      fecha >= intervalo.lunes &&
-      fecha <= intervalo.viernes
+      fecha >= rango.lunes &&
+      fecha <= rango.viernes
     );
   });
 }
 
-function crearPropuesta(tema) {
-  const temaMinuscula = tema.toLowerCase();
+function propuesta(tema) {
+  const temaMinuscula =
+    tema.toLowerCase();
 
   const fuente =
     grado.value === "9"
@@ -277,10 +320,10 @@ function crearPropuesta(tema) {
   };
 }
 
-function crearPropuestaEspecial(tema) {
+function propuestaEspecial(tema) {
   if (tema === "SEMANA DE REPASO") {
     return {
-      ...crearPropuesta("repaso trimestral"),
+      ...propuesta("repaso trimestral"),
 
       objetivo:
         "Reforzar los aprendizajes del trimestre mediante " +
@@ -313,7 +356,7 @@ function crearPropuestaEspecial(tema) {
 
   if (tema === "SEMANA DE EXÁMENES") {
     return {
-      ...crearPropuesta("evaluación trimestral"),
+      ...propuesta("evaluación trimestral"),
 
       objetivo:
         "Valorar integralmente los aprendizajes logrados " +
@@ -342,26 +385,24 @@ function crearPropuestaEspecial(tema) {
     };
   }
 
-  return crearPropuesta(tema);
+  return propuesta(tema);
 }
 
-function crearHoja(tema, numeroSemana, indice) {
-  const propuesta =
-    crearPropuestaEspecial(tema);
+function hoja(tema, numeroSemana, indice) {
+  const datos = propuestaEspecial(tema);
+  const diasLibres = libresSemana(numeroSemana);
 
-  const diasLibres =
-    obtenerDiasLibresSemana(numeroSemana);
-
-  const avisoDiasLibres = diasLibres.length
+  const aviso = diasLibres.length
     ? `
       <div class="aviso-libre">
         <b>Días libres de esta semana:</b>
+
         ${diasLibres
           .map(
-            dia => `
+            diaLibre => `
               <span>
-                ${formatearFecha(convertirFecha(dia.fecha))}:
-                ${dia.motivo}
+                ${fmt(isoLocal(diaLibre.fecha))}:
+                ${diaLibre.motivo}
               </span>
             `
           )
@@ -371,8 +412,8 @@ function crearHoja(tema, numeroSemana, indice) {
     : "";
 
   const contenidoCampos = campos
-    .map(([nombre, etiqueta], posicion) => {
-      const claseAncha =
+    .map(([nombre, titulo], posicion) => {
+      const ancho =
         posicion === 0 || posicion === 16
           ? "ancho"
           : "";
@@ -381,12 +422,13 @@ function crearHoja(tema, numeroSemana, indice) {
         posicion === 6 ? 7 : 3;
 
       return `
-        <label class="campo ${claseAncha}">
-          <b>${etiqueta}</b>
+        <label class="campo ${ancho}">
+          <b>${titulo}</b>
+
           <textarea
             name="${nombre}"
             rows="${filas}"
-          >${propuesta[nombre] || ""}</textarea>
+          >${datos[nombre] || ""}</textarea>
         </label>
       `;
     })
@@ -424,7 +466,10 @@ function crearHoja(tema, numeroSemana, indice) {
 
         <label>
           Horas
-          <input name="horas" value="5">
+          <input
+            name="horas"
+            value="5"
+          >
         </label>
 
         <label>
@@ -447,7 +492,7 @@ function crearHoja(tema, numeroSemana, indice) {
           Semana
           <input
             name="semana"
-            value="${mostrarRangoSemana(numeroSemana)}"
+            value="${rangoSemana(numeroSemana)}"
           >
         </label>
 
@@ -460,7 +505,7 @@ function crearHoja(tema, numeroSemana, indice) {
         </label>
       </div>
 
-      ${avisoDiasLibres}
+      ${aviso}
 
       <div class="campos">
         ${contenidoCampos}
@@ -479,68 +524,110 @@ function crearHoja(tema, numeroSemana, indice) {
   `;
 }
 
-function obtenerSemanasFinales() {
+function fechaFinalAplicable() {
+  if (trimestre.value === "III") {
+    if (grado.value === "9") {
+      return "2026-11-27";
+    }
+
+    return "2026-12-11";
+  }
+
   const numeroTrimestre = {
     I: 1,
     II: 2,
     III: 3
   }[trimestre.value];
 
-  const fechaFinal = convertirFecha(
-    fechas[`t${numeroTrimestre}_fin`]
+  return fechas[`t${numeroTrimestre}_fin`] || "";
+}
+
+function cargarLibresAutomaticos() {
+  if (trimestre.value !== "III") return;
+
+  const fechaFinal =
+    fechaFinalAplicable();
+
+  libresT3
+    .filter(
+      diaLibre =>
+        diaLibre.fecha <= fechaFinal
+    )
+    .forEach(diaLibre => {
+      const yaExiste = libres.some(
+        registrado =>
+          registrado.fecha === diaLibre.fecha
+      );
+
+      if (!yaExiste) {
+        libres.push({ ...diaLibre });
+      }
+    });
+
+  libres.sort(
+    (a, b) =>
+      a.fecha.localeCompare(b.fecha)
   );
 
-  const fechaInicial = obtenerInicioElegido();
+  pintarLibres();
+}
+
+function semanasFinales() {
+  const fechaFinal =
+    isoLocal(fechaFinalAplicable());
+
+  const fechaInicial =
+    inicioElegido();
 
   if (!fechaFinal || !fechaInicial) {
     return null;
   }
 
-  const desplazamientoLunes =
+  const desplazamiento =
     (fechaFinal.getDay() + 6) % 7;
 
-  const semanaExamen = sumarDias(
-    fechaFinal,
-    -desplazamientoLunes
-  );
+  const examen =
+    sumar(fechaFinal, -desplazamiento);
 
-  const semanaRepaso =
-    sumarDias(semanaExamen, -7);
+  const repaso =
+    sumar(examen, -7);
 
-  const fechaLimite =
-    sumarDias(semanaRepaso, -3);
+  const limite =
+    sumar(repaso, -3);
 
   return {
-    examen: semanaExamen,
-    repaso: semanaRepaso,
-    limite: fechaLimite,
+    examen,
+    repaso,
+    limite,
 
-    numeroExamen:
+    semExamen:
       Math.floor(
-        (semanaExamen - fechaInicial) /
+        (examen - fechaInicial) /
         604800000
       ) + 1,
 
-    numeroRepaso:
+    semRepaso:
       Math.floor(
-        (semanaRepaso - fechaInicial) /
+        (repaso - fechaInicial) /
         604800000
       ) + 1
   };
 }
 
-function generarPlanificaciones() {
-  const listaActual = temasActuales();
+function generar() {
+  const listaActual =
+    temasActuales();
 
-  const temasSeleccionados = [
+  const seleccionados = [
     ...document.querySelectorAll(
       "#temas input:checked"
     )
-  ].map(elemento =>
-    listaActual[Number(elemento.value)]
+  ].map(
+    elemento =>
+      listaActual[Number(elemento.value)]
   );
 
-  if (!temasSeleccionados.length) {
+  if (!seleccionados.length) {
     alert("Seleccione al menos un tema.");
     return;
   }
@@ -550,20 +637,20 @@ function generarPlanificaciones() {
     Number($("#semanaInicial").value) || 1
   );
 
-  const semanasFinales =
-    obtenerSemanasFinales();
+  const finales =
+    semanasFinales();
 
   if (
-    semanasFinales &&
+    finales &&
     semanaInicial +
-      temasSeleccionados.length -
+      seleccionados.length -
       1 >=
-      semanasFinales.numeroRepaso
+      finales.semRepaso
   ) {
     alert(
       "Hay demasiados temas para las semanas disponibles. " +
       "Los contenidos deben terminar antes del " +
-      formatearFecha(semanasFinales.repaso) +
+      fmt(finales.repaso) +
       "."
     );
 
@@ -571,34 +658,35 @@ function generarPlanificaciones() {
   }
 
   const planificaciones =
-    temasSeleccionados.map(
+    seleccionados.map(
       (tema, indice) => ({
         tema,
         semana: semanaInicial + indice
       })
     );
 
-  if (semanasFinales) {
+  if (finales) {
     planificaciones.push(
       {
         tema: "SEMANA DE REPASO",
-        semana: semanasFinales.numeroRepaso
+        semana: finales.semRepaso
       },
       {
         tema: "SEMANA DE EXÁMENES",
-        semana: semanasFinales.numeroExamen
+        semana: finales.semExamen
       }
     );
   }
 
   $("#planes").innerHTML =
     planificaciones
-      .map((planificacion, indice) =>
-        crearHoja(
-          planificacion.tema,
-          planificacion.semana,
-          indice
-        )
+      .map(
+        (planificacion, indice) =>
+          hoja(
+            planificacion.tema,
+            planificacion.semana,
+            indice
+          )
       )
       .join("");
 
@@ -614,8 +702,9 @@ function generarPlanificaciones() {
   });
 }
 
-function guardarPlanificaciones() {
-  const contenido = $("#planes").innerHTML;
+function guardar() {
+  const contenido =
+    $("#planes").innerHTML;
 
   if (!document.querySelector(".plan")) {
     alert("Primero genere las planificaciones.");
@@ -634,10 +723,11 @@ function guardarPlanificaciones() {
     })
   );
 
-  $("#guardar").textContent = "✓ Guardado";
+  $("#guardar").textContent =
+    "✓ Guardado";
 }
 
-function cargarPlanificaciones() {
+function cargar() {
   const clave =
     `planes-meduca-${grado.value}-${trimestre.value}`;
 
@@ -647,7 +737,8 @@ function cargarPlanificaciones() {
   if (!contenido) return;
 
   try {
-    const datos = JSON.parse(contenido);
+    const datos =
+      JSON.parse(contenido);
 
     $("#planes").innerHTML =
       datos.html;
@@ -659,9 +750,10 @@ function cargarPlanificaciones() {
       datos.fechaInicio ||
       $("#fechaInicio").value;
 
-    mostrarDiasLibres();
+    pintarLibres();
   } catch {
-    $("#planes").innerHTML = contenido;
+    $("#planes").innerHTML =
+      contenido;
   }
 }
 
@@ -705,39 +797,48 @@ async function iniciar() {
   fechas =
     configuracion || {};
 
-  mostrarInformacionTrimestre();
-  cargarPlanificaciones();
+  mostrarRango();
+  cargar();
+  cargarLibresAutomaticos();
 }
 
-function mostrarInformacionTrimestre() {
+function mostrarRango() {
   const numeroTrimestre = {
     I: 1,
     II: 2,
     III: 3
   }[trimestre.value];
 
-  const inicio =
+  const fechaInicial =
     fechas[`t${numeroTrimestre}_inicio`];
 
-  const final =
-    fechas[`t${numeroTrimestre}_fin`];
+  const fechaFinal =
+    fechaFinalAplicable();
 
-  if (inicio && !$("#fechaInicio").value) {
-    $("#fechaInicio").value = inicio;
+  if (
+    fechaInicial &&
+    !$("#fechaInicio").value
+  ) {
+    $("#fechaInicio").value =
+      fechaInicial;
   }
 
-  const semanasFinales =
-    obtenerSemanasFinales();
+  const finales =
+    semanasFinales();
 
-  if (inicio && final && semanasFinales) {
+  if (
+    fechaInicial &&
+    fechaFinal &&
+    finales
+  ) {
     $("#rango").textContent =
       `Trimestre ${trimestre.value}: ` +
-      `${formatearFecha(convertirFecha(inicio))} al ` +
-      `${formatearFecha(convertirFecha(final))}. ` +
+      `${fmt(isoLocal(fechaInicial))} al ` +
+      `${fmt(isoLocal(fechaFinal))}. ` +
       `Fecha límite para contenidos: ` +
-      `${formatearFecha(semanasFinales.limite)}. ` +
-      `Repaso: ${formatearFecha(semanasFinales.repaso)}. ` +
-      `Exámenes: ${formatearFecha(semanasFinales.examen)}.`;
+      `${fmt(finales.limite)}. ` +
+      `Repaso: ${fmt(finales.repaso)}. ` +
+      `Exámenes: ${fmt(finales.examen)}.`;
   } else {
     $("#rango").textContent =
       "Indique la fecha de inicio y configure " +
@@ -745,7 +846,7 @@ function mostrarInformacionTrimestre() {
   }
 }
 
-function mostrarDiasLibres() {
+function pintarLibres() {
   $("#listaLibres").innerHTML =
     libres
       .map(
@@ -753,16 +854,14 @@ function mostrarDiasLibres() {
           <div>
             <span>
               <b>
-                ${formatearFecha(
-                  convertirFecha(diaLibre.fecha)
-                )}
+                ${fmt(isoLocal(diaLibre.fecha))}
               </b>
               · ${diaLibre.motivo}
             </span>
 
             <button
               type="button"
-              data-indice="${indice}"
+              data-i="${indice}"
             >
               Quitar
             </button>
@@ -772,25 +871,29 @@ function mostrarDiasLibres() {
       .join("");
 
   document
-    .querySelectorAll("#listaLibres button")
+    .querySelectorAll(
+      "#listaLibres button"
+    )
     .forEach(boton => {
       boton.onclick = () => {
         libres.splice(
-          Number(boton.dataset.indice),
+          Number(boton.dataset.i),
           1
         );
 
-        mostrarDiasLibres();
+        pintarLibres();
       };
     });
 }
 
-function agregarDiaLibre() {
+function agregarLibre() {
   const fecha =
     $("#fechaLibre").value;
 
   const motivo =
-    $("#motivoLibre").value.trim();
+    $("#motivoLibre")
+      .value
+      .trim();
 
   if (!fecha || !motivo) {
     alert(
@@ -813,29 +916,32 @@ function agregarDiaLibre() {
   $("#fechaLibre").value = "";
   $("#motivoLibre").value = "";
 
-  mostrarDiasLibres();
+  pintarLibres();
 }
 
-mostrarListaTemas();
+lista();
 iniciar();
 
 grado.onchange = () => {
-  mostrarListaTemas();
-  cargarPlanificaciones();
+  lista();
+  cargarLibresAutomaticos();
+  mostrarRango();
+  cargar();
 };
 
 trimestre.onchange = () => {
   $("#fechaInicio").value = "";
-  mostrarListaTemas();
-  mostrarInformacionTrimestre();
-  cargarPlanificaciones();
+  lista();
+  cargarLibresAutomaticos();
+  mostrarRango();
+  cargar();
 };
 
 $("#fechaInicio").onchange =
-  mostrarInformacionTrimestre;
+  mostrarRango;
 
 $("#agregarLibre").onclick =
-  agregarDiaLibre;
+  agregarLibre;
 
 $("#todos").onclick = () => {
   document
@@ -846,10 +952,10 @@ $("#todos").onclick = () => {
 };
 
 $("#generar").onclick =
-  generarPlanificaciones;
+  generar;
 
 $("#guardar").onclick =
-  guardarPlanificaciones;
+  guardar;
 
 $("#imprimir").onclick = () =>
   window.print();
