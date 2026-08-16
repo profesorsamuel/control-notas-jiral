@@ -645,13 +645,14 @@ async function restaurarCasilla(tipo, numero) {
 }
 
 btnGuardarLeyenda?.addEventListener("click", async () => {
+    const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
-    if (!materia) return;
+    if (!salon || !materia) return;
 
     btnGuardarLeyenda.disabled = true;
     if (estadoLeyenda) { estadoLeyenda.textContent = "Guardando..."; estadoLeyenda.className = "small text-muted"; }
 
-    const resultado = await guardarLeyendaMateria(materia, textareaLeyendaMateria.value);
+    const resultado = await guardarLeyendaMateria(salon, materia, textareaLeyendaMateria.value);
 
     btnGuardarLeyenda.disabled = false;
     if (!resultado.ok) {
@@ -1409,20 +1410,20 @@ async function cargarSalon() {
 
     if (estadoCargaSalon) estadoCargaSalon.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
 
-    // Muestra el bloque de "Explicación de las notas" para la materia
-    // recién elegida y precarga el texto que ya tenía guardado (si
-    // tenía). Es independiente del salón/trimestre: una sola leyenda
-    // por materia, para todos los salones que la usen.
+    // Muestra el bloque de "Explicación de las notas" para el salón +
+    // materia recién elegidos y precarga el texto que ya tenía guardado
+    // (si tenía). Es independiente del trimestre, pero cada salón tiene
+    // su propia leyenda para una misma materia.
     if (bloqueLeyendaMateria) {
         bloqueLeyendaMateria.style.display = "block";
         if (estadoLeyenda) estadoLeyenda.textContent = "";
         if (textareaLeyendaMateria) {
             textareaLeyendaMateria.value = "Cargando...";
             textareaLeyendaMateria.disabled = true;
-            obtenerLeyendaMateria(materia).then((texto) => {
-                // Si el docente ya cambió de materia mientras esto cargaba,
-                // no pisamos lo que esté viendo ahora.
-                if (selectMateriaNota.value !== materia) return;
+            obtenerLeyendaMateria(salon, materia).then((texto) => {
+                // Si el docente ya cambió de salón/materia mientras esto
+                // cargaba, no pisamos lo que esté viendo ahora.
+                if (selectSalonNota.value !== salon || selectMateriaNota.value !== materia) return;
                 textareaLeyendaMateria.value = texto;
                 textareaLeyendaMateria.disabled = false;
             });
