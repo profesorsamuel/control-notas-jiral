@@ -67,7 +67,7 @@ async function abrirClase(materia, grado) {
         <span>Publicado: ${formatearFecha(t.creado_en.split('T')[0])}</span>
         ${t.fecha_entrega ? `<span class="entrega">Entrega: ${formatearFecha(t.fecha_entrega)}</span>` : ''}
       </div>
-      ${t.archivo_url ? `<a class="btn-descargar" href="${t.archivo_url}" target="_blank" rel="noopener">↓ Descargar archivo</a>` : ''}
+      ${t.archivo_url ? `<a class="btn-descargar" href="${t.archivo_url}" target="_blank" rel="noopener">${t.archivo_nombre ? '↓ Descargar archivo' : '↗ Abrir enlace'}</a>` : ''}
     </article>
   `).join('');
 }
