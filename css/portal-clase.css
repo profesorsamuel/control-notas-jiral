@@ -235,3 +235,128 @@ body {
   .portal-wrap { padding: 32px 16px 64px; }
   .grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ---------- Selector de estudiante ---------- */
+.selector-estudiante {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.selector-estudiante label {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.selector-estudiante select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  background: #fff;
+  margin-bottom: 12px;
+}
+
+.selector-estudiante button {
+  border: none;
+  border-radius: var(--radius);
+  background: var(--coral);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 16px;
+  cursor: pointer;
+}
+.selector-estudiante button:hover { filter: brightness(1.05); }
+
+.banner-estudiante {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+.banner-estudiante .cambiar {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.aviso-bloqueo {
+  background: #fdf1ed;
+  border: 1px solid #eac3b6;
+  color: #8c4530;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+/* ---------- Estado de entrega dentro de cada tarea ---------- */
+.estado-entrega {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.badge-estado {
+  display: inline-block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+}
+.badge-estado.a-tiempo { background: #eaf2e6; color: var(--ciencias-dark); }
+.badge-estado.tarde { background: #fdf1ed; color: #b3402a; }
+.badge-estado.pendiente { background: #f1eee4; color: var(--muted); }
+
+.form-entrega {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-entrega input[type="url"],
+.form-entrega input[type="file"] {
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.form-entrega button {
+  align-self: flex-start;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--ciencias);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+.form-entrega button:hover { filter: brightness(1.08); }
+
+.form-entrega .msg { font-size: 12px; margin: 0; }
+.form-entrega .msg.error { color: #b3402a; }
+.form-entrega .msg.ok { color: var(--ciencias-dark); }
