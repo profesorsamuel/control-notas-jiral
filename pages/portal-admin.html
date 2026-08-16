@@ -36,6 +36,19 @@
   .form-tarea label { display:block; font-size:13px; color:var(--ink-soft); margin:14px 0 6px; }
   .campo-fila { display:flex; gap:12px; }
   .campo-fila > div { flex:1; }
+  .grados-check {
+    display:flex; gap:8px; flex-wrap:wrap; padding-top:2px;
+  }
+  .grados-check label {
+    display:flex; align-items:center; gap:6px; margin:0;
+    border:1px solid var(--line); border-radius:var(--radius);
+    padding:8px 12px; font-size:13px; cursor:pointer; background:#fff;
+    user-select:none;
+  }
+  .grados-check label:has(input:checked) {
+    border-color: var(--coral); background: #fdf1ed; font-weight:600;
+  }
+  .grados-check input { accent-color: var(--coral); }
 
   .tarea-admin-item {
     display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
@@ -101,8 +114,8 @@
           </select>
         </div>
         <div>
-          <label for="f-grado">Grado</label>
-          <select id="f-grado" required></select>
+          <label>Grado(s)</label>
+          <div id="f-grados" class="grados-check"></div>
         </div>
       </div>
 
