@@ -489,8 +489,21 @@ async function eliminarColumnaCasillaInterno(tipo, numero) {
         .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
         .is("eliminado_en", null);
 
-    estadoGuardadoNotas.textContent = `🗑️ Casilla ${etiqueta} movida a la papelera.`;
+    estadoGuardadoNotas.innerHTML = `🗑️ Casilla ${escapeHtml(etiqueta)} movida a la papelera.
+        <button type="button" id="btnDeshacerEliminarCasilla" class="btn btn-link btn-sm p-0 ms-2" style="text-decoration:underline;">↩️ Deshacer</button>`;
     estadoGuardadoNotas.className = "small text-success";
+
+    // El botón "Deshacer" solo sirve mientras siga siendo el aviso
+    // vigente: si el docente hace otra acción que reemplace este
+    // mensaje, el botón ya no está en pantalla y no hay confusión
+    // sobre a cuál casilla restauraría.
+    document.getElementById("btnDeshacerEliminarCasilla")?.addEventListener("click", async () => {
+        await restaurarCasilla(tipo, numero);
+        estadoGuardadoNotas.textContent = `✅ Casilla ${etiqueta} restaurada.`;
+        estadoGuardadoNotas.className = "small text-success";
+        cargarSalon();
+    });
+
     cargarSalon();
 }
 
