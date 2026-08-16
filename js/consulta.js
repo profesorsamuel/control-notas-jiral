@@ -380,7 +380,7 @@ function render() {
                         <thead>
                             <tr>
                                 <th>Tipo</th>
-                                <th colspan="${maxCols}" style="text-align:left; padding-left:10px;">Notas</th>
+                                ${Array.from({ length: maxCols }, (_, i) => `<th>N°${i + 1}</th>`).join("")}
                                 <th>Promedio</th>
                             </tr>
                         </thead>
