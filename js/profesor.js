@@ -297,6 +297,13 @@ let grupoActual = [];
 let historiaPorEstudiante = {};
 let casillasTabla = [];
 let temasCasillasBD = {};
+// Casillas (Aprec. 1/2/3, Ejer., Exam., etc. — NO incluye Aprec. 4+) que
+// el docente marcó con candado 🔒 porque ya no las va a modificar. Se
+// guarda en temas_casillas.bloqueada, igual que el tema de cada casilla.
+// Mientras una casilla está bloqueada: sus inputs de nota quedan
+// deshabilitados (no se pueden editar ni borrar por accidente) y su
+// botón de basura 🗑️ se oculta.
+let casillasBloqueadas = new Set();
 // Se pone en true justo antes de llamar a renderTabla() SOLO cuando el
 // docente presionó el botón "➕" de agregar columna. renderTabla() la usa
 // una única vez (y la vuelve a poner en false) para decidir si debe crear
@@ -401,6 +408,40 @@ async function actualizarTemaCasilla(tipo, numero, nuevoTema) {
 
     estadoGuardadoNotas.textContent = `✅ Tema de "${etiquetaCasilla(tipo, numero)}" actualizado.`;
     estadoGuardadoNotas.className = "small text-success";
+}
+
+// Pone o quita el candado 🔒 de una casilla (Aprec. 1/2/3, Ejer., Exam.,
+// etc.). Se guarda en temas_casillas para que quede así aunque el
+// docente recargue la página o entre desde otro salón con la misma
+// materia/trimestre.
+async function alternarBloqueoCasilla(tipo, numero) {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const clave = claveCasilla(tipo, numero);
+    const nuevoValor = !casillasBloqueadas.has(clave);
+
+    const { error } = await supabase
+        .from("temas_casillas")
+        .upsert(
+            { salon, materia, trimestre, tipo, numero, tema: temasCasillasBD[clave] || null, bloqueada: nuevoValor, updated_at: new Date().toISOString() },
+            { onConflict: "salon,materia,trimestre,tipo,numero" }
+        );
+
+    if (error) {
+        console.error("❌ Error al cambiar el candado:", error);
+        estadoGuardadoNotas.textContent = `⚠️ No se pudo ${nuevoValor ? "bloquear" : "desbloquear"} ${etiquetaCasilla(tipo, numero)}.`;
+        estadoGuardadoNotas.className = "small text-danger";
+        return;
+    }
+
+    if (nuevoValor) casillasBloqueadas.add(clave); else casillasBloqueadas.delete(clave);
+
+    estadoGuardadoNotas.textContent = nuevoValor
+        ? `🔒 ${etiquetaCasilla(tipo, numero)} bloqueada. Ya no se puede editar ni borrar.`
+        : `🔓 ${etiquetaCasilla(tipo, numero)} desbloqueada.`;
+    estadoGuardadoNotas.className = "small text-success";
+    renderTabla();
 }
 
 // Hace el borrado suave de la casilla sin pedir confirmación. Separada
@@ -631,6 +672,63 @@ function calcularTendenciaEstudiante(historial, valoresEnPantalla) {
     if (diferencia >= UMBRAL_TENDENCIA) return "mejoro";
     if (diferencia <= -UMBRAL_TENDENCIA) return "bajo";
     return "estable";
+}
+
+// Valor actual de una casilla para una fila (estudiante): usa lo que
+// está escrito en pantalla ahora mismo si esa columna está visible, o
+// el último valor guardado si la columna está oculta. Igual lógica que
+// recalcularPromedios(), pero para una sola casilla.
+function obtenerValorCasillaFila(tr, historial, c) {
+    const input = tr.querySelector(`.input-nota-grupo[data-tipo="${c.tipo}"][data-numero="${c.numero}"]`);
+    if (input) {
+        const v = input.value.trim();
+        return v === "" ? null : parseFloat(v);
+    }
+    const n = historial[claveCasilla(c.tipo, c.numero)];
+    if (n && n.nota !== null && n.nota !== undefined) return parseFloat(n.nota);
+    return null;
+}
+
+const ETIQUETA_CATEGORIA_DETALLE = { apreciacion: "Apreciación", ejercicio: "Ejercicio", examen: "Examen" };
+
+// Arma el desglose (qué casillas y con qué nota) de una categoría para
+// un estudiante, y devuelve tanto el texto listo para mostrar como el
+// promedio numérico (para poder combinarlos en el detalle de "Final").
+function calcularBloqueDetalle(tr, historial, tipo) {
+    const etiquetaCat = ETIQUETA_CATEGORIA_DETALLE[tipo] || tipo;
+    const items = casillasTabla
+        .filter((c) => c.tipo === tipo)
+        .map((c) => ({ etiqueta: etiquetaCasilla(c.tipo, c.numero), valor: obtenerValorCasillaFila(tr, historial, c) }))
+        .filter((it) => it.valor !== null && !isNaN(it.valor));
+
+    if (items.length === 0) return { texto: `${etiquetaCat}: sin notas todavía.`, promedio: null };
+
+    const promedio = items.reduce((a, b) => a + b.valor, 0) / items.length;
+    const detalle = items.map((it) => `   • ${it.etiqueta}: ${it.valor.toFixed(1)}`).join("\n");
+    return { texto: `${etiquetaCat} (promedio ${promedio.toFixed(1)}):\n${detalle}`, promedio };
+}
+
+// Botón "ver detalle" en las celdas de Prom. Aprec./Ejer./Examen/Final:
+// muestra de dónde sale exactamente esa nota para ese estudiante.
+function mostrarDetallePromedio(tr, categoria) {
+    const historial = historiaPorEstudiante[tr.dataset.claveEstudiante] || {};
+    const nombreEst = tr.querySelector(".col-fija-nombre")?.textContent?.trim() || "Estudiante";
+
+    if (categoria === "final") {
+        const bApr = calcularBloqueDetalle(tr, historial, "apreciacion");
+        const bEje = calcularBloqueDetalle(tr, historial, "ejercicio");
+        const bExa = calcularBloqueDetalle(tr, historial, "examen");
+        const presentes = [bApr.promedio, bEje.promedio, bExa.promedio].filter((v) => v !== null);
+        const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
+        alert(
+            `${nombreEst} — cómo salió la Nota Final\n\n${bApr.texto}\n\n${bEje.texto}\n\n${bExa.texto}\n\n` +
+            `Nota Final = promedio de las categorías que sí tienen notas = ${promFinal !== null ? promFinal.toFixed(1) : "–"}`
+        );
+        return;
+    }
+
+    const bloque = calcularBloqueDetalle(tr, historial, categoria);
+    alert(`${nombreEst} — cómo salió ${ETIQUETA_CATEGORIA_DETALLE[categoria] || categoria}\n\n${bloque.texto}`);
 }
 
 function recalcularPromedios() {
@@ -962,10 +1060,12 @@ function renderTabla() {
             return;
         }
         const sel = claveCasilla(c.tipo, c.numero) === claveSel;
+        const bloqueada = casillasBloqueadas.has(claveCasilla(c.tipo, c.numero));
         htmlCabecera += `
-            <th class="text-center small ${sel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
-                <div>${etiquetaCasilla(c.tipo, c.numero)}</div>
-                <button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna">🗑️</button>
+            <th class="text-center small ${bloqueada ? "text-muted" : (sel ? "table-primary text-primary" : "text-muted")}" style="width:90px;">
+                <div>${bloqueada ? "🔒 " : ""}${etiquetaCasilla(c.tipo, c.numero)}</div>
+                <button type="button" class="btn btn-link btn-sm p-0 ${bloqueada ? "text-secondary" : "text-muted"} btn-bloquear-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="${bloqueada ? "Quitar candado (permitir editar de nuevo)" : "Poner candado (ya no la voy a modificar)"}">${bloqueada ? "🔓" : "🔒"}</button>
+                ${bloqueada ? "" : `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna">🗑️</button>`}
             </th>`;
     });
     if (mostrarPromApr) htmlCabecera += `<th class="text-center small fw-bold" style="width:85px;">Prom. Aprec.</th>`;
@@ -981,11 +1081,12 @@ function renderTabla() {
             return;
         }
         const tema = obtenerTemaCasilla(c.tipo, c.numero);
+        const temaBloqueado = casillasBloqueadas.has(claveCasilla(c.tipo, c.numero));
         htmlTemas += `
             <th style="padding:2px 4px;">
                 <input type="text" class="form-control form-control-sm input-tema-columna"
                     data-tipo="${c.tipo}" data-numero="${c.numero}" data-tema-guardado="${escapeHtml(tema)}"
-                    value="${escapeHtml(tema)}" placeholder="Ej: Proyecto 2" style="font-size:11px; font-weight:normal;">
+                    value="${escapeHtml(tema)}" placeholder="Ej: Proyecto 2" style="font-size:11px; font-weight:normal;" ${temaBloqueado ? "disabled" : ""}>
             </th>`;
     });
     [mostrarPromApr, mostrarPromEje, mostrarPromExa, mostrarPromFinal].forEach((mostrar) => {
@@ -1023,13 +1124,14 @@ function renderTabla() {
             const n = historial[claveCas];
             const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
             const valor = crudo === "" ? "" : formatearNotaFinal(String(crudo));
+            const bloqueada = casillasBloqueadas.has(claveCas);
             return `
                 <td class="celda-nota">
                     <input type="text" inputmode="decimal" class="form-control form-control-sm input-nota-grupo"
                         data-col="${colIndex}" data-correo="${sinCuenta ? "" : escapeHtml(est.correo)}"
                         data-estudiante-id="${escapeHtml(est.id)}" data-nota-id="${n ? n.id : ""}"
                         data-tipo="${c.tipo}" data-numero="${c.numero}" data-ultimo-valor-guardado="${valor}"
-                        value="${valor}" placeholder="–">
+                        value="${valor}" placeholder="–" ${bloqueada ? `disabled style="background:#f1f5f9; color:#64748b;" title="🔒 Casilla bloqueada"` : ""}>
                 </td>`;
         }).join("");
 
@@ -1038,10 +1140,10 @@ function renderTabla() {
                 ${mostrarColNumero ? `<td class="col-fija col-fija-num">${i + 1}</td>` : ""}
                 <td class="col-fija col-fija-nombre"${styleColNombre}>${escapeHtml(est.nombre)}${sinCuenta ? ' <span class="badge bg-warning text-dark">Sin cuenta</span>' : ""}<span class="badge-tendencia"></span></td>
                 ${columnas}
-                ${mostrarPromApr ? `<td class="celda-prom-apr text-center fw-bold">–</td>` : ""}
-                ${mostrarPromEje ? `<td class="celda-prom-eje text-center fw-bold">–</td>` : ""}
-                ${mostrarPromExa ? `<td class="celda-prom-examen text-center fw-bold">–</td>` : ""}
-                ${mostrarPromFinal ? `<td class="celda-prom-final text-center fw-bold table-success bg-opacity-25">–</td>` : ""}
+                ${mostrarPromApr ? `<td class="celda-prom-apr text-center fw-bold" style="cursor:pointer;" title="Ver detalle" data-detalle-categoria="apreciacion">–</td>` : ""}
+                ${mostrarPromEje ? `<td class="celda-prom-eje text-center fw-bold" style="cursor:pointer;" title="Ver detalle" data-detalle-categoria="ejercicio">–</td>` : ""}
+                ${mostrarPromExa ? `<td class="celda-prom-examen text-center fw-bold" style="cursor:pointer;" title="Ver detalle" data-detalle-categoria="examen">–</td>` : ""}
+                ${mostrarPromFinal ? `<td class="celda-prom-final text-center fw-bold table-success bg-opacity-25" style="cursor:pointer;" title="Ver detalle" data-detalle-categoria="final">–</td>` : ""}
             </tr>`;
     }).join("");
 
@@ -1049,6 +1151,17 @@ function renderTabla() {
 
     cabeceraNotasGrupo.querySelectorAll(".btn-eliminar-columna").forEach((btn) => {
         btn.addEventListener("click", () => eliminarColumnaCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10)));
+    });
+
+    cabeceraNotasGrupo.querySelectorAll(".btn-bloquear-columna").forEach((btn) => {
+        btn.addEventListener("click", () => alternarBloqueoCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10)));
+    });
+
+    tablaNotasGrupo.querySelectorAll("[data-detalle-categoria]").forEach((td) => {
+        td.addEventListener("click", () => {
+            const tr = td.closest("tr[data-clave-estudiante]");
+            if (tr) mostrarDetallePromedio(tr, td.dataset.detalleCategoria);
+        });
     });
 
     function abrirDesdeApreciacionNueva(numeroApreciacion, estadoCol) {
@@ -1275,12 +1388,15 @@ async function cargarSalon() {
     }
 
     temasCasillasBD = {};
-    const { data: temas } = await supabase.from("temas_casillas").select("tipo, numero, tema")
+    casillasBloqueadas = new Set();
+    const { data: temas } = await supabase.from("temas_casillas").select("tipo, numero, tema, bloqueada")
         .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre)
         .is("eliminado_en", null);
     (temas || []).forEach((t) => {
-        temasCasillasBD[claveCasilla(t.tipo, t.numero)] = t.tema || "";
-        if (t.tema) casillasEncontradas.add(claveCasilla(t.tipo, t.numero));
+        const clave = claveCasilla(t.tipo, t.numero);
+        temasCasillasBD[clave] = t.tema || "";
+        if (t.tema) casillasEncontradas.add(clave);
+        if (t.bloqueada) casillasBloqueadas.add(clave);
     });
 
     // ¿La casilla que estaba seleccionada (numero) ya tenía notas guardadas
