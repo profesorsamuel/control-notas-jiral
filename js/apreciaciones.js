@@ -582,8 +582,13 @@ export function calcularNotaFinalApreciacion({ notaAsistencia, notaComportamient
 // Devuelve { ok, completada, error }. "completada" indica si al
 // guardar, la apreciación quedó lista y ya se activó la siguiente.
 
-export async function guardarApreciacionCompleta({
-    materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes, notasFinalesPorEstudiante,
+// Solo guarda las notas ya calculadas en la tabla "notas" (sin tocar
+// el estado activa/completada de la apreciación). La usan tanto
+// guardarApreciacionCompleta() como el botón "Marcar como completada",
+// para que este último NUNCA deje la columna en blanco aunque el
+// docente no haya presionado antes "💾 Guardar apreciación".
+export async function guardarNotasCalculadasApreciacion({
+    materia, trimestre, numeroApreciacion, correoProfesor, estudiantes, notasFinalesPorEstudiante,
 }) {
     const hoy = new Date().toISOString().slice(0, 10);
 
@@ -617,6 +622,17 @@ export async function guardarApreciacionCompleta({
 
         if (error) return { ok: false, error };
     }
+
+    return { ok: true };
+}
+
+export async function guardarApreciacionCompleta({
+    materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes, notasFinalesPorEstudiante,
+}) {
+    const resultadoNotas = await guardarNotasCalculadasApreciacion({
+        materia, trimestre, numeroApreciacion, correoProfesor, estudiantes, notasFinalesPorEstudiante,
+    });
+    if (!resultadoNotas.ok) return resultadoNotas;
 
     const { data: completada, error: errCompletar } = await supabase.rpc("completar_y_avanzar_apreciacion", {
         p_materia: materia, p_trimestre: trimestre, p_numero: numeroApreciacion, p_salon: salon,
@@ -694,7 +710,13 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
 
     el.titulo.textContent = etiquetaPersonalizada || `Apreciación ${numeroApreciacion}`;
     el.cuerpo.innerHTML = `<div class="text-center py-4"><span class="spinner-border"></span> Cargando...</div>`;
-    const modalBootstrap = new bootstrap.Modal(el.modalEl);
+    // OJO: usar getOrCreateInstance (no "new bootstrap.Modal(...)") es
+    // clave. Crear una instancia nueva cada vez que se abre este mismo
+    // modal (por ejemplo al reabrirlo después de "Guardar" o "Marcar
+    // como completada") deja instancias de Bootstrap huérfanas, y eso
+    // es lo que provoca que el fondo oscuro (".modal-backdrop") se
+    // quede pegado en pantalla y la página se sienta "trabada".
+    const modalBootstrap = bootstrap.Modal.getOrCreateInstance(el.modalEl);
     modalBootstrap.show();
 
     const soloLectura = estado === "completada";
@@ -800,35 +822,100 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
             : "✅ Notas guardadas. Toca \"Marcar como completada\" cuando quieras cerrar esta apreciación.";
         el.estadoGuardado.className = "small text-success ms-2";
 
-        if (resultado.completada && typeof window.__recargarSalonProfesor === "function") {
-            await window.__recargarSalonProfesor();
-            setTimeout(() => modalBootstrap.hide(), 1200);
+        if (resultado.completada) {
+            try {
+                if (typeof window.__recargarSalonProfesor === "function") await window.__recargarSalonProfesor();
+            } catch (err) {
+                console.error("No se pudo recargar el panel del docente:", err);
+            } finally {
+                // finally: pase lo que pase con la recarga, el modal se
+                // tiene que cerrar. Si esto no corre nunca (por un error
+                // sin capturar más arriba), es lo que deja la pantalla
+                // oscura y trabada con el fondo del modal pegado.
+                setTimeout(() => cerrarModalApreciacion(modalBootstrap), 1200);
+            }
         }
     };
 
     if (el.btnCompletarManual) el.btnCompletarManual.onclick = async () => {
         const ok = window.confirm(
-            `¿Marcar la Apreciación ${numeroApreciacion} como completada? Esto activa la Apreciación ${numeroApreciacion + 1}, sin importar si a algún estudiante le falta nota. Antes de esto, asegúrate de haber presionado "💾 Guardar apreciación" para que las notas ya calculadas queden guardadas.`
+            `¿Marcar la Apreciación ${numeroApreciacion} como completada? Esto activa la Apreciación ${numeroApreciacion + 1}, sin importar si a algún estudiante le falta nota.`
         );
         if (!ok) return;
 
         el.btnCompletarManual.disabled = true;
-        const seCompleto = await completarApreciacionManual(materia, trimestre, numeroApreciacion);
-        el.btnCompletarManual.disabled = false;
+        el.estadoGuardado.textContent = "Guardando notas y completando...";
+        el.estadoGuardado.className = "small text-muted ms-2";
 
-        if (!seCompleto) {
-            alert("No se pudo completar la apreciación.");
-            return;
+        let completoConExito = false;
+        try {
+            // Antes de completar, SIEMPRE se guardan las notas ya
+            // calculadas con lo que haya hasta ahora — así la columna
+            // nunca se queda en blanco aunque el docente no haya
+            // presionado antes "💾 Guardar apreciación".
+            const notasFinalesPorEstudiante = {};
+            estudiantes.forEach((est) => {
+                notasFinalesPorEstudiante[est.id] = calcularNotaFinalEstudiante(estado_, est.id);
+            });
+            const resultadoNotas = await guardarNotasCalculadasApreciacion({
+                materia, trimestre, numeroApreciacion, correoProfesor, estudiantes, notasFinalesPorEstudiante,
+            });
+            if (!resultadoNotas.ok) {
+                alert("❌ No se pudieron guardar las notas antes de completar: " + (resultadoNotas.error?.message || "error desconocido"));
+                return;
+            }
+
+            const seCompleto = await completarApreciacionManual(materia, trimestre, numeroApreciacion);
+            if (!seCompleto) {
+                alert("No se pudo completar la apreciación.");
+                return;
+            }
+
+            completoConExito = true;
+            el.estadoGuardado.textContent = `✅ Apreciación ${numeroApreciacion} marcada como completada — Apreciación ${numeroApreciacion + 1} ya está activa.`;
+            el.estadoGuardado.className = "small text-success ms-2";
+
+            try {
+                if (typeof window.__recargarSalonProfesor === "function") await window.__recargarSalonProfesor();
+            } catch (err) {
+                // Si la recarga del panel falla, igual seguimos: la nota
+                // ya quedó guardada arriba, y el modal se cierra abajo de
+                // todas formas. Antes, un error acá dejaba el modal (y su
+                // fondo oscuro) pegado en pantalla para siempre.
+                console.error("No se pudo recargar el panel del docente:", err);
+            }
+        } catch (err) {
+            console.error("Error al completar la apreciación:", err);
+            alert("❌ Ocurrió un error inesperado. Revisa la consola (F12) para más detalle.");
+        } finally {
+            el.btnCompletarManual.disabled = false;
         }
 
-        el.estadoGuardado.textContent = `✅ Apreciación ${numeroApreciacion} marcada como completada — Apreciación ${numeroApreciacion + 1} ya está activa.`;
-        el.estadoGuardado.className = "small text-success ms-2";
-
-        if (typeof window.__recargarSalonProfesor === "function") {
-            await window.__recargarSalonProfesor();
+        if (completoConExito) {
+            setTimeout(() => cerrarModalApreciacion(modalBootstrap), 1200);
         }
-        setTimeout(() => modalBootstrap.hide(), 1200);
     };
+}
+
+// Cierra el modal de forma segura y, como red de seguridad, limpia
+// cualquier ".modal-backdrop" que se haya quedado pegado en <body> por
+// una instancia vieja de Bootstrap (la causa típica de la pantalla que
+// se pone oscura y "se traba" después de cerrar este modal).
+function cerrarModalApreciacion(modalBootstrap) {
+    try {
+        modalBootstrap.hide();
+    } catch (err) {
+        console.error("Error al cerrar el modal de apreciación:", err);
+    }
+    setTimeout(() => {
+        const siguenAbiertos = document.querySelectorAll(".modal.show").length;
+        if (siguenAbiertos === 0) {
+            document.querySelectorAll(".modal-backdrop").forEach((b) => b.remove());
+            document.body.classList.remove("modal-open");
+            document.body.style.removeProperty("overflow");
+            document.body.style.removeProperty("padding-right");
+        }
+    }, 350);
 }
 
 // Valor de comportamiento "efectivo" para un estudiante en una fecha:
