@@ -1,188 +1,152 @@
-// Portal de Clase — panel de administración (requiere sesión de profesor)
-const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-
-const GRADOS_POR_MATERIA = {
-  'Ciencias Naturales': ['9A', '9B', '9C'],
-  'Ciencias': ['8A'],
-  'Informática': ['8A', '8B'],
-};
-
-const loginBox = document.getElementById('login-box');
-const panel = document.getElementById('panel');
-const loginMsg = document.getElementById('login-msg');
-const userEmailEl = document.getElementById('user-email');
-
-const fMateria = document.getElementById('f-materia');
-const fGrados = document.getElementById('f-grados');
-const formTarea = document.getElementById('form-tarea');
-const formMsg = document.getElementById('form-msg');
-const listaAdmin = document.getElementById('lista-admin');
-
-function actualizarGrados() {
-  const opciones = GRADOS_POR_MATERIA[fMateria.value] || [];
-  fGrados.innerHTML = opciones.map((g, i) => `
-    <label>
-      <input type="checkbox" name="grado" value="${g}" ${opciones.length === 1 ? 'checked' : ''}>
-      ${g}
-    </label>
-  `).join('');
-}
-fMateria.addEventListener('change', actualizarGrados);
-actualizarGrados();
-
-// ---------- Sesión ----------
-async function revisarSesion() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    mostrarPanel(session.user.email);
-  } else {
-    loginBox.classList.remove('oculto');
-    panel.classList.add('oculto');
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal de Clase — Administrar</title>
+<link rel="stylesheet" href="../css/portal-clase.css">
+<style>
+  .login-box {
+    max-width: 360px;
+    margin: 80px auto;
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 28px;
   }
-}
-
-function mostrarPanel(email) {
-  loginBox.classList.add('oculto');
-  panel.classList.remove('oculto');
-  userEmailEl.textContent = email;
-  cargarTareasAdmin();
-}
-
-document.getElementById('btn-login').addEventListener('click', async () => {
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-pass').value;
-  loginMsg.textContent = '';
-  loginMsg.className = '';
-
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) {
-    loginMsg.textContent = 'Correo o contraseña incorrectos.';
-    loginMsg.className = 'msg-error';
-    return;
+  .login-box h2 { font-family:'Space Grotesk',sans-serif; margin-top:0; }
+  .login-box label { display:block; font-size:13px; color:var(--ink-soft); margin:14px 0 6px; }
+  .login-box input, .form-tarea input, .form-tarea select, .form-tarea textarea {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius);
+    font-family:'Inter',sans-serif; font-size:14px; background:#fff;
   }
-  mostrarPanel(data.user.email);
-});
-
-document.getElementById('btn-salir').addEventListener('click', async () => {
-  await sb.auth.signOut();
-  location.reload();
-});
-
-function sanitizarNombre(str) {
-  return str
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
-    .replace(/[^a-zA-Z0-9.\-_]/g, '_'); // reemplaza espacios y símbolos raros
-}
-
-// ---------- Crear tarea ----------
-formTarea.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  formMsg.textContent = 'Publicando…';
-  formMsg.className = '';
-
-  const materia = fMateria.value;
-  const gradosSeleccionados = Array.from(
-    fGrados.querySelectorAll('input[name="grado"]:checked')
-  ).map(cb => cb.value);
-  const titulo = document.getElementById('f-titulo').value.trim();
-  const descripcion = document.getElementById('f-descripcion').value.trim();
-  const fechaEntrega = document.getElementById('f-entrega').value || null;
-  const archivoInput = document.getElementById('f-archivo');
-  const archivo = archivoInput.files[0];
-  const enlace = document.getElementById('f-enlace').value.trim();
-
-  if (!gradosSeleccionados.length) {
-    formMsg.textContent = 'Selecciona al menos un grado.';
-    formMsg.className = 'msg-error';
-    return;
+  .login-box button, .form-tarea button {
+    margin-top:18px; width:100%; padding:11px; border:none; border-radius:var(--radius);
+    background: var(--coral); color:#fff; font-weight:600; cursor:pointer; font-size:14px;
   }
+  .login-box button:hover, .form-tarea button:hover { filter:brightness(1.05); }
+  .msg-error { color:#b3402a; font-size:13px; margin-top:10px; }
+  .msg-ok { color: var(--ciencias-dark); font-size:13px; margin-top:10px; }
 
-  let archivo_url = null;
-  let archivo_nombre = null;
-
-  try {
-    if (enlace) {
-      // Se usa el enlace pegado, sin subir nada
-      archivo_url = enlace;
-      archivo_nombre = null;
-    } else if (archivo) {
-      // Se sube una sola vez y se reutiliza el mismo enlace para todos los grados marcados
-      const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${sanitizarNombre(archivo.name)}`;
-      const { error: errSubida } = await sb.storage.from('tareas-archivos').upload(ruta, archivo);
-      if (errSubida) throw errSubida;
-      const { data: pub } = sb.storage.from('tareas-archivos').getPublicUrl(ruta);
-      archivo_url = pub.publicUrl;
-      archivo_nombre = archivo.name;
-    }
-
-    const filas = gradosSeleccionados.map(grado => ({
-      materia, grado, titulo, descripcion, fecha_entrega: fechaEntrega,
-      archivo_url, archivo_nombre,
-    }));
-
-    const { error: errInsert } = await sb.from('tareas').insert(filas);
-    if (errInsert) throw errInsert;
-
-    formMsg.textContent = gradosSeleccionados.length > 1
-      ? `Tarea publicada en ${gradosSeleccionados.join(', ')} ✓`
-      : 'Tarea publicada ✓';
-    formMsg.className = 'msg-ok';
-    formTarea.reset();
-    actualizarGrados();
-    cargarTareasAdmin();
-  } catch (err) {
-    console.error(err);
-    formMsg.textContent = 'Ocurrió un error al publicar. Intenta de nuevo.';
-    formMsg.className = 'msg-error';
+  .panel.oculto { display:none; }
+  .form-tarea {
+    background: var(--card-bg); border:1px solid var(--line); border-radius: var(--radius);
+    padding: 24px; margin-bottom: 32px; max-width: 480px;
   }
-});
+  .form-tarea label { display:block; font-size:13px; color:var(--ink-soft); margin:14px 0 6px; }
+  .campo-fila { display:flex; gap:12px; }
+  .campo-fila > div { flex:1; }
+  .grados-check {
+    display:flex; gap:8px; flex-wrap:wrap; padding-top:2px;
+  }
+  .grados-check label {
+    display:flex; align-items:center; gap:6px; margin:0;
+    border:1px solid var(--line); border-radius:var(--radius);
+    padding:8px 12px; font-size:13px; cursor:pointer; background:#fff;
+    user-select:none;
+  }
+  .grados-check label:has(input:checked) {
+    border-color: var(--coral); background: #fdf1ed; font-weight:600;
+  }
+  .grados-check input { accent-color: var(--coral); }
 
-// ---------- Listar / borrar ----------
-async function cargarTareasAdmin() {
-  listaAdmin.innerHTML = '<p class="estado-cargando">Cargando…</p>';
-  const { data, error } = await sb.from('tareas').select('*').order('creado_en', { ascending: false });
-  if (error) {
-    listaAdmin.innerHTML = '<p class="estado-vacio">No se pudieron cargar las tareas.</p>';
-    return;
+  .tarea-admin-item {
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+    background: var(--card-bg); border:1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 18px; margin-bottom: 10px;
   }
-  if (!data.length) {
-    listaAdmin.innerHTML = '<p class="estado-vacio">Aún no has publicado tareas.</p>';
-    return;
+  .tarea-admin-item .info { font-size: 14px; }
+  .tarea-admin-item .info .tag { font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); }
+  .btn-borrar {
+    border:1px solid #d9c9c3; background:#fff; color:#b3402a; border-radius: var(--radius);
+    padding: 6px 10px; font-size:12px; cursor:pointer; white-space:nowrap;
   }
-  listaAdmin.innerHTML = data.map(t => `
-    <div class="tarea-admin-item" data-id="${t.id}">
-      <div class="info">
-        <div class="tag">${t.materia} · ${t.grado}</div>
-        <strong>${escapeHtml(t.titulo)}</strong>
-      </div>
-      <button class="btn-borrar" data-id="${t.id}" data-archivo="${t.archivo_url ? extraerRuta(t.archivo_url) : ''}">Borrar</button>
+  .btn-borrar:hover { background:#fbeceb; }
+  #btn-salir {
+    background:none; border:1px solid var(--line); color:var(--ink-soft);
+    padding:8px 14px; border-radius:var(--radius); font-family:'IBM Plex Mono',monospace;
+    font-size:13px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="portal-wrap">
+
+  <header class="portal-header">
+    <div>
+      <p class="eyebrow">Prof. Samuel</p>
+      <h1>Administrar tareas</h1>
     </div>
-  `).join('');
+    <a class="volver-index" href="portal-clase.html">← Ver portal</a>
+  </header>
 
-  listaAdmin.querySelectorAll('.btn-borrar').forEach(btn => {
-    btn.addEventListener('click', () => borrarTarea(btn.dataset.id, btn.dataset.archivo));
-  });
-}
+  <!-- ---------- Login ---------- -->
+  <div id="login-box" class="login-box">
+    <h2>Iniciar sesión</h2>
+    <label for="login-email">Correo</label>
+    <input type="email" id="login-email" autocomplete="username">
+    <label for="login-pass">Contraseña</label>
+    <input type="password" id="login-pass" autocomplete="current-password">
+    <button id="btn-login">Entrar</button>
+    <p id="login-msg"></p>
+  </div>
 
-function extraerRuta(url) {
-  const marcador = '/tareas-archivos/';
-  const i = url.indexOf(marcador);
-  return i === -1 ? '' : url.slice(i + marcador.length);
-}
+  <!-- ---------- Panel de administración ---------- -->
+  <div id="panel" class="panel oculto">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+      <p style="font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink-soft); margin:0;">
+        Sesión iniciada como <span id="user-email"></span>
+      </p>
+      <button id="btn-salir">Cerrar sesión</button>
+    </div>
 
-async function borrarTarea(id, rutaArchivo) {
-  if (!confirm('¿Borrar esta tarea?')) return;
-  await sb.from('tareas').delete().eq('id', id);
-  if (rutaArchivo) {
-    await sb.storage.from('tareas-archivos').remove([rutaArchivo]);
-  }
-  cargarTareasAdmin();
-}
+    <form id="form-tarea" class="form-tarea">
+      <h2 style="font-family:'Space Grotesk',sans-serif; margin:0;">Nueva tarea</h2>
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
+      <div class="campo-fila">
+        <div>
+          <label for="f-materia">Materia</label>
+          <select id="f-materia" required>
+            <option value="Ciencias Naturales">Ciencias Naturales</option>
+            <option value="Ciencias">Ciencias</option>
+            <option value="Informática">Informática</option>
+          </select>
+        </div>
+        <div>
+          <label>Grado(s)</label>
+          <div id="f-grados" class="grados-check"></div>
+        </div>
+      </div>
 
-revisarSesion();
+      <label for="f-titulo">Título</label>
+      <input type="text" id="f-titulo" required placeholder="Ej: Guía de fotosíntesis">
+
+      <label for="f-descripcion">Descripción / instrucciones</label>
+      <textarea id="f-descripcion" rows="3" placeholder="Explica qué deben hacer los estudiantes"></textarea>
+
+      <label for="f-entrega">Fecha de entrega (opcional)</label>
+      <input type="date" id="f-entrega">
+
+      <label for="f-archivo">Archivo para descargar (opcional)</label>
+      <input type="file" id="f-archivo">
+
+      <label for="f-enlace">O pega un enlace en vez de subir archivo (opcional)</label>
+      <input type="url" id="f-enlace" placeholder="https://drive.google.com/...">
+      <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">Si pegas un enlace, no hace falta elegir archivo — se usa el enlace.</p>
+
+      <button type="submit">Publicar tarea</button>
+      <p id="form-msg"></p>
+    </form>
+
+    <h2 style="font-family:'Space Grotesk',sans-serif;">Tareas publicadas</h2>
+    <div id="lista-admin"><p class="estado-cargando">Cargando…</p></div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/portal-config.js"></script>
+<script src="../js/portal-admin.js"></script>
+</body>
+</html>
