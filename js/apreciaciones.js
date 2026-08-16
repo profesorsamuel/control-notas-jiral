@@ -699,7 +699,7 @@ export async function abrirSelectorModo({ materia, salon, trimestre, numeroAprec
     };
 }
 
-export async function abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado, estudiantes, correoProfesor, etiquetaPersonalizada }) {
+export async function abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado, estudiantes, correoProfesor, etiquetaPersonalizada, candadoManual = false }) {
     const el = obtenerElementosModal();
     if (!el.modalEl) { alert("Falta el HTML del modal de Apreciación en la página."); return; }
 
@@ -719,7 +719,12 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
     const modalBootstrap = bootstrap.Modal.getOrCreateInstance(el.modalEl);
     modalBootstrap.show();
 
-    const soloLectura = estado === "completada";
+    // El candado 🔒 manual (el que el docente pone/quita desde la
+    // tabla principal) siempre gana: si está puesto, la apreciación se
+    // abre en solo-lectura sin importar su estado (activa/completada),
+    // y el botón "Reabrir" NO aparece — para reactivarla hay que quitar
+    // primero el candado en la tabla, no desde aquí adentro.
+    const soloLectura = candadoManual || estado === "completada";
 
     const rango = await obtenerRangoFechas(materia, trimestre, numeroApreciacion);
 
@@ -779,10 +784,12 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
 
     el.btnGuardar && (el.btnGuardar.style.display = soloLectura ? "none" : "inline-block");
     el.btnCompletarManual && (el.btnCompletarManual.style.display = soloLectura ? "none" : "inline-block");
-    el.btnReabrir && (el.btnReabrir.style.display = soloLectura ? "inline-block" : "none");
-    el.estadoGuardado.textContent = soloLectura
-        ? "Esta apreciación ya está completada. Solo lectura."
-        : "";
+    el.btnReabrir && (el.btnReabrir.style.display = (soloLectura && !candadoManual) ? "inline-block" : "none");
+    el.estadoGuardado.textContent = candadoManual
+        ? "🔒 Esta apreciación está bloqueada con candado. Quita el candado (🔓) en la tabla principal para poder editarla."
+        : soloLectura
+            ? "Esta apreciación ya está completada. Solo lectura."
+            : "";
 
     if (el.btnReabrir) el.btnReabrir.onclick = async () => {
         const ok = window.confirm(
