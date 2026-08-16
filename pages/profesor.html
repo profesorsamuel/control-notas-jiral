@@ -588,6 +588,26 @@
         <input type="hidden" id="inputNumeroNota" min="1" max="10" value="1">
     </div>
 
+    <div id="bloqueLeyendaMateria" class="panel-blanco" style="display:none;">
+        <details>
+            <summary style="font-weight:bold; color:var(--color-primario); cursor:pointer;">
+                ℹ️ Explicación de las notas (aparece en "Ver mis notas" del estudiante)
+            </summary>
+            <p class="small text-muted" style="margin:8px 0;">
+                Este texto se muestra debajo de la tabla de esta materia en la pantalla de
+                consulta de notas del estudiante. Aplica a <strong>todos los salones y
+                trimestres</strong> de esta materia (es un solo texto por materia). Déjalo
+                vacío y guarda para quitarlo.
+            </p>
+            <textarea id="textareaLeyendaMateria" class="form-control form-control-sm" rows="3"
+                placeholder='Ej: Nota 1 es de la clase 1. Nota 2 es la práctica 1...'></textarea>
+            <div style="margin-top:8px; display:flex; align-items:center; gap:10px;">
+                <button type="button" id="btnGuardarLeyenda" class="btn btn-sm btn-primary">Guardar explicación</button>
+                <span id="estadoLeyenda" class="small"></span>
+            </div>
+        </details>
+    </div>
+
     <div id="bloqueTablaNotas" class="panel-blanco" style="display:none;">
         <div class="mb-2 small">
             <div style="font-weight:bold; color:var(--color-primario); margin-bottom:6px;">
