@@ -196,6 +196,22 @@ export async function reiniciarApreciacionActiva(materia, trimestre, numeroAprec
     return !!seReinicio;
 }
 
+// Reabre una apreciación que ya estaba "completada" para poder
+// seguir editándola (asistencia, comportamiento, actividades, etc.).
+// A diferencia de reiniciarApreciacionActiva(), esta NO borra nada:
+// solo cambia el estado de vuelta a "activa" para que la ventana deje
+// de estar en modo solo-lectura. Ojo: si esta era, por ejemplo, la
+// Apreciación 4 y ya se activó la Apreciación 5, ambas quedan activas
+// a la vez (no se desactiva la siguiente), así que el docente puede
+// seguir corrigiendo la 4 sin perder el avance que ya hizo en la 5.
+export async function reabrirApreciacionParaEditar(materia, trimestre, numeroApreciacion) {
+    const { error } = await supabase.from("apreciaciones_estado")
+        .update({ estado: "activa", updated_at: new Date().toISOString() })
+        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
+    if (error) { console.error("No se pudo reabrir la apreciación:", error); return false; }
+    return true;
+}
+
 // Elimina POR COMPLETO una Apreciación 4+: a diferencia de
 // reiniciarApreciacionActiva (que borra el contenido pero deja la
 // columna activa esperando que se vuelva a usar), esta función borra
@@ -623,6 +639,7 @@ function obtenerElementosModal() {
         cuerpo: document.getElementById("apreciacionModalCuerpo"),
         btnGuardar: document.getElementById("btnGuardarApreciacionDetalle"),
         btnCompletarManual: document.getElementById("btnCompletarApreciacionManual"),
+        btnReabrir: document.getElementById("btnReabrirApreciacion"),
         estadoGuardado: document.getElementById("apreciacionModalEstadoGuardado"),
     };
     return elementosModal;
@@ -740,9 +757,23 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
 
     el.btnGuardar && (el.btnGuardar.style.display = soloLectura ? "none" : "inline-block");
     el.btnCompletarManual && (el.btnCompletarManual.style.display = soloLectura ? "none" : "inline-block");
+    el.btnReabrir && (el.btnReabrir.style.display = soloLectura ? "inline-block" : "none");
     el.estadoGuardado.textContent = soloLectura
         ? "Esta apreciación ya está completada. Solo lectura."
         : "";
+
+    if (el.btnReabrir) el.btnReabrir.onclick = async () => {
+        const ok = window.confirm(
+            `¿Reabrir "${etiquetaPersonalizada || `Apreciación ${numeroApreciacion}`}" para editarla? No se borra nada de lo que ya registraste (asistencia, comportamiento, actividades); solo vuelve a dejarla editable.`
+        );
+        if (!ok) return;
+        el.btnReabrir.disabled = true;
+        const reabierta = await reabrirApreciacionParaEditar(materia, trimestre, numeroApreciacion);
+        el.btnReabrir.disabled = false;
+        if (!reabierta) { alert("❌ No se pudo reabrir la apreciación."); return; }
+        await abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado: "activa", estudiantes, correoProfesor, etiquetaPersonalizada });
+        if (typeof window.__recargarSalonProfesor === "function") window.__recargarSalonProfesor();
+    };
 
     if (el.btnGuardar) el.btnGuardar.onclick = async () => {
         el.btnGuardar.disabled = true;
