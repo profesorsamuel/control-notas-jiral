@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal de Clase — Administrar</title>
+<link rel="stylesheet" href="../css/portal-clase.css">
+<style>
+  .login-box {
+    max-width: 360px;
+    margin: 80px auto;
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 28px;
+  }
+  .login-box h2 { font-family:'Space Grotesk',sans-serif; margin-top:0; }
+  .login-box label { display:block; font-size:13px; color:var(--ink-soft); margin:14px 0 6px; }
+  .login-box input, .form-tarea input, .form-tarea select, .form-tarea textarea {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius);
+    font-family:'Inter',sans-serif; font-size:14px; background:#fff;
+  }
+  .login-box button, .form-tarea button {
+    margin-top:18px; width:100%; padding:11px; border:none; border-radius:var(--radius);
+    background: var(--coral); color:#fff; font-weight:600; cursor:pointer; font-size:14px;
+  }
+  .login-box button:hover, .form-tarea button:hover { filter:brightness(1.05); }
+  .msg-error { color:#b3402a; font-size:13px; margin-top:10px; }
+  .msg-ok { color: var(--ciencias-dark); font-size:13px; margin-top:10px; }
+
+  .panel.oculto { display:none; }
+  .form-tarea {
+    background: var(--card-bg); border:1px solid var(--line); border-radius: var(--radius);
+    padding: 24px; margin-bottom: 32px; max-width: 480px;
+  }
+  .form-tarea label { display:block; font-size:13px; color:var(--ink-soft); margin:14px 0 6px; }
+  .campo-fila { display:flex; gap:12px; }
+  .campo-fila > div { flex:1; }
+
+  .tarea-admin-item {
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+    background: var(--card-bg); border:1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 18px; margin-bottom: 10px;
+  }
+  .tarea-admin-item .info { font-size: 14px; }
+  .tarea-admin-item .info .tag { font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); }
+  .btn-borrar {
+    border:1px solid #d9c9c3; background:#fff; color:#b3402a; border-radius: var(--radius);
+    padding: 6px 10px; font-size:12px; cursor:pointer; white-space:nowrap;
+  }
+  .btn-borrar:hover { background:#fbeceb; }
+  #btn-salir {
+    background:none; border:1px solid var(--line); color:var(--ink-soft);
+    padding:8px 14px; border-radius:var(--radius); font-family:'IBM Plex Mono',monospace;
+    font-size:13px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="portal-wrap">
+
+  <header class="portal-header">
+    <div>
+      <p class="eyebrow">Prof. Samuel</p>
+      <h1>Administrar tareas</h1>
+    </div>
+    <a class="volver-index" href="portal-clase.html">← Ver portal</a>
+  </header>
+
+  <!-- ---------- Login ---------- -->
+  <div id="login-box" class="login-box">
+    <h2>Iniciar sesión</h2>
+    <label for="login-email">Correo</label>
+    <input type="email" id="login-email" autocomplete="username">
+    <label for="login-pass">Contraseña</label>
+    <input type="password" id="login-pass" autocomplete="current-password">
+    <button id="btn-login">Entrar</button>
+    <p id="login-msg"></p>
+  </div>
+
+  <!-- ---------- Panel de administración ---------- -->
+  <div id="panel" class="panel oculto">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+      <p style="font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink-soft); margin:0;">
+        Sesión iniciada como <span id="user-email"></span>
+      </p>
+      <button id="btn-salir">Cerrar sesión</button>
+    </div>
+
+    <form id="form-tarea" class="form-tarea">
+      <h2 style="font-family:'Space Grotesk',sans-serif; margin:0;">Nueva tarea</h2>
+
+      <div class="campo-fila">
+        <div>
+          <label for="f-materia">Materia</label>
+          <select id="f-materia" required>
+            <option value="Ciencias Naturales">Ciencias Naturales</option>
+            <option value="Ciencias">Ciencias</option>
+            <option value="Informática">Informática</option>
+          </select>
+        </div>
+        <div>
+          <label for="f-grado">Grado</label>
+          <select id="f-grado" required></select>
+        </div>
+      </div>
+
+      <label for="f-titulo">Título</label>
+      <input type="text" id="f-titulo" required placeholder="Ej: Guía de fotosíntesis">
+
+      <label for="f-descripcion">Descripción / instrucciones</label>
+      <textarea id="f-descripcion" rows="3" placeholder="Explica qué deben hacer los estudiantes"></textarea>
+
+      <label for="f-entrega">Fecha de entrega (opcional)</label>
+      <input type="date" id="f-entrega">
+
+      <label for="f-archivo">Archivo para descargar (opcional)</label>
+      <input type="file" id="f-archivo">
+
+      <button type="submit">Publicar tarea</button>
+      <p id="form-msg"></p>
+    </form>
+
+    <h2 style="font-family:'Space Grotesk',sans-serif;">Tareas publicadas</h2>
+    <div id="lista-admin"><p class="estado-cargando">Cargando…</p></div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/portal-config.js"></script>
+<script src="../js/portal-admin.js"></script>
+</body>
+</html>
