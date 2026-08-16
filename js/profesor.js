@@ -1038,13 +1038,18 @@ function renderTabla() {
         }
         if (c.tipo === "apreciacion" && c.numero >= 4) {
             const infoCol = estadoApreciacionesNuevas[c.numero] || { estado: "bloqueada", modo: null };
+            // Si el docente le puso un nombre propio (ej. "Clase 3") en la
+            // casilla de "Tema" de esta apreciación, se usa ese nombre en
+            // vez del genérico "Aprec. N".
+            const nombrePersonalizado = temasCasillasBD[claveCasilla(c.tipo, c.numero)];
+            const etiquetaMostrada = nombrePersonalizado || `Aprec. ${c.numero}`;
             if (infoCol.modo === "directo") {
                 // Modo directo: se ve exactamente como una columna normal
                 // (Aprec. 1, 2, 3), incluyendo el mismo botón de basura
                 // (🗑️) para reiniciarla mientras esté activa.
                 htmlCabecera += `
                     <th class="text-center small ${claveCasilla(c.tipo, c.numero) === claveSel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
-                        <div>${iconoApreciacion(infoCol.estado)} ${etiquetaCasilla(c.tipo, c.numero)}</div>
+                        <div>${iconoApreciacion(infoCol.estado)} ${etiquetaMostrada}</div>
                         ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
                     </th>`;
                 return;
@@ -1053,7 +1058,7 @@ function renderTabla() {
                 <th class="text-center small" data-abrir-apreciacion-header="${c.numero}" data-estado-header="${infoCol.estado}"
                     style="width:90px; min-width:90px; cursor:${infoCol.estado === "bloqueada" ? "default" : "pointer"};">
                     <div class="fw-bold" style="color:${infoCol.estado === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"}; white-space:normal; line-height:1.15; word-break:keep-all;">
-                        <span style="font-size:14px;">${iconoApreciacion(infoCol.estado)}</span> Aprec. ${c.numero}
+                        <span style="font-size:14px;">${iconoApreciacion(infoCol.estado)}</span> ${etiquetaMostrada}
                     </div>
                     ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
                 </th>`;
@@ -1167,10 +1172,14 @@ function renderTabla() {
     function abrirDesdeApreciacionNueva(numeroApreciacion, estadoCol) {
         const infoCol = estadoApreciacionesNuevas[numeroApreciacion] || {};
         const materia = selectMateriaNota.value, salon = selectSalonNota.value, trimestre = selectTrimestreNota.value;
+        // Nombre que el docente le puso a esta apreciación (ej. "Clase 3")
+        // en la casilla de "Tema" bajo el encabezado. Si no ha puesto
+        // nada, se sigue usando "Apreciación N" como antes.
+        const etiquetaPersonalizada = obtenerTemaCasilla("apreciacion", numeroApreciacion) || "";
 
         if (!infoCol.modo && estadoCol === "activa") {
             abrirSelectorModo({
-                materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes: grupoActual,
+                materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes: grupoActual, etiquetaPersonalizada,
                 onModoElegido: (modoElegido) => {
                     infoCol.modo = modoElegido;
                     if (modoElegido === "directo") renderTabla(); // repinta la celda como input normal
@@ -1180,7 +1189,7 @@ function renderTabla() {
         }
 
         abrirDetalleApreciacion({
-            materia, salon, trimestre, numeroApreciacion, estado: estadoCol,
+            materia, salon, trimestre, numeroApreciacion, estado: estadoCol, etiquetaPersonalizada,
             estudiantes: grupoActual, correoProfesor,
         });
     }
