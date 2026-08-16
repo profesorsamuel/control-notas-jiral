@@ -1,5 +1,12 @@
 import { supabase } from "./supabase.js";
 import { cedulaAEmail } from "./utils.js";
+import { obtenerTodasLasLeyendas } from "./leyendas.js";
+
+// Texto explicativo por materia (ej. "Nota 1 es de la clase 1...") que
+// el/la docente escribe desde su panel. Se carga una vez por consulta
+// y se reutiliza en cada render() (cambiar de trimestre no cambia el
+// texto, así que no hace falta pedirlo de nuevo cada vez).
+let leyendasPorMateria = {};
 
 // =====================================================
 // LISTA BASE DE MATERIAS (igual que en el panel del estudiante)
@@ -257,6 +264,7 @@ async function buscar() {
     }
 
     resultado.style.display = "block";
+    leyendasPorMateria = await obtenerTodasLasLeyendas();
     render();
 }
 
@@ -413,18 +421,9 @@ function render() {
                         promedio puede cambiar.
                     </p>
                 ` : ""}
-                ${materia === "Ciencias Naturales" ? `
+                ${leyendasPorMateria[materia] ? `
                     <p class="aviso-leyenda-card">
-                        ℹ️ Nota 1 es de la clase 1. Nota 2 es de la clase 2. Nota 3 es el proyecto científico.
-                        Nota 4 es de la clase 3. Nota 5 es la feria científica.<br>
-                        Falta un ejercicio de la clase 3 y el examen final.
-                    </p>
-                ` : ""}
-                ${materia === "Informática" ? `
-                    <p class="aviso-leyenda-card">
-                        ℹ️ Nota 1 es de la clase 1. Nota 2 es la práctica 1. Nota 3 es de la clase 2.
-                        Nota 4 es la práctica 2.<br>
-                        Falta la nota del álbum virtual.
+                        ℹ️ ${escapeHtml(leyendasPorMateria[materia]).replace(/\n/g, "<br>")}
                     </p>
                 ` : ""}
             </div>
