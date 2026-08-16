@@ -421,9 +421,9 @@ function render() {
                         promedio puede cambiar.
                     </p>
                 ` : ""}
-                ${leyendasPorMateria[materia] ? `
+                ${leyendasPorMateria[`${estudianteActual?.salon}|${materia}`] ? `
                     <p class="aviso-leyenda-card">
-                        ℹ️ ${escapeHtml(leyendasPorMateria[materia]).replace(/\n/g, "<br>")}
+                        ℹ️ ${escapeHtml(leyendasPorMateria[`${estudianteActual?.salon}|${materia}`]).replace(/\n/g, "<br>")}
                     </p>
                 ` : ""}
             </div>
