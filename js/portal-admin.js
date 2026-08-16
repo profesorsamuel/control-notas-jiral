@@ -68,6 +68,12 @@ document.getElementById('btn-salir').addEventListener('click', async () => {
   location.reload();
 });
 
+function sanitizarNombre(str) {
+  return str
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
+    .replace(/[^a-zA-Z0-9.\-_]/g, '_'); // reemplaza espacios y símbolos raros
+}
+
 // ---------- Crear tarea ----------
 formTarea.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -96,7 +102,7 @@ formTarea.addEventListener('submit', async (e) => {
   try {
     if (archivo) {
       // Se sube una sola vez y se reutiliza el mismo enlace para todos los grados marcados
-      const ruta = `${materia}/${Date.now()}-${archivo.name}`;
+      const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${sanitizarNombre(archivo.name)}`;
       const { error: errSubida } = await sb.storage.from('tareas-archivos').upload(ruta, archivo);
       if (errSubida) throw errSubida;
       const { data: pub } = sb.storage.from('tareas-archivos').getPublicUrl(ruta);
