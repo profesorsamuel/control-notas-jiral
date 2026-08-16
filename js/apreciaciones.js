@@ -628,11 +628,12 @@ function obtenerElementosModal() {
     return elementosModal;
 }
 
-export async function abrirSelectorModo({ materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes, onModoElegido }) {
+export async function abrirSelectorModo({ materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes, etiquetaPersonalizada, onModoElegido }) {
     const el = obtenerElementosModal();
     if (!el.modalEl) { alert("Falta el HTML del modal de Apreciación en la página."); return; }
 
-    el.titulo.textContent = `Apreciación ${numeroApreciacion} — ¿Cómo la vas a registrar?`;
+    const nombreMostrado = etiquetaPersonalizada || `Apreciación ${numeroApreciacion}`;
+    el.titulo.textContent = `${nombreMostrado} — ¿Cómo la vas a registrar?`;
     el.btnGuardar && (el.btnGuardar.style.display = "none");
     el.btnCompletarManual && (el.btnCompletarManual.style.display = "none");
     el.estadoGuardado.textContent = "";
@@ -661,11 +662,11 @@ export async function abrirSelectorModo({ materia, salon, trimestre, numeroAprec
         await elegirModoApreciacion(materia, trimestre, numeroApreciacion, "detallado");
         el.btnGuardar && (el.btnGuardar.style.display = "inline-block");
         onModoElegido?.("detallado");
-        await abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado: "activa", estudiantes, correoProfesor });
+        await abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado: "activa", estudiantes, correoProfesor, etiquetaPersonalizada });
     };
 }
 
-export async function abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado, estudiantes, correoProfesor }) {
+export async function abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado, estudiantes, correoProfesor, etiquetaPersonalizada }) {
     const el = obtenerElementosModal();
     if (!el.modalEl) { alert("Falta el HTML del modal de Apreciación en la página."); return; }
 
@@ -674,7 +675,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
         return;
     }
 
-    el.titulo.textContent = `Apreciación ${numeroApreciacion}`;
+    el.titulo.textContent = etiquetaPersonalizada || `Apreciación ${numeroApreciacion}`;
     el.cuerpo.innerHTML = `<div class="text-center py-4"><span class="spinner-border"></span> Cargando...</div>`;
     const modalBootstrap = new bootstrap.Modal(el.modalEl);
     modalBootstrap.show();
