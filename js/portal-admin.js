@@ -89,6 +89,7 @@ formTarea.addEventListener('submit', async (e) => {
   const fechaEntrega = document.getElementById('f-entrega').value || null;
   const archivoInput = document.getElementById('f-archivo');
   const archivo = archivoInput.files[0];
+  const enlace = document.getElementById('f-enlace').value.trim();
 
   if (!gradosSeleccionados.length) {
     formMsg.textContent = 'Selecciona al menos un grado.';
@@ -100,7 +101,11 @@ formTarea.addEventListener('submit', async (e) => {
   let archivo_nombre = null;
 
   try {
-    if (archivo) {
+    if (enlace) {
+      // Se usa el enlace pegado, sin subir nada
+      archivo_url = enlace;
+      archivo_nombre = null;
+    } else if (archivo) {
       // Se sube una sola vez y se reutiliza el mismo enlace para todos los grados marcados
       const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${sanitizarNombre(archivo.name)}`;
       const { error: errSubida } = await sb.storage.from('tareas-archivos').upload(ruta, archivo);
