@@ -1075,11 +1075,13 @@ function renderTabla() {
         if (c.tipo === "apreciacion" && c.numero >= 4) {
             const infoCol = estadoApreciacionesNuevas[c.numero] || { estado: "bloqueada", modo: null };
             const claveCas = claveCasilla(c.tipo, c.numero);
-            // Si el docente le puso un nombre propio (ej. "Clase 3") en la
-            // casilla de "Tema" de esta apreciación, se usa ese nombre en
-            // vez del genérico "Aprec. N".
-            const nombrePersonalizado = temasCasillasBD[claveCas];
-            const etiquetaMostrada = nombrePersonalizado || `Aprec. ${c.numero}`;
+            // El encabezado siempre muestra "Aprec. N" de forma consecutiva
+            // (1, 2, 3, 4, 5...), igual que Aprec. 1/2/3. El nombre de la
+            // actividad (ej. "Clase 3", "Científico") que el docente escribe
+            // en la casilla de "Tema" NO reemplaza este número — se ve
+            // aparte, en la fila "Tema de cada casilla:" debajo del
+            // encabezado, para que no se pierda la numeración consecutiva.
+            const etiquetaMostrada = `Aprec. ${c.numero}`;
             // Candado 🔒 manual: el mismo mecanismo que ya usan Aprec.
             // 1/2/3, Ejer. y Exam. (se guarda en temas_casillas.bloqueada).
             // Solo tiene sentido ofrecerlo una vez que la columna existe
