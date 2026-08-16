@@ -13,14 +13,19 @@ const loginMsg = document.getElementById('login-msg');
 const userEmailEl = document.getElementById('user-email');
 
 const fMateria = document.getElementById('f-materia');
-const fGrado = document.getElementById('f-grado');
+const fGrados = document.getElementById('f-grados');
 const formTarea = document.getElementById('form-tarea');
 const formMsg = document.getElementById('form-msg');
 const listaAdmin = document.getElementById('lista-admin');
 
 function actualizarGrados() {
   const opciones = GRADOS_POR_MATERIA[fMateria.value] || [];
-  fGrado.innerHTML = opciones.map(g => `<option value="${g}">${g}</option>`).join('');
+  fGrados.innerHTML = opciones.map((g, i) => `
+    <label>
+      <input type="checkbox" name="grado" value="${g}" ${opciones.length === 1 ? 'checked' : ''}>
+      ${g}
+    </label>
+  `).join('');
 }
 fMateria.addEventListener('change', actualizarGrados);
 actualizarGrados();
@@ -70,19 +75,28 @@ formTarea.addEventListener('submit', async (e) => {
   formMsg.className = '';
 
   const materia = fMateria.value;
-  const grado = fGrado.value;
+  const gradosSeleccionados = Array.from(
+    fGrados.querySelectorAll('input[name="grado"]:checked')
+  ).map(cb => cb.value);
   const titulo = document.getElementById('f-titulo').value.trim();
   const descripcion = document.getElementById('f-descripcion').value.trim();
   const fechaEntrega = document.getElementById('f-entrega').value || null;
   const archivoInput = document.getElementById('f-archivo');
   const archivo = archivoInput.files[0];
 
+  if (!gradosSeleccionados.length) {
+    formMsg.textContent = 'Selecciona al menos un grado.';
+    formMsg.className = 'msg-error';
+    return;
+  }
+
   let archivo_url = null;
   let archivo_nombre = null;
 
   try {
     if (archivo) {
-      const ruta = `${materia}/${grado}/${Date.now()}-${archivo.name}`;
+      // Se sube una sola vez y se reutiliza el mismo enlace para todos los grados marcados
+      const ruta = `${materia}/${Date.now()}-${archivo.name}`;
       const { error: errSubida } = await sb.storage.from('tareas-archivos').upload(ruta, archivo);
       if (errSubida) throw errSubida;
       const { data: pub } = sb.storage.from('tareas-archivos').getPublicUrl(ruta);
@@ -90,13 +104,17 @@ formTarea.addEventListener('submit', async (e) => {
       archivo_nombre = archivo.name;
     }
 
-    const { error: errInsert } = await sb.from('tareas').insert({
+    const filas = gradosSeleccionados.map(grado => ({
       materia, grado, titulo, descripcion, fecha_entrega: fechaEntrega,
       archivo_url, archivo_nombre,
-    });
+    }));
+
+    const { error: errInsert } = await sb.from('tareas').insert(filas);
     if (errInsert) throw errInsert;
 
-    formMsg.textContent = 'Tarea publicada ✓';
+    formMsg.textContent = gradosSeleccionados.length > 1
+      ? `Tarea publicada en ${gradosSeleccionados.join(', ')} ✓`
+      : 'Tarea publicada ✓';
     formMsg.className = 'msg-ok';
     formTarea.reset();
     actualizarGrados();
