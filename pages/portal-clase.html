@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal de Clase</title>
+<link rel="stylesheet" href="../css/portal-clase.css">
+</head>
+<body>
+
+<div class="portal-wrap">
+
+  <header class="portal-header">
+    <div>
+      <p class="eyebrow">Prof. Samuel</p>
+      <h1>Portal de Clase</h1>
+    </div>
+    <a class="volver-index" href="../index.html">← Inicio</a>
+  </header>
+
+  <!-- ---------- Vista: lista de clases ---------- -->
+  <main id="vista-clases">
+
+    <section class="materia-group" data-materia="Ciencias Naturales">
+      <h2>Ciencias Naturales</h2>
+      <div class="grid">
+        <button class="folder-card" data-materia="Ciencias Naturales" data-grado="9A">
+          <span class="tab">9A</span>
+          <p class="materia-nombre">Ciencias Naturales</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+        <button class="folder-card" data-materia="Ciencias Naturales" data-grado="9B">
+          <span class="tab">9B</span>
+          <p class="materia-nombre">Ciencias Naturales</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+        <button class="folder-card" data-materia="Ciencias Naturales" data-grado="9C">
+          <span class="tab">9C</span>
+          <p class="materia-nombre">Ciencias Naturales</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+      </div>
+    </section>
+
+    <section class="materia-group" data-materia="Ciencias">
+      <h2>Ciencias</h2>
+      <div class="grid">
+        <button class="folder-card" data-materia="Ciencias" data-grado="8A">
+          <span class="tab">8A</span>
+          <p class="materia-nombre">Ciencias</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+      </div>
+    </section>
+
+    <section class="materia-group" data-materia="Informática">
+      <h2>Informática</h2>
+      <div class="grid">
+        <button class="folder-card" data-materia="Informática" data-grado="8A">
+          <span class="tab">8A</span>
+          <p class="materia-nombre">Informática</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+        <button class="folder-card" data-materia="Informática" data-grado="8B">
+          <span class="tab">8B</span>
+          <p class="materia-nombre">Informática</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ---------- Vista: tareas de una clase ---------- -->
+  <section id="vista-tareas" class="vista-tareas oculto">
+    <button id="btn-volver">← Volver a las clases</button>
+    <h2 id="vista-titulo"></h2>
+    <div id="lista-tareas"></div>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/portal-config.js"></script>
+<script src="../js/portal-clase.js"></script>
+</body>
+</html>
