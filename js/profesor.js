@@ -1,6 +1,7 @@
 import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
 import { calcularColumnasApreciacionesNuevas, activarApreciacionSiguiente, iconoApreciacion, abrirDetalleApreciacion, abrirSelectorModo, revisarAvanceApreciacionesDirectas, eliminarApreciacionColumna } from "./apreciaciones.js";
+import { obtenerLeyendaMateria, guardarLeyendaMateria } from "./leyendas.js";
 
 // =========================================================
 // 0) UTILIDADES
@@ -153,6 +154,10 @@ const selectTipoNota = document.getElementById("selectTipoNota");
 const inputNumeroNota = document.getElementById("inputNumeroNota");
 const selectTrimestreNota = document.getElementById("selectTrimestreNota");
 const estadoCargaSalon = document.getElementById("estadoCargaSalon");
+const bloqueLeyendaMateria = document.getElementById("bloqueLeyendaMateria");
+const textareaLeyendaMateria = document.getElementById("textareaLeyendaMateria");
+const btnGuardarLeyenda = document.getElementById("btnGuardarLeyenda");
+const estadoLeyenda = document.getElementById("estadoLeyenda");
 const bloqueTablaNotas = document.getElementById("bloqueTablaNotas");
 const cabeceraNotasGrupo = document.getElementById("cabeceraNotasGrupo");
 const cabeceraTemasGrupo = document.getElementById("cabeceraTemasGrupo");
@@ -625,6 +630,23 @@ async function restaurarCasilla(tipo, numero) {
     await cargarPapelera();
     cargarSalon();
 }
+
+btnGuardarLeyenda?.addEventListener("click", async () => {
+    const materia = selectMateriaNota.value;
+    if (!materia) return;
+
+    btnGuardarLeyenda.disabled = true;
+    if (estadoLeyenda) { estadoLeyenda.textContent = "Guardando..."; estadoLeyenda.className = "small text-muted"; }
+
+    const resultado = await guardarLeyendaMateria(materia, textareaLeyendaMateria.value);
+
+    btnGuardarLeyenda.disabled = false;
+    if (!resultado.ok) {
+        if (estadoLeyenda) { estadoLeyenda.textContent = "❌ No se pudo guardar."; estadoLeyenda.className = "small text-danger"; }
+        return;
+    }
+    if (estadoLeyenda) { estadoLeyenda.textContent = "✅ Guardado. Ya aparece en la consulta de notas."; estadoLeyenda.className = "small text-success"; }
+});
 
 btnPapelera?.addEventListener("click", () => {
     const abrir = panelPapelera.style.display === "none";
@@ -1373,6 +1395,26 @@ async function cargarSalon() {
     }
 
     if (estadoCargaSalon) estadoCargaSalon.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Cargando...`;
+
+    // Muestra el bloque de "Explicación de las notas" para la materia
+    // recién elegida y precarga el texto que ya tenía guardado (si
+    // tenía). Es independiente del salón/trimestre: una sola leyenda
+    // por materia, para todos los salones que la usen.
+    if (bloqueLeyendaMateria) {
+        bloqueLeyendaMateria.style.display = "block";
+        if (estadoLeyenda) estadoLeyenda.textContent = "";
+        if (textareaLeyendaMateria) {
+            textareaLeyendaMateria.value = "Cargando...";
+            textareaLeyendaMateria.disabled = true;
+            obtenerLeyendaMateria(materia).then((texto) => {
+                // Si el docente ya cambió de materia mientras esto cargaba,
+                // no pisamos lo que esté viendo ahora.
+                if (selectMateriaNota.value !== materia) return;
+                textareaLeyendaMateria.value = texto;
+                textareaLeyendaMateria.disabled = false;
+            });
+        }
+    }
 
     const { data: estudiantesSalon, error: errEst } = await supabase
         .from("estudiantes")
