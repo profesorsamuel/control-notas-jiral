@@ -1038,29 +1038,51 @@ function renderTabla() {
         }
         if (c.tipo === "apreciacion" && c.numero >= 4) {
             const infoCol = estadoApreciacionesNuevas[c.numero] || { estado: "bloqueada", modo: null };
+            const claveCas = claveCasilla(c.tipo, c.numero);
             // Si el docente le puso un nombre propio (ej. "Clase 3") en la
             // casilla de "Tema" de esta apreciación, se usa ese nombre en
             // vez del genérico "Aprec. N".
-            const nombrePersonalizado = temasCasillasBD[claveCasilla(c.tipo, c.numero)];
+            const nombrePersonalizado = temasCasillasBD[claveCas];
             const etiquetaMostrada = nombrePersonalizado || `Aprec. ${c.numero}`;
+            // Candado 🔒 manual: el mismo mecanismo que ya usan Aprec.
+            // 1/2/3, Ejer. y Exam. (se guarda en temas_casillas.bloqueada).
+            // Solo tiene sentido ofrecerlo una vez que la columna existe
+            // de verdad (activa o completada), no mientras está
+            // "bloqueada" en el sentido de "todavía no le toca".
+            const candadoManual = casillasBloqueadas.has(claveCas);
+            const puedeCandado = infoCol.estado !== "bloqueada";
+            const btnCandado = puedeCandado
+                ? `<button type="button" class="btn btn-link btn-sm p-0 btn-bloquear-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" style="color:${candadoManual ? "#fecaca" : "#c7d2fe"};" title="${candadoManual ? "Quitar candado (permitir editar de nuevo)" : "Poner candado (ya no la voy a modificar)"}">${candadoManual ? "🔓" : "🔒"}</button>`
+                : "";
             if (infoCol.modo === "directo") {
                 // Modo directo: se ve exactamente como una columna normal
                 // (Aprec. 1, 2, 3), incluyendo el mismo botón de basura
                 // (🗑️) para reiniciarla mientras esté activa.
                 htmlCabecera += `
-                    <th class="text-center small ${claveCasilla(c.tipo, c.numero) === claveSel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
-                        <div>${iconoApreciacion(infoCol.estado)} ${etiquetaMostrada}</div>
-                        ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
+                    <th class="text-center small ${claveCas === claveSel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
+                        <div>${candadoManual ? "🔒" : iconoApreciacion(infoCol.estado)} ${etiquetaMostrada}</div>
+                        ${btnCandado}
+                        ${(!candadoManual && infoCol.estado === "activa") ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
                     </th>`;
                 return;
             }
+            // OJO: el fondo del encabezado de toda la tabla ya es
+            // indigo/morado (var(--color-primario)). Antes este texto se
+            // pintaba con ESE MISMO color, así que quedaba invisible —
+            // solo se veía el emoji de estado (los emojis no heredan el
+            // "color" de CSS). Por eso "Aprec. 4" y "Aprec. 5" (o su
+            // nombre personalizado) no se veían. Ahora usamos blanco
+            // (igual que el resto de encabezados) o gris claro cuando
+            // está bloqueada, que sí contrastan con el fondo morado.
+            const colorTextoHeader = infoCol.estado === "bloqueada" ? "#c7d2fe" : "#fff";
             htmlCabecera += `
-                <th class="text-center small" data-abrir-apreciacion-header="${c.numero}" data-estado-header="${infoCol.estado}"
-                    style="width:90px; min-width:90px; cursor:${infoCol.estado === "bloqueada" ? "default" : "pointer"};">
-                    <div class="fw-bold" style="color:${infoCol.estado === "bloqueada" ? "#94a3b8" : "var(--color-primario, #4f46e5)"}; white-space:normal; line-height:1.15; word-break:keep-all;">
-                        <span style="font-size:14px;">${iconoApreciacion(infoCol.estado)}</span> ${etiquetaMostrada}
+                <th class="text-center small" data-abrir-apreciacion-header="${c.numero}" data-estado-header="${infoCol.estado}" data-candado-manual="${candadoManual ? "1" : "0"}"
+                    style="width:90px; min-width:90px; cursor:${(infoCol.estado === "bloqueada") ? "default" : "pointer"};">
+                    <div class="fw-bold" style="color:${colorTextoHeader}; white-space:normal; line-height:1.15; word-break:keep-all;">
+                        <span style="font-size:14px;">${candadoManual ? "🔒" : iconoApreciacion(infoCol.estado)}</span> ${etiquetaMostrada}
                     </div>
-                    ${infoCol.estado === "activa" ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
+                    ${btnCandado}
+                    ${(!candadoManual && infoCol.estado === "activa") ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
                 </th>`;
             return;
         }
@@ -1114,15 +1136,23 @@ function renderTabla() {
             if (c.tipo === "apreciacion" && c.numero >= 4) {
                 const infoCol = estadoApreciacionesNuevas[c.numero] || { estado: "bloqueada", modo: null };
                 if (infoCol.modo !== "directo") {
+                    const candadoManual = casillasBloqueadas.has(claveCas);
                     const n = historial[claveCas];
                     const valorGuardado = (n && n.nota !== null && n.nota !== undefined) ? formatearNotaFinal(String(n.nota)) : "";
+                    // 🔍 junto al número: avisa que esa nota salió de una
+                    // evaluación (asistencia + comportamiento +
+                    // actividades) y que se puede hacer clic para ver el
+                    // desglose completo de dónde salió.
                     const contenido = infoCol.estado === "completada"
-                        ? `<span class="fw-bold text-success">${valorGuardado || "–"}</span>`
-                        : `<span style="opacity:${infoCol.estado === "bloqueada" ? .5 : 1};">${iconoApreciacion(infoCol.estado)}</span>`;
-                    return `<td class="celda-nota text-center" style="cursor:${infoCol.estado === "bloqueada" ? "default" : "pointer"};" data-abrir-apreciacion="${c.numero}" data-estado-apreciacion="${infoCol.estado}">${contenido}</td>`;
+                        ? `<span class="fw-bold text-success">${valorGuardado || "–"}</span>
+                           <span style="font-size:10px;" title="Nota calculada de una evaluación — clic para ver el desglose">🔍</span>
+                           ${candadoManual ? `<span style="font-size:10px;" title="Bloqueada con candado">🔒</span>` : ""}`
+                        : `<span style="opacity:${infoCol.estado === "bloqueada" ? .5 : 1};">${candadoManual ? "🔒" : iconoApreciacion(infoCol.estado)}</span>`;
+                    return `<td class="celda-nota text-center" style="cursor:${infoCol.estado === "bloqueada" ? "default" : "pointer"};" data-abrir-apreciacion="${c.numero}" data-estado-apreciacion="${infoCol.estado}" data-candado-manual="${candadoManual ? "1" : "0"}">${contenido}</td>`;
                 }
                 // modo === "directo": sigue de largo y cae en el mismo
-                // renderizado de <input> normal que usan Aprec. 1, 2, 3.
+                // renderizado de <input> normal que usan Aprec. 1, 2, 3
+                // (ya respeta casillasBloqueadas más abajo).
             }
 
             const colIndex = indicesColumna[pos];
@@ -1169,7 +1199,7 @@ function renderTabla() {
         });
     });
 
-    function abrirDesdeApreciacionNueva(numeroApreciacion, estadoCol) {
+    function abrirDesdeApreciacionNueva(numeroApreciacion, estadoCol, candadoManual) {
         const infoCol = estadoApreciacionesNuevas[numeroApreciacion] || {};
         const materia = selectMateriaNota.value, salon = selectSalonNota.value, trimestre = selectTrimestreNota.value;
         // Nombre que el docente le puso a esta apreciación (ej. "Clase 3")
@@ -1177,7 +1207,12 @@ function renderTabla() {
         // nada, se sigue usando "Apreciación N" como antes.
         const etiquetaPersonalizada = obtenerTemaCasilla("apreciacion", numeroApreciacion) || "";
 
-        if (!infoCol.modo && estadoCol === "activa") {
+        // Con el candado 🔒 puesto, siempre se abre en modo VER (solo
+        // lectura) el desglose de la evaluación — nunca el selector de
+        // modo ni la edición, sin importar el estado real de la
+        // apreciación. Para editarla de nuevo, primero hay que quitar
+        // el candado (🔓) en la tabla principal.
+        if (!candadoManual && !infoCol.modo && estadoCol === "activa") {
             abrirSelectorModo({
                 materia, salon, trimestre, numeroApreciacion, correoProfesor, estudiantes: grupoActual, etiquetaPersonalizada,
                 onModoElegido: (modoElegido) => {
@@ -1190,15 +1225,15 @@ function renderTabla() {
 
         abrirDetalleApreciacion({
             materia, salon, trimestre, numeroApreciacion, estado: estadoCol, etiquetaPersonalizada,
-            estudiantes: grupoActual, correoProfesor,
+            estudiantes: grupoActual, correoProfesor, candadoManual,
         });
     }
 
     cabeceraNotasGrupo.querySelectorAll("[data-abrir-apreciacion-header]").forEach((th) => {
         if (th.dataset.estadoHeader === "bloqueada") return;
         th.addEventListener("click", (e) => {
-            if (e.target.closest(".btn-reiniciar-apreciacion")) return; // el botón 🗑️ tiene su propio listener
-            abrirDesdeApreciacionNueva(parseInt(th.dataset.abrirApreciacionHeader, 10), th.dataset.estadoHeader);
+            if (e.target.closest(".btn-reiniciar-apreciacion") || e.target.closest(".btn-bloquear-columna")) return; // esos botones tienen su propio listener
+            abrirDesdeApreciacionNueva(parseInt(th.dataset.abrirApreciacionHeader, 10), th.dataset.estadoHeader, th.dataset.candadoManual === "1");
         });
     });
 
@@ -1219,7 +1254,7 @@ function renderTabla() {
 
     tablaNotasGrupo.querySelectorAll("[data-abrir-apreciacion]").forEach((td) => {
         if (td.dataset.estadoApreciacion === "bloqueada") return;
-        td.addEventListener("click", () => abrirDesdeApreciacionNueva(parseInt(td.dataset.abrirApreciacion, 10), td.dataset.estadoApreciacion));
+        td.addEventListener("click", () => abrirDesdeApreciacionNueva(parseInt(td.dataset.abrirApreciacion, 10), td.dataset.estadoApreciacion, td.dataset.candadoManual === "1"));
     });
 
     // "➕" al final de cada grupo de columnas: agrega la siguiente casilla
