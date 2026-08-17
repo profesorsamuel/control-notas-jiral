@@ -108,6 +108,64 @@
     border-color: var(--line);
     margin-bottom: 20px;
   }
+
+  /* ---- Tarjetas de "Clase N" con panel desplegable ---- */
+  .clase-card {
+    background: var(--card-bg); border:1px solid var(--line); border-radius: var(--radius);
+    margin-bottom: 12px; overflow: hidden;
+  }
+  .clase-card-cabecera {
+    display:flex; justify-content:space-between; align-items:center; gap:16px;
+    padding: 14px 18px;
+  }
+  .clase-card-cabecera .info { font-size: 14px; }
+  .clase-card-cabecera .info .tag { font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); }
+  .clase-card-cabecera .conteo-mini {
+    font-size:12px; color:var(--muted); margin-top:2px;
+  }
+  .clase-card-botones { display:flex; gap:8px; flex-shrink:0; }
+  .btn-gestionar {
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    border-radius: var(--radius); padding: 6px 12px; font-size:12px; cursor:pointer; white-space:nowrap;
+  }
+  .btn-gestionar:hover { border-color: var(--ink); }
+  .btn-gestionar.activo { background: var(--ink); color:#fff; border-color: var(--ink); }
+
+  .clase-panel {
+    border-top: 1px solid var(--line);
+    background: var(--paper);
+    padding: 20px 18px;
+  }
+  .clase-panel h4 {
+    font-family:'Space Grotesk',sans-serif; font-size:14px; margin: 0 0 10px;
+  }
+  .clase-panel .sub-form {
+    display:flex; flex-wrap:wrap; gap:8px; margin-bottom: 14px;
+  }
+  .clase-panel .sub-form input[type="text"],
+  .clase-panel .sub-form input[type="url"],
+  .clase-panel .sub-form input[type="date"],
+  .clase-panel .sub-form textarea {
+    padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius);
+    font-family:'Inter',sans-serif; font-size:13px; background:#fff;
+  }
+  .clase-panel .sub-form input[type="file"] { font-size:12px; }
+  .clase-panel .sub-form textarea { width:100%; flex-basis:100%; resize:vertical; }
+  .clase-panel .sub-form button {
+    border:none; border-radius:var(--radius); background: var(--coral); color:#fff;
+    font-weight:600; font-size:12px; padding:8px 14px; cursor:pointer;
+  }
+  .clase-panel .sub-form button:hover { filter:brightness(1.05); }
+  .clase-panel .sub-form-msg { flex-basis:100%; font-size:12px; margin:0; }
+  .clase-panel .sub-lista { margin-bottom: 22px; }
+  .clase-panel .sub-lista:last-child { margin-bottom: 0; }
+  .item-mini {
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:8px 12px; margin-bottom:6px; font-size:13px;
+  }
+  .item-mini .item-mini-meta { font-size:11px; color:var(--muted); font-family:'IBM Plex Mono',monospace; }
+  .seccion-divisoria { border:none; border-top:1px dashed var(--line); margin: 18px 0; }
 </style>
 </head>
 <body>
@@ -152,7 +210,7 @@
         <span class="seccion-admin-numero">1</span>
         <div>
           <h2>📖 Lecciones</h2>
-          <p class="seccion-admin-sub">El material que suben los estudiantes van a estudiar, organizado como Clase 1, Clase 2, etc.</p>
+          <p class="seccion-admin-sub">Primero crea la Clase (título y fechas). Luego entras a esa clase para cargarle sus lecciones y tareas.</p>
         </div>
       </div>
 
@@ -175,29 +233,25 @@
           El número de clase (Clase 1, Clase 2...) se asigna solo, siguiendo el orden en que las agregas para cada grado.
         </p>
 
-        <label for="fc-nombre">Nombre de la clase</label>
-        <input type="text" id="fc-nombre" placeholder="Ej: Función de nutrición y sistema circulatorio">
+        <label for="fc-nombre">Título de la clase</label>
+        <input type="text" id="fc-nombre" required placeholder="Ej: Función de nutrición y sistema circulatorio">
 
         <div class="campo-fila">
           <div>
-            <label for="fc-inicio">Desde</label>
+            <label for="fc-inicio">Fecha de inicio</label>
             <input type="date" id="fc-inicio">
           </div>
           <div>
-            <label for="fc-fin">Hasta</label>
+            <label for="fc-fin">Fecha de finalización</label>
             <input type="date" id="fc-fin">
           </div>
         </div>
 
-        <label for="fc-archivo">Archivo (PDF, Word, PowerPoint, imagen...)</label>
-        <input type="file" id="fc-archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg">
-
-        <label for="fc-enlace">O pega un enlace en vez de subir archivo</label>
-        <input type="url" id="fc-enlace" placeholder="https://drive.google.com/...">
-        <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">Si pegas un enlace, no hace falta elegir archivo — se usa el enlace.</p>
-
-        <button type="submit">Agregar clase</button>
+        <button type="submit">Crear clase</button>
         <p id="form-clase-msg"></p>
+        <p style="font-size:12px; color:var(--muted); margin:6px 0 0;">
+          Después de crearla, pulsa "Gestionar contenido" en su tarjeta para subir las lecciones y tareas de esa clase.
+        </p>
       </form>
 
       <div id="lista-clases"><p class="estado-cargando">Cargando…</p></div>
