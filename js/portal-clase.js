@@ -449,6 +449,36 @@ function determinarEstado(fechaEntrega) {
   return new Date() <= limite ? 'a_tiempo' : 'tarde';
 }
 
+// ---------- Días de gracia después de la fecha de entrega ----------
+// Pasada la fecha, el estudiante todavía tiene DIAS_GRACIA días para
+// entregar tarde. Después de eso la tarea se cierra: ya no se puede
+// entregar ni modificar, y si nunca se entregó queda marcada como tal.
+const DIAS_GRACIA_ENTREGA = 12;
+
+function fechaLimiteConGracia(fechaEntrega) {
+  if (!fechaEntrega) return null;
+  const limite = new Date(`${fechaEntrega}T23:59:59`);
+  limite.setDate(limite.getDate() + DIAS_GRACIA_ENTREGA);
+  return limite;
+}
+
+function tareaCerrada(fechaEntrega) {
+  const limite = fechaLimiteConGracia(fechaEntrega);
+  if (!limite) return false;
+  return new Date() > limite;
+}
+
+function tareaFueraDePlazo(fechaEntrega) {
+  if (!fechaEntrega) return false;
+  return new Date() > new Date(`${fechaEntrega}T23:59:59`);
+}
+
+function formatearFechaDeDate(d) {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
 // ---------- Cargar y mostrar TODAS las tareas (siempre visibles) ----------
 async function cargarTareas(materia, grado) {
   listaTareas.innerHTML = '<p class="estado-cargando">Cargando tareas…</p>';
@@ -615,6 +645,8 @@ async function eliminarEntrega(tarea, entrega, materia, grado) {
 }
 
 function renderEstadoEntrega(tarea, entrega, identidad) {
+  const cerrada = tareaCerrada(tarea.fecha_entrega);
+
   if (entrega) {
     const esATiempo = entrega.estado === 'a_tiempo';
     return `
@@ -625,25 +657,42 @@ function renderEstadoEntrega(tarea, entrega, identidad) {
         Enviada el ${formatearFechaHora(entrega.entregado_en)}
       </p>
       ${renderVistaPreviaEntrega(entrega)}
-      <div class="entrega-acciones">
-        <button type="button" class="btn-editar-entrega" data-editar-entrega="${tarea.id}">✎ Editar entrega</button>
-        <button type="button" class="btn-eliminar-entrega" data-eliminar-entrega="${tarea.id}">🗑 Eliminar entrega</button>
-      </div>
-      <form class="form-entrega oculto" data-form-entrega="${tarea.id}">
-        <input type="file" name="archivo">
-        <input type="url" name="enlace" placeholder="O pega un enlace en vez de subir archivo">
-        <div class="form-entrega-botones">
-          <button type="submit">Guardar cambios</button>
-          <button type="button" class="btn-cancelar-entrega" data-cancelar-entrega="${tarea.id}">Cancelar</button>
+      ${cerrada ? `
+        <p class="aviso-cerrada">🔒 El plazo para modificar esta entrega ya cerró.</p>
+      ` : `
+        <div class="entrega-acciones">
+          <button type="button" class="btn-editar-entrega" data-editar-entrega="${tarea.id}">✎ Editar entrega</button>
+          <button type="button" class="btn-eliminar-entrega" data-eliminar-entrega="${tarea.id}">🗑 Eliminar entrega</button>
         </div>
-        <p class="msg"></p>
-      </form>
+        <form class="form-entrega oculto" data-form-entrega="${tarea.id}">
+          <input type="file" name="archivo">
+          <input type="url" name="enlace" placeholder="O pega un enlace en vez de subir archivo">
+          <div class="form-entrega-botones">
+            <button type="submit">Guardar cambios</button>
+            <button type="button" class="btn-cancelar-entrega" data-cancelar-entrega="${tarea.id}">Cancelar</button>
+          </div>
+          <p class="msg"></p>
+        </form>
+      `}
     `;
   }
+
+  // Nunca se entregó y ya pasaron los días de gracia: se cierra la tarea.
+  if (cerrada) {
+    return `
+      <span class="badge-estado cerrada">🔒 Tarea cerrada</span>
+      <p class="aviso-parpadea">⚠ No entregaste esta tarea</p>
+    `;
+  }
+
+  const avisoTarde = tareaFueraDePlazo(tarea.fecha_entrega)
+    ? `<p class="aviso-tarde">⏳ Ya pasó la fecha de entrega. Puedes entregarla con retraso hasta el ${formatearFechaDeDate(fechaLimiteConGracia(tarea.fecha_entrega))}, después la tarea se cierra.</p>`
+    : '';
 
   if (!identidad) {
     return `
       <span class="badge-estado pendiente">Pendiente</span>
+      ${avisoTarde}
       <p style="font-size:12px; color:var(--muted); margin:6px 0 0;">
         <a href="#" data-ir-a-identidad style="color:var(--muted);">Selecciona tu nombre arriba para poder entregarla ↑</a>
       </p>
@@ -652,6 +701,7 @@ function renderEstadoEntrega(tarea, entrega, identidad) {
 
   return `
     <span class="badge-estado pendiente">Pendiente</span>
+    ${avisoTarde}
     <button type="button" class="btn-editar-entrega" data-editar-entrega="${tarea.id}">+ Entregar tarea</button>
     <form class="form-entrega oculto" data-form-entrega="${tarea.id}">
       <input type="file" name="archivo">
@@ -673,6 +723,12 @@ async function manejarEnvioEntrega(e, tarea, materia, grado, identidad, entregaE
   const boton = form.querySelector('button[type="submit"]');
   const archivo = form.querySelector('input[name="archivo"]').files[0];
   const enlace = form.querySelector('input[name="enlace"]').value.trim();
+
+  if (tareaCerrada(tarea.fecha_entrega)) {
+    msg.textContent = 'El plazo para entregar esta tarea ya cerró.';
+    msg.className = 'msg error';
+    return;
+  }
 
   if (!archivo && !enlace) {
     msg.textContent = 'Selecciona un archivo o pega un enlace.';
