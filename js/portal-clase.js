@@ -113,7 +113,7 @@ async function cargarMaterialClase(materia, grado) {
     const tareasDeEsta = tareasPorClase[c.numero] || [];
     return `
       <article class="tarea-item" style="--accent:${accent}">
-        <h3>Clase ${c.numero}</h3>
+        <h3>Clase ${c.numero}${c.nombre ? `: ${escapeHtml(c.nombre)}` : ''}</h3>
         ${(c.fecha_inicio || c.fecha_fin) ? `
           <div class="tarea-meta">
             <span>${formatearFecha(c.fecha_inicio) || '?'} — ${formatearFecha(c.fecha_fin) || '?'}</span>
@@ -327,15 +327,25 @@ async function cargarTareas(materia, grado) {
     `;
   }).join('');
 
-  // Conectar los formularios de entrega que se hayan renderizado
+  // Conectar los formularios de entrega que se hayan renderizado (tanto
+  // el de "Entregar tarea" por primera vez como el de "Reemplazar entrega")
   if (identidad) {
     tareas.forEach(t => {
-      if (entregasPorTarea[t.id]) return; // ya entregada, no hay formulario
       const form = document.querySelector(`[data-form-entrega="${t.id}"]`);
       if (!form) return;
-      form.addEventListener('submit', (e) => manejarEnvioEntrega(e, t, materia, grado, identidad));
+      form.addEventListener('submit', (e) => manejarEnvioEntrega(e, t, materia, grado, identidad, entregasPorTarea[t.id]));
     });
   }
+
+  // Enlace "¿Te equivocaste? Cambiar entrega": muestra el formulario para
+  // subir un archivo nuevo o pegar otro enlace, reemplazando el anterior.
+  document.querySelectorAll('[data-cambiar-entrega]').forEach(enlace => {
+    enlace.addEventListener('click', (e) => {
+      e.preventDefault();
+      const form = document.querySelector(`[data-form-entrega="${enlace.dataset.cambiarEntrega}"]`);
+      if (form) form.classList.toggle('oculto');
+    });
+  });
 
   // Botón "Selecciona tu nombre" cuando todavía no hay identidad
   document.querySelectorAll('[data-ir-a-identidad]').forEach(boton => {
@@ -356,7 +366,14 @@ function renderEstadoEntrega(tarea, entrega, identidad) {
       <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">
         Enviada el ${formatearFechaHora(entrega.entregado_en)}
         · <a href="${entrega.entrega_url}" target="_blank" rel="noopener" style="color:var(--muted);">ver lo que enviaste</a>
+        · <a href="#" data-cambiar-entrega="${tarea.id}" style="color:var(--muted);">¿Te equivocaste? Cambiar entrega</a>
       </p>
+      <form class="form-entrega oculto" data-form-entrega="${tarea.id}">
+        <input type="file" name="archivo">
+        <input type="url" name="enlace" placeholder="O pega un enlace en vez de subir archivo">
+        <button type="submit">Reemplazar entrega</button>
+        <p class="msg"></p>
+      </form>
     `;
   }
 
@@ -380,7 +397,7 @@ function renderEstadoEntrega(tarea, entrega, identidad) {
   `;
 }
 
-async function manejarEnvioEntrega(e, tarea, materia, grado, identidad) {
+async function manejarEnvioEntrega(e, tarea, materia, grado, identidad, entregaExistente) {
   e.preventDefault();
   const form = e.target;
   const msg = form.querySelector('.msg');
@@ -395,7 +412,7 @@ async function manejarEnvioEntrega(e, tarea, materia, grado, identidad) {
   }
 
   boton.disabled = true;
-  msg.textContent = 'Enviando…';
+  msg.textContent = entregaExistente ? 'Reemplazando…' : 'Enviando…';
   msg.className = 'msg';
 
   try {
@@ -415,15 +432,24 @@ async function manejarEnvioEntrega(e, tarea, materia, grado, identidad) {
 
     const estado = determinarEstado(tarea.fecha_entrega);
 
-    const { error: errInsert } = await sb.from('entregas').insert({
-      tarea_id: tarea.id,
-      estudiante_id: identidad.estudianteId,
-      estudiante_nombre: identidad.nombre,
-      cedula: identidad.cedula,
-      telefono: identidad.telefono,
-      materia, grado, tipo, entrega_url, estado,
-    });
-    if (errInsert) throw errInsert;
+    if (entregaExistente) {
+      // El estudiante ya había entregado esta tarea: se reemplaza la
+      // entrega anterior (mismo registro) en vez de crear una nueva.
+      const { error: errUpdate } = await sb.from('entregas')
+        .update({ tipo, entrega_url, estado, entregado_en: new Date().toISOString() })
+        .eq('id', entregaExistente.id);
+      if (errUpdate) throw errUpdate;
+    } else {
+      const { error: errInsert } = await sb.from('entregas').insert({
+        tarea_id: tarea.id,
+        estudiante_id: identidad.estudianteId,
+        estudiante_nombre: identidad.nombre,
+        cedula: identidad.cedula,
+        telefono: identidad.telefono,
+        materia, grado, tipo, entrega_url, estado,
+      });
+      if (errInsert) throw errInsert;
+    }
 
     // Recargar la vista para mostrar el estado "Entregada"
     await cargarTareas(materia, grado);
