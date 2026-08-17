@@ -222,6 +222,11 @@ function extraerRutaClase(url) {
   return i === -1 ? '' : url.slice(i + marcador.length);
 }
 
+function esImagen(nombreOUrl) {
+  if (!nombreOUrl) return false;
+  return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(nombreOUrl);
+}
+
 // ---------- Crear "Clase N" (solo el contenedor: título y fechas) ----------
 formClase.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -393,15 +398,19 @@ async function renderPanelClase(claseId) {
       <h4>📖 Lecciones de esta clase</h4>
       <form class="sub-form" data-form-leccion="${claseId}">
         <input type="text" name="nombre" placeholder="Nombre de la lección (opcional)">
-        <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg">
+        <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp" multiple>
         <input type="url" name="enlace" placeholder="O pega un enlace">
         <button type="submit">Agregar lección</button>
         <p class="sub-form-msg"></p>
+        <p style="font-size:11px; color:var(--muted); flex-basis:100%; margin:0;">Puedes seleccionar varios archivos/imágenes a la vez — se agregan como lecciones separadas.</p>
       </form>
       <div class="sub-lista">
         ${lecciones.length ? lecciones.map(l => `
           <div class="item-mini" data-id="${l.id}">
-            <span>${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Archivo' : 'Enlace')} <span class="item-mini-meta">· ${l.tipo === 'archivo' ? '↓ archivo' : '↗ enlace'}</span></span>
+            <span style="display:flex; align-items:center; gap:8px;">
+              ${l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url) ? `<img src="${l.archivo_url}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--line);">` : ''}
+              ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Archivo' : 'Enlace')} <span class="item-mini-meta">· ${l.tipo === 'archivo' ? '↓ archivo' : '↗ enlace'}</span>
+            </span>
             <button class="btn-borrar btn-borrar-leccion" data-id="${l.id}" data-clase="${claseId}" data-archivo="${l.tipo === 'archivo' ? extraerRutaClase(l.archivo_url) : ''}">Borrar</button>
           </div>
         `).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay lecciones en esta clase.</p>'}
@@ -455,17 +464,17 @@ async function obtenerTareasDeClase(claseId) {
   return tareasPorClaseId[claseId];
 }
 
-// ---------- Agregar una lección dentro de una clase ----------
+// ---------- Agregar una o varias lecciones dentro de una clase ----------
 async function manejarNuevaLeccion(e, claseId) {
   e.preventDefault();
   const form = e.target;
   const msg = form.querySelector('.sub-form-msg');
   const nombre = form.nombre.value.trim() || null;
-  const archivo = form.archivo.files[0];
+  const archivos = Array.from(form.archivo.files);
   const enlace = form.enlace.value.trim();
 
-  if (!archivo && !enlace) {
-    msg.textContent = 'Sube un archivo o pega un enlace.';
+  if (!archivos.length && !enlace) {
+    msg.textContent = 'Sube uno o varios archivos, o pega un enlace.';
     msg.className = 'sub-form-msg msg-error';
     return;
   }
@@ -476,24 +485,27 @@ async function manejarNuevaLeccion(e, claseId) {
   try {
     const clase = (window.__clasesAdmin || []).find(c => c.id === claseId);
     const materia = clase ? clase.materia : 'general';
-    let tipo, archivo_url, archivo_nombre = null;
+    const filas = [];
 
     if (enlace) {
-      tipo = 'enlace';
-      archivo_url = enlace;
+      filas.push({ clase_id: claseId, nombre, tipo: 'enlace', archivo_url: enlace, archivo_nombre: null });
     } else {
-      tipo = 'archivo';
-      const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${sanitizarNombre(archivo.name)}`;
-      const { error: errSubida } = await sb.storage.from('material-clases').upload(ruta, archivo);
-      if (errSubida) throw errSubida;
-      const { data: pub } = sb.storage.from('material-clases').getPublicUrl(ruta);
-      archivo_url = pub.publicUrl;
-      archivo_nombre = archivo.name;
+      for (const [i, archivo] of archivos.entries()) {
+        const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${i}-${sanitizarNombre(archivo.name)}`;
+        const { error: errSubida } = await sb.storage.from('material-clases').upload(ruta, archivo);
+        if (errSubida) throw errSubida;
+        const { data: pub } = sb.storage.from('material-clases').getPublicUrl(ruta);
+        const nombreLeccion = nombre
+          ? (archivos.length > 1 ? `${nombre} (${i + 1})` : nombre)
+          : archivo.name.replace(/\.[^/.]+$/, '');
+        filas.push({
+          clase_id: claseId, nombre: nombreLeccion, tipo: 'archivo',
+          archivo_url: pub.publicUrl, archivo_nombre: archivo.name,
+        });
+      }
     }
 
-    const { error: errInsert } = await sb.from('lecciones').insert({
-      clase_id: claseId, nombre, tipo, archivo_url, archivo_nombre,
-    });
+    const { error: errInsert } = await sb.from('lecciones').insert(filas);
     if (errInsert) throw errInsert;
 
     form.reset();
