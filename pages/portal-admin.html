@@ -273,62 +273,10 @@
       <div id="panel-clase-seleccionada"></div>
     </section>
 
-    <!-- ========== 2. TAREAS ========== -->
+    <!-- ========== 2. EXAMEN FINAL ========== -->
     <section class="seccion-admin">
       <div class="seccion-admin-titulo">
         <span class="seccion-admin-numero">2</span>
-        <div>
-          <h2>📚 Tareas</h2>
-          <p class="seccion-admin-sub">Trabajos que los estudiantes deben entregar, con fecha límite opcional.</p>
-        </div>
-      </div>
-
-      <form id="form-tarea" class="form-tarea">
-        <div class="campo-fila">
-          <div>
-            <label for="f-materia">Materia</label>
-            <select id="f-materia" required>
-              <option value="Ciencias Naturales">Ciencias Naturales</option>
-              <option value="Informática">Informática</option>
-            </select>
-          </div>
-          <div>
-            <label>Grado(s)</label>
-            <div id="f-grados" class="grados-check"></div>
-          </div>
-        </div>
-
-        <label for="f-titulo">Título</label>
-        <input type="text" id="f-titulo" required placeholder="Ej: Guía de fotosíntesis">
-
-        <label for="f-descripcion">Descripción / instrucciones</label>
-        <textarea id="f-descripcion" rows="3" placeholder="Explica qué deben hacer los estudiantes"></textarea>
-
-        <label for="f-entrega">Fecha de entrega (opcional)</label>
-        <input type="date" id="f-entrega">
-
-        <label for="f-clase-numero">Pertenece a la Clase # (opcional)</label>
-        <input type="number" id="f-clase-numero" min="1" placeholder="Ej: 3">
-        <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">Si esta tarea es de una de las clases de arriba, escribe su número aquí para que aparezca junto a esa clase.</p>
-
-        <label for="f-archivo">Archivo para descargar (opcional)</label>
-        <input type="file" id="f-archivo">
-
-        <label for="f-enlace">O pega un enlace en vez de subir archivo (opcional)</label>
-        <input type="url" id="f-enlace" placeholder="https://drive.google.com/...">
-        <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">Si pegas un enlace, no hace falta elegir archivo — se usa el enlace.</p>
-
-        <button type="submit">Publicar tarea</button>
-        <p id="form-msg"></p>
-      </form>
-
-      <div id="lista-admin"><p class="estado-cargando">Cargando…</p></div>
-    </section>
-
-    <!-- ========== 3. EXAMEN FINAL ========== -->
-    <section class="seccion-admin">
-      <div class="seccion-admin-titulo">
-        <span class="seccion-admin-numero">3</span>
         <div>
           <h2>📕 Examen final</h2>
           <p class="seccion-admin-sub">Un solo documento o enlace por materia/grado, aparte de las lecciones y tareas.</p>
