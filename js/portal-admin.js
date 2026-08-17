@@ -222,7 +222,7 @@ function extraerRutaClase(url) {
   return i === -1 ? '' : url.slice(i + marcador.length);
 }
 
-// ---------- Crear "Clase N" ----------
+// ---------- Crear "Clase N" (solo el contenedor: título y fechas) ----------
 formClase.addEventListener('submit', async (e) => {
   e.preventDefault();
   formClaseMsg.textContent = 'Guardando…';
@@ -232,12 +232,9 @@ formClase.addEventListener('submit', async (e) => {
   const gradosSeleccionados = Array.from(
     fcGrados.querySelectorAll('input[name="grado"]:checked')
   ).map(cb => cb.value);
-  const nombreClase = document.getElementById('fc-nombre').value.trim() || null;
+  const nombreClase = document.getElementById('fc-nombre').value.trim();
   const fechaInicio = document.getElementById('fc-inicio').value || null;
   const fechaFin = document.getElementById('fc-fin').value || null;
-  const archivoInput = document.getElementById('fc-archivo');
-  const archivo = archivoInput.files[0];
-  const enlace = document.getElementById('fc-enlace').value.trim();
 
   if (!gradosSeleccionados.length) {
     formClaseMsg.textContent = 'Selecciona al menos un grado.';
@@ -245,28 +242,13 @@ formClase.addEventListener('submit', async (e) => {
     return;
   }
 
-  if (!archivo && !enlace) {
-    formClaseMsg.textContent = 'Sube un archivo o pega un enlace.';
+  if (!nombreClase) {
+    formClaseMsg.textContent = 'Escribe un título para la clase.';
     formClaseMsg.className = 'msg-error';
     return;
   }
 
   try {
-    let tipo, archivo_url, archivo_nombre = null;
-
-    if (enlace) {
-      tipo = 'enlace';
-      archivo_url = enlace;
-    } else {
-      tipo = 'archivo';
-      const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${sanitizarNombre(archivo.name)}`;
-      const { error: errSubida } = await sb.storage.from('material-clases').upload(ruta, archivo);
-      if (errSubida) throw errSubida;
-      const { data: pub } = sb.storage.from('material-clases').getPublicUrl(ruta);
-      archivo_url = pub.publicUrl;
-      archivo_nombre = archivo.name;
-    }
-
     // El número de "Clase N" se calcula por separado para cada grado,
     // siguiendo cuántas clases (que no sean el examen final) ya existen.
     for (const grado of gradosSeleccionados) {
@@ -283,12 +265,11 @@ formClase.addEventListener('submit', async (e) => {
         materia, grado, numero: siguienteNumero,
         es_examen_final: false, nombre: nombreClase,
         fecha_inicio: fechaInicio, fecha_fin: fechaFin,
-        tipo, archivo_url, archivo_nombre,
       });
       if (errInsert) throw errInsert;
     }
 
-    formClaseMsg.textContent = '✅ Clase agregada';
+    formClaseMsg.textContent = '✅ Clase creada. Ábrela con "Gestionar contenido" para cargarle lecciones y tareas.';
     formClaseMsg.className = 'msg-ok';
     formClase.reset();
     pintarGrados(fcGrados, fcMateria.value);
@@ -299,6 +280,13 @@ formClase.addEventListener('submit', async (e) => {
     formClaseMsg.className = 'msg-error';
   }
 });
+
+// clasesAbiertas: ids de las clases cuyo panel de gestión está desplegado.
+// leccionesPorClase / tareasPorClase: caché en memoria de lo cargado, para
+// no repetir consultas al desplegar/plegar el mismo panel varias veces.
+const clasesAbiertas = new Set();
+const leccionesPorClase = {};
+const tareasPorClaseId = {};
 
 async function cargarClasesAdmin() {
   listaClases.innerHTML = '<p class="estado-cargando">Cargando…</p>';
@@ -316,33 +304,279 @@ async function cargarClasesAdmin() {
     return;
   }
   if (!data.length) {
-    listaClases.innerHTML = '<p class="estado-vacio">Aún no has agregado ninguna clase.</p>';
+    listaClases.innerHTML = '<p class="estado-vacio">Aún no has creado ninguna clase.</p>';
     return;
   }
 
-  listaClases.innerHTML = data.map(c => `
-    <div class="tarea-admin-item" data-id="${c.id}">
-      <div class="info">
-        <div class="tag">${c.materia} · ${c.grado}</div>
-        <strong>Clase ${c.numero}${c.nombre ? `: ${escapeHtml(c.nombre)}` : ''}</strong>
-        ${c.fecha_inicio || c.fecha_fin ? `<div class="tag">${formatearFechaCorta(c.fecha_inicio) || '?'} — ${formatearFechaCorta(c.fecha_fin) || '?'}</div>` : ''}
-      </div>
-      <button class="btn-borrar" data-id="${c.id}" data-archivo="${c.tipo === 'archivo' ? extraerRutaClase(c.archivo_url) : ''}">Borrar</button>
-    </div>
-  `).join('');
+  window.__clasesAdmin = data; // referencia rápida por id, usada al renderizar paneles
+  renderListaClases(data);
+}
 
-  listaClases.querySelectorAll('.btn-borrar').forEach(btn => {
-    btn.addEventListener('click', () => borrarClase(btn.dataset.id, btn.dataset.archivo));
+function renderListaClases(clases) {
+  listaClases.innerHTML = clases.map(c => renderClaseCard(c)).join('');
+
+  listaClases.querySelectorAll('.btn-gestionar').forEach(btn => {
+    btn.addEventListener('click', () => toggleClase(btn.dataset.id));
+  });
+  listaClases.querySelectorAll('.btn-borrar-clase').forEach(btn => {
+    btn.addEventListener('click', () => borrarClase(btn.dataset.id));
+  });
+
+  clasesAbiertas.forEach(id => conectarPanelClase(id));
+}
+
+function renderClaseCard(c) {
+  const abierta = clasesAbiertas.has(c.id);
+  return `
+    <div class="clase-card" data-id="${c.id}">
+      <div class="clase-card-cabecera">
+        <div class="info">
+          <div class="tag">${c.materia} · ${c.grado}</div>
+          <strong>Clase ${c.numero}: ${escapeHtml(c.nombre || '')}</strong>
+          ${c.fecha_inicio || c.fecha_fin ? `<div class="tag">${formatearFechaCorta(c.fecha_inicio) || '?'} — ${formatearFechaCorta(c.fecha_fin) || '?'}</div>` : ''}
+          <div class="conteo-mini" data-conteo-clase="${c.id}">cargando contenido…</div>
+        </div>
+        <div class="clase-card-botones">
+          <button class="btn-gestionar ${abierta ? 'activo' : ''}" data-id="${c.id}">
+            ${abierta ? 'Cerrar' : 'Gestionar contenido'}
+          </button>
+          <button class="btn-borrar btn-borrar-clase" data-id="${c.id}">Borrar clase</button>
+        </div>
+      </div>
+      ${abierta ? `<div class="clase-panel" data-panel="${c.id}">${renderPanelClaseCargando()}</div>` : ''}
+    </div>
+  `;
+}
+
+function renderPanelClaseCargando() {
+  return '<p class="estado-cargando">Cargando lecciones y tareas…</p>';
+}
+
+async function toggleClase(id) {
+  if (clasesAbiertas.has(id)) {
+    clasesAbiertas.delete(id);
+  } else {
+    clasesAbiertas.add(id);
+  }
+  renderListaClases(window.__clasesAdmin || []);
+}
+
+// Carga (si hace falta) y dibuja el contenido del panel de una clase abierta.
+async function conectarPanelClase(claseId) {
+  const panel = listaClases.querySelector(`[data-panel="${claseId}"]`);
+  if (!panel) return;
+
+  const [lecciones, tareas] = await Promise.all([
+    obtenerLecciones(claseId),
+    obtenerTareasDeClase(claseId),
+  ]);
+
+  const conteoEl = listaClases.querySelector(`[data-conteo-clase="${claseId}"]`);
+  if (conteoEl) {
+    conteoEl.textContent = `${lecciones.length} ${lecciones.length === 1 ? 'lección' : 'lecciones'} · ${tareas.length} ${tareas.length === 1 ? 'tarea' : 'tareas'}`;
+  }
+
+  panel.innerHTML = `
+    <h4>📖 Lecciones de esta clase</h4>
+    <form class="sub-form" data-form-leccion="${claseId}">
+      <input type="text" name="nombre" placeholder="Nombre de la lección (opcional)">
+      <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg">
+      <input type="url" name="enlace" placeholder="O pega un enlace">
+      <button type="submit">Agregar lección</button>
+      <p class="sub-form-msg"></p>
+    </form>
+    <div class="sub-lista">
+      ${lecciones.length ? lecciones.map(l => `
+        <div class="item-mini" data-id="${l.id}">
+          <span>${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Archivo' : 'Enlace')} <span class="item-mini-meta">· ${l.tipo === 'archivo' ? '↓ archivo' : '↗ enlace'}</span></span>
+          <button class="btn-borrar btn-borrar-leccion" data-id="${l.id}" data-clase="${claseId}" data-archivo="${l.tipo === 'archivo' ? extraerRutaClase(l.archivo_url) : ''}">Borrar</button>
+        </div>
+      `).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay lecciones en esta clase.</p>'}
+    </div>
+
+    <hr class="seccion-divisoria">
+
+    <h4>📚 Tareas de esta clase</h4>
+    <form class="sub-form" data-form-tarea-clase="${claseId}">
+      <input type="text" name="titulo" placeholder="Título de la tarea" required style="flex-basis:100%;">
+      <textarea name="descripcion" rows="2" placeholder="Descripción / instrucciones (opcional)"></textarea>
+      <input type="date" name="entrega" title="Fecha de entrega (opcional)">
+      <input type="file" name="archivo">
+      <input type="url" name="enlace" placeholder="O pega un enlace">
+      <button type="submit">Agregar tarea</button>
+      <p class="sub-form-msg"></p>
+    </form>
+    <div class="sub-lista">
+      ${tareas.length ? tareas.map(t => `
+        <div class="item-mini" data-id="${t.id}">
+          <span>${escapeHtml(t.titulo)} ${t.fecha_entrega ? `<span class="item-mini-meta">· entrega ${formatearFechaCorta(t.fecha_entrega)}</span>` : ''}</span>
+          <button class="btn-borrar btn-borrar-tarea-clase" data-id="${t.id}" data-clase="${claseId}" data-archivo="${t.archivo_url ? extraerRuta(t.archivo_url) : ''}">Borrar</button>
+        </div>
+      `).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay tareas en esta clase.</p>'}
+    </div>
+  `;
+
+  panel.querySelector(`[data-form-leccion="${claseId}"]`).addEventListener('submit', (e) => manejarNuevaLeccion(e, claseId));
+  panel.querySelector(`[data-form-tarea-clase="${claseId}"]`).addEventListener('submit', (e) => manejarNuevaTareaDeClase(e, claseId));
+  panel.querySelectorAll('.btn-borrar-leccion').forEach(btn => {
+    btn.addEventListener('click', () => borrarLeccion(btn.dataset.id, btn.dataset.clase, btn.dataset.archivo));
+  });
+  panel.querySelectorAll('.btn-borrar-tarea-clase').forEach(btn => {
+    btn.addEventListener('click', () => borrarTareaDeClase(btn.dataset.id, btn.dataset.clase, btn.dataset.archivo));
   });
 }
 
-async function borrarClase(id, rutaArchivo) {
-  if (!confirm('¿Borrar esta clase?')) return;
-  await sb.from('clases').delete().eq('id', id);
+async function obtenerLecciones(claseId) {
+  const { data, error } = await sb.from('lecciones').select('*').eq('clase_id', claseId).order('creado_en', { ascending: true });
+  if (error) { console.error(error); return []; }
+  leccionesPorClase[claseId] = data || [];
+  return leccionesPorClase[claseId];
+}
+
+async function obtenerTareasDeClase(claseId) {
+  const { data, error } = await sb.from('tareas').select('*').eq('clase_id', claseId).order('creado_en', { ascending: true });
+  if (error) { console.error(error); return []; }
+  tareasPorClaseId[claseId] = data || [];
+  return tareasPorClaseId[claseId];
+}
+
+// ---------- Agregar una lección dentro de una clase ----------
+async function manejarNuevaLeccion(e, claseId) {
+  e.preventDefault();
+  const form = e.target;
+  const msg = form.querySelector('.sub-form-msg');
+  const nombre = form.nombre.value.trim() || null;
+  const archivo = form.archivo.files[0];
+  const enlace = form.enlace.value.trim();
+
+  if (!archivo && !enlace) {
+    msg.textContent = 'Sube un archivo o pega un enlace.';
+    msg.className = 'sub-form-msg msg-error';
+    return;
+  }
+
+  msg.textContent = 'Guardando…';
+  msg.className = 'sub-form-msg';
+
+  try {
+    const clase = (window.__clasesAdmin || []).find(c => c.id === claseId);
+    const materia = clase ? clase.materia : 'general';
+    let tipo, archivo_url, archivo_nombre = null;
+
+    if (enlace) {
+      tipo = 'enlace';
+      archivo_url = enlace;
+    } else {
+      tipo = 'archivo';
+      const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${sanitizarNombre(archivo.name)}`;
+      const { error: errSubida } = await sb.storage.from('material-clases').upload(ruta, archivo);
+      if (errSubida) throw errSubida;
+      const { data: pub } = sb.storage.from('material-clases').getPublicUrl(ruta);
+      archivo_url = pub.publicUrl;
+      archivo_nombre = archivo.name;
+    }
+
+    const { error: errInsert } = await sb.from('lecciones').insert({
+      clase_id: claseId, nombre, tipo, archivo_url, archivo_nombre,
+    });
+    if (errInsert) throw errInsert;
+
+    form.reset();
+    await conectarPanelClase(claseId);
+  } catch (err) {
+    console.error(err);
+    msg.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
+    msg.className = 'sub-form-msg msg-error';
+  }
+}
+
+async function borrarLeccion(id, claseId, rutaArchivo) {
+  if (!confirm('¿Borrar esta lección?')) return;
+  await sb.from('lecciones').delete().eq('id', id);
   if (rutaArchivo) {
     await sb.storage.from('material-clases').remove([rutaArchivo]);
   }
+  conectarPanelClase(claseId);
+}
+
+// ---------- Agregar una tarea dentro de una clase ----------
+async function manejarNuevaTareaDeClase(e, claseId) {
+  e.preventDefault();
+  const form = e.target;
+  const msg = form.querySelector('.sub-form-msg');
+  const titulo = form.titulo.value.trim();
+  const descripcion = form.descripcion.value.trim();
+  const fechaEntrega = form.entrega.value || null;
+  const archivo = form.archivo.files[0];
+  const enlace = form.enlace.value.trim();
+
+  if (!titulo) {
+    msg.textContent = 'Escribe un título para la tarea.';
+    msg.className = 'sub-form-msg msg-error';
+    return;
+  }
+
+  msg.textContent = 'Guardando…';
+  msg.className = 'sub-form-msg';
+
+  try {
+    const clase = (window.__clasesAdmin || []).find(c => c.id === claseId);
+    if (!clase) throw new Error('Clase no encontrada');
+    const materia = clase.materia, grado = clase.grado;
+    let archivo_url = null, archivo_nombre = null;
+
+    if (enlace) {
+      archivo_url = enlace;
+    } else if (archivo) {
+      const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${sanitizarNombre(archivo.name)}`;
+      const { error: errSubida } = await sb.storage.from('tareas-archivos').upload(ruta, archivo);
+      if (errSubida) throw errSubida;
+      const { data: pub } = sb.storage.from('tareas-archivos').getPublicUrl(ruta);
+      archivo_url = pub.publicUrl;
+      archivo_nombre = archivo.name;
+    }
+
+    const { error: errInsert } = await sb.from('tareas').insert({
+      materia, grado, titulo, descripcion, fecha_entrega: fechaEntrega,
+      archivo_url, archivo_nombre, clase_id: claseId, clase_numero: clase.numero,
+    });
+    if (errInsert) throw errInsert;
+
+    form.reset();
+    await conectarPanelClase(claseId);
+    cargarTareasAdmin(); // la sección 2 (tareas generales) también las lista
+  } catch (err) {
+    console.error(err);
+    msg.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
+    msg.className = 'sub-form-msg msg-error';
+  }
+}
+
+async function borrarTareaDeClase(id, claseId, rutaArchivo) {
+  if (!confirm('¿Borrar esta tarea?')) return;
+  await sb.from('tareas').delete().eq('id', id);
+  if (rutaArchivo) {
+    await sb.storage.from('tareas-archivos').remove([rutaArchivo]);
+  }
+  conectarPanelClase(claseId);
+  cargarTareasAdmin();
+}
+
+async function borrarClase(id) {
+  if (!confirm('¿Borrar esta clase junto con TODAS sus lecciones y tareas?')) return;
+  const lecciones = leccionesPorClase[id] || (await obtenerLecciones(id));
+  const tareas = tareasPorClaseId[id] || (await obtenerTareasDeClase(id));
+
+  const rutasLecciones = lecciones.filter(l => l.tipo === 'archivo').map(l => extraerRutaClase(l.archivo_url));
+  const rutasTareas = tareas.filter(t => t.archivo_url).map(t => extraerRuta(t.archivo_url));
+
+  await sb.from('clases').delete().eq('id', id); // ON DELETE CASCADE borra lecciones y desvincula tareas
+  if (rutasLecciones.length) await sb.storage.from('material-clases').remove(rutasLecciones);
+  if (rutasTareas.length) await sb.storage.from('tareas-archivos').remove(rutasTareas);
+
+  clasesAbiertas.delete(id);
   cargarClasesAdmin();
+  cargarTareasAdmin();
 }
 
 // ---------- Examen final ----------
