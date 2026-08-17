@@ -450,13 +450,24 @@ async function cargarTareas(materia, grado) {
     });
   }
 
-  // Enlace "¿Te equivocaste? Cambiar entrega": muestra el formulario para
-  // subir un archivo nuevo o pegar otro enlace, reemplazando el anterior.
-  document.querySelectorAll('[data-cambiar-entrega]').forEach(enlace => {
-    enlace.addEventListener('click', (e) => {
-      e.preventDefault();
-      const form = document.querySelector(`[data-form-entrega="${enlace.dataset.cambiarEntrega}"]`);
+  // Botón "✎ Editar entrega": muestra el formulario para subir un
+  // archivo nuevo o pegar otro enlace, reemplazando el anterior.
+  document.querySelectorAll('[data-editar-entrega]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const form = document.querySelector(`[data-form-entrega="${boton.dataset.editarEntrega}"]`);
       if (form) form.classList.toggle('oculto');
+    });
+  });
+
+  // Botón "Cancelar" dentro del formulario de reemplazo: lo oculta de nuevo.
+  document.querySelectorAll('[data-cancelar-entrega]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const form = document.querySelector(`[data-form-entrega="${boton.dataset.cancelarEntrega}"]`);
+      if (form) {
+        form.reset();
+        form.querySelector('.msg').textContent = '';
+        form.classList.add('oculto');
+      }
     });
   });
 
@@ -469,6 +480,58 @@ async function cargarTareas(materia, grado) {
   });
 }
 
+// ---------- Vista previa del archivo/enlace ya entregado ----------
+function nombreArchivoDeUrl(url) {
+  try {
+    const limpio = url.split('?')[0];
+    const partes = limpio.split('/');
+    return decodeURIComponent(partes[partes.length - 1] || url);
+  } catch {
+    return url;
+  }
+}
+
+function extensionDeUrl(url) {
+  const nombre = nombreArchivoDeUrl(url);
+  const match = nombre.match(/\.([a-zA-Z0-9]+)$/);
+  return match ? match[1].toLowerCase() : '';
+}
+
+const ICONOS_EXTENSION = {
+  doc: '📄', docx: '📄', odt: '📄',
+  ppt: '📊', pptx: '📊',
+  xls: '📈', xlsx: '📈', csv: '📈',
+  pdf: '📕',
+  zip: '🗜️', rar: '🗜️',
+};
+
+function renderVistaPreviaEntrega(entrega) {
+  if (entrega.tipo === 'enlace') {
+    return `
+      <a class="entrega-preview" href="${entrega.entrega_url}" target="_blank" rel="noopener">
+        <span class="entrega-preview-icono">🔗</span>
+        <span class="entrega-preview-nombre">Enlace entregado</span>
+      </a>
+    `;
+  }
+
+  if (esImagen(entrega.entrega_url)) {
+    return `
+      <a class="entrega-preview entrega-preview-imagen" href="${entrega.entrega_url}" target="_blank" rel="noopener">
+        <img src="${entrega.entrega_url}" alt="Archivo entregado" loading="lazy">
+      </a>
+    `;
+  }
+
+  const ext = extensionDeUrl(entrega.entrega_url);
+  return `
+    <a class="entrega-preview" href="${entrega.entrega_url}" target="_blank" rel="noopener">
+      <span class="entrega-preview-icono">${ICONOS_EXTENSION[ext] || '📎'}</span>
+      <span class="entrega-preview-nombre">${escapeHtml(nombreArchivoDeUrl(entrega.entrega_url))}</span>
+    </a>
+  `;
+}
+
 function renderEstadoEntrega(tarea, entrega, identidad) {
   if (entrega) {
     const esATiempo = entrega.estado === 'a_tiempo';
@@ -476,15 +539,18 @@ function renderEstadoEntrega(tarea, entrega, identidad) {
       <span class="badge-estado ${esATiempo ? 'a-tiempo' : 'tarde'}">
         ${esATiempo ? '✓ Entregada a tiempo' : '✓ Entregada después de la fecha'}
       </span>
-      <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">
+      <p style="font-size:12px; color:var(--muted); margin:4px 0 8px;">
         Enviada el ${formatearFechaHora(entrega.entregado_en)}
-        · <a href="${entrega.entrega_url}" target="_blank" rel="noopener" style="color:var(--muted);">ver lo que enviaste</a>
-        · <a href="#" data-cambiar-entrega="${tarea.id}" style="color:var(--muted);">¿Te equivocaste? Cambiar entrega</a>
       </p>
+      ${renderVistaPreviaEntrega(entrega)}
+      <button type="button" class="btn-editar-entrega" data-editar-entrega="${tarea.id}">✎ Editar entrega</button>
       <form class="form-entrega oculto" data-form-entrega="${tarea.id}">
         <input type="file" name="archivo">
         <input type="url" name="enlace" placeholder="O pega un enlace en vez de subir archivo">
-        <button type="submit">Reemplazar entrega</button>
+        <div class="form-entrega-botones">
+          <button type="submit">Guardar cambios</button>
+          <button type="button" class="btn-cancelar-entrega" data-cancelar-entrega="${tarea.id}">Cancelar</button>
+        </div>
         <p class="msg"></p>
       </form>
     `;
@@ -510,11 +576,12 @@ function renderEstadoEntrega(tarea, entrega, identidad) {
   `;
 }
 
+
 async function manejarEnvioEntrega(e, tarea, materia, grado, identidad, entregaExistente) {
   e.preventDefault();
   const form = e.target;
   const msg = form.querySelector('.msg');
-  const boton = form.querySelector('button');
+  const boton = form.querySelector('button[type="submit"]');
   const archivo = form.querySelector('input[name="archivo"]').files[0];
   const enlace = form.querySelector('input[name="enlace"]').value.trim();
 
@@ -522,6 +589,13 @@ async function manejarEnvioEntrega(e, tarea, materia, grado, identidad, entregaE
     msg.textContent = 'Selecciona un archivo o pega un enlace.';
     msg.className = 'msg error';
     return;
+  }
+
+  // Si ya había una entrega, se confirma antes de reemplazarla para
+  // evitar que se borre por accidente lo que ya se había enviado.
+  if (entregaExistente) {
+    const confirmado = window.confirm('¿Seguro que deseas modificar la tarea que ya entregaste? Se reemplazará lo que enviaste antes.');
+    if (!confirmado) return;
   }
 
   boton.disabled = true;
