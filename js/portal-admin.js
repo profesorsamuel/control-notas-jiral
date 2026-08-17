@@ -127,6 +127,26 @@ function esImagen(nombreOUrl) {
   return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(nombreOUrl);
 }
 
+// Detecta el tipo de archivo adjunto (por extensión) para mostrar un
+// botón pequeño con el ícono correspondiente (Word, Excel, PDF, imagen...).
+function detectarTipoArchivo(nombreOUrl, esEnlace) {
+  if (esEnlace) return { icono: '🔗', etiqueta: 'Enlace' };
+  const s = (nombreOUrl || '').toLowerCase();
+  if (/\.pdf(\?|$)/.test(s)) return { icono: '📕', etiqueta: 'PDF' };
+  if (/\.docx?(\?|$)/.test(s)) return { icono: '📄', etiqueta: 'Word' };
+  if (/\.xlsx?(\?|$)/.test(s)) return { icono: '📊', etiqueta: 'Excel' };
+  if (/\.pptx?(\?|$)/.test(s)) return { icono: '📽️', etiqueta: 'PowerPoint' };
+  if (/\.(jpe?g|png|gif|webp)(\?|$)/.test(s)) return { icono: '🖼️', etiqueta: 'Imagen' };
+  return { icono: '📎', etiqueta: 'Archivo' };
+}
+
+// Genera el botón pequeño de "ver adjunto" para un ítem de tarea/lección.
+function botonVerAdjunto(url, esEnlace, nombreArchivo) {
+  if (!url) return '';
+  const tipo = detectarTipoArchivo(esEnlace ? url : (nombreArchivo || url), esEnlace);
+  return `<a class="btn-ver-adjunto" href="${url}" target="_blank" rel="noopener" title="${esEnlace ? 'Abrir enlace' : `Ver ${tipo.etiqueta}`}">${tipo.icono} ${tipo.etiqueta}</a>`;
+}
+
 // Identificador para agrupar filas creadas juntas (una por salón),
 // tanto para "clases" como para lecciones/tareas dentro de ellas.
 function generarId() {
@@ -486,9 +506,10 @@ async function renderPanelClase(grupoKey) {
           const l = g.muestra;
           return `
           <div class="item-mini" data-key="${g.key}">
-            <span style="display:flex; align-items:center; gap:8px;">
+            <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               ${l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url) ? `<img src="${l.archivo_url}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--line);">` : ''}
-              ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Archivo' : 'Enlace')} <span class="item-mini-meta">· ${l.tipo === 'archivo' ? '↓ archivo' : '↗ enlace'}</span>
+              ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Archivo' : 'Enlace')}
+              ${botonVerAdjunto(l.archivo_url, l.tipo === 'enlace', l.archivo_nombre)}
             </span>
             <button class="btn-borrar btn-borrar-leccion" data-key="${g.key}" data-grupo="${grupoKey}">Borrar</button>
           </div>
@@ -514,7 +535,10 @@ async function renderPanelClase(grupoKey) {
           const t = g.muestra;
           return `
           <div class="item-mini" data-key="${g.key}">
-            <span>${escapeHtml(t.titulo)} ${t.fecha_entrega ? `<span class="item-mini-meta">· entrega ${formatearFechaCorta(t.fecha_entrega)}</span>` : ''}</span>
+            <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              ${escapeHtml(t.titulo)} ${t.fecha_entrega ? `<span class="item-mini-meta">· entrega ${formatearFechaCorta(t.fecha_entrega)}</span>` : ''}
+              ${botonVerAdjunto(t.archivo_url, !t.archivo_nombre && !!t.archivo_url, t.archivo_nombre)}
+            </span>
             <button class="btn-borrar btn-borrar-tarea-clase" data-key="${g.key}" data-grupo="${grupoKey}">Borrar</button>
           </div>
         `;
