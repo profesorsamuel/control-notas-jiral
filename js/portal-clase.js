@@ -1,10 +1,12 @@
 // Portal de Clase — lógica pública (lectura + entrega de tareas)
 //
-// IMPORTANTE: esta página YA NO pide crear cuenta ni iniciar sesión.
-// El estudiante solo escribe su nombre, cédula y teléfono UNA vez;
-// el navegador lo recuerda (localStorage) y las próximas veces entra
-// directo a ver/entregar sus tareas. La identificación de "quién es"
-// para saber qué ya entregó se hace por cédula (no por cuenta).
+// Las tareas y el material de clase se ven SIEMPRE, sin pedir nada.
+// Solo para poder "Entregar" una tarea se necesita saber quién es el
+// estudiante: en vez de escribir su nombre a mano, lo elige de una
+// lista desplegable (la misma lista de estudiantes de ese salón que
+// ya carga el profesor/administrador) y agrega su teléfono. Eso se
+// pide UNA sola vez por dispositivo; el navegador lo recuerda
+// (localStorage) y de ahí en adelante entrega directo.
 const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
 const vistaClases = document.getElementById('vista-clases');
@@ -45,20 +47,14 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// Deja la cédula siempre en el mismo formato (sin espacios/guiones,
-// minúsculas) para poder compararla de forma confiable sin importar
-// cómo la haya escrito el estudiante ("8-123-456" vs "8123456").
-function normalizarCedula(cedula) {
-  return (cedula || '').trim().toLowerCase().replace(/[\s-]/g, '');
-}
-
 // ---------- Identidad guardada en este navegador ----------
+// { estudianteId, nombre, cedula, telefono, salon }
 function obtenerIdentidadGuardada() {
   try {
     const bruto = localStorage.getItem(CLAVE_IDENTIDAD);
     if (!bruto) return null;
     const datos = JSON.parse(bruto);
-    if (!datos || !datos.nombre || !datos.cedula) return null;
+    if (!datos || !datos.estudianteId || !datos.nombre) return null;
     return datos;
   } catch {
     return null;
@@ -76,6 +72,15 @@ function guardarIdentidad(identidad) {
 
 function borrarIdentidad() {
   try { localStorage.removeItem(CLAVE_IDENTIDAD); } catch {}
+}
+
+// Identidad guardada, pero solo sirve si es del mismo salón que se
+// está viendo ahora mismo (si alguien más usa el mismo dispositivo
+// para otro grado, se le vuelve a pedir su nombre).
+function identidadValidaPara(grado) {
+  const identidad = obtenerIdentidadGuardada();
+  if (!identidad || identidad.salon !== grado) return null;
+  return identidad;
 }
 
 // ---------- Material de clase (Clase 1, Clase 2... + Examen final) ----------
@@ -154,79 +159,111 @@ async function cargarConteos() {
 // ---------- Abrir una clase (materia + grado) ----------
 async function abrirClase(materia, grado) {
   vistaTitulo.textContent = `${materia} · ${grado}`;
-  selectorEstudiante.innerHTML = '';
   listaTareas.innerHTML = '<p class="estado-cargando">Cargando…</p>';
   vistaClases.style.display = 'none';
   vistaTareas.classList.remove('oculto');
 
   cargarMaterialClase(materia, grado);
+  renderIdentidadWidget(materia, grado);
+  await cargarTareas(materia, grado);
+}
 
-  const identidad = obtenerIdentidadGuardada();
+// ---------- Widget de identidad (arriba de la lista de tareas) ----------
+// Si ya sabemos quién es (mismo salón), se muestra un banner chiquito.
+// Si no, se muestra el selector con la lista de estudiantes del salón
+// + teléfono. Esto NO bloquea ver las tareas, solo hace falta para
+// poder entregarlas.
+function renderIdentidadWidget(materia, grado) {
+  const identidad = identidadValidaPara(grado);
 
-  if (!identidad) {
-    mostrarFormularioIdentidad(materia, grado);
+  if (identidad) {
+    selectorEstudiante.innerHTML = `
+      <div class="banner-estudiante">
+        <span>👤 ${escapeHtml(identidad.nombre)}</span>
+        <button class="cambiar" id="btn-cambiar-identidad">¿No eres tú? Cambiar</button>
+      </div>
+    `;
+    document.getElementById('btn-cambiar-identidad').addEventListener('click', async () => {
+      borrarIdentidad();
+      renderIdentidadWidget(materia, grado);
+      await cargarTareas(materia, grado);
+    });
     return;
   }
 
-  renderBannerEstudiante(materia, grado, identidad);
-  await cargarTareasConEstado(materia, grado, identidad);
-}
-
-// ---------- Formulario simple: nombre, cédula, teléfono ----------
-// Ya no hace falta "registrarse" con contraseña. Solo se pide esto la
-// primera vez; el navegador lo recuerda para las próximas visitas.
-function mostrarFormularioIdentidad(materia, grado) {
   selectorEstudiante.innerHTML = `
-    <div class="selector-estudiante">
-      <label for="idNombre">Nombre completo</label>
-      <input type="text" id="idNombre" placeholder="Tu nombre y apellido">
-      <label for="idCedula">Cédula</label>
-      <input type="text" id="idCedula" placeholder="0-000-0000">
+    <div class="selector-estudiante" id="identidad-widget">
+      <label for="idNombreSelect">Tu nombre (elige de la lista de tu salón)</label>
+      <select id="idNombreSelect"><option value="">Cargando estudiantes…</option></select>
       <label for="idTelefono">Teléfono</label>
       <input type="tel" id="idTelefono" placeholder="6000-0000">
-      <button id="btn-continuar-identidad">Continuar y ver mis tareas</button>
+      <button id="btn-guardar-identidad">Guardar y poder entregar tareas</button>
       <p class="msg" id="msgIdentidad"></p>
     </div>
   `;
 
-  const boton = document.getElementById('btn-continuar-identidad');
-  const msg = document.getElementById('msgIdentidad');
+  cargarSelectorNombres(grado);
 
-  boton.addEventListener('click', async () => {
-    const nombre = document.getElementById('idNombre').value.trim();
-    const cedula = document.getElementById('idCedula').value.trim();
+  document.getElementById('btn-guardar-identidad').addEventListener('click', async () => {
+    const select = document.getElementById('idNombreSelect');
+    const opcion = select.selectedOptions[0];
     const telefono = document.getElementById('idTelefono').value.trim();
+    const msg = document.getElementById('msgIdentidad');
 
-    if (!nombre || !cedula || !telefono) {
-      msg.textContent = 'Completa tu nombre, cédula y teléfono.';
+    if (!select.value) {
+      msg.textContent = 'Selecciona tu nombre en la lista.';
+      msg.className = 'msg error';
+      return;
+    }
+    if (!telefono) {
+      msg.textContent = 'Escribe tu teléfono.';
       msg.className = 'msg error';
       return;
     }
 
-    boton.disabled = true;
-    msg.textContent = 'Cargando tus tareas…';
-    msg.className = 'msg';
-
-    const identidad = { nombre, cedula: normalizarCedula(cedula), telefono };
+    const identidad = {
+      estudianteId: opcion.dataset.id,
+      nombre: opcion.dataset.nombre,
+      cedula: opcion.dataset.cedula || '',
+      telefono,
+      salon: grado,
+    };
     guardarIdentidad(identidad);
 
-    renderBannerEstudiante(materia, grado, identidad);
-    await cargarTareasConEstado(materia, grado, identidad);
+    renderIdentidadWidget(materia, grado);
+    await cargarTareas(materia, grado);
   });
 }
 
-function renderBannerEstudiante(materia, grado, identidad) {
-  selectorEstudiante.innerHTML = `
-    <div class="banner-estudiante">
-      <span>👤 ${escapeHtml(identidad.nombre)}</span>
-      <button class="cambiar" id="btn-cambiar-identidad">¿No eres tú? Cambiar</button>
-    </div>
-  `;
-  document.getElementById('btn-cambiar-identidad').addEventListener('click', () => {
-    borrarIdentidad();
-    listaTareas.innerHTML = '';
-    mostrarFormularioIdentidad(materia, grado);
-  });
+// Carga la lista de estudiantes de ese salón (la misma que ya usa el
+// profesor/administrador en "estudiantes") para el <select>.
+async function cargarSelectorNombres(grado) {
+  const select = document.getElementById('idNombreSelect');
+  if (!select) return;
+
+  const { data: estudiantes, error } = await sb
+    .from('estudiantes')
+    .select('id, nombre, cedula')
+    .eq('salon', grado)
+    .order('nombre', { ascending: true });
+
+  if (error) {
+    console.error(error);
+    select.innerHTML = '<option value="">No se pudo cargar la lista. Recarga la página.</option>';
+    return;
+  }
+
+  if (!estudiantes || !estudiantes.length) {
+    select.innerHTML = '<option value="">Tu salón todavía no tiene estudiantes cargados. Avísale al profesor.</option>';
+    return;
+  }
+
+  select.innerHTML = '<option value="">Selecciona tu nombre</option>' +
+    estudiantes.map(e => `
+      <option value="${e.id}" data-id="${e.id}" data-nombre="${escapeHtml(e.nombre)}" data-cedula="${escapeHtml(e.cedula || '')}">
+        ${escapeHtml(e.nombre)}
+      </option>
+    `).join('');
 }
 
 function determinarEstado(fechaEntrega) {
@@ -235,24 +272,31 @@ function determinarEstado(fechaEntrega) {
   return new Date() <= limite ? 'a_tiempo' : 'tarde';
 }
 
-// ---------- Cargar tareas + lo que este estudiante ya entregó ----------
-// Ya no se busca por "estudiante_id" de una cuenta: se busca por la
-// cédula que escribió, junto con materia y grado, directo en la
-// tabla "entregas".
-async function cargarTareasConEstado(materia, grado, identidad) {
+// ---------- Cargar y mostrar TODAS las tareas (siempre visibles) ----------
+async function cargarTareas(materia, grado) {
   listaTareas.innerHTML = '<p class="estado-cargando">Cargando tareas…</p>';
 
-  const [{ data: tareas, error: errTareas }, { data: entregas, error: errEntregas }] = await Promise.all([
+  const identidad = identidadValidaPara(grado);
+
+  const promesas = [
     sb.from('tareas').select('*').eq('materia', materia).eq('grado', grado).order('creado_en', { ascending: false }),
-    sb.from('entregas').select('*').eq('materia', materia).eq('grado', grado).eq('cedula', identidad.cedula),
-  ]);
+  ];
+  if (identidad) {
+    promesas.push(
+      sb.from('entregas').select('*').eq('materia', materia).eq('grado', grado).eq('estudiante_id', identidad.estudianteId)
+    );
+  }
+
+  const resultados = await Promise.all(promesas);
+  const { data: tareas, error: errTareas } = resultados[0];
+  const entregas = identidad ? (resultados[1].data || []) : [];
+  if (identidad && resultados[1].error) console.error(resultados[1].error);
 
   if (errTareas) {
     listaTareas.innerHTML = '<p class="estado-vacio">No se pudieron cargar las tareas. Intenta de nuevo más tarde.</p>';
     console.error(errTareas);
     return;
   }
-  if (errEntregas) console.error(errEntregas);
 
   if (!tareas.length) {
     listaTareas.innerHTML = '<p class="estado-vacio">Todavía no hay tareas publicadas para esta clase.</p>';
@@ -260,7 +304,7 @@ async function cargarTareasConEstado(materia, grado, identidad) {
   }
 
   const entregasPorTarea = {};
-  (entregas || []).forEach(en => { entregasPorTarea[en.tarea_id] = en; });
+  entregas.forEach(en => { entregasPorTarea[en.tarea_id] = en; });
 
   const accent = ACCENTOS[materia] || 'var(--ciencias)';
 
@@ -277,22 +321,32 @@ async function cargarTareasConEstado(materia, grado, identidad) {
         ${t.archivo_url ? `<a class="btn-descargar" href="${t.archivo_url}" target="_blank" rel="noopener">${t.archivo_nombre ? '↓ Descargar archivo' : '↗ Abrir enlace'}</a>` : ''}
 
         <div class="estado-entrega">
-          ${renderEstadoEntrega(t, entrega)}
+          ${renderEstadoEntrega(t, entrega, identidad)}
         </div>
       </article>
     `;
   }).join('');
 
   // Conectar los formularios de entrega que se hayan renderizado
-  tareas.forEach(t => {
-    if (entregasPorTarea[t.id]) return; // ya entregada, no hay formulario
-    const form = document.querySelector(`[data-form-entrega="${t.id}"]`);
-    if (!form) return;
-    form.addEventListener('submit', (e) => manejarEnvioEntrega(e, t, materia, grado, identidad));
+  if (identidad) {
+    tareas.forEach(t => {
+      if (entregasPorTarea[t.id]) return; // ya entregada, no hay formulario
+      const form = document.querySelector(`[data-form-entrega="${t.id}"]`);
+      if (!form) return;
+      form.addEventListener('submit', (e) => manejarEnvioEntrega(e, t, materia, grado, identidad));
+    });
+  }
+
+  // Botón "Selecciona tu nombre" cuando todavía no hay identidad
+  document.querySelectorAll('[data-ir-a-identidad]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const widget = document.getElementById('identidad-widget');
+      if (widget) widget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
   });
 }
 
-function renderEstadoEntrega(tarea, entrega) {
+function renderEstadoEntrega(tarea, entrega, identidad) {
   if (entrega) {
     const esATiempo = entrega.estado === 'a_tiempo';
     return `
@@ -302,6 +356,15 @@ function renderEstadoEntrega(tarea, entrega) {
       <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">
         Enviada el ${formatearFechaHora(entrega.entregado_en)}
         · <a href="${entrega.entrega_url}" target="_blank" rel="noopener" style="color:var(--muted);">ver lo que enviaste</a>
+      </p>
+    `;
+  }
+
+  if (!identidad) {
+    return `
+      <span class="badge-estado pendiente">Pendiente</span>
+      <p style="font-size:12px; color:var(--muted); margin:6px 0 0;">
+        <a href="#" data-ir-a-identidad style="color:var(--muted);">Selecciona tu nombre arriba para poder entregarla ↑</a>
       </p>
     `;
   }
@@ -354,6 +417,7 @@ async function manejarEnvioEntrega(e, tarea, materia, grado, identidad) {
 
     const { error: errInsert } = await sb.from('entregas').insert({
       tarea_id: tarea.id,
+      estudiante_id: identidad.estudianteId,
       estudiante_nombre: identidad.nombre,
       cedula: identidad.cedula,
       telefono: identidad.telefono,
@@ -362,7 +426,7 @@ async function manejarEnvioEntrega(e, tarea, materia, grado, identidad) {
     if (errInsert) throw errInsert;
 
     // Recargar la vista para mostrar el estado "Entregada"
-    await cargarTareasConEstado(materia, grado, identidad);
+    await cargarTareas(materia, grado);
   } catch (err) {
     console.error(err);
     msg.textContent = 'Ocurrió un error al entregar. Intenta de nuevo.';
