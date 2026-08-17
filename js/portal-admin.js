@@ -1,20 +1,28 @@
 // Portal de Clase — panel de administración (requiere sesión de profesor)
+//
+// Lógica de selección en 3 pasos:
+//   1. Materia (Ciencias Naturales / Informática)
+//   2. Salón(es) — se pueden marcar varios a la vez (ej: 9A, 9B y 9C
+//      reciben la misma clase de Ciencias Naturales; 8A y 8B la misma
+//      de Informática). Los salones marcados son los que reciben,
+//      desde ese momento, las clases/lecciones/tareas que se creen.
+//   3. Clase (Clase 1, Clase 2...) — cada "Clase N" que se crea queda
+//      "agrupada" (grupo_id) entre todos los salones que estaban
+//      marcados al crearla. Agregar/borrar una lección o tarea dentro
+//      de esa clase la agrega/borra en TODOS los salones del grupo a
+//      la vez, sin tener que repetir la carga salón por salón.
+//
+// Requiere estas columnas nuevas (ver migración SQL adjunta):
+//   alter table clases     add column if not exists grupo_id text;
+//   alter table lecciones  add column if not exists grupo_id text;
+//   alter table tareas     add column if not exists grupo_id text;
 const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
-const GRADOS_POR_MATERIA = {
+// Materias que se dictan, y qué salón(es) recibe cada una.
+const MATERIAS = ['Ciencias Naturales', 'Informática'];
+const MATERIA_SALONES = {
   'Ciencias Naturales': ['9A', '9B', '9C', '8A'],
   'Informática': ['8A', '8B'],
-};
-
-// Todos los salones que existen, en el orden en que se muestran,
-// y qué materia(s) recibe cada uno (8A tiene las dos materias).
-const SALONES = ['9A', '9B', '9C', '8A', '8B'];
-const SALON_MATERIAS = {
-  '9A': ['Ciencias Naturales'],
-  '9B': ['Ciencias Naturales'],
-  '9C': ['Ciencias Naturales'],
-  '8A': ['Ciencias Naturales', 'Informática'],
-  '8B': ['Informática'],
 };
 
 const loginBox = document.getElementById('login-box');
@@ -23,6 +31,7 @@ const loginMsg = document.getElementById('login-msg');
 const userEmailEl = document.getElementById('user-email');
 
 const listaClases = document.getElementById('lista-clases');
+const panelClaseSeleccionada = document.getElementById('panel-clase-seleccionada');
 
 const feMateria = document.getElementById('fe-materia');
 const feGrados = document.getElementById('fe-grados');
@@ -31,7 +40,7 @@ const formExamenMsg = document.getElementById('form-examen-msg');
 const listaExamenes = document.getElementById('lista-examenes');
 
 function pintarGrados(contenedor, materia) {
-  const opciones = GRADOS_POR_MATERIA[materia] || [];
+  const opciones = MATERIA_SALONES[materia] || [];
   contenedor.innerHTML = opciones.map((g) => `
     <label>
       <input type="checkbox" name="grado" value="${g}" ${opciones.length === 1 ? 'checked' : ''}>
@@ -82,6 +91,7 @@ document.getElementById('btn-salir').addEventListener('click', async () => {
   location.reload();
 });
 
+// ---------- Utilidades ----------
 function sanitizarNombre(str) {
   return str
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
@@ -90,6 +100,12 @@ function sanitizarNombre(str) {
 
 function extraerRuta(url) {
   const marcador = '/tareas-archivos/';
+  const i = url.indexOf(marcador);
+  return i === -1 ? '' : url.slice(i + marcador.length);
+}
+
+function extraerRutaClase(url) {
+  const marcador = '/material-clases/';
   const i = url.indexOf(marcador);
   return i === -1 ? '' : url.slice(i + marcador.length);
 }
@@ -106,43 +122,98 @@ function formatearFechaCorta(fechaISO) {
   return `${d}/${m}/${y}`;
 }
 
-function extraerRutaClase(url) {
-  const marcador = '/material-clases/';
-  const i = url.indexOf(marcador);
-  return i === -1 ? '' : url.slice(i + marcador.length);
-}
-
 function esImagen(nombreOUrl) {
   if (!nombreOUrl) return false;
   return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(nombreOUrl);
 }
 
-// ---------- Crear "Clase N" (solo el contenedor: título y fechas) ----------
-// Se crea siempre para el salón (y materia) que están seleccionados arriba.
+// Identificador para agrupar filas creadas juntas (una por salón),
+// tanto para "clases" como para lecciones/tareas dentro de ellas.
+function generarId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return `g-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+// Agrupa un arreglo de filas (lecciones o tareas) por su grupo_id.
+// Las filas sin grupo_id (datos antiguos) quedan cada una en su propio grupo.
+function agruparPorGrupoId(filas) {
+  const mapa = new Map();
+  filas.forEach((f) => {
+    const key = f.grupo_id || `solo-${f.id}`;
+    if (!mapa.has(key)) mapa.set(key, { key, muestra: f, filas: [] });
+    mapa.get(key).filas.push(f);
+  });
+  return Array.from(mapa.values());
+}
+
+// Agrupa las filas de "clases" (una fila por salón) en "grupos de clase"
+// (una "Clase N" que puede abarcar varios salones a la vez).
+function agruparClases(clases) {
+  const mapa = new Map();
+  clases.forEach((c) => {
+    const key = c.grupo_id || `solo-${c.id}`;
+    if (!mapa.has(key)) {
+      mapa.set(key, {
+        key,
+        grupoId: c.grupo_id || null,
+        materia: c.materia,
+        numero: c.numero,
+        nombre: c.nombre,
+        fecha_inicio: c.fecha_inicio,
+        fecha_fin: c.fecha_fin,
+        filas: [],
+      });
+    }
+    mapa.get(key).filas.push({ id: c.id, grado: c.grado });
+  });
+  return Array.from(mapa.values());
+}
+
+function obtenerGrupoPorKey(key) {
+  return (window.__gruposAdmin || []).find((g) => g.key === key);
+}
+
+// ---------- Estado de selección ----------
+let materiaSeleccionada = MATERIAS[0];
+let salonesSeleccionados = new Set(MATERIA_SALONES[materiaSeleccionada]); // por defecto, todos los salones de la materia
+let grupoSeleccionadoId = null; // "key" del grupo de clase abierto (grupo_id, o "solo-<id>")
+let mostrandoFormNuevaClase = false;
+const leccionesPorGrupo = {};
+const tareasPorGrupo = {};
+
+// ---------- Crear "Clase N" para todos los salones marcados ----------
 async function crearClase(nombreClase, fechaInicio, fechaFin, msgEl) {
   const materia = materiaSeleccionada;
-  const grado = salonSeleccionado;
+  const salones = Array.from(salonesSeleccionados);
+
+  if (!salones.length) {
+    if (msgEl) {
+      msgEl.textContent = 'Elige al menos un salón.';
+      msgEl.className = 'msg-error';
+    }
+    return;
+  }
 
   try {
-    const { count } = await sb
-      .from('clases')
-      .select('id', { count: 'exact', head: true })
-      .eq('materia', materia)
-      .eq('grado', grado)
-      .eq('es_examen_final', false);
+    const gruposMateria = (window.__gruposAdmin || []).filter((g) => g.materia === materia);
+    const siguienteNumero = gruposMateria.length
+      ? Math.max(...gruposMateria.map((g) => g.numero || 0)) + 1
+      : 1;
 
-    const siguienteNumero = (count || 0) + 1;
-
-    const { data: insertada, error: errInsert } = await sb.from('clases').insert({
+    const grupoId = generarId();
+    const filas = salones.map((grado) => ({
       materia, grado, numero: siguienteNumero,
       es_examen_final: false, nombre: nombreClase,
       fecha_inicio: fechaInicio, fecha_fin: fechaFin,
-    }).select('id').single();
+      grupo_id: grupoId,
+    }));
+
+    const { error: errInsert } = await sb.from('clases').insert(filas);
     if (errInsert) throw errInsert;
 
     mostrandoFormNuevaClase = false;
+    grupoSeleccionadoId = grupoId;
     await cargarClasesAdmin();
-    seleccionarClase(insertada.id);
   } catch (err) {
     console.error(err);
     if (msgEl) {
@@ -152,16 +223,6 @@ async function crearClase(nombreClase, fechaInicio, fechaFin, msgEl) {
   }
 }
 
-// clasesAbiertas ya no existe: ahora solo una clase seleccionada a la vez.
-let claseSeleccionadaId = null;
-let salonSeleccionado = SALONES[0];
-let materiaSeleccionada = SALON_MATERIAS[salonSeleccionado][0];
-let mostrandoFormNuevaClase = false;
-const leccionesPorClase = {};
-const tareasPorClaseId = {};
-
-const panelClaseSeleccionada = document.getElementById('panel-clase-seleccionada');
-
 async function cargarClasesAdmin() {
   listaClases.innerHTML = '<p class="estado-cargando">Cargando…</p>';
   const { data, error } = await sb
@@ -169,8 +230,8 @@ async function cargarClasesAdmin() {
     .select('*')
     .eq('es_examen_final', false)
     .order('materia', { ascending: true })
-    .order('grado', { ascending: true })
-    .order('numero', { ascending: true });
+    .order('numero', { ascending: true })
+    .order('grado', { ascending: true });
 
   if (error) {
     listaClases.innerHTML = '<p class="estado-vacio">No se pudo cargar el material de clase.</p>';
@@ -179,44 +240,53 @@ async function cargarClasesAdmin() {
   }
 
   window.__clasesAdmin = data;
+  window.__gruposAdmin = agruparClases(data);
 
-  // Si la clase que estaba seleccionada ya no existe (se borró), se limpia.
-  if (claseSeleccionadaId && !data.some(c => c.id === claseSeleccionadaId)) {
-    claseSeleccionadaId = null;
+  // Si el grupo que estaba abierto ya no existe (se borró), se limpia.
+  if (grupoSeleccionadoId && !window.__gruposAdmin.some((g) => g.key === grupoSeleccionadoId)) {
+    grupoSeleccionadoId = null;
     panelClaseSeleccionada.innerHTML = '';
   }
 
   renderListaClases(data);
-  if (claseSeleccionadaId) renderPanelClase(claseSeleccionadaId);
+  if (grupoSeleccionadoId) renderPanelClase(grupoSeleccionadoId);
 }
 
-// ---------- Paso 1: elegir salón · Paso 2: elegir la clase (Clase 1, Clase 2...) ----------
+// ---------- Paso 1: materia · Paso 2: salón(es) · Paso 3: clase ----------
 function renderListaClases(clases) {
-  const salonesHtml = SALONES.map(s => `
-    <button class="salon-tab ${s === salonSeleccionado ? 'activa' : ''}" data-salon="${s}">${s}</button>
+  window.__gruposAdmin = agruparClases(clases);
+
+  // Paso 1 — materia
+  const materiaHtml = MATERIAS.map((m) => `
+    <button class="salon-tab ${m === materiaSeleccionada ? 'activa' : ''}" data-materia="${m}">${m}</button>
   `).join('');
 
-  const materiasDelSalon = SALON_MATERIAS[salonSeleccionado] || [];
-  const mostrarPasoMateria = materiasDelSalon.length > 1;
-  const materiaHtml = mostrarPasoMateria ? `
-    <p class="paso-label" style="margin-top:16px;">2. Elige la materia</p>
-    <div class="materia-tabs">
-      ${materiasDelSalon.map(m => `
-        <button class="materia-tab ${m === materiaSeleccionada ? 'activa' : ''}" data-materia="${m}">${m}</button>
-      `).join('')}
-    </div>
-  ` : '';
+  // Paso 2 — salón(es) de la materia elegida, selección múltiple
+  const salonesDeMateria = MATERIA_SALONES[materiaSeleccionada] || [];
+  const salonesHtml = salonesDeMateria.map((s) => `
+    <label>
+      <input type="checkbox" data-salon-check value="${s}" ${salonesSeleccionados.has(s) ? 'checked' : ''}>
+      ${s}
+    </label>
+  `).join('');
 
-  const clasesFiltradas = clases
-    .filter(c => c.grado === salonSeleccionado && c.materia === materiaSeleccionada)
-    .sort((a, b) => a.numero - b.numero);
+  // Paso 3 — clases (grupos) de la materia elegida
+  const gruposDeLaMateria = (window.__gruposAdmin || [])
+    .filter((g) => g.materia === materiaSeleccionada)
+    .sort((a, b) => (a.numero || 0) - (b.numero || 0));
 
-  const claseTabsHtml = clasesFiltradas.map(c => `
-    <button class="clase-tab ${c.id === claseSeleccionadaId ? 'activa' : ''}" data-id="${c.id}">Clase ${c.numero}</button>
+  const claseTabsHtml = gruposDeLaMateria.map((g) => `
+    <button class="clase-tab ${g.key === grupoSeleccionadoId ? 'activa' : ''}" data-key="${g.key}">
+      Clase ${g.numero}
+      <span style="opacity:.65; font-weight:500;">· ${g.filas.map((f) => f.grado).join(', ')}</span>
+    </button>
   `).join('');
 
   const nuevaClaseFormHtml = mostrandoFormNuevaClase ? `
     <form id="form-nueva-clase" class="nueva-clase-form">
+      <p style="font-size:12px; color:var(--muted); margin:0 0 10px;">
+        Se creará a la vez en: <strong>${Array.from(salonesSeleccionados).join(', ') || '— elige un salón arriba —'}</strong>
+      </p>
       <label for="nc-nombre">Título de la clase</label>
       <input type="text" id="nc-nombre" required placeholder="Ej: Función de nutrición y sistema circulatorio">
       <div class="campo-fila">
@@ -230,7 +300,7 @@ function renderListaClases(clases) {
         </div>
       </div>
       <div class="botones-fila">
-        <button type="submit">Crear Clase ${clasesFiltradas.length + 1}</button>
+        <button type="submit">Crear clase</button>
         <button type="button" class="btn-cancelar" id="btn-cancelar-nueva-clase">Cancelar</button>
       </div>
       <p id="nueva-clase-msg" style="margin:8px 0 0;"></p>
@@ -238,10 +308,16 @@ function renderListaClases(clases) {
   ` : '';
 
   listaClases.innerHTML = `
-    <p class="paso-label">1. Elige el salón</p>
-    <div class="salon-tabs">${salonesHtml}</div>
-    ${materiaHtml}
-    <p class="paso-label" style="margin-top:16px;">${mostrarPasoMateria ? '3' : '2'}. Elige la clase</p>
+    <p class="paso-label">1. Elige la materia</p>
+    <div class="salon-tabs">${materiaHtml}</div>
+
+    <p class="paso-label" style="margin-top:16px;">2. Elige el/los salón(es)</p>
+    <p style="font-size:12px; color:var(--muted); margin:0 0 10px;">
+      Marca todos los que reciben la misma clase (ej: 9A, 9B y 9C juntos). Lo que crees o subas abajo se publicará en todos los salones marcados.
+    </p>
+    <div class="grados-check">${salonesHtml}</div>
+
+    <p class="paso-label" style="margin-top:16px;">3. Elige la clase</p>
     <div class="clase-tabs">
       ${claseTabsHtml}
       ${!mostrandoFormNuevaClase ? '<button class="clase-tab-nueva" id="btn-nueva-clase">+ Nueva clase</button>' : ''}
@@ -249,32 +325,36 @@ function renderListaClases(clases) {
     ${nuevaClaseFormHtml}
   `;
 
-  listaClases.querySelectorAll('.salon-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.dataset.salon === salonSeleccionado) return;
-      salonSeleccionado = btn.dataset.salon;
-      const materias = SALON_MATERIAS[salonSeleccionado] || [];
-      if (!materias.includes(materiaSeleccionada)) materiaSeleccionada = materias[0];
-      claseSeleccionadaId = null;
-      mostrandoFormNuevaClase = false;
-      panelClaseSeleccionada.innerHTML = '';
-      renderListaClases(window.__clasesAdmin || []);
-    });
-  });
-
-  listaClases.querySelectorAll('.materia-tab').forEach(btn => {
+  listaClases.querySelectorAll('[data-materia]').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (btn.dataset.materia === materiaSeleccionada) return;
       materiaSeleccionada = btn.dataset.materia;
-      claseSeleccionadaId = null;
+      salonesSeleccionados = new Set(MATERIA_SALONES[materiaSeleccionada] || []);
+      grupoSeleccionadoId = null;
       mostrandoFormNuevaClase = false;
       panelClaseSeleccionada.innerHTML = '';
       renderListaClases(window.__clasesAdmin || []);
     });
   });
 
-  listaClases.querySelectorAll('.clase-tab').forEach(btn => {
-    btn.addEventListener('click', () => seleccionarClase(btn.dataset.id));
+  listaClases.querySelectorAll('[data-salon-check]').forEach((chk) => {
+    chk.addEventListener('change', () => {
+      if (chk.checked) {
+        salonesSeleccionados.add(chk.value);
+      } else {
+        if (salonesSeleccionados.size === 1) {
+          // Debe quedar al menos un salón marcado.
+          chk.checked = true;
+          return;
+        }
+        salonesSeleccionados.delete(chk.value);
+      }
+      renderListaClases(window.__clasesAdmin || []);
+    });
+  });
+
+  listaClases.querySelectorAll('.clase-tab').forEach((btn) => {
+    btn.addEventListener('click', () => seleccionarGrupoClase(btn.dataset.key));
   });
 
   const btnNueva = document.getElementById('btn-nueva-clase');
@@ -302,6 +382,11 @@ function renderListaClases(clases) {
       const nombreClase = document.getElementById('nc-nombre').value.trim();
       const fechaInicio = document.getElementById('nc-inicio').value || null;
       const fechaFin = document.getElementById('nc-fin').value || null;
+      if (!salonesSeleccionados.size) {
+        msgEl.textContent = 'Elige al menos un salón.';
+        msgEl.className = 'msg-error';
+        return;
+      }
       if (!nombreClase) {
         msgEl.textContent = 'Escribe un título para la clase.';
         msgEl.className = 'msg-error';
@@ -314,44 +399,55 @@ function renderListaClases(clases) {
   }
 }
 
-function seleccionarClase(id) {
-  claseSeleccionadaId = (claseSeleccionadaId === id) ? null : id; // volver a pulsarla la cierra
+function seleccionarGrupoClase(key) {
+  grupoSeleccionadoId = (grupoSeleccionadoId === key) ? null : key; // volver a pulsarla la cierra
   mostrandoFormNuevaClase = false;
   renderListaClases(window.__clasesAdmin || []);
-  if (claseSeleccionadaId) {
-    renderPanelClase(claseSeleccionadaId);
+  if (grupoSeleccionadoId) {
+    renderPanelClase(grupoSeleccionadoId);
     panelClaseSeleccionada.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } else {
     panelClaseSeleccionada.innerHTML = '';
   }
 }
 
-async function renderPanelClase(claseId) {
-  const clase = (window.__clasesAdmin || []).find(c => c.id === claseId);
-  if (!clase) return;
+async function renderPanelClase(grupoKey) {
+  const grupo = obtenerGrupoPorKey(grupoKey);
+  if (!grupo) return;
 
   panelClaseSeleccionada.innerHTML = '<div class="clase-panel"><p class="estado-cargando">Cargando lecciones y tareas…</p></div>';
 
-  const [lecciones, tareas] = await Promise.all([
-    obtenerLecciones(claseId),
-    obtenerTareasDeClase(claseId),
+  const claseIds = grupo.filas.map((f) => f.id);
+  const [{ data: leccionesRaw, error: errLecciones }, { data: tareasRaw, error: errTareas }] = await Promise.all([
+    sb.from('lecciones').select('*').in('clase_id', claseIds).order('creado_en', { ascending: true }),
+    sb.from('tareas').select('*').in('clase_id', claseIds).order('creado_en', { ascending: true }),
   ]);
+  if (errLecciones) console.error(errLecciones);
+  if (errTareas) console.error(errTareas);
 
   // Si mientras cargaba se cambió de clase, no pisar el panel nuevo.
-  if (claseSeleccionadaId !== claseId) return;
+  if (grupoSeleccionadoId !== grupoKey) return;
+
+  const leccionesAgrupadas = agruparPorGrupoId(leccionesRaw || []);
+  const tareasAgrupadas = agruparPorGrupoId(tareasRaw || []);
+  leccionesPorGrupo[grupoKey] = leccionesAgrupadas;
+  tareasPorGrupo[grupoKey] = tareasAgrupadas;
+
+  const gradosTexto = grupo.filas.map((f) => f.grado).join(', ');
 
   panelClaseSeleccionada.innerHTML = `
-    <div class="clase-panel" data-panel="${claseId}">
+    <div class="clase-panel" data-panel="${grupoKey}">
       <div class="clase-panel-cabecera">
         <div>
-          <h3>Clase ${clase.numero}: ${escapeHtml(clase.nombre || '')}</h3>
-          <span class="tag">${clase.materia} · ${clase.grado}${(clase.fecha_inicio || clase.fecha_fin) ? ` · ${formatearFechaCorta(clase.fecha_inicio) || '?'} — ${formatearFechaCorta(clase.fecha_fin) || '?'}` : ''}</span>
+          <h3>Clase ${grupo.numero}: ${escapeHtml(grupo.nombre || '')}</h3>
+          <span class="tag">${grupo.materia} · ${gradosTexto}${(grupo.fecha_inicio || grupo.fecha_fin) ? ` · ${formatearFechaCorta(grupo.fecha_inicio) || '?'} — ${formatearFechaCorta(grupo.fecha_fin) || '?'}` : ''}</span>
         </div>
-        <button class="btn-borrar btn-borrar-clase" data-id="${claseId}">Borrar clase</button>
+        <button class="btn-borrar btn-borrar-clase" data-key="${grupoKey}">Borrar clase</button>
       </div>
 
       <h4>📖 Lecciones de esta clase</h4>
-      <form class="sub-form" data-form-leccion="${claseId}">
+      <p style="font-size:11px; color:var(--muted); margin:-6px 0 12px;">Se agregan a la vez en: ${gradosTexto}</p>
+      <form class="sub-form" data-form-leccion="${grupoKey}">
         <input type="text" name="nombre" placeholder="Nombre de la lección (opcional)">
         <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp" multiple>
         <input type="url" name="enlace" placeholder="O pega un enlace">
@@ -360,21 +456,25 @@ async function renderPanelClase(claseId) {
         <p style="font-size:11px; color:var(--muted); flex-basis:100%; margin:0;">Puedes seleccionar varios archivos/imágenes a la vez — se agregan como lecciones separadas.</p>
       </form>
       <div class="sub-lista">
-        ${lecciones.length ? lecciones.map(l => `
-          <div class="item-mini" data-id="${l.id}">
+        ${leccionesAgrupadas.length ? leccionesAgrupadas.map((g) => {
+          const l = g.muestra;
+          return `
+          <div class="item-mini" data-key="${g.key}">
             <span style="display:flex; align-items:center; gap:8px;">
               ${l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url) ? `<img src="${l.archivo_url}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--line);">` : ''}
               ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Archivo' : 'Enlace')} <span class="item-mini-meta">· ${l.tipo === 'archivo' ? '↓ archivo' : '↗ enlace'}</span>
             </span>
-            <button class="btn-borrar btn-borrar-leccion" data-id="${l.id}" data-clase="${claseId}" data-archivo="${l.tipo === 'archivo' ? extraerRutaClase(l.archivo_url) : ''}">Borrar</button>
+            <button class="btn-borrar btn-borrar-leccion" data-key="${g.key}" data-grupo="${grupoKey}">Borrar</button>
           </div>
-        `).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay lecciones en esta clase.</p>'}
+        `;
+        }).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay lecciones en esta clase.</p>'}
       </div>
 
       <hr class="seccion-divisoria">
 
       <h4>📚 Tareas de esta clase</h4>
-      <form class="sub-form" data-form-tarea-clase="${claseId}">
+      <p style="font-size:11px; color:var(--muted); margin:-6px 0 12px;">Se publican a la vez en: ${gradosTexto}</p>
+      <form class="sub-form" data-form-tarea-clase="${grupoKey}">
         <input type="text" name="titulo" placeholder="Título de la tarea" required style="flex-basis:100%;">
         <textarea name="descripcion" rows="2" placeholder="Descripción / instrucciones (opcional)"></textarea>
         <input type="date" name="entrega" title="Fecha de entrega (opcional)">
@@ -384,43 +484,32 @@ async function renderPanelClase(claseId) {
         <p class="sub-form-msg"></p>
       </form>
       <div class="sub-lista">
-        ${tareas.length ? tareas.map(t => `
-          <div class="item-mini" data-id="${t.id}">
+        ${tareasAgrupadas.length ? tareasAgrupadas.map((g) => {
+          const t = g.muestra;
+          return `
+          <div class="item-mini" data-key="${g.key}">
             <span>${escapeHtml(t.titulo)} ${t.fecha_entrega ? `<span class="item-mini-meta">· entrega ${formatearFechaCorta(t.fecha_entrega)}</span>` : ''}</span>
-            <button class="btn-borrar btn-borrar-tarea-clase" data-id="${t.id}" data-clase="${claseId}" data-archivo="${t.archivo_url ? extraerRuta(t.archivo_url) : ''}">Borrar</button>
+            <button class="btn-borrar btn-borrar-tarea-clase" data-key="${g.key}" data-grupo="${grupoKey}">Borrar</button>
           </div>
-        `).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay tareas en esta clase.</p>'}
+        `;
+        }).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay tareas en esta clase.</p>'}
       </div>
     </div>
   `;
 
-  panelClaseSeleccionada.querySelector(`[data-form-leccion="${claseId}"]`).addEventListener('submit', (e) => manejarNuevaLeccion(e, claseId));
-  panelClaseSeleccionada.querySelector(`[data-form-tarea-clase="${claseId}"]`).addEventListener('submit', (e) => manejarNuevaTareaDeClase(e, claseId));
-  panelClaseSeleccionada.querySelectorAll('.btn-borrar-leccion').forEach(btn => {
-    btn.addEventListener('click', () => borrarLeccion(btn.dataset.id, btn.dataset.clase, btn.dataset.archivo));
+  panelClaseSeleccionada.querySelector(`[data-form-leccion="${grupoKey}"]`).addEventListener('submit', (e) => manejarNuevaLeccion(e, grupoKey));
+  panelClaseSeleccionada.querySelector(`[data-form-tarea-clase="${grupoKey}"]`).addEventListener('submit', (e) => manejarNuevaTareaDeClase(e, grupoKey));
+  panelClaseSeleccionada.querySelectorAll('.btn-borrar-leccion').forEach((btn) => {
+    btn.addEventListener('click', () => borrarLeccion(btn.dataset.key, btn.dataset.grupo));
   });
-  panelClaseSeleccionada.querySelectorAll('.btn-borrar-tarea-clase').forEach(btn => {
-    btn.addEventListener('click', () => borrarTareaDeClase(btn.dataset.id, btn.dataset.clase, btn.dataset.archivo));
+  panelClaseSeleccionada.querySelectorAll('.btn-borrar-tarea-clase').forEach((btn) => {
+    btn.addEventListener('click', () => borrarTareaDeClase(btn.dataset.key, btn.dataset.grupo));
   });
-  panelClaseSeleccionada.querySelector('.btn-borrar-clase').addEventListener('click', () => borrarClase(claseId));
+  panelClaseSeleccionada.querySelector('.btn-borrar-clase').addEventListener('click', () => borrarGrupoClase(grupoKey));
 }
 
-async function obtenerLecciones(claseId) {
-  const { data, error } = await sb.from('lecciones').select('*').eq('clase_id', claseId).order('creado_en', { ascending: true });
-  if (error) { console.error(error); return []; }
-  leccionesPorClase[claseId] = data || [];
-  return leccionesPorClase[claseId];
-}
-
-async function obtenerTareasDeClase(claseId) {
-  const { data, error } = await sb.from('tareas').select('*').eq('clase_id', claseId).order('creado_en', { ascending: true });
-  if (error) { console.error(error); return []; }
-  tareasPorClaseId[claseId] = data || [];
-  return tareasPorClaseId[claseId];
-}
-
-// ---------- Agregar una o varias lecciones dentro de una clase ----------
-async function manejarNuevaLeccion(e, claseId) {
+// ---------- Agregar una o varias lecciones, sincronizadas en todos los salones de la clase ----------
+async function manejarNuevaLeccion(e, grupoKey) {
   e.preventDefault();
   const form = e.target;
   const msg = form.querySelector('.sub-form-msg');
@@ -434,18 +523,24 @@ async function manejarNuevaLeccion(e, claseId) {
     return;
   }
 
+  const grupo = obtenerGrupoPorKey(grupoKey);
+  if (!grupo) return;
+
   msg.textContent = 'Guardando…';
   msg.className = 'sub-form-msg';
 
   try {
-    const clase = (window.__clasesAdmin || []).find(c => c.id === claseId);
-    const materia = clase ? clase.materia : 'general';
+    const materia = grupo.materia;
     const filas = [];
 
     if (enlace) {
-      filas.push({ clase_id: claseId, nombre, tipo: 'enlace', archivo_url: enlace, archivo_nombre: null });
+      const leccionGrupoId = generarId();
+      grupo.filas.forEach((f) => {
+        filas.push({ clase_id: f.id, nombre, tipo: 'enlace', archivo_url: enlace, archivo_nombre: null, grupo_id: leccionGrupoId });
+      });
     } else {
       for (const [i, archivo] of archivos.entries()) {
+        // El archivo se sube UNA sola vez y se comparte entre todos los salones del grupo.
         const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${i}-${sanitizarNombre(archivo.name)}`;
         const { error: errSubida } = await sb.storage.from('material-clases').upload(ruta, archivo);
         if (errSubida) throw errSubida;
@@ -453,9 +548,14 @@ async function manejarNuevaLeccion(e, claseId) {
         const nombreLeccion = nombre
           ? (archivos.length > 1 ? `${nombre} (${i + 1})` : nombre)
           : archivo.name.replace(/\.[^/.]+$/, '');
-        filas.push({
-          clase_id: claseId, nombre: nombreLeccion, tipo: 'archivo',
-          archivo_url: pub.publicUrl, archivo_nombre: archivo.name,
+
+        const leccionGrupoId = generarId();
+        grupo.filas.forEach((f) => {
+          filas.push({
+            clase_id: f.id, nombre: nombreLeccion, tipo: 'archivo',
+            archivo_url: pub.publicUrl, archivo_nombre: archivo.name,
+            grupo_id: leccionGrupoId,
+          });
         });
       }
     }
@@ -464,7 +564,7 @@ async function manejarNuevaLeccion(e, claseId) {
     if (errInsert) throw errInsert;
 
     form.reset();
-    renderPanelClase(claseId);
+    renderPanelClase(grupoKey);
   } catch (err) {
     console.error(err);
     msg.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
@@ -472,17 +572,25 @@ async function manejarNuevaLeccion(e, claseId) {
   }
 }
 
-async function borrarLeccion(id, claseId, rutaArchivo) {
-  if (!confirm('¿Borrar esta lección?')) return;
-  await sb.from('lecciones').delete().eq('id', id);
-  if (rutaArchivo) {
-    await sb.storage.from('material-clases').remove([rutaArchivo]);
+async function borrarLeccion(leccionKey, grupoKey) {
+  if (!confirm('¿Borrar esta lección? Se quitará de todos los salones donde aparece.')) return;
+
+  const entrada = (leccionesPorGrupo[grupoKey] || []).find((g) => g.key === leccionKey);
+  if (!entrada) return;
+
+  const ids = entrada.filas.map((f) => f.id);
+  await sb.from('lecciones').delete().in('id', ids);
+
+  if (entrada.muestra.tipo === 'archivo') {
+    const ruta = extraerRutaClase(entrada.muestra.archivo_url);
+    if (ruta) await sb.storage.from('material-clases').remove([ruta]);
   }
-  renderPanelClase(claseId);
+
+  renderPanelClase(grupoKey);
 }
 
-// ---------- Agregar una tarea dentro de una clase ----------
-async function manejarNuevaTareaDeClase(e, claseId) {
+// ---------- Agregar una tarea, sincronizada en todos los salones de la clase ----------
+async function manejarNuevaTareaDeClase(e, grupoKey) {
   e.preventDefault();
   const form = e.target;
   const msg = form.querySelector('.sub-form-msg');
@@ -498,18 +606,20 @@ async function manejarNuevaTareaDeClase(e, claseId) {
     return;
   }
 
+  const grupo = obtenerGrupoPorKey(grupoKey);
+  if (!grupo) return;
+
   msg.textContent = 'Guardando…';
   msg.className = 'sub-form-msg';
 
   try {
-    const clase = (window.__clasesAdmin || []).find(c => c.id === claseId);
-    if (!clase) throw new Error('Clase no encontrada');
-    const materia = clase.materia, grado = clase.grado;
+    const materia = grupo.materia;
     let archivo_url = null, archivo_nombre = null;
 
     if (enlace) {
       archivo_url = enlace;
     } else if (archivo) {
+      // Un solo archivo subido, reutilizado en la tarea de cada salón.
       const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${sanitizarNombre(archivo.name)}`;
       const { error: errSubida } = await sb.storage.from('tareas-archivos').upload(ruta, archivo);
       if (errSubida) throw errSubida;
@@ -518,14 +628,18 @@ async function manejarNuevaTareaDeClase(e, claseId) {
       archivo_nombre = archivo.name;
     }
 
-    const { error: errInsert } = await sb.from('tareas').insert({
-      materia, grado, titulo, descripcion, fecha_entrega: fechaEntrega,
-      archivo_url, archivo_nombre, clase_id: claseId, clase_numero: clase.numero,
-    });
+    const tareaGrupoId = generarId();
+    const filas = grupo.filas.map((f) => ({
+      materia, grado: f.grado, titulo, descripcion, fecha_entrega: fechaEntrega,
+      archivo_url, archivo_nombre, clase_id: f.id, clase_numero: grupo.numero,
+      grupo_id: tareaGrupoId,
+    }));
+
+    const { error: errInsert } = await sb.from('tareas').insert(filas);
     if (errInsert) throw errInsert;
 
     form.reset();
-    renderPanelClase(claseId);
+    renderPanelClase(grupoKey);
   } catch (err) {
     console.error(err);
     msg.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
@@ -533,28 +647,45 @@ async function manejarNuevaTareaDeClase(e, claseId) {
   }
 }
 
-async function borrarTareaDeClase(id, claseId, rutaArchivo) {
-  if (!confirm('¿Borrar esta tarea?')) return;
-  await sb.from('tareas').delete().eq('id', id);
-  if (rutaArchivo) {
-    await sb.storage.from('tareas-archivos').remove([rutaArchivo]);
+async function borrarTareaDeClase(tareaKey, grupoKey) {
+  if (!confirm('¿Borrar esta tarea? Se quitará de todos los salones donde aparece.')) return;
+
+  const entrada = (tareasPorGrupo[grupoKey] || []).find((g) => g.key === tareaKey);
+  if (!entrada) return;
+
+  const ids = entrada.filas.map((f) => f.id);
+  await sb.from('tareas').delete().in('id', ids);
+
+  if (entrada.muestra.archivo_url) {
+    const ruta = extraerRuta(entrada.muestra.archivo_url);
+    if (ruta) await sb.storage.from('tareas-archivos').remove([ruta]);
   }
-  renderPanelClase(claseId);
+
+  renderPanelClase(grupoKey);
 }
 
-async function borrarClase(id) {
-  if (!confirm('¿Borrar esta clase junto con TODAS sus lecciones y tareas?')) return;
-  const lecciones = leccionesPorClase[id] || (await obtenerLecciones(id));
-  const tareas = tareasPorClaseId[id] || (await obtenerTareasDeClase(id));
+async function borrarGrupoClase(grupoKey) {
+  const grupo = obtenerGrupoPorKey(grupoKey);
+  if (!grupo) return;
 
-  const rutasLecciones = lecciones.filter(l => l.tipo === 'archivo').map(l => extraerRutaClase(l.archivo_url));
-  const rutasTareas = tareas.filter(t => t.archivo_url).map(t => extraerRuta(t.archivo_url));
+  const gradosTexto = grupo.filas.map((f) => f.grado).join(', ');
+  if (!confirm(`¿Borrar "Clase ${grupo.numero}" en ${gradosTexto} junto con TODAS sus lecciones y tareas?`)) return;
 
-  await sb.from('clases').delete().eq('id', id); // ON DELETE CASCADE borra lecciones y desvincula tareas
+  const claseIds = grupo.filas.map((f) => f.id);
+  const [{ data: lecciones }, { data: tareas }] = await Promise.all([
+    sb.from('lecciones').select('*').in('clase_id', claseIds),
+    sb.from('tareas').select('*').in('clase_id', claseIds),
+  ]);
+
+  // Varias filas (una por salón) apuntan al mismo archivo: se borra una sola vez.
+  const rutasLecciones = [...new Set((lecciones || []).filter((l) => l.tipo === 'archivo').map((l) => extraerRutaClase(l.archivo_url)))];
+  const rutasTareas = [...new Set((tareas || []).filter((t) => t.archivo_url).map((t) => extraerRuta(t.archivo_url)))];
+
+  await sb.from('clases').delete().in('id', claseIds); // ON DELETE CASCADE borra lecciones y desvincula tareas
   if (rutasLecciones.length) await sb.storage.from('material-clases').remove(rutasLecciones);
   if (rutasTareas.length) await sb.storage.from('tareas-archivos').remove(rutasTareas);
 
-  claseSeleccionadaId = null;
+  grupoSeleccionadoId = null;
   panelClaseSeleccionada.innerHTML = '';
   cargarClasesAdmin();
 }
@@ -568,7 +699,7 @@ formExamen.addEventListener('submit', async (e) => {
   const materia = feMateria.value;
   const gradosSeleccionados = Array.from(
     feGrados.querySelectorAll('input[name="grado"]:checked')
-  ).map(cb => cb.value);
+  ).map((cb) => cb.value);
   const archivoInput = document.getElementById('fe-archivo');
   const archivo = archivoInput.files[0];
   const enlace = document.getElementById('fe-enlace').value.trim();
@@ -601,9 +732,10 @@ formExamen.addEventListener('submit', async (e) => {
       archivo_nombre = archivo.name;
     }
 
-    const filas = gradosSeleccionados.map(grado => ({
+    const grupoId = generarId();
+    const filas = gradosSeleccionados.map((grado) => ({
       materia, grado, numero: null, es_examen_final: true,
-      tipo, archivo_url, archivo_nombre,
+      tipo, archivo_url, archivo_nombre, grupo_id: grupoId,
     }));
 
     const { error: errInsert } = await sb.from('clases').insert(filas);
@@ -640,7 +772,7 @@ async function cargarExamenesAdmin() {
     return;
   }
 
-  listaExamenes.innerHTML = data.map(c => `
+  listaExamenes.innerHTML = data.map((c) => `
     <div class="tarea-admin-item" data-id="${c.id}">
       <div class="info">
         <div class="tag">${c.materia} · ${c.grado}</div>
@@ -650,9 +782,18 @@ async function cargarExamenesAdmin() {
     </div>
   `).join('');
 
-  listaExamenes.querySelectorAll('.btn-borrar').forEach(btn => {
-    btn.addEventListener('click', () => borrarClase(btn.dataset.id, btn.dataset.archivo));
+  listaExamenes.querySelectorAll('.btn-borrar').forEach((btn) => {
+    btn.addEventListener('click', () => borrarExamen(btn.dataset.id, btn.dataset.archivo));
   });
+}
+
+async function borrarExamen(id, rutaArchivo) {
+  if (!confirm('¿Borrar este examen final?')) return;
+  await sb.from('clases').delete().eq('id', id);
+  if (rutaArchivo) {
+    await sb.storage.from('material-clases').remove([rutaArchivo]);
+  }
+  cargarExamenesAdmin();
 }
 
 revisarSesion();
