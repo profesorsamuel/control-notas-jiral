@@ -109,17 +109,33 @@
     margin-bottom: 20px;
   }
 
-  /* ---- Crear clase: colapsable ---- */
-  .crear-clase-details {
+  /* ---- Botón "+ Nueva clase" y su mini-formulario inline ---- */
+  .clase-tab-nueva {
+    border:2px dashed var(--line); background:transparent; color:var(--ink-soft);
+    border-radius: 999px; padding: 9px 16px; font-size:13px; font-weight:600;
+    cursor:pointer; white-space:nowrap;
+  }
+  .clase-tab-nueva:hover { border-color: var(--coral); color: var(--coral); }
+  .nueva-clase-form {
     border:1px solid var(--line); border-radius: var(--radius); background:#fff;
-    padding: 12px 16px; margin-bottom: 20px;
+    padding: 16px; margin-top: 14px; max-width: 480px;
   }
-  .crear-clase-details summary {
-    cursor:pointer; font-weight:600; font-size:14px; color:var(--ink);
-    list-style:none; user-select:none;
+  .nueva-clase-form label { display:block; font-size:13px; color:var(--ink-soft); margin:12px 0 6px; }
+  .nueva-clase-form label:first-child { margin-top: 0; }
+  .nueva-clase-form input {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius);
+    font-family:'Inter',sans-serif; font-size:14px; background:#fff; box-sizing:border-box;
   }
-  .crear-clase-details summary::-webkit-details-marker { display:none; }
-  .crear-clase-details[open] summary { margin-bottom:4px; }
+  .nueva-clase-form .campo-fila { display:flex; gap:12px; }
+  .nueva-clase-form .campo-fila > div { flex:1; }
+  .nueva-clase-form .botones-fila { display:flex; gap:8px; margin-top:16px; }
+  .nueva-clase-form button {
+    border:none; border-radius:var(--radius); font-weight:600; font-size:14px;
+    padding:10px 16px; cursor:pointer;
+  }
+  .nueva-clase-form button[type="submit"] { background: var(--coral); color:#fff; }
+  .nueva-clase-form button[type="submit"]:hover { filter:brightness(1.05); }
+  .nueva-clase-form button.btn-cancelar { background:transparent; border:1px solid var(--line); color:var(--ink-soft); }
 
   /* ---- Paso 1: elegir salón · Paso 2: elegir materia (solo si aplica) ---- */
   .paso-label {
@@ -243,51 +259,11 @@
         <span class="seccion-admin-numero">1</span>
         <div>
           <h2>📖 Lecciones</h2>
-          <p class="seccion-admin-sub">Elige una clase abajo (Clase 1, Clase 2...) para ver y cargar sus lecciones y tareas.</p>
+          <p class="seccion-admin-sub">Elige el salón y luego la clase (Clase 1, Clase 2...) para ver y cargar sus lecciones y tareas.</p>
         </div>
       </div>
 
-      <details class="crear-clase-details">
-        <summary>+ Crear nueva clase</summary>
-        <form id="form-clase" class="form-tarea" style="margin-top:14px;">
-          <div class="campo-fila">
-            <div>
-              <label for="fc-materia">Materia</label>
-              <select id="fc-materia" required>
-                <option value="Ciencias Naturales">Ciencias Naturales</option>
-                <option value="Informática">Informática</option>
-              </select>
-            </div>
-            <div>
-              <label>Grado(s)</label>
-              <div id="fc-grados" class="grados-check"></div>
-            </div>
-          </div>
-
-          <p style="font-size:12px; color:var(--muted); margin:10px 0 0;">
-            El número de clase (Clase 1, Clase 2...) se asigna solo, siguiendo el orden en que las agregas para cada grado.
-          </p>
-
-          <label for="fc-nombre">Título de la clase</label>
-          <input type="text" id="fc-nombre" required placeholder="Ej: Función de nutrición y sistema circulatorio">
-
-          <div class="campo-fila">
-            <div>
-              <label for="fc-inicio">Fecha de inicio</label>
-              <input type="date" id="fc-inicio">
-            </div>
-            <div>
-              <label for="fc-fin">Fecha de finalización</label>
-              <input type="date" id="fc-fin">
-            </div>
-          </div>
-
-          <button type="submit">Crear clase</button>
-          <p id="form-clase-msg"></p>
-        </form>
-      </details>
-
-      <div id="lista-clases" style="margin-top:20px;"><p class="estado-cargando">Cargando…</p></div>
+      <div id="lista-clases"><p class="estado-cargando">Cargando…</p></div>
       <div id="panel-clase-seleccionada"></div>
     </section>
 
