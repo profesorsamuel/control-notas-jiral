@@ -235,7 +235,7 @@ async function cargarNombresDisponibles() {
 
     const { data: estudiantesSalon, error } = await supabase
         .from("estudiantes")
-        .select("id, codigo, nombre, correo")
+        .select("id, codigo, nombre, correo, cedula")
         .eq("salon", salon)
         .order("nombre", { ascending: true });
 
@@ -259,12 +259,38 @@ async function cargarNombresDisponibles() {
 
     const opciones = disponibles.map((e) => {
         const nombreEscapado = String(e.nombre).replace(/"/g, "&quot;");
-        return `<option value="${nombreEscapado}" data-codigo="${e.codigo}" data-id="${e.id}">${e.nombre}</option>`;
+        const cedulaEscapada = String(e.cedula || "").replace(/"/g, "&quot;");
+        return `<option value="${nombreEscapado}" data-codigo="${e.codigo}" data-id="${e.id}" data-cedula="${cedulaEscapada}">${e.nombre}</option>`;
     }).join("");
 
     nombreSelect.innerHTML = `<option value="">Seleccione un estudiante</option>${opciones}`;
     nombreSelect.disabled = false;
 }
+
+// =====================================================
+// AUTOCOMPLETAR CÉDULA AL ELEGIR EL NOMBRE
+// =====================================================
+//
+// Si el administrador ya cargó la cédula de este estudiante en la
+// tabla "estudiantes", se rellena sola y se bloquea (para que no la
+// escriban mal y terminen con una cuenta que no coincide con sus
+// notas). Si todavía no la tenemos guardada, el campo queda vacío
+// y editable, como antes.
+nombreSelect.addEventListener("change", () => {
+    const cedulaInput = document.getElementById("cedula");
+    if (!cedulaInput) return;
+
+    const opcionElegida = nombreSelect.selectedOptions?.[0];
+    const cedulaGuardada = opcionElegida?.dataset?.cedula || "";
+
+    if (cedulaGuardada) {
+        cedulaInput.value = cedulaGuardada;
+        cedulaInput.readOnly = true;
+    } else {
+        cedulaInput.value = "";
+        cedulaInput.readOnly = false;
+    }
+});
 
 // =====================================================
 // CARGAR SOLO LOS SALONES CON CONSEJERO(A) PENDIENTE
