@@ -260,7 +260,9 @@ body {
   margin-bottom: 8px;
 }
 
-.selector-estudiante select {
+.selector-estudiante select,
+.selector-estudiante input[type="text"],
+.selector-estudiante input[type="tel"] {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--line);
@@ -269,6 +271,7 @@ body {
   font-size: 14px;
   background: #fff;
   margin-bottom: 12px;
+  box-sizing: border-box;
 }
 
 .selector-estudiante button {
