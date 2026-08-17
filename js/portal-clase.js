@@ -266,6 +266,8 @@ async function abrirDetalleClase(materia, grado, clase) {
   mostrarDetalleClase();
 
   const contenedor = document.getElementById('detalle-clase');
+  const separadorTareas = document.getElementById('separador-tareas');
+  const tituloTareas = document.getElementById('titulo-tareas');
   const accent = ACCENTOS[materia] || 'var(--ciencias)';
 
   // Examen final: solo el archivo/enlace, sin lecciones ni tareas.
@@ -276,12 +278,16 @@ async function abrirDetalleClase(materia, grado, clase) {
         ${clase.archivo_url ? `<a class="btn-descargar" href="${clase.archivo_url}" target="_blank" rel="noopener">${clase.tipo === 'archivo' ? '↓ Descargar examen' : '↗ Abrir enlace'}</a>` : ''}
       </article>
     `;
+    if (separadorTareas) separadorTareas.style.display = 'none';
+    if (tituloTareas) tituloTareas.style.display = 'none';
     document.getElementById('selector-estudiante').innerHTML = '';
     listaTareas.innerHTML = '';
     return;
   }
 
   contenedor.innerHTML = '<p class="estado-cargando">Cargando…</p>';
+  if (separadorTareas) separadorTareas.style.display = '';
+  if (tituloTareas) tituloTareas.style.display = '';
 
   const { data: lecciones, error: errLecciones } = await sb
     .from('lecciones').select('*').eq('clase_id', clase.id).order('creado_en', { ascending: true });
