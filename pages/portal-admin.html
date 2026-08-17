@@ -68,6 +68,46 @@
     padding:8px 14px; border-radius:var(--radius); font-family:'IBM Plex Mono',monospace;
     font-size:13px; cursor:pointer;
   }
+
+  .seccion-admin {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 32px;
+  }
+  .seccion-admin-titulo {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .seccion-admin-numero {
+    flex-shrink: 0;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 50%;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .seccion-admin-titulo h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    margin: 0;
+    font-size: 20px;
+  }
+  .seccion-admin-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 4px 0 0;
+  }
+  .seccion-admin .form-tarea {
+    box-shadow: none;
+    border-color: var(--line);
+    margin-bottom: 20px;
+  }
 </style>
 </head>
 <body>
@@ -79,7 +119,7 @@
       <p class="eyebrow">Prof. Samuel Ortega</p>
       <h1>Administrar tareas</h1>
       <p style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); margin:6px 0 0;">
-        Ciencias Naturales · Ciencias · Informática
+        Ciencias Naturales · Informática
       </p>
     </div>
     <a class="volver-index" href="portal-clase.html">← Ver portal</a>
@@ -106,126 +146,149 @@
       <button id="btn-salir">Cerrar sesión</button>
     </div>
 
-    <form id="form-tarea" class="form-tarea">
-      <h2 style="font-family:'Space Grotesk',sans-serif; margin:0;">Nueva tarea</h2>
-
-      <div class="campo-fila">
+    <!-- ========== 1. LECCIONES (Material de clase) ========== -->
+    <section class="seccion-admin">
+      <div class="seccion-admin-titulo">
+        <span class="seccion-admin-numero">1</span>
         <div>
-          <label for="f-materia">Materia</label>
-          <select id="f-materia" required>
-            <option value="Ciencias Naturales">Ciencias Naturales</option>
-            <option value="Ciencias">Ciencias</option>
-            <option value="Informática">Informática</option>
-          </select>
-        </div>
-        <div>
-          <label>Grado(s)</label>
-          <div id="f-grados" class="grados-check"></div>
+          <h2>📖 Lecciones</h2>
+          <p class="seccion-admin-sub">El material que suben los estudiantes van a estudiar, organizado como Clase 1, Clase 2, etc.</p>
         </div>
       </div>
 
-      <label for="f-titulo">Título</label>
-      <input type="text" id="f-titulo" required placeholder="Ej: Guía de fotosíntesis">
-
-      <label for="f-descripcion">Descripción / instrucciones</label>
-      <textarea id="f-descripcion" rows="3" placeholder="Explica qué deben hacer los estudiantes"></textarea>
-
-      <label for="f-entrega">Fecha de entrega (opcional)</label>
-      <input type="date" id="f-entrega">
-
-      <label for="f-clase-numero">Pertenece a la Clase # (opcional)</label>
-      <input type="number" id="f-clase-numero" min="1" placeholder="Ej: 3">
-      <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">Si esta tarea es de una clase específica de la sección de abajo, escribe su número aquí para que aparezca junto a esa clase.</p>
-
-      <label for="f-archivo">Archivo para descargar (opcional)</label>
-      <input type="file" id="f-archivo">
-
-      <label for="f-enlace">O pega un enlace en vez de subir archivo (opcional)</label>
-      <input type="url" id="f-enlace" placeholder="https://drive.google.com/...">
-      <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">Si pegas un enlace, no hace falta elegir archivo — se usa el enlace.</p>
-
-      <button type="submit">Publicar tarea</button>
-      <p id="form-msg"></p>
-    </form>
-
-    <h2 style="font-family:'Space Grotesk',sans-serif;">Tareas publicadas</h2>
-    <div id="lista-admin"><p class="estado-cargando">Cargando…</p></div>
-
-    <!-- ---------- Material de clase (Clase 1, Clase 2, ...) ---------- -->
-    <h2 style="font-family:'Space Grotesk',sans-serif; margin-top:48px;">Material de clase</h2>
-    <form id="form-clase" class="form-tarea">
-      <div class="campo-fila">
-        <div>
-          <label for="fc-materia">Materia</label>
-          <select id="fc-materia" required>
-            <option value="Ciencias Naturales">Ciencias Naturales</option>
-            <option value="Ciencias">Ciencias</option>
-            <option value="Informática">Informática</option>
-          </select>
+      <form id="form-clase" class="form-tarea">
+        <div class="campo-fila">
+          <div>
+            <label for="fc-materia">Materia</label>
+            <select id="fc-materia" required>
+              <option value="Ciencias Naturales">Ciencias Naturales</option>
+              <option value="Informática">Informática</option>
+            </select>
+          </div>
+          <div>
+            <label>Grado(s)</label>
+            <div id="fc-grados" class="grados-check"></div>
+          </div>
         </div>
-        <div>
-          <label>Grado(s)</label>
-          <div id="fc-grados" class="grados-check"></div>
-        </div>
-      </div>
 
-      <p style="font-size:12px; color:var(--muted); margin:10px 0 0;">
-        El número de clase (Clase 1, Clase 2...) se asigna solo, siguiendo el orden en que las agregas para cada grado.
-      </p>
+        <p style="font-size:12px; color:var(--muted); margin:10px 0 0;">
+          El número de clase (Clase 1, Clase 2...) se asigna solo, siguiendo el orden en que las agregas para cada grado.
+        </p>
 
-      <div class="campo-fila">
-        <div>
-          <label for="fc-inicio">Desde</label>
-          <input type="date" id="fc-inicio">
+        <div class="campo-fila">
+          <div>
+            <label for="fc-inicio">Desde</label>
+            <input type="date" id="fc-inicio">
+          </div>
+          <div>
+            <label for="fc-fin">Hasta</label>
+            <input type="date" id="fc-fin">
+          </div>
         </div>
+
+        <label for="fc-archivo">Archivo (PDF, Word, PowerPoint, imagen...)</label>
+        <input type="file" id="fc-archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg">
+
+        <label for="fc-enlace">O pega un enlace en vez de subir archivo</label>
+        <input type="url" id="fc-enlace" placeholder="https://drive.google.com/...">
+        <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">Si pegas un enlace, no hace falta elegir archivo — se usa el enlace.</p>
+
+        <button type="submit">Agregar clase</button>
+        <p id="form-clase-msg"></p>
+      </form>
+
+      <div id="lista-clases"><p class="estado-cargando">Cargando…</p></div>
+    </section>
+
+    <!-- ========== 2. TAREAS ========== -->
+    <section class="seccion-admin">
+      <div class="seccion-admin-titulo">
+        <span class="seccion-admin-numero">2</span>
         <div>
-          <label for="fc-fin">Hasta</label>
-          <input type="date" id="fc-fin">
+          <h2>📚 Tareas</h2>
+          <p class="seccion-admin-sub">Trabajos que los estudiantes deben entregar, con fecha límite opcional.</p>
         </div>
       </div>
 
-      <label for="fc-archivo">Archivo (PDF, Word, PowerPoint, imagen...)</label>
-      <input type="file" id="fc-archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg">
-
-      <label for="fc-enlace">O pega un enlace en vez de subir archivo</label>
-      <input type="url" id="fc-enlace" placeholder="https://drive.google.com/...">
-      <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">Si pegas un enlace, no hace falta elegir archivo — se usa el enlace.</p>
-
-      <button type="submit">Agregar clase</button>
-      <p id="form-clase-msg"></p>
-    </form>
-
-    <div id="lista-clases"><p class="estado-cargando">Cargando…</p></div>
-
-    <!-- ---------- Examen final ---------- -->
-    <h2 style="font-family:'Space Grotesk',sans-serif; margin-top:48px;">Examen final</h2>
-    <form id="form-examen" class="form-tarea">
-      <div class="campo-fila">
-        <div>
-          <label for="fe-materia">Materia</label>
-          <select id="fe-materia" required>
-            <option value="Ciencias Naturales">Ciencias Naturales</option>
-            <option value="Ciencias">Ciencias</option>
-            <option value="Informática">Informática</option>
-          </select>
+      <form id="form-tarea" class="form-tarea">
+        <div class="campo-fila">
+          <div>
+            <label for="f-materia">Materia</label>
+            <select id="f-materia" required>
+              <option value="Ciencias Naturales">Ciencias Naturales</option>
+              <option value="Informática">Informática</option>
+            </select>
+          </div>
+          <div>
+            <label>Grado(s)</label>
+            <div id="f-grados" class="grados-check"></div>
+          </div>
         </div>
+
+        <label for="f-titulo">Título</label>
+        <input type="text" id="f-titulo" required placeholder="Ej: Guía de fotosíntesis">
+
+        <label for="f-descripcion">Descripción / instrucciones</label>
+        <textarea id="f-descripcion" rows="3" placeholder="Explica qué deben hacer los estudiantes"></textarea>
+
+        <label for="f-entrega">Fecha de entrega (opcional)</label>
+        <input type="date" id="f-entrega">
+
+        <label for="f-clase-numero">Pertenece a la Clase # (opcional)</label>
+        <input type="number" id="f-clase-numero" min="1" placeholder="Ej: 3">
+        <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">Si esta tarea es de una de las clases de arriba, escribe su número aquí para que aparezca junto a esa clase.</p>
+
+        <label for="f-archivo">Archivo para descargar (opcional)</label>
+        <input type="file" id="f-archivo">
+
+        <label for="f-enlace">O pega un enlace en vez de subir archivo (opcional)</label>
+        <input type="url" id="f-enlace" placeholder="https://drive.google.com/...">
+        <p style="font-size:12px; color:var(--muted); margin:4px 0 0;">Si pegas un enlace, no hace falta elegir archivo — se usa el enlace.</p>
+
+        <button type="submit">Publicar tarea</button>
+        <p id="form-msg"></p>
+      </form>
+
+      <div id="lista-admin"><p class="estado-cargando">Cargando…</p></div>
+    </section>
+
+    <!-- ========== 3. EXAMEN FINAL ========== -->
+    <section class="seccion-admin">
+      <div class="seccion-admin-titulo">
+        <span class="seccion-admin-numero">3</span>
         <div>
-          <label>Grado(s)</label>
-          <div id="fe-grados" class="grados-check"></div>
+          <h2>📕 Examen final</h2>
+          <p class="seccion-admin-sub">Un solo documento o enlace por materia/grado, aparte de las lecciones y tareas.</p>
         </div>
       </div>
 
-      <label for="fe-archivo">Archivo del examen (opcional)</label>
-      <input type="file" id="fe-archivo">
+      <form id="form-examen" class="form-tarea">
+        <div class="campo-fila">
+          <div>
+            <label for="fe-materia">Materia</label>
+            <select id="fe-materia" required>
+              <option value="Ciencias Naturales">Ciencias Naturales</option>
+              <option value="Informática">Informática</option>
+            </select>
+          </div>
+          <div>
+            <label>Grado(s)</label>
+            <div id="fe-grados" class="grados-check"></div>
+          </div>
+        </div>
 
-      <label for="fe-enlace">O pega un enlace en vez de subir archivo</label>
-      <input type="url" id="fe-enlace" placeholder="https://drive.google.com/...">
+        <label for="fe-archivo">Archivo del examen (opcional)</label>
+        <input type="file" id="fe-archivo">
 
-      <button type="submit">Publicar examen final</button>
-      <p id="form-examen-msg"></p>
-    </form>
+        <label for="fe-enlace">O pega un enlace en vez de subir archivo</label>
+        <input type="url" id="fe-enlace" placeholder="https://drive.google.com/...">
 
-    <div id="lista-examenes"><p class="estado-cargando">Cargando…</p></div>
+        <button type="submit">Publicar examen final</button>
+        <p id="form-examen-msg"></p>
+      </form>
+
+      <div id="lista-examenes"><p class="estado-cargando">Cargando…</p></div>
+    </section>
   </div>
 
 </div>
