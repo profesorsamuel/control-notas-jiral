@@ -450,12 +450,23 @@ async function cargarTareas(materia, grado) {
     });
   }
 
-  // Botón "✎ Editar entrega": muestra el formulario para subir un
-  // archivo nuevo o pegar otro enlace, reemplazando el anterior.
+  // Botón "✎ Editar entrega" / "+ Entregar tarea": muestra el formulario
+  // para subir un archivo nuevo o pegar un enlace.
   document.querySelectorAll('[data-editar-entrega]').forEach(boton => {
     boton.addEventListener('click', () => {
       const form = document.querySelector(`[data-form-entrega="${boton.dataset.editarEntrega}"]`);
       if (form) form.classList.toggle('oculto');
+    });
+  });
+
+  // Botón "🗑 Eliminar entrega": borra la entrega ya enviada (por si se
+  // subió por equivocación) y vuelve a dejar la tarea como "Pendiente".
+  document.querySelectorAll('[data-eliminar-entrega]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const tareaId = boton.dataset.eliminarEntrega;
+      const tarea = tareas.find(t => String(t.id) === tareaId);
+      const entrega = entregasPorTarea[tareaId];
+      if (tarea && entrega) eliminarEntrega(tarea, entrega, materia, grado);
     });
   });
 
@@ -532,6 +543,32 @@ function renderVistaPreviaEntrega(entrega) {
   `;
 }
 
+function extraerRutaEntrega(url) {
+  const marcador = '/entregas-archivos/';
+  const i = url.indexOf(marcador);
+  return i === -1 ? '' : url.slice(i + marcador.length);
+}
+
+async function eliminarEntrega(tarea, entrega, materia, grado) {
+  const confirmado = window.confirm('¿Seguro que deseas eliminar esta entrega? Esta acción no se puede deshacer y la tarea quedará como pendiente.');
+  if (!confirmado) return;
+
+  try {
+    const { error: errDelete } = await sb.from('entregas').delete().eq('id', entrega.id);
+    if (errDelete) throw errDelete;
+
+    if (entrega.tipo === 'archivo' && entrega.entrega_url) {
+      const ruta = extraerRutaEntrega(entrega.entrega_url);
+      if (ruta) await sb.storage.from('entregas-archivos').remove([ruta]);
+    }
+
+    await cargarTareas(materia, grado);
+  } catch (err) {
+    console.error(err);
+    alert('Ocurrió un error al eliminar la entrega. Intenta de nuevo.');
+  }
+}
+
 function renderEstadoEntrega(tarea, entrega, identidad) {
   if (entrega) {
     const esATiempo = entrega.estado === 'a_tiempo';
@@ -543,7 +580,10 @@ function renderEstadoEntrega(tarea, entrega, identidad) {
         Enviada el ${formatearFechaHora(entrega.entregado_en)}
       </p>
       ${renderVistaPreviaEntrega(entrega)}
-      <button type="button" class="btn-editar-entrega" data-editar-entrega="${tarea.id}">✎ Editar entrega</button>
+      <div class="entrega-acciones">
+        <button type="button" class="btn-editar-entrega" data-editar-entrega="${tarea.id}">✎ Editar entrega</button>
+        <button type="button" class="btn-eliminar-entrega" data-eliminar-entrega="${tarea.id}">🗑 Eliminar entrega</button>
+      </div>
       <form class="form-entrega oculto" data-form-entrega="${tarea.id}">
         <input type="file" name="archivo">
         <input type="url" name="enlace" placeholder="O pega un enlace en vez de subir archivo">
@@ -567,10 +607,14 @@ function renderEstadoEntrega(tarea, entrega, identidad) {
 
   return `
     <span class="badge-estado pendiente">Pendiente</span>
-    <form class="form-entrega" data-form-entrega="${tarea.id}">
+    <button type="button" class="btn-editar-entrega" data-editar-entrega="${tarea.id}">+ Entregar tarea</button>
+    <form class="form-entrega oculto" data-form-entrega="${tarea.id}">
       <input type="file" name="archivo">
       <input type="url" name="enlace" placeholder="O pega un enlace en vez de subir archivo">
-      <button type="submit">Entregar tarea</button>
+      <div class="form-entrega-botones">
+        <button type="submit">Entregar tarea</button>
+        <button type="button" class="btn-cancelar-entrega" data-cancelar-entrega="${tarea.id}">Cancelar</button>
+      </div>
       <p class="msg"></p>
     </form>
   `;
