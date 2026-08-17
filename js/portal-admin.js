@@ -22,10 +22,6 @@ const panel = document.getElementById('panel');
 const loginMsg = document.getElementById('login-msg');
 const userEmailEl = document.getElementById('user-email');
 
-const fcMateria = document.getElementById('fc-materia');
-const fcGrados = document.getElementById('fc-grados');
-const formClase = document.getElementById('form-clase');
-const formClaseMsg = document.getElementById('form-clase-msg');
 const listaClases = document.getElementById('lista-clases');
 
 const feMateria = document.getElementById('fe-materia');
@@ -43,9 +39,6 @@ function pintarGrados(contenedor, materia) {
     </label>
   `).join('');
 }
-
-fcMateria.addEventListener('change', () => pintarGrados(fcGrados, fcMateria.value));
-pintarGrados(fcGrados, fcMateria.value);
 
 feMateria.addEventListener('change', () => pintarGrados(feGrados, feMateria.value));
 pintarGrados(feGrados, feMateria.value);
@@ -125,73 +118,45 @@ function esImagen(nombreOUrl) {
 }
 
 // ---------- Crear "Clase N" (solo el contenedor: título y fechas) ----------
-formClase.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  formClaseMsg.textContent = 'Guardando…';
-  formClaseMsg.className = '';
-
-  const materia = fcMateria.value;
-  const gradosSeleccionados = Array.from(
-    fcGrados.querySelectorAll('input[name="grado"]:checked')
-  ).map(cb => cb.value);
-  const nombreClase = document.getElementById('fc-nombre').value.trim();
-  const fechaInicio = document.getElementById('fc-inicio').value || null;
-  const fechaFin = document.getElementById('fc-fin').value || null;
-
-  if (!gradosSeleccionados.length) {
-    formClaseMsg.textContent = 'Selecciona al menos un grado.';
-    formClaseMsg.className = 'msg-error';
-    return;
-  }
-
-  if (!nombreClase) {
-    formClaseMsg.textContent = 'Escribe un título para la clase.';
-    formClaseMsg.className = 'msg-error';
-    return;
-  }
+// Se crea siempre para el salón (y materia) que están seleccionados arriba.
+async function crearClase(nombreClase, fechaInicio, fechaFin, msgEl) {
+  const materia = materiaSeleccionada;
+  const grado = salonSeleccionado;
 
   try {
-    // El número de "Clase N" se calcula por separado para cada grado,
-    // siguiendo cuántas clases (que no sean el examen final) ya existen.
-    let nuevoIdParaSeleccionar = null;
-    for (const grado of gradosSeleccionados) {
-      const { count } = await sb
-        .from('clases')
-        .select('id', { count: 'exact', head: true })
-        .eq('materia', materia)
-        .eq('grado', grado)
-        .eq('es_examen_final', false);
+    const { count } = await sb
+      .from('clases')
+      .select('id', { count: 'exact', head: true })
+      .eq('materia', materia)
+      .eq('grado', grado)
+      .eq('es_examen_final', false);
 
-      const siguienteNumero = (count || 0) + 1;
+    const siguienteNumero = (count || 0) + 1;
 
-      const { data: insertada, error: errInsert } = await sb.from('clases').insert({
-        materia, grado, numero: siguienteNumero,
-        es_examen_final: false, nombre: nombreClase,
-        fecha_inicio: fechaInicio, fecha_fin: fechaFin,
-      }).select('id').single();
-      if (errInsert) throw errInsert;
-      nuevoIdParaSeleccionar = insertada.id;
-    }
+    const { data: insertada, error: errInsert } = await sb.from('clases').insert({
+      materia, grado, numero: siguienteNumero,
+      es_examen_final: false, nombre: nombreClase,
+      fecha_inicio: fechaInicio, fecha_fin: fechaFin,
+    }).select('id').single();
+    if (errInsert) throw errInsert;
 
-    formClaseMsg.textContent = '✅ Clase creada. Selecciónala abajo para cargarle lecciones y tareas.';
-    formClaseMsg.className = 'msg-ok';
-    formClase.reset();
-    pintarGrados(fcGrados, fcMateria.value);
-    salonSeleccionado = gradosSeleccionados[0];
-    materiaSeleccionada = materia;
+    mostrandoFormNuevaClase = false;
     await cargarClasesAdmin();
-    if (nuevoIdParaSeleccionar) seleccionarClase(nuevoIdParaSeleccionar);
+    seleccionarClase(insertada.id);
   } catch (err) {
     console.error(err);
-    formClaseMsg.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
-    formClaseMsg.className = 'msg-error';
+    if (msgEl) {
+      msgEl.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
+      msgEl.className = 'msg-error';
+    }
   }
-});
+}
 
 // clasesAbiertas ya no existe: ahora solo una clase seleccionada a la vez.
 let claseSeleccionadaId = null;
 let salonSeleccionado = SALONES[0];
 let materiaSeleccionada = SALON_MATERIAS[salonSeleccionado][0];
+let mostrandoFormNuevaClase = false;
 const leccionesPorClase = {};
 const tareasPorClaseId = {};
 
@@ -246,20 +211,42 @@ function renderListaClases(clases) {
     .filter(c => c.grado === salonSeleccionado && c.materia === materiaSeleccionada)
     .sort((a, b) => a.numero - b.numero);
 
-  const claseTabsHtml = clasesFiltradas.length ? `
-    <div class="clase-tabs">
-      ${clasesFiltradas.map(c => `
-        <button class="clase-tab ${c.id === claseSeleccionadaId ? 'activa' : ''}" data-id="${c.id}">Clase ${c.numero}</button>
-      `).join('')}
-    </div>
-  ` : `<p class="estado-vacio" style="margin:0;">Aún no hay clases creadas para ${materiaSeleccionada} · ${salonSeleccionado}.</p>`;
+  const claseTabsHtml = clasesFiltradas.map(c => `
+    <button class="clase-tab ${c.id === claseSeleccionadaId ? 'activa' : ''}" data-id="${c.id}">Clase ${c.numero}</button>
+  `).join('');
+
+  const nuevaClaseFormHtml = mostrandoFormNuevaClase ? `
+    <form id="form-nueva-clase" class="nueva-clase-form">
+      <label for="nc-nombre">Título de la clase</label>
+      <input type="text" id="nc-nombre" required placeholder="Ej: Función de nutrición y sistema circulatorio">
+      <div class="campo-fila">
+        <div>
+          <label for="nc-inicio">Fecha de inicio (opcional)</label>
+          <input type="date" id="nc-inicio">
+        </div>
+        <div>
+          <label for="nc-fin">Fecha de fin (opcional)</label>
+          <input type="date" id="nc-fin">
+        </div>
+      </div>
+      <div class="botones-fila">
+        <button type="submit">Crear Clase ${clasesFiltradas.length + 1}</button>
+        <button type="button" class="btn-cancelar" id="btn-cancelar-nueva-clase">Cancelar</button>
+      </div>
+      <p id="nueva-clase-msg" style="margin:8px 0 0;"></p>
+    </form>
+  ` : '';
 
   listaClases.innerHTML = `
     <p class="paso-label">1. Elige el salón</p>
     <div class="salon-tabs">${salonesHtml}</div>
     ${materiaHtml}
     <p class="paso-label" style="margin-top:16px;">${mostrarPasoMateria ? '3' : '2'}. Elige la clase</p>
-    ${claseTabsHtml}
+    <div class="clase-tabs">
+      ${claseTabsHtml}
+      ${!mostrandoFormNuevaClase ? '<button class="clase-tab-nueva" id="btn-nueva-clase">+ Nueva clase</button>' : ''}
+    </div>
+    ${nuevaClaseFormHtml}
   `;
 
   listaClases.querySelectorAll('.salon-tab').forEach(btn => {
@@ -269,6 +256,7 @@ function renderListaClases(clases) {
       const materias = SALON_MATERIAS[salonSeleccionado] || [];
       if (!materias.includes(materiaSeleccionada)) materiaSeleccionada = materias[0];
       claseSeleccionadaId = null;
+      mostrandoFormNuevaClase = false;
       panelClaseSeleccionada.innerHTML = '';
       renderListaClases(window.__clasesAdmin || []);
     });
@@ -279,6 +267,7 @@ function renderListaClases(clases) {
       if (btn.dataset.materia === materiaSeleccionada) return;
       materiaSeleccionada = btn.dataset.materia;
       claseSeleccionadaId = null;
+      mostrandoFormNuevaClase = false;
       panelClaseSeleccionada.innerHTML = '';
       renderListaClases(window.__clasesAdmin || []);
     });
@@ -287,10 +276,47 @@ function renderListaClases(clases) {
   listaClases.querySelectorAll('.clase-tab').forEach(btn => {
     btn.addEventListener('click', () => seleccionarClase(btn.dataset.id));
   });
+
+  const btnNueva = document.getElementById('btn-nueva-clase');
+  if (btnNueva) {
+    btnNueva.addEventListener('click', () => {
+      mostrandoFormNuevaClase = true;
+      renderListaClases(window.__clasesAdmin || []);
+      document.getElementById('nc-nombre')?.focus();
+    });
+  }
+
+  const btnCancelar = document.getElementById('btn-cancelar-nueva-clase');
+  if (btnCancelar) {
+    btnCancelar.addEventListener('click', () => {
+      mostrandoFormNuevaClase = false;
+      renderListaClases(window.__clasesAdmin || []);
+    });
+  }
+
+  const formNueva = document.getElementById('form-nueva-clase');
+  if (formNueva) {
+    formNueva.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msgEl = document.getElementById('nueva-clase-msg');
+      const nombreClase = document.getElementById('nc-nombre').value.trim();
+      const fechaInicio = document.getElementById('nc-inicio').value || null;
+      const fechaFin = document.getElementById('nc-fin').value || null;
+      if (!nombreClase) {
+        msgEl.textContent = 'Escribe un título para la clase.';
+        msgEl.className = 'msg-error';
+        return;
+      }
+      msgEl.textContent = 'Guardando…';
+      msgEl.className = '';
+      await crearClase(nombreClase, fechaInicio, fechaFin, msgEl);
+    });
+  }
 }
 
 function seleccionarClase(id) {
   claseSeleccionadaId = (claseSeleccionadaId === id) ? null : id; // volver a pulsarla la cierra
+  mostrandoFormNuevaClase = false;
   renderListaClases(window.__clasesAdmin || []);
   if (claseSeleccionadaId) {
     renderPanelClase(claseSeleccionadaId);
