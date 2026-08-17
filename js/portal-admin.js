@@ -181,6 +181,9 @@ function agruparClases(clases) {
         nombre: c.nombre,
         fecha_inicio: c.fecha_inicio,
         fecha_fin: c.fecha_fin,
+        archivo_url: c.archivo_url || null,
+        archivo_nombre: c.archivo_nombre || null,
+        tipo: c.tipo || null,
         filas: [],
       });
     }
@@ -521,6 +524,31 @@ async function renderPanelClase(grupoKey) {
 
       <h4>📚 Tareas de esta clase</h4>
       <p style="font-size:11px; color:var(--muted); margin:-6px 0 12px;">Se publican a la vez en: ${gradosTexto}</p>
+
+      <p style="font-size:12px; color:var(--ink); font-weight:600; margin:0 0 6px;">📎 Explicación general de las tareas (opcional)</p>
+      <p style="font-size:11px; color:var(--muted); margin:-2px 0 10px;">Un solo archivo o enlace con las instrucciones de todas las tareas de esta clase.</p>
+      <div class="explicacion-tareas" data-explicacion="${grupoKey}">
+        ${grupo.archivo_url ? `
+          <div class="item-mini">
+            <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              ${grupo.archivo_nombre ? escapeHtml(grupo.archivo_nombre) : (grupo.tipo === 'enlace' ? 'Enlace' : 'Archivo')}
+              ${botonVerAdjunto(grupo.archivo_url, grupo.tipo === 'enlace', grupo.archivo_nombre)}
+            </span>
+            <button type="button" class="btn-borrar btn-quitar-explicacion" data-grupo="${grupoKey}">Quitar</button>
+          </div>
+        ` : `
+          <form class="sub-form" data-form-explicacion="${grupoKey}">
+            <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp">
+            <input type="url" name="enlace" placeholder="O pega un enlace">
+            <button type="submit">Adjuntar explicación</button>
+            <p class="sub-form-msg"></p>
+          </form>
+        `}
+      </div>
+
+      <hr class="seccion-divisoria">
+
+      <p style="font-size:12px; color:var(--ink); font-weight:600; margin:0 0 8px;">Tareas individuales (Tarea 1, Tarea 2...)</p>
       <form class="sub-form" data-form-tarea-clase="${grupoKey}">
         <input type="text" name="titulo" placeholder="Título de la tarea" required style="flex-basis:100%;">
         <textarea name="descripcion" rows="2" placeholder="Descripción / instrucciones (opcional)"></textarea>
@@ -549,6 +577,10 @@ async function renderPanelClase(grupoKey) {
 
   panelClaseSeleccionada.querySelector(`[data-form-leccion="${grupoKey}"]`).addEventListener('submit', (e) => manejarNuevaLeccion(e, grupoKey));
   panelClaseSeleccionada.querySelector(`[data-form-tarea-clase="${grupoKey}"]`).addEventListener('submit', (e) => manejarNuevaTareaDeClase(e, grupoKey));
+  const formExplicacion = panelClaseSeleccionada.querySelector(`[data-form-explicacion="${grupoKey}"]`);
+  if (formExplicacion) formExplicacion.addEventListener('submit', (e) => manejarNuevaExplicacion(e, grupoKey));
+  const btnQuitarExplicacion = panelClaseSeleccionada.querySelector('.btn-quitar-explicacion');
+  if (btnQuitarExplicacion) btnQuitarExplicacion.addEventListener('click', () => quitarExplicacion(btnQuitarExplicacion.dataset.grupo));
   panelClaseSeleccionada.querySelectorAll('.btn-borrar-leccion').forEach((btn) => {
     btn.addEventListener('click', () => borrarLeccion(btn.dataset.key, btn.dataset.grupo));
   });
@@ -556,6 +588,81 @@ async function renderPanelClase(grupoKey) {
     btn.addEventListener('click', () => borrarTareaDeClase(btn.dataset.key, btn.dataset.grupo));
   });
   panelClaseSeleccionada.querySelector('.btn-borrar-clase').addEventListener('click', () => borrarGrupoClase(grupoKey));
+}
+
+// ---------- Archivo/enlace explicativo general de las tareas de la clase ----------
+async function manejarNuevaExplicacion(e, grupoKey) {
+  e.preventDefault();
+  const grupo = obtenerGrupoPorKey(grupoKey);
+  if (!grupo) return;
+
+  const form = e.target;
+  const msgEl = form.querySelector('.sub-form-msg');
+  const archivo = form.querySelector('input[name="archivo"]').files[0];
+  const enlace = form.querySelector('input[name="enlace"]').value.trim();
+
+  if (!archivo && !enlace) {
+    msgEl.textContent = 'Sube un archivo o pega un enlace.';
+    msgEl.className = 'sub-form-msg msg-error';
+    return;
+  }
+
+  msgEl.textContent = 'Guardando…';
+  msgEl.className = 'sub-form-msg';
+
+  try {
+    let tipo, archivo_url, archivo_nombre = null;
+
+    if (enlace) {
+      tipo = 'enlace';
+      archivo_url = enlace;
+    } else {
+      tipo = 'archivo';
+      const ruta = `${sanitizarNombre(grupo.materia)}/explicacion-${Date.now()}-${sanitizarNombre(archivo.name)}`;
+      const { error: errSubida } = await sb.storage.from('material-clases').upload(ruta, archivo);
+      if (errSubida) throw errSubida;
+      const { data: pub } = sb.storage.from('material-clases').getPublicUrl(ruta);
+      archivo_url = pub.publicUrl;
+      archivo_nombre = archivo.name;
+    }
+
+    const claseIds = grupo.filas.map((f) => f.id);
+    const { error: errUpdate } = await sb.from('clases')
+      .update({ tipo, archivo_url, archivo_nombre })
+      .in('id', claseIds);
+    if (errUpdate) throw errUpdate;
+
+    await cargarClasesAdmin();
+    renderPanelClase(grupoKey);
+  } catch (err) {
+    console.error(err);
+    msgEl.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
+    msgEl.className = 'sub-form-msg msg-error';
+  }
+}
+
+async function quitarExplicacion(grupoKey) {
+  const grupo = obtenerGrupoPorKey(grupoKey);
+  if (!grupo) return;
+  if (!confirm('¿Quitar el archivo/enlace explicativo de las tareas de esta clase?')) return;
+
+  try {
+    const claseIds = grupo.filas.map((f) => f.id);
+    if (grupo.tipo === 'archivo' && grupo.archivo_url) {
+      const ruta = extraerRutaClase(grupo.archivo_url);
+      if (ruta) await sb.storage.from('material-clases').remove([ruta]);
+    }
+    const { error: errUpdate } = await sb.from('clases')
+      .update({ tipo: null, archivo_url: null, archivo_nombre: null })
+      .in('id', claseIds);
+    if (errUpdate) throw errUpdate;
+
+    await cargarClasesAdmin();
+    renderPanelClase(grupoKey);
+  } catch (err) {
+    console.error(err);
+    alert('Ocurrió un error al quitar el archivo. Intenta de nuevo.');
+  }
 }
 
 // ---------- Agregar una o varias lecciones, sincronizadas en todos los salones de la clase ----------
