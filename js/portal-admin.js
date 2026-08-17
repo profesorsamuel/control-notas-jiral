@@ -1,10 +1,20 @@
 // Portal de Clase — panel de administración (requiere sesión de profesor)
 const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
-const TODOS_LOS_GRADOS = ['9A', '9B', '9C', '8A', '8B'];
 const GRADOS_POR_MATERIA = {
-  'Ciencias Naturales': TODOS_LOS_GRADOS,
-  'Informática': TODOS_LOS_GRADOS,
+  'Ciencias Naturales': ['9A', '9B', '9C', '8A'],
+  'Informática': ['8A', '8B'],
+};
+
+// Todos los salones que existen, en el orden en que se muestran,
+// y qué materia(s) recibe cada uno (8A tiene las dos materias).
+const SALONES = ['9A', '9B', '9C', '8A', '8B'];
+const SALON_MATERIAS = {
+  '9A': ['Ciencias Naturales'],
+  '9B': ['Ciencias Naturales'],
+  '9C': ['Ciencias Naturales'],
+  '8A': ['Ciencias Naturales', 'Informática'],
+  '8B': ['Informática'],
 };
 
 const loginBox = document.getElementById('login-box');
@@ -167,6 +177,8 @@ formClase.addEventListener('submit', async (e) => {
     formClaseMsg.className = 'msg-ok';
     formClase.reset();
     pintarGrados(fcGrados, fcMateria.value);
+    salonSeleccionado = gradosSeleccionados[0];
+    materiaSeleccionada = materia;
     await cargarClasesAdmin();
     if (nuevoIdParaSeleccionar) seleccionarClase(nuevoIdParaSeleccionar);
   } catch (err) {
@@ -178,6 +190,8 @@ formClase.addEventListener('submit', async (e) => {
 
 // clasesAbiertas ya no existe: ahora solo una clase seleccionada a la vez.
 let claseSeleccionadaId = null;
+let salonSeleccionado = SALONES[0];
+let materiaSeleccionada = SALON_MATERIAS[salonSeleccionado][0];
 const leccionesPorClase = {};
 const tareasPorClaseId = {};
 
@@ -198,12 +212,6 @@ async function cargarClasesAdmin() {
     console.error(error);
     return;
   }
-  if (!data.length) {
-    listaClases.innerHTML = '<p class="estado-vacio">Aún no has creado ninguna clase.</p>';
-    panelClaseSeleccionada.innerHTML = '';
-    claseSeleccionadaId = null;
-    return;
-  }
 
   window.__clasesAdmin = data;
 
@@ -213,34 +221,68 @@ async function cargarClasesAdmin() {
     panelClaseSeleccionada.innerHTML = '';
   }
 
-  renderGruposClases(data);
+  renderListaClases(data);
   if (claseSeleccionadaId) renderPanelClase(claseSeleccionadaId);
 }
 
-function renderGruposClases(clases) {
-  const grupos = [];
-  const indice = {};
-  clases.forEach(c => {
-    const clave = `${c.materia}·${c.grado}`;
-    if (!(clave in indice)) {
-      indice[clave] = grupos.length;
-      grupos.push({ materia: c.materia, grado: c.grado, clases: [] });
-    }
-    grupos[indice[clave]].clases.push(c);
+// ---------- Paso 1: elegir salón · Paso 2: elegir la clase (Clase 1, Clase 2...) ----------
+function renderListaClases(clases) {
+  const salonesHtml = SALONES.map(s => `
+    <button class="salon-tab ${s === salonSeleccionado ? 'activa' : ''}" data-salon="${s}">${s}</button>
+  `).join('');
+
+  const materiasDelSalon = SALON_MATERIAS[salonSeleccionado] || [];
+  const mostrarPasoMateria = materiasDelSalon.length > 1;
+  const materiaHtml = mostrarPasoMateria ? `
+    <p class="paso-label" style="margin-top:16px;">2. Elige la materia</p>
+    <div class="materia-tabs">
+      ${materiasDelSalon.map(m => `
+        <button class="materia-tab ${m === materiaSeleccionada ? 'activa' : ''}" data-materia="${m}">${m}</button>
+      `).join('')}
+    </div>
+  ` : '';
+
+  const clasesFiltradas = clases
+    .filter(c => c.grado === salonSeleccionado && c.materia === materiaSeleccionada)
+    .sort((a, b) => a.numero - b.numero);
+
+  const claseTabsHtml = clasesFiltradas.length ? `
+    <div class="clase-tabs">
+      ${clasesFiltradas.map(c => `
+        <button class="clase-tab ${c.id === claseSeleccionadaId ? 'activa' : ''}" data-id="${c.id}">Clase ${c.numero}</button>
+      `).join('')}
+    </div>
+  ` : `<p class="estado-vacio" style="margin:0;">Aún no hay clases creadas para ${materiaSeleccionada} · ${salonSeleccionado}.</p>`;
+
+  listaClases.innerHTML = `
+    <p class="paso-label">1. Elige el salón</p>
+    <div class="salon-tabs">${salonesHtml}</div>
+    ${materiaHtml}
+    <p class="paso-label" style="margin-top:16px;">${mostrarPasoMateria ? '3' : '2'}. Elige la clase</p>
+    ${claseTabsHtml}
+  `;
+
+  listaClases.querySelectorAll('.salon-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.salon === salonSeleccionado) return;
+      salonSeleccionado = btn.dataset.salon;
+      const materias = SALON_MATERIAS[salonSeleccionado] || [];
+      if (!materias.includes(materiaSeleccionada)) materiaSeleccionada = materias[0];
+      claseSeleccionadaId = null;
+      panelClaseSeleccionada.innerHTML = '';
+      renderListaClases(window.__clasesAdmin || []);
+    });
   });
 
-  listaClases.innerHTML = grupos.map(g => `
-    <div class="clase-grupo">
-      <p class="clase-grupo-titulo">${g.materia} · ${g.grado}</p>
-      <div class="clase-tabs">
-        ${g.clases.map(c => `
-          <button class="clase-tab ${c.id === claseSeleccionadaId ? 'activa' : ''}" data-id="${c.id}">
-            Clase ${c.numero}
-          </button>
-        `).join('')}
-      </div>
-    </div>
-  `).join('');
+  listaClases.querySelectorAll('.materia-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.materia === materiaSeleccionada) return;
+      materiaSeleccionada = btn.dataset.materia;
+      claseSeleccionadaId = null;
+      panelClaseSeleccionada.innerHTML = '';
+      renderListaClases(window.__clasesAdmin || []);
+    });
+  });
 
   listaClases.querySelectorAll('.clase-tab').forEach(btn => {
     btn.addEventListener('click', () => seleccionarClase(btn.dataset.id));
@@ -249,7 +291,7 @@ function renderGruposClases(clases) {
 
 function seleccionarClase(id) {
   claseSeleccionadaId = (claseSeleccionadaId === id) ? null : id; // volver a pulsarla la cierra
-  renderGruposClases(window.__clasesAdmin || []);
+  renderListaClases(window.__clasesAdmin || []);
   if (claseSeleccionadaId) {
     renderPanelClase(claseSeleccionadaId);
     panelClaseSeleccionada.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
