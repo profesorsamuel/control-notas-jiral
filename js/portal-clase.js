@@ -1,4 +1,10 @@
 // Portal de Clase — lógica pública (lectura + entrega de tareas)
+//
+// IMPORTANTE: esta página YA NO pide crear cuenta ni iniciar sesión.
+// El estudiante solo escribe su nombre, cédula y teléfono UNA vez;
+// el navegador lo recuerda (localStorage) y las próximas veces entra
+// directo a ver/entregar sus tareas. La identificación de "quién es"
+// para saber qué ya entregó se hace por cédula (no por cuenta).
 const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
 const vistaClases = document.getElementById('vista-clases');
@@ -13,6 +19,8 @@ const ACCENTOS = {
   'Ciencias': 'var(--ciencias)',
   'Informática': 'var(--informatica)',
 };
+
+const CLAVE_IDENTIDAD = 'nj_portal_identidad';
 
 function formatearFecha(fechaISO) {
   if (!fechaISO) return null;
@@ -37,12 +45,37 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// Convierte una cédula en el correo interno que usa Supabase Auth
-// (misma lógica que js/utils.js, duplicada aquí porque este archivo
-// no es un módulo ES y no puede hacer "import").
-function cedulaAEmail(cedula) {
-  const cedulaLimpia = cedula.trim().toLowerCase().replace(/[\s-]/g, '');
-  return `${cedulaLimpia}@notasjiral.local`;
+// Deja la cédula siempre en el mismo formato (sin espacios/guiones,
+// minúsculas) para poder compararla de forma confiable sin importar
+// cómo la haya escrito el estudiante ("8-123-456" vs "8123456").
+function normalizarCedula(cedula) {
+  return (cedula || '').trim().toLowerCase().replace(/[\s-]/g, '');
+}
+
+// ---------- Identidad guardada en este navegador ----------
+function obtenerIdentidadGuardada() {
+  try {
+    const bruto = localStorage.getItem(CLAVE_IDENTIDAD);
+    if (!bruto) return null;
+    const datos = JSON.parse(bruto);
+    if (!datos || !datos.nombre || !datos.cedula) return null;
+    return datos;
+  } catch {
+    return null;
+  }
+}
+
+function guardarIdentidad(identidad) {
+  try {
+    localStorage.setItem(CLAVE_IDENTIDAD, JSON.stringify(identidad));
+  } catch {
+    // Si el navegador bloquea localStorage (modo privado, etc.) no pasa
+    // nada grave: simplemente se le volverá a pedir la próxima vez.
+  }
+}
+
+function borrarIdentidad() {
+  try { localStorage.removeItem(CLAVE_IDENTIDAD); } catch {}
 }
 
 // ---------- Material de clase (Clase 1, Clase 2... + Examen final) ----------
@@ -118,11 +151,7 @@ async function cargarConteos() {
   });
 }
 
-// ---------- Identidad del estudiante: ahora requiere sesión real ----------
-// (misma cuenta de cédula + contraseña que usa el portal de notas). Ya no
-// se guarda nada en sessionStorage: la sesión de Supabase Auth persiste
-// sola y cubre todas las materias/grados a la vez.
-
+// ---------- Abrir una clase (materia + grado) ----------
 async function abrirClase(materia, grado) {
   vistaTitulo.textContent = `${materia} · ${grado}`;
   selectorEstudiante.innerHTML = '';
@@ -132,139 +161,71 @@ async function abrirClase(materia, grado) {
 
   cargarMaterialClase(materia, grado);
 
-  const { data: { user } } = await sb.auth.getUser();
+  const identidad = obtenerIdentidadGuardada();
 
-  if (!user) {
-    mostrarFormularioLogin(materia, grado);
-    await cargarTareasSoloLectura(materia, grado);
+  if (!identidad) {
+    mostrarFormularioIdentidad(materia, grado);
     return;
   }
 
-  const { data: estudiante, error } = await sb
-    .from('estudiantes')
-    .select('id, nombre, cedula, salon, correo')
-    .eq('correo', user.email)
-    .maybeSingle();
-
-  if (error || !estudiante) {
-    selectorEstudiante.innerHTML = `<p class="estado-vacio">No encontramos tu registro de estudiante. Avísale al profesor.</p>`;
-    console.error(error);
-    return;
-  }
-
-  if (estudiante.salon !== grado) {
-    selectorEstudiante.innerHTML = `
-      <div class="aviso-bloqueo">
-        Esta sección es de ${escapeHtml(grado)}, pero tu cuenta está registrada en ${escapeHtml(estudiante.salon || '(sin salón)')}.
-        Solo puedes ver y entregar tareas de tu propio salón.
-      </div>
-    `;
-    return;
-  }
-
-  renderBannerEstudiante(materia, grado, estudiante);
-  await cargarTareasConEstado(materia, grado, estudiante);
+  renderBannerEstudiante(materia, grado, identidad);
+  await cargarTareasConEstado(materia, grado, identidad);
 }
 
-function mostrarFormularioLogin(materia, grado) {
+// ---------- Formulario simple: nombre, cédula, teléfono ----------
+// Ya no hace falta "registrarse" con contraseña. Solo se pide esto la
+// primera vez; el navegador lo recuerda para las próximas visitas.
+function mostrarFormularioIdentidad(materia, grado) {
   selectorEstudiante.innerHTML = `
     <div class="selector-estudiante">
-      <label for="loginCedulaPortal">Cédula</label>
-      <input type="text" id="loginCedulaPortal" placeholder="0-000-0000">
-      <label for="loginPasswordPortal">Contraseña</label>
-      <input type="password" id="loginPasswordPortal" placeholder="••••••••">
-      <button id="btn-login-portal">Iniciar sesión</button>
-      <p class="msg" id="msgLoginPortal"></p>
-      <p style="font-size:12px; color:var(--muted); margin-top:10px;">
-        ¿Aún no tienes cuenta? <a href="registro.html?tipo=estudiante" target="_blank" rel="noopener">Regístrate aquí</a>
-        (necesitas registrarte una sola vez para poder entregar tareas).
-      </p>
+      <label for="idNombre">Nombre completo</label>
+      <input type="text" id="idNombre" placeholder="Tu nombre y apellido">
+      <label for="idCedula">Cédula</label>
+      <input type="text" id="idCedula" placeholder="0-000-0000">
+      <label for="idTelefono">Teléfono</label>
+      <input type="tel" id="idTelefono" placeholder="6000-0000">
+      <button id="btn-continuar-identidad">Continuar y ver mis tareas</button>
+      <p class="msg" id="msgIdentidad"></p>
     </div>
   `;
 
-  const boton = document.getElementById('btn-login-portal');
-  const msg = document.getElementById('msgLoginPortal');
+  const boton = document.getElementById('btn-continuar-identidad');
+  const msg = document.getElementById('msgIdentidad');
 
   boton.addEventListener('click', async () => {
-    const cedula = document.getElementById('loginCedulaPortal').value.trim();
-    const password = document.getElementById('loginPasswordPortal').value;
+    const nombre = document.getElementById('idNombre').value.trim();
+    const cedula = document.getElementById('idCedula').value.trim();
+    const telefono = document.getElementById('idTelefono').value.trim();
 
-    if (!cedula || !password) {
-      msg.textContent = 'Escribe tu cédula y tu contraseña.';
+    if (!nombre || !cedula || !telefono) {
+      msg.textContent = 'Completa tu nombre, cédula y teléfono.';
       msg.className = 'msg error';
       return;
     }
 
     boton.disabled = true;
-    msg.textContent = 'Entrando…';
+    msg.textContent = 'Cargando tus tareas…';
     msg.className = 'msg';
 
-    const { error } = await sb.auth.signInWithPassword({
-      email: cedulaAEmail(cedula),
-      password
-    });
+    const identidad = { nombre, cedula: normalizarCedula(cedula), telefono };
+    guardarIdentidad(identidad);
 
-    if (error) {
-      msg.textContent = 'Cédula o contraseña incorrecta.';
-      msg.className = 'msg error';
-      boton.disabled = false;
-      return;
-    }
-
-    await abrirClase(materia, grado);
+    renderBannerEstudiante(materia, grado, identidad);
+    await cargarTareasConEstado(materia, grado, identidad);
   });
 }
 
-async function cargarTareasSoloLectura(materia, grado) {
-  listaTareas.innerHTML = '<p class="estado-cargando">Cargando tareas…</p>';
-
-  const { data: tareas, error } = await sb
-    .from('tareas')
-    .select('*')
-    .eq('materia', materia)
-    .eq('grado', grado)
-    .order('creado_en', { ascending: false });
-
-  if (error) {
-    listaTareas.innerHTML = '<p class="estado-vacio">No se pudieron cargar las tareas. Intenta de nuevo más tarde.</p>';
-    console.error(error);
-    return;
-  }
-
-  if (!tareas.length) {
-    listaTareas.innerHTML = '<p class="estado-vacio">Todavía no hay tareas publicadas para esta clase.</p>';
-    return;
-  }
-
-  const accent = ACCENTOS[materia] || 'var(--ciencias)';
-
-  listaTareas.innerHTML = tareas.map(t => `
-    <article class="tarea-item" style="--accent:${accent}">
-      <h3>${escapeHtml(t.titulo)}</h3>
-      ${t.descripcion ? `<p>${escapeHtml(t.descripcion)}</p>` : ''}
-      <div class="tarea-meta">
-        <span>Publicado: ${formatearFecha(t.creado_en.split('T')[0])}</span>
-        ${t.fecha_entrega ? `<span class="entrega">Entrega: ${formatearFecha(t.fecha_entrega)}</span>` : ''}
-      </div>
-      ${t.archivo_url ? `<a class="btn-descargar" href="${t.archivo_url}" target="_blank" rel="noopener">${t.archivo_nombre ? '↓ Descargar archivo' : '↗ Abrir enlace'}</a>` : ''}
-      <div class="estado-entrega">
-        <span class="badge-estado pendiente">Inicia sesión arriba para entregar</span>
-      </div>
-    </article>
-  `).join('');
-}
-
-function renderBannerEstudiante(materia, grado, estudiante) {
+function renderBannerEstudiante(materia, grado, identidad) {
   selectorEstudiante.innerHTML = `
     <div class="banner-estudiante">
-      <span>👤 ${escapeHtml(estudiante.nombre)}</span>
-      <button class="cambiar" id="btn-cerrar-sesion-portal">Cerrar sesión</button>
+      <span>👤 ${escapeHtml(identidad.nombre)}</span>
+      <button class="cambiar" id="btn-cambiar-identidad">¿No eres tú? Cambiar</button>
     </div>
   `;
-  document.getElementById('btn-cerrar-sesion-portal').addEventListener('click', async () => {
-    await sb.auth.signOut();
+  document.getElementById('btn-cambiar-identidad').addEventListener('click', () => {
+    borrarIdentidad();
     listaTareas.innerHTML = '';
-    await abrirClase(materia, grado);
+    mostrarFormularioIdentidad(materia, grado);
   });
 }
 
@@ -274,12 +235,16 @@ function determinarEstado(fechaEntrega) {
   return new Date() <= limite ? 'a_tiempo' : 'tarde';
 }
 
-async function cargarTareasConEstado(materia, grado, estudiante) {
+// ---------- Cargar tareas + lo que este estudiante ya entregó ----------
+// Ya no se busca por "estudiante_id" de una cuenta: se busca por la
+// cédula que escribió, junto con materia y grado, directo en la
+// tabla "entregas".
+async function cargarTareasConEstado(materia, grado, identidad) {
   listaTareas.innerHTML = '<p class="estado-cargando">Cargando tareas…</p>';
 
   const [{ data: tareas, error: errTareas }, { data: entregas, error: errEntregas }] = await Promise.all([
     sb.from('tareas').select('*').eq('materia', materia).eq('grado', grado).order('creado_en', { ascending: false }),
-    sb.from('entregas').select('*').eq('materia', materia).eq('grado', grado).eq('estudiante_id', estudiante.id),
+    sb.from('entregas').select('*').eq('materia', materia).eq('grado', grado).eq('cedula', identidad.cedula),
   ]);
 
   if (errTareas) {
@@ -312,7 +277,7 @@ async function cargarTareasConEstado(materia, grado, estudiante) {
         ${t.archivo_url ? `<a class="btn-descargar" href="${t.archivo_url}" target="_blank" rel="noopener">${t.archivo_nombre ? '↓ Descargar archivo' : '↗ Abrir enlace'}</a>` : ''}
 
         <div class="estado-entrega">
-          ${renderEstadoEntrega(t, entrega, estudiante)}
+          ${renderEstadoEntrega(t, entrega)}
         </div>
       </article>
     `;
@@ -323,11 +288,11 @@ async function cargarTareasConEstado(materia, grado, estudiante) {
     if (entregasPorTarea[t.id]) return; // ya entregada, no hay formulario
     const form = document.querySelector(`[data-form-entrega="${t.id}"]`);
     if (!form) return;
-    form.addEventListener('submit', (e) => manejarEnvioEntrega(e, t, materia, grado, estudiante));
+    form.addEventListener('submit', (e) => manejarEnvioEntrega(e, t, materia, grado, identidad));
   });
 }
 
-function renderEstadoEntrega(tarea, entrega, estudiante) {
+function renderEstadoEntrega(tarea, entrega) {
   if (entrega) {
     const esATiempo = entrega.estado === 'a_tiempo';
     return `
@@ -352,7 +317,7 @@ function renderEstadoEntrega(tarea, entrega, estudiante) {
   `;
 }
 
-async function manejarEnvioEntrega(e, tarea, materia, grado, estudiante) {
+async function manejarEnvioEntrega(e, tarea, materia, grado, identidad) {
   e.preventDefault();
   const form = e.target;
   const msg = form.querySelector('.msg');
@@ -378,7 +343,7 @@ async function manejarEnvioEntrega(e, tarea, materia, grado, estudiante) {
       entrega_url = enlace;
     } else {
       tipo = 'archivo';
-      const ruta = `${sanitizarNombre(materia)}/${sanitizarNombre(grado)}/${Date.now()}-${sanitizarNombre(estudiante.nombre)}-${sanitizarNombre(archivo.name)}`;
+      const ruta = `${sanitizarNombre(materia)}/${sanitizarNombre(grado)}/${Date.now()}-${sanitizarNombre(identidad.nombre)}-${sanitizarNombre(archivo.name)}`;
       const { error: errSubida } = await sb.storage.from('entregas-archivos').upload(ruta, archivo);
       if (errSubida) throw errSubida;
       const { data: pub } = sb.storage.from('entregas-archivos').getPublicUrl(ruta);
@@ -389,15 +354,15 @@ async function manejarEnvioEntrega(e, tarea, materia, grado, estudiante) {
 
     const { error: errInsert } = await sb.from('entregas').insert({
       tarea_id: tarea.id,
-      estudiante_id: estudiante.id,
-      estudiante_nombre: estudiante.nombre,
-      cedula: estudiante.cedula,
+      estudiante_nombre: identidad.nombre,
+      cedula: identidad.cedula,
+      telefono: identidad.telefono,
       materia, grado, tipo, entrega_url, estado,
     });
     if (errInsert) throw errInsert;
 
     // Recargar la vista para mostrar el estado "Entregada"
-    await cargarTareasConEstado(materia, grado, estudiante);
+    await cargarTareasConEstado(materia, grado, identidad);
   } catch (err) {
     console.error(err);
     msg.textContent = 'Ocurrió un error al entregar. Intenta de nuevo.';
