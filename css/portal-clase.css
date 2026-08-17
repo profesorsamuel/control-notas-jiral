@@ -338,6 +338,8 @@ body {
 .badge-estado.tarde { background: #fdf1ed; color: #b3402a; }
 .badge-estado.pendiente { background: #f1eee4; color: var(--muted); }
 
+.form-entrega.oculto { display: none; }
+
 .form-entrega {
   margin-top: 10px;
   display: flex;
