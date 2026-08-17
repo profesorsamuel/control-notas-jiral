@@ -301,12 +301,6 @@ async function abrirDetalleClase(materia, grado, clase) {
           <span>${formatearFecha(clase.fecha_inicio) || '?'} — ${formatearFecha(clase.fecha_fin) || '?'}</span>
         </div>
       ` : ''}
-      ${clase.archivo_url ? `
-        <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">📎 Explicación de las tareas:</p>
-        <div class="leccion-miniaturas" style="margin-bottom:4px;">
-          ${renderLeccionItem({ tipo: clase.tipo, archivo_url: clase.archivo_url, archivo_nombre: clase.archivo_nombre, nombre: 'Ver explicación' })}
-        </div>
-      ` : ''}
       ${(lecciones && lecciones.length) ? `
         <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">Lecciones:</p>
         <div class="leccion-miniaturas">
@@ -314,6 +308,15 @@ async function abrirDetalleClase(materia, grado, clase) {
         </div>
       ` : `<p class="estado-vacio" style="padding:6px 0 0;">Todavía no hay lecciones en esta clase.</p>`}
     </article>
+    ${clase.archivo_url ? `
+      <article class="tarea-item explicacion-tareas-card">
+        <h4>📎 Explicación de las tareas</h4>
+        <p>Este archivo/enlace explica todas las tareas de esta clase.</p>
+        <div class="leccion-miniaturas">
+          ${renderLeccionItem({ tipo: clase.tipo, archivo_url: clase.archivo_url, archivo_nombre: clase.archivo_nombre, nombre: 'Ver explicación' })}
+        </div>
+      </article>
+    ` : ''}
   `;
 
   renderIdentidadWidget(materia, grado);
