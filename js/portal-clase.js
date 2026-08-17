@@ -295,7 +295,12 @@ async function abrirDetalleClase(materia, grado, clase) {
           <span>${formatearFecha(clase.fecha_inicio) || '?'} — ${formatearFecha(clase.fecha_fin) || '?'}</span>
         </div>
       ` : ''}
-      ${clase.archivo_url ? `<a class="btn-descargar" href="${clase.archivo_url}" target="_blank" rel="noopener">${clase.tipo === 'archivo' ? '↓ Descargar material' : '↗ Abrir enlace'}</a>` : ''}
+      ${clase.archivo_url ? `
+        <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">📎 Explicación de las tareas:</p>
+        <div class="leccion-miniaturas" style="margin-bottom:4px;">
+          ${renderLeccionItem({ tipo: clase.tipo, archivo_url: clase.archivo_url, archivo_nombre: clase.archivo_nombre, nombre: 'Ver explicación' })}
+        </div>
+      ` : ''}
       ${(lecciones && lecciones.length) ? `
         <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">Lecciones:</p>
         <div class="leccion-miniaturas">
