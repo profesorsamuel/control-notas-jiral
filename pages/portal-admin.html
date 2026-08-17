@@ -121,12 +121,30 @@
   .crear-clase-details summary::-webkit-details-marker { display:none; }
   .crear-clase-details[open] summary { margin-bottom:4px; }
 
-  /* ---- Grupos de clases por materia/grado, con pestañas "Clase N" ---- */
-  .clase-grupo { margin-bottom: 18px; }
-  .clase-grupo-titulo {
-    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted);
-    margin: 0 0 8px; text-transform:uppercase; letter-spacing:.03em;
+  /* ---- Paso 1: elegir salón · Paso 2: elegir materia (solo si aplica) ---- */
+  .paso-label {
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.04em; margin:0 0 10px;
   }
+  .salon-tabs { display:flex; flex-wrap:wrap; gap:10px; }
+  .salon-tab {
+    border:2px solid var(--line); background:#fff; color:var(--ink);
+    border-radius: 999px; padding: 10px 22px; font-size:15px; font-weight:700;
+    cursor:pointer; white-space:nowrap; font-family:'Space Grotesk',sans-serif;
+  }
+  .salon-tab:hover { border-color: var(--ink); }
+  .salon-tab.activa { background: var(--ink); border-color: var(--ink); color:#fff; }
+
+  .materia-tabs { display:flex; flex-wrap:wrap; gap:8px; }
+  .materia-tab {
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    border-radius: 999px; padding: 8px 16px; font-size:13px; font-weight:600;
+    cursor:pointer; white-space:nowrap;
+  }
+  .materia-tab:hover { border-color: var(--coral); }
+  .materia-tab.activa { background: var(--coral); border-color: var(--coral); color:#fff; }
+
+  /* ---- Grupos de clases por materia/grado, con pestañas "Clase N" ---- */
   .clase-tabs { display:flex; flex-wrap:wrap; gap:8px; }
   .clase-tab {
     border:1px solid var(--line); background:#fff; color:var(--ink);
