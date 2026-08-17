@@ -251,6 +251,7 @@ formClase.addEventListener('submit', async (e) => {
   try {
     // El número de "Clase N" se calcula por separado para cada grado,
     // siguiendo cuántas clases (que no sean el examen final) ya existen.
+    let nuevoIdParaSeleccionar = null;
     for (const grado of gradosSeleccionados) {
       const { count } = await sb
         .from('clases')
@@ -261,19 +262,21 @@ formClase.addEventListener('submit', async (e) => {
 
       const siguienteNumero = (count || 0) + 1;
 
-      const { error: errInsert } = await sb.from('clases').insert({
+      const { data: insertada, error: errInsert } = await sb.from('clases').insert({
         materia, grado, numero: siguienteNumero,
         es_examen_final: false, nombre: nombreClase,
         fecha_inicio: fechaInicio, fecha_fin: fechaFin,
-      });
+      }).select('id').single();
       if (errInsert) throw errInsert;
+      nuevoIdParaSeleccionar = insertada.id;
     }
 
-    formClaseMsg.textContent = '✅ Clase creada. Ábrela con "Gestionar contenido" para cargarle lecciones y tareas.';
+    formClaseMsg.textContent = '✅ Clase creada. Selecciónala abajo para cargarle lecciones y tareas.';
     formClaseMsg.className = 'msg-ok';
     formClase.reset();
     pintarGrados(fcGrados, fcMateria.value);
-    cargarClasesAdmin();
+    await cargarClasesAdmin();
+    if (nuevoIdParaSeleccionar) seleccionarClase(nuevoIdParaSeleccionar);
   } catch (err) {
     console.error(err);
     formClaseMsg.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
@@ -281,12 +284,12 @@ formClase.addEventListener('submit', async (e) => {
   }
 });
 
-// clasesAbiertas: ids de las clases cuyo panel de gestión está desplegado.
-// leccionesPorClase / tareasPorClase: caché en memoria de lo cargado, para
-// no repetir consultas al desplegar/plegar el mismo panel varias veces.
-const clasesAbiertas = new Set();
+// clasesAbiertas ya no existe: ahora solo una clase seleccionada a la vez.
+let claseSeleccionadaId = null;
 const leccionesPorClase = {};
 const tareasPorClaseId = {};
+
+const panelClaseSeleccionada = document.getElementById('panel-clase-seleccionada');
 
 async function cargarClasesAdmin() {
   listaClases.innerHTML = '<p class="estado-cargando">Cargando…</p>';
@@ -305,125 +308,137 @@ async function cargarClasesAdmin() {
   }
   if (!data.length) {
     listaClases.innerHTML = '<p class="estado-vacio">Aún no has creado ninguna clase.</p>';
+    panelClaseSeleccionada.innerHTML = '';
+    claseSeleccionadaId = null;
     return;
   }
 
-  window.__clasesAdmin = data; // referencia rápida por id, usada al renderizar paneles
-  renderListaClases(data);
-}
+  window.__clasesAdmin = data;
 
-function renderListaClases(clases) {
-  listaClases.innerHTML = clases.map(c => renderClaseCard(c)).join('');
-
-  listaClases.querySelectorAll('.btn-gestionar').forEach(btn => {
-    btn.addEventListener('click', () => toggleClase(btn.dataset.id));
-  });
-  listaClases.querySelectorAll('.btn-borrar-clase').forEach(btn => {
-    btn.addEventListener('click', () => borrarClase(btn.dataset.id));
-  });
-
-  clasesAbiertas.forEach(id => conectarPanelClase(id));
-}
-
-function renderClaseCard(c) {
-  const abierta = clasesAbiertas.has(c.id);
-  return `
-    <div class="clase-card" data-id="${c.id}">
-      <div class="clase-card-cabecera">
-        <div class="info">
-          <div class="tag">${c.materia} · ${c.grado}</div>
-          <strong>Clase ${c.numero}: ${escapeHtml(c.nombre || '')}</strong>
-          ${c.fecha_inicio || c.fecha_fin ? `<div class="tag">${formatearFechaCorta(c.fecha_inicio) || '?'} — ${formatearFechaCorta(c.fecha_fin) || '?'}</div>` : ''}
-          <div class="conteo-mini" data-conteo-clase="${c.id}">cargando contenido…</div>
-        </div>
-        <div class="clase-card-botones">
-          <button class="btn-gestionar ${abierta ? 'activo' : ''}" data-id="${c.id}">
-            ${abierta ? 'Cerrar' : 'Gestionar contenido'}
-          </button>
-          <button class="btn-borrar btn-borrar-clase" data-id="${c.id}">Borrar clase</button>
-        </div>
-      </div>
-      ${abierta ? `<div class="clase-panel" data-panel="${c.id}">${renderPanelClaseCargando()}</div>` : ''}
-    </div>
-  `;
-}
-
-function renderPanelClaseCargando() {
-  return '<p class="estado-cargando">Cargando lecciones y tareas…</p>';
-}
-
-async function toggleClase(id) {
-  if (clasesAbiertas.has(id)) {
-    clasesAbiertas.delete(id);
-  } else {
-    clasesAbiertas.add(id);
+  // Si la clase que estaba seleccionada ya no existe (se borró), se limpia.
+  if (claseSeleccionadaId && !data.some(c => c.id === claseSeleccionadaId)) {
+    claseSeleccionadaId = null;
+    panelClaseSeleccionada.innerHTML = '';
   }
-  renderListaClases(window.__clasesAdmin || []);
+
+  renderGruposClases(data);
+  if (claseSeleccionadaId) renderPanelClase(claseSeleccionadaId);
 }
 
-// Carga (si hace falta) y dibuja el contenido del panel de una clase abierta.
-async function conectarPanelClase(claseId) {
-  const panel = listaClases.querySelector(`[data-panel="${claseId}"]`);
-  if (!panel) return;
+function renderGruposClases(clases) {
+  const grupos = [];
+  const indice = {};
+  clases.forEach(c => {
+    const clave = `${c.materia}·${c.grado}`;
+    if (!(clave in indice)) {
+      indice[clave] = grupos.length;
+      grupos.push({ materia: c.materia, grado: c.grado, clases: [] });
+    }
+    grupos[indice[clave]].clases.push(c);
+  });
+
+  listaClases.innerHTML = grupos.map(g => `
+    <div class="clase-grupo">
+      <p class="clase-grupo-titulo">${g.materia} · ${g.grado}</p>
+      <div class="clase-tabs">
+        ${g.clases.map(c => `
+          <button class="clase-tab ${c.id === claseSeleccionadaId ? 'activa' : ''}" data-id="${c.id}">
+            Clase ${c.numero}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  listaClases.querySelectorAll('.clase-tab').forEach(btn => {
+    btn.addEventListener('click', () => seleccionarClase(btn.dataset.id));
+  });
+}
+
+function seleccionarClase(id) {
+  claseSeleccionadaId = (claseSeleccionadaId === id) ? null : id; // volver a pulsarla la cierra
+  renderGruposClases(window.__clasesAdmin || []);
+  if (claseSeleccionadaId) {
+    renderPanelClase(claseSeleccionadaId);
+    panelClaseSeleccionada.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else {
+    panelClaseSeleccionada.innerHTML = '';
+  }
+}
+
+async function renderPanelClase(claseId) {
+  const clase = (window.__clasesAdmin || []).find(c => c.id === claseId);
+  if (!clase) return;
+
+  panelClaseSeleccionada.innerHTML = '<div class="clase-panel"><p class="estado-cargando">Cargando lecciones y tareas…</p></div>';
 
   const [lecciones, tareas] = await Promise.all([
     obtenerLecciones(claseId),
     obtenerTareasDeClase(claseId),
   ]);
 
-  const conteoEl = listaClases.querySelector(`[data-conteo-clase="${claseId}"]`);
-  if (conteoEl) {
-    conteoEl.textContent = `${lecciones.length} ${lecciones.length === 1 ? 'lección' : 'lecciones'} · ${tareas.length} ${tareas.length === 1 ? 'tarea' : 'tareas'}`;
-  }
+  // Si mientras cargaba se cambió de clase, no pisar el panel nuevo.
+  if (claseSeleccionadaId !== claseId) return;
 
-  panel.innerHTML = `
-    <h4>📖 Lecciones de esta clase</h4>
-    <form class="sub-form" data-form-leccion="${claseId}">
-      <input type="text" name="nombre" placeholder="Nombre de la lección (opcional)">
-      <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg">
-      <input type="url" name="enlace" placeholder="O pega un enlace">
-      <button type="submit">Agregar lección</button>
-      <p class="sub-form-msg"></p>
-    </form>
-    <div class="sub-lista">
-      ${lecciones.length ? lecciones.map(l => `
-        <div class="item-mini" data-id="${l.id}">
-          <span>${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Archivo' : 'Enlace')} <span class="item-mini-meta">· ${l.tipo === 'archivo' ? '↓ archivo' : '↗ enlace'}</span></span>
-          <button class="btn-borrar btn-borrar-leccion" data-id="${l.id}" data-clase="${claseId}" data-archivo="${l.tipo === 'archivo' ? extraerRutaClase(l.archivo_url) : ''}">Borrar</button>
+  panelClaseSeleccionada.innerHTML = `
+    <div class="clase-panel" data-panel="${claseId}">
+      <div class="clase-panel-cabecera">
+        <div>
+          <h3>Clase ${clase.numero}: ${escapeHtml(clase.nombre || '')}</h3>
+          <span class="tag">${clase.materia} · ${clase.grado}${(clase.fecha_inicio || clase.fecha_fin) ? ` · ${formatearFechaCorta(clase.fecha_inicio) || '?'} — ${formatearFechaCorta(clase.fecha_fin) || '?'}` : ''}</span>
         </div>
-      `).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay lecciones en esta clase.</p>'}
-    </div>
+        <button class="btn-borrar btn-borrar-clase" data-id="${claseId}">Borrar clase</button>
+      </div>
 
-    <hr class="seccion-divisoria">
+      <h4>📖 Lecciones de esta clase</h4>
+      <form class="sub-form" data-form-leccion="${claseId}">
+        <input type="text" name="nombre" placeholder="Nombre de la lección (opcional)">
+        <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg">
+        <input type="url" name="enlace" placeholder="O pega un enlace">
+        <button type="submit">Agregar lección</button>
+        <p class="sub-form-msg"></p>
+      </form>
+      <div class="sub-lista">
+        ${lecciones.length ? lecciones.map(l => `
+          <div class="item-mini" data-id="${l.id}">
+            <span>${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Archivo' : 'Enlace')} <span class="item-mini-meta">· ${l.tipo === 'archivo' ? '↓ archivo' : '↗ enlace'}</span></span>
+            <button class="btn-borrar btn-borrar-leccion" data-id="${l.id}" data-clase="${claseId}" data-archivo="${l.tipo === 'archivo' ? extraerRutaClase(l.archivo_url) : ''}">Borrar</button>
+          </div>
+        `).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay lecciones en esta clase.</p>'}
+      </div>
 
-    <h4>📚 Tareas de esta clase</h4>
-    <form class="sub-form" data-form-tarea-clase="${claseId}">
-      <input type="text" name="titulo" placeholder="Título de la tarea" required style="flex-basis:100%;">
-      <textarea name="descripcion" rows="2" placeholder="Descripción / instrucciones (opcional)"></textarea>
-      <input type="date" name="entrega" title="Fecha de entrega (opcional)">
-      <input type="file" name="archivo">
-      <input type="url" name="enlace" placeholder="O pega un enlace">
-      <button type="submit">Agregar tarea</button>
-      <p class="sub-form-msg"></p>
-    </form>
-    <div class="sub-lista">
-      ${tareas.length ? tareas.map(t => `
-        <div class="item-mini" data-id="${t.id}">
-          <span>${escapeHtml(t.titulo)} ${t.fecha_entrega ? `<span class="item-mini-meta">· entrega ${formatearFechaCorta(t.fecha_entrega)}</span>` : ''}</span>
-          <button class="btn-borrar btn-borrar-tarea-clase" data-id="${t.id}" data-clase="${claseId}" data-archivo="${t.archivo_url ? extraerRuta(t.archivo_url) : ''}">Borrar</button>
-        </div>
-      `).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay tareas en esta clase.</p>'}
+      <hr class="seccion-divisoria">
+
+      <h4>📚 Tareas de esta clase</h4>
+      <form class="sub-form" data-form-tarea-clase="${claseId}">
+        <input type="text" name="titulo" placeholder="Título de la tarea" required style="flex-basis:100%;">
+        <textarea name="descripcion" rows="2" placeholder="Descripción / instrucciones (opcional)"></textarea>
+        <input type="date" name="entrega" title="Fecha de entrega (opcional)">
+        <input type="file" name="archivo">
+        <input type="url" name="enlace" placeholder="O pega un enlace">
+        <button type="submit">Agregar tarea</button>
+        <p class="sub-form-msg"></p>
+      </form>
+      <div class="sub-lista">
+        ${tareas.length ? tareas.map(t => `
+          <div class="item-mini" data-id="${t.id}">
+            <span>${escapeHtml(t.titulo)} ${t.fecha_entrega ? `<span class="item-mini-meta">· entrega ${formatearFechaCorta(t.fecha_entrega)}</span>` : ''}</span>
+            <button class="btn-borrar btn-borrar-tarea-clase" data-id="${t.id}" data-clase="${claseId}" data-archivo="${t.archivo_url ? extraerRuta(t.archivo_url) : ''}">Borrar</button>
+          </div>
+        `).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay tareas en esta clase.</p>'}
+      </div>
     </div>
   `;
 
-  panel.querySelector(`[data-form-leccion="${claseId}"]`).addEventListener('submit', (e) => manejarNuevaLeccion(e, claseId));
-  panel.querySelector(`[data-form-tarea-clase="${claseId}"]`).addEventListener('submit', (e) => manejarNuevaTareaDeClase(e, claseId));
-  panel.querySelectorAll('.btn-borrar-leccion').forEach(btn => {
+  panelClaseSeleccionada.querySelector(`[data-form-leccion="${claseId}"]`).addEventListener('submit', (e) => manejarNuevaLeccion(e, claseId));
+  panelClaseSeleccionada.querySelector(`[data-form-tarea-clase="${claseId}"]`).addEventListener('submit', (e) => manejarNuevaTareaDeClase(e, claseId));
+  panelClaseSeleccionada.querySelectorAll('.btn-borrar-leccion').forEach(btn => {
     btn.addEventListener('click', () => borrarLeccion(btn.dataset.id, btn.dataset.clase, btn.dataset.archivo));
   });
-  panel.querySelectorAll('.btn-borrar-tarea-clase').forEach(btn => {
+  panelClaseSeleccionada.querySelectorAll('.btn-borrar-tarea-clase').forEach(btn => {
     btn.addEventListener('click', () => borrarTareaDeClase(btn.dataset.id, btn.dataset.clase, btn.dataset.archivo));
   });
+  panelClaseSeleccionada.querySelector('.btn-borrar-clase').addEventListener('click', () => borrarClase(claseId));
 }
 
 async function obtenerLecciones(claseId) {
@@ -482,7 +497,7 @@ async function manejarNuevaLeccion(e, claseId) {
     if (errInsert) throw errInsert;
 
     form.reset();
-    await conectarPanelClase(claseId);
+    renderPanelClase(claseId);
   } catch (err) {
     console.error(err);
     msg.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
@@ -496,7 +511,7 @@ async function borrarLeccion(id, claseId, rutaArchivo) {
   if (rutaArchivo) {
     await sb.storage.from('material-clases').remove([rutaArchivo]);
   }
-  conectarPanelClase(claseId);
+  renderPanelClase(claseId);
 }
 
 // ---------- Agregar una tarea dentro de una clase ----------
@@ -543,7 +558,7 @@ async function manejarNuevaTareaDeClase(e, claseId) {
     if (errInsert) throw errInsert;
 
     form.reset();
-    await conectarPanelClase(claseId);
+    renderPanelClase(claseId);
     cargarTareasAdmin(); // la sección 2 (tareas generales) también las lista
   } catch (err) {
     console.error(err);
@@ -558,7 +573,7 @@ async function borrarTareaDeClase(id, claseId, rutaArchivo) {
   if (rutaArchivo) {
     await sb.storage.from('tareas-archivos').remove([rutaArchivo]);
   }
-  conectarPanelClase(claseId);
+  renderPanelClase(claseId);
   cargarTareasAdmin();
 }
 
@@ -574,7 +589,8 @@ async function borrarClase(id) {
   if (rutasLecciones.length) await sb.storage.from('material-clases').remove(rutasLecciones);
   if (rutasTareas.length) await sb.storage.from('tareas-archivos').remove(rutasTareas);
 
-  clasesAbiertas.delete(id);
+  claseSeleccionadaId = null;
+  panelClaseSeleccionada.innerHTML = '';
   cargarClasesAdmin();
   cargarTareasAdmin();
 }
