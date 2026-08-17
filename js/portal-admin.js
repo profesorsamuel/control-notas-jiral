@@ -173,6 +173,11 @@ function obtenerGrupoPorKey(key) {
   return (window.__gruposAdmin || []).find((g) => g.key === key);
 }
 
+// "Clave" de una combinación de salones (para comparar sin importar el orden).
+function claveDeSalones(grados) {
+  return Array.from(grados).slice().sort().join('|');
+}
+
 // ---------- Estado de selección ----------
 let materiaSeleccionada = MATERIAS[0];
 let salonesSeleccionados = new Set(MATERIA_SALONES[materiaSeleccionada]); // por defecto, todos los salones de la materia
@@ -195,9 +200,11 @@ async function crearClase(nombreClase, fechaInicio, fechaFin, msgEl) {
   }
 
   try {
-    const gruposMateria = (window.__gruposAdmin || []).filter((g) => g.materia === materia);
-    const siguienteNumero = gruposMateria.length
-      ? Math.max(...gruposMateria.map((g) => g.numero || 0)) + 1
+    const claveSeleccion = claveDeSalones(salones);
+    const gruposMismaCombinacion = (window.__gruposAdmin || [])
+      .filter((g) => g.materia === materia && claveDeSalones(g.filas.map((f) => f.grado)) === claveSeleccion);
+    const siguienteNumero = gruposMismaCombinacion.length
+      ? Math.max(...gruposMismaCombinacion.map((g) => g.numero || 0)) + 1
       : 1;
 
     const grupoId = generarId();
@@ -270,16 +277,22 @@ function renderListaClases(clases) {
     </label>
   `).join('');
 
-  // Paso 3 — clases (grupos) de la materia elegida
+  // Paso 3 — clases (grupos) que pertenecen EXACTAMENTE a la combinación de
+  // salones marcada arriba. Si marcas solo 8A, solo ves las clases de 8A
+  // (que son distintas a las de 9A+9B+9C, aunque sean de la misma materia).
+  const claveSeleccion = claveDeSalones(salonesSeleccionados);
   const gruposDeLaMateria = (window.__gruposAdmin || [])
-    .filter((g) => g.materia === materiaSeleccionada)
+    .filter((g) => g.materia === materiaSeleccionada && claveDeSalones(g.filas.map((f) => f.grado)) === claveSeleccion)
     .sort((a, b) => (a.numero || 0) - (b.numero || 0));
 
   const claseTabsHtml = gruposDeLaMateria.map((g) => `
-    <button class="clase-tab ${g.key === grupoSeleccionadoId ? 'activa' : ''}" data-key="${g.key}">
-      Clase ${g.numero}
-      <span style="opacity:.65; font-weight:500;">· ${g.filas.map((f) => f.grado).join(', ')}</span>
-    </button>
+    <span class="clase-tab-wrap">
+      <button class="clase-tab ${g.key === grupoSeleccionadoId ? 'activa' : ''}" data-key="${g.key}">
+        Clase ${g.numero}
+        <span style="opacity:.65; font-weight:500;">· ${g.filas.map((f) => f.grado).join(', ')}</span>
+      </button>
+      <button class="clase-tab-borrar" data-key="${g.key}" title="Borrar esta clase">✕</button>
+    </span>
   `).join('');
 
   const nuevaClaseFormHtml = mostrandoFormNuevaClase ? `
@@ -349,12 +362,25 @@ function renderListaClases(clases) {
         }
         salonesSeleccionados.delete(chk.value);
       }
+      // La combinación de salones cambió: las clases que se muestran en el
+      // paso 3 dependen de esa combinación exacta, así que se refresca y se
+      // cierra cualquier clase que estuviera abierta de la combinación anterior.
+      grupoSeleccionadoId = null;
+      mostrandoFormNuevaClase = false;
+      panelClaseSeleccionada.innerHTML = '';
       renderListaClases(window.__clasesAdmin || []);
     });
   });
 
   listaClases.querySelectorAll('.clase-tab').forEach((btn) => {
     btn.addEventListener('click', () => seleccionarGrupoClase(btn.dataset.key));
+  });
+
+  listaClases.querySelectorAll('.clase-tab-borrar').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      borrarGrupoClase(btn.dataset.key);
+    });
   });
 
   const btnNueva = document.getElementById('btn-nueva-clase');
@@ -685,8 +711,10 @@ async function borrarGrupoClase(grupoKey) {
   if (rutasLecciones.length) await sb.storage.from('material-clases').remove(rutasLecciones);
   if (rutasTareas.length) await sb.storage.from('tareas-archivos').remove(rutasTareas);
 
-  grupoSeleccionadoId = null;
-  panelClaseSeleccionada.innerHTML = '';
+  if (grupoSeleccionadoId === grupoKey) {
+    grupoSeleccionadoId = null;
+    panelClaseSeleccionada.innerHTML = '';
+  }
   cargarClasesAdmin();
 }
 
