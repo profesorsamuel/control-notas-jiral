@@ -105,127 +105,153 @@ function identidadValidaPara(grado) {
   return identidad;
 }
 
-// ---------- Material de clase (Clase 1, Clase 2... + Examen final) ----------
-async function cargarMaterialClase(materia, grado) {
-  const contenedor = document.getElementById('material-clase');
+// ---------- Navegación dentro de una materia+grado ----------
+// Paso 2: lista de "Clase 1", "Clase 2"... (y Examen final si existe)
+// Paso 3: detalle de una sola clase, con sus lecciones y sus tareas
+const vistaListaClases = document.getElementById('vista-lista-clases');
+const vistaDetalleClase = document.getElementById('vista-detalle-clase');
+const btnVolverClase = document.getElementById('btn-volver-clase');
+
+let claseActual = null; // la clase abierta ahora mismo en el paso 3 (o null)
+
+function mostrarListaClases() {
+  vistaListaClases.classList.remove('oculto');
+  vistaDetalleClase.classList.add('oculto');
+  claseActual = null;
+}
+
+function mostrarDetalleClase() {
+  vistaListaClases.classList.add('oculto');
+  vistaDetalleClase.classList.remove('oculto');
+}
+
+// ---------- Paso 2: lista de "Clase 1", "Clase 2"... ----------
+async function cargarListaClases(materia, grado) {
+  const contenedor = document.getElementById('lista-clases-grid');
   if (!contenedor) return;
-  contenedor.innerHTML = '';
+  contenedor.innerHTML = '<p class="estado-cargando">Cargando…</p>';
 
   const { data: clases, error: errClases } = await sb
     .from('clases').select('*').eq('materia', materia).eq('grado', grado).order('numero', { ascending: true });
 
-  if (errClases) { console.error(errClases); return; }
+  if (errClases) {
+    console.error(errClases);
+    contenedor.innerHTML = '<p class="estado-vacio">No se pudieron cargar las clases.</p>';
+    return;
+  }
 
   const listaClasesData = (clases || []).filter(c => !c.es_examen_final);
   const examen = (clases || []).find(c => c.es_examen_final);
 
-  if (!listaClasesData.length && !examen) return;
+  if (!listaClasesData.length && !examen) {
+    contenedor.innerHTML = '<p class="estado-vacio">Todavía no hay clases publicadas para este salón.</p>';
+    return;
+  }
 
   const idsClases = listaClasesData.map(c => c.id);
-  const [{ data: leccionesData }, { data: tareasResumen }] = await Promise.all([
-    idsClases.length ? sb.from('lecciones').select('*').in('clase_id', idsClases).order('creado_en', { ascending: true }) : Promise.resolve({ data: [] }),
-    sb.from('tareas').select('id, titulo, clase_id, clase_numero').eq('materia', materia).eq('grado', grado),
+  const [{ data: leccionesData }, { data: tareasData }] = await Promise.all([
+    idsClases.length ? sb.from('lecciones').select('id, clase_id').in('clase_id', idsClases) : Promise.resolve({ data: [] }),
+    sb.from('tareas').select('id, clase_id, clase_numero').eq('materia', materia).eq('grado', grado),
   ]);
 
-  const leccionesPorClase = {};
-  (leccionesData || []).forEach(l => {
-    (leccionesPorClase[l.clase_id] = leccionesPorClase[l.clase_id] || []).push(l);
-  });
-
-  const tareasPorClase = {};
-  (tareasResumen || []).forEach(t => {
-    const clave = t.clase_id || t.clase_numero; // compatibilidad con tareas antiguas ligadas solo por número
-    if (clave == null) return;
-    (tareasPorClase[clave] = tareasPorClase[clave] || []).push(t);
-  });
+  const contarLecciones = (claseId) => (leccionesData || []).filter(l => l.clase_id === claseId).length;
+  const contarTareas = (c) => (tareasData || []).filter(t => (t.clase_id != null ? t.clase_id === c.id : t.clase_numero === c.numero)).length;
 
   const accent = ACCENTOS[materia] || 'var(--ciencias)';
-  const hayClases = listaClasesData.length > 0;
 
-  // ---------- Pestañas: "Clase 1", "Clase 2"... + "Examen final" ----------
-  const pestanasClases = listaClasesData.map((c, i) => `
-    <button type="button" class="clase-tab ${i === 0 ? 'activa' : ''}" style="--accent:${accent}" data-clase-tab="clase-${c.id}">
-      Clase ${c.numero}
-    </button>
-  `).join('');
-
-  const pestanaExamen = examen ? `
-    <button type="button" class="clase-tab examen ${!hayClases ? 'activa' : ''}" data-clase-tab="clase-examen">
-      📕 Examen final
-    </button>
-  ` : '';
-
-  // ---------- Panel de cada clase: sus lecciones + sus tareas ----------
-  const panelesClases = listaClasesData.map((c, i) => {
-    const lecciones = leccionesPorClase[c.id] || [];
-    const tareasDeEsta = tareasPorClase[c.id] || tareasPorClase[c.numero] || [];
+  const tarjetasClases = listaClasesData.map(c => {
+    const nLecciones = contarLecciones(c.id);
+    const nTareas = contarTareas(c);
     return `
-      <div class="clase-panel ${i === 0 ? '' : 'oculto'}" data-clase-panel="clase-${c.id}">
-        <article class="tarea-item" style="--accent:${accent}">
-          <h3>Clase ${c.numero}${c.nombre ? `: ${escapeHtml(c.nombre)}` : ''}</h3>
-          ${(c.fecha_inicio || c.fecha_fin) ? `
-            <div class="tarea-meta">
-              <span>${formatearFecha(c.fecha_inicio) || '?'} — ${formatearFecha(c.fecha_fin) || '?'}</span>
-            </div>
-          ` : ''}
-          ${c.archivo_url ? `<a class="btn-descargar" href="${c.archivo_url}" target="_blank" rel="noopener">${c.tipo === 'archivo' ? '↓ Descargar material' : '↗ Abrir enlace'}</a>` : ''}
-          ${lecciones.length ? (() => {
-            const imagenes = lecciones.filter(l => l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url));
-            const otras = lecciones.filter(l => !imagenes.includes(l));
-            return `
-              <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">Lecciones:</p>
-              ${imagenes.length ? `
-                <div class="leccion-miniaturas">
-                  ${imagenes.map(l => `
-                    <a class="leccion-miniatura" href="${l.archivo_url}" target="_blank" rel="noopener" title="${l.nombre ? escapeHtml(l.nombre) : 'Ver imagen'}">
-                      <img src="${l.archivo_url}" alt="${l.nombre ? escapeHtml(l.nombre) : 'Lección'}" loading="lazy">
-                      ${l.nombre ? `<span>${escapeHtml(l.nombre)}</span>` : ''}
-                    </a>
-                  `).join('')}
-                </div>
-              ` : ''}
-              ${otras.length ? `
-                <div style="display:flex; flex-wrap:wrap; gap:8px; ${imagenes.length ? 'margin-top:8px;' : ''}">
-                  ${otras.map(l => `<a class="btn-descargar" style="margin-top:0;" href="${l.archivo_url}" target="_blank" rel="noopener">${l.tipo === 'archivo' ? '↓' : '↗'} ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Descargar' : 'Abrir enlace')}</a>`).join('')}
-                </div>
-              ` : ''}
-            `;
-          })() : `<p class="estado-vacio" style="padding:6px 0 0;">Todavía no hay lecciones en esta clase.</p>`}
-          ${tareasDeEsta.length ? `
-            <p style="font-size:12px; color:var(--muted); margin:10px 0 0;">Tareas de esta clase:</p>
-            <ul style="margin:4px 0 0; padding-left:18px; font-size:13px;">
-              ${tareasDeEsta.map(t => `<li>${escapeHtml(t.titulo)}</li>`).join('')}
-            </ul>
-          ` : ''}
-        </article>
-      </div>
+      <button type="button" class="clase-card" style="--accent:${accent}" data-clase-id="${c.id}">
+        <span class="clase-card-num">Clase ${c.numero}</span>
+        <p class="clase-card-nombre">${c.nombre ? escapeHtml(c.nombre) : `Clase ${c.numero}`}</p>
+        ${(c.fecha_inicio || c.fecha_fin) ? `<p class="clase-card-fechas">${formatearFecha(c.fecha_inicio) || '?'} — ${formatearFecha(c.fecha_fin) || '?'}</p>` : ''}
+        <p class="clase-card-conteo">${nLecciones ? `${nLecciones} lección${nLecciones === 1 ? '' : 'es'}` : 'sin lecciones'} · ${nTareas ? `${nTareas} tarea${nTareas === 1 ? '' : 's'}` : 'sin tareas'}</p>
+      </button>
     `;
   }).join('');
 
-  const panelExamen = examen ? `
-    <div class="clase-panel ${!hayClases ? '' : 'oculto'}" data-clase-panel="clase-examen">
-      <article class="tarea-item" style="--accent:var(--coral); border-color:var(--coral);">
-        <h3>📕 Examen final</h3>
-        <a class="btn-descargar" href="${examen.archivo_url}" target="_blank" rel="noopener">${examen.tipo === 'archivo' ? '↓ Descargar examen' : '↗ Abrir enlace'}</a>
-      </article>
-    </div>
+  const tarjetaExamen = examen ? `
+    <button type="button" class="clase-card examen" data-clase-id="examen">
+      <span class="clase-card-num">📕 Examen</span>
+      <p class="clase-card-nombre">Examen final</p>
+    </button>
   ` : '';
 
-  contenedor.innerHTML = `
-    <h3 class="material-titulo">Material de clase</h3>
-    <div class="clase-tabs">${pestanasClases}${pestanaExamen}</div>
-    <div class="clase-paneles">${panelesClases}${panelExamen}</div>
-  `;
+  contenedor.innerHTML = tarjetasClases + tarjetaExamen;
 
-  // Al hacer clic en una pestaña ("Clase 1", "Clase 2"...) se muestra
-  // solo el panel de esa clase (sus lecciones y sus tareas).
-  contenedor.querySelectorAll('[data-clase-tab]').forEach(boton => {
+  contenedor.querySelectorAll('[data-clase-id]').forEach(boton => {
     boton.addEventListener('click', () => {
-      const objetivo = boton.dataset.claseTab;
-      contenedor.querySelectorAll('[data-clase-tab]').forEach(b => b.classList.toggle('activa', b === boton));
-      contenedor.querySelectorAll('[data-clase-panel]').forEach(p => p.classList.toggle('oculto', p.dataset.clasePanel !== objetivo));
+      const id = boton.dataset.claseId;
+      const clase = id === 'examen' ? examen : listaClasesData.find(c => String(c.id) === id);
+      if (clase) abrirDetalleClase(materia, grado, clase);
     });
   });
+}
+
+// ---------- Paso 3: detalle de una clase (lecciones + tareas) ----------
+async function abrirDetalleClase(materia, grado, clase) {
+  claseActual = clase;
+  mostrarDetalleClase();
+
+  const contenedor = document.getElementById('detalle-clase');
+  const accent = ACCENTOS[materia] || 'var(--ciencias)';
+
+  // Examen final: solo el archivo/enlace, sin lecciones ni tareas.
+  if (clase.es_examen_final) {
+    contenedor.innerHTML = `
+      <article class="tarea-item" style="--accent:var(--coral); border-color:var(--coral);">
+        <h3>📕 Examen final</h3>
+        ${clase.archivo_url ? `<a class="btn-descargar" href="${clase.archivo_url}" target="_blank" rel="noopener">${clase.tipo === 'archivo' ? '↓ Descargar examen' : '↗ Abrir enlace'}</a>` : ''}
+      </article>
+    `;
+    document.getElementById('selector-estudiante').innerHTML = '';
+    listaTareas.innerHTML = '';
+    return;
+  }
+
+  contenedor.innerHTML = '<p class="estado-cargando">Cargando…</p>';
+
+  const { data: lecciones, error: errLecciones } = await sb
+    .from('lecciones').select('*').eq('clase_id', clase.id).order('creado_en', { ascending: true });
+  if (errLecciones) console.error(errLecciones);
+
+  const imagenes = (lecciones || []).filter(l => l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url));
+  const otras = (lecciones || []).filter(l => !imagenes.includes(l));
+
+  contenedor.innerHTML = `
+    <article class="tarea-item" style="--accent:${accent}">
+      <h3>Clase ${clase.numero}${clase.nombre ? `: ${escapeHtml(clase.nombre)}` : ''}</h3>
+      ${(clase.fecha_inicio || clase.fecha_fin) ? `
+        <div class="tarea-meta">
+          <span>${formatearFecha(clase.fecha_inicio) || '?'} — ${formatearFecha(clase.fecha_fin) || '?'}</span>
+        </div>
+      ` : ''}
+      ${clase.archivo_url ? `<a class="btn-descargar" href="${clase.archivo_url}" target="_blank" rel="noopener">${clase.tipo === 'archivo' ? '↓ Descargar material' : '↗ Abrir enlace'}</a>` : ''}
+      ${(lecciones && lecciones.length) ? `
+        <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">Lecciones:</p>
+        ${imagenes.length ? `
+          <div class="leccion-miniaturas">
+            ${imagenes.map(l => `
+              <a class="leccion-miniatura" href="${l.archivo_url}" target="_blank" rel="noopener" title="${l.nombre ? escapeHtml(l.nombre) : 'Ver imagen'}">
+                <img src="${l.archivo_url}" alt="${l.nombre ? escapeHtml(l.nombre) : 'Lección'}" loading="lazy">
+                ${l.nombre ? `<span>${escapeHtml(l.nombre)}</span>` : ''}
+              </a>
+            `).join('')}
+          </div>
+        ` : ''}
+        ${otras.length ? `
+          <div style="display:flex; flex-wrap:wrap; gap:8px; ${imagenes.length ? 'margin-top:8px;' : ''}">
+            ${otras.map(l => `<a class="btn-descargar" style="margin-top:0;" href="${l.archivo_url}" target="_blank" rel="noopener">${l.tipo === 'archivo' ? '↓' : '↗'} ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Descargar' : 'Abrir enlace')}</a>`).join('')}
+          </div>
+        ` : ''}
+      ` : `<p class="estado-vacio" style="padding:6px 0 0;">Todavía no hay lecciones en esta clase.</p>`}
+    </article>
+  `;
+
+  renderIdentidadWidget(materia, grado);
+  await cargarTareas(materia, grado);
 }
 
 async function cargarConteos() {
@@ -240,16 +266,14 @@ async function cargarConteos() {
   });
 }
 
-// ---------- Abrir una clase (materia + grado) ----------
+// ---------- Abrir una materia+grado (paso 1 → paso 2) ----------
 async function abrirClase(materia, grado) {
   renderFicha(materia, grado);
-  listaTareas.innerHTML = '<p class="estado-cargando">Cargando…</p>';
   vistaClases.style.display = 'none';
   vistaTareas.classList.remove('oculto');
+  mostrarListaClases();
 
-  cargarMaterialClase(materia, grado);
-  renderIdentidadWidget(materia, grado);
-  await cargarTareas(materia, grado);
+  await cargarListaClases(materia, grado);
 }
 
 // ---------- Widget de identidad (arriba de la lista de tareas) ----------
@@ -372,7 +396,7 @@ async function cargarTareas(materia, grado) {
   }
 
   const resultados = await Promise.all(promesas);
-  const { data: tareas, error: errTareas } = resultados[0];
+  const { data: tareasTodas, error: errTareas } = resultados[0];
   const entregas = identidad ? (resultados[1].data || []) : [];
   if (identidad && resultados[1].error) console.error(resultados[1].error);
 
@@ -381,6 +405,11 @@ async function cargarTareas(materia, grado) {
     console.error(errTareas);
     return;
   }
+
+  // Solo las tareas de la clase que se está viendo ahora mismo.
+  const tareas = claseActual
+    ? tareasTodas.filter(t => (t.clase_id != null ? t.clase_id === claseActual.id : t.clase_numero === claseActual.numero))
+    : tareasTodas;
 
   if (!tareas.length) {
     listaTareas.innerHTML = '<p class="estado-vacio">Todavía no hay tareas publicadas para esta clase.</p>';
@@ -552,6 +581,10 @@ document.querySelectorAll('.folder-card').forEach(card => {
 btnVolver.addEventListener('click', () => {
   vistaTareas.classList.add('oculto');
   vistaClases.style.display = '';
+});
+
+btnVolverClase.addEventListener('click', () => {
+  mostrarListaClases();
 });
 
 cargarConteos();
