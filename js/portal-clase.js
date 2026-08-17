@@ -45,6 +45,67 @@ function cedulaAEmail(cedula) {
   return `${cedulaLimpia}@notasjiral.local`;
 }
 
+// ---------- Material de clase (Clase 1, Clase 2... + Examen final) ----------
+async function cargarMaterialClase(materia, grado) {
+  const contenedor = document.getElementById('material-clase');
+  if (!contenedor) return;
+  contenedor.innerHTML = '';
+
+  const [{ data: clases, error: errClases }, { data: tareasResumen }] = await Promise.all([
+    sb.from('clases').select('*').eq('materia', materia).eq('grado', grado).order('numero', { ascending: true }),
+    sb.from('tareas').select('id, titulo, clase_numero').eq('materia', materia).eq('grado', grado),
+  ]);
+
+  if (errClases) { console.error(errClases); return; }
+
+  const listaClasesData = (clases || []).filter(c => !c.es_examen_final);
+  const examen = (clases || []).find(c => c.es_examen_final);
+
+  if (!listaClasesData.length && !examen) return;
+
+  const tareasPorClase = {};
+  (tareasResumen || []).forEach(t => {
+    if (t.clase_numero == null) return;
+    (tareasPorClase[t.clase_numero] = tareasPorClase[t.clase_numero] || []).push(t);
+  });
+
+  const accent = ACCENTOS[materia] || 'var(--ciencias)';
+
+  const tarjetasClases = listaClasesData.map(c => {
+    const tareasDeEsta = tareasPorClase[c.numero] || [];
+    return `
+      <article class="tarea-item" style="--accent:${accent}">
+        <h3>Clase ${c.numero}</h3>
+        ${(c.fecha_inicio || c.fecha_fin) ? `
+          <div class="tarea-meta">
+            <span>${formatearFecha(c.fecha_inicio) || '?'} — ${formatearFecha(c.fecha_fin) || '?'}</span>
+          </div>
+        ` : ''}
+        <a class="btn-descargar" href="${c.archivo_url}" target="_blank" rel="noopener">${c.tipo === 'archivo' ? '↓ Descargar material' : '↗ Abrir enlace'}</a>
+        ${tareasDeEsta.length ? `
+          <p style="font-size:12px; color:var(--muted); margin:10px 0 0;">Tareas de esta clase:</p>
+          <ul style="margin:4px 0 0; padding-left:18px; font-size:13px;">
+            ${tareasDeEsta.map(t => `<li>${escapeHtml(t.titulo)}</li>`).join('')}
+          </ul>
+        ` : ''}
+      </article>
+    `;
+  }).join('');
+
+  const tarjetaExamen = examen ? `
+    <article class="tarea-item" style="--accent:var(--coral); border-color:var(--coral);">
+      <h3>📕 Examen final</h3>
+      <a class="btn-descargar" href="${examen.archivo_url}" target="_blank" rel="noopener">${examen.tipo === 'archivo' ? '↓ Descargar examen' : '↗ Abrir enlace'}</a>
+    </article>
+  ` : '';
+
+  contenedor.innerHTML = `
+    <h3 style="font-family:'Space Grotesk',sans-serif; margin:0 0 12px;">Material de clase</h3>
+    ${tarjetasClases}
+    ${tarjetaExamen}
+  `;
+}
+
 async function cargarConteos() {
   const { data, error } = await sb.from('tareas').select('materia, grado');
   if (error) { console.error(error); return; }
@@ -68,6 +129,8 @@ async function abrirClase(materia, grado) {
   listaTareas.innerHTML = '<p class="estado-cargando">Cargando…</p>';
   vistaClases.style.display = 'none';
   vistaTareas.classList.remove('oculto');
+
+  cargarMaterialClase(materia, grado);
 
   const { data: { user } } = await sb.auth.getUser();
 
