@@ -608,6 +608,12 @@ body {
   object-fit: cover;
 }
 
+.entrega-acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .btn-editar-entrega {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
@@ -620,6 +626,19 @@ body {
   color: var(--ink-soft);
 }
 .btn-editar-entrega:hover { border-color: var(--ink); color: var(--ink); }
+
+.btn-eliminar-entrega {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  background: none;
+  border: 1px solid #eac3b6;
+  border-radius: var(--radius);
+  padding: 7px 14px;
+  cursor: pointer;
+  color: #b3402a;
+}
+.btn-eliminar-entrega:hover { background: #fdf1ed; border-color: #b3402a; }
 
 .form-entrega-botones {
   display: flex;
