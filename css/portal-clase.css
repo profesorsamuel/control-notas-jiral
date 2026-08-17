@@ -355,6 +355,22 @@ body {
   margin: 28px 0 20px;
 }
 
+/* ---------- Tarjeta aparte: explicación general de las tareas ---------- */
+.explicacion-tareas-card {
+  border-left-color: var(--coral);
+  background: #fdf8f4;
+}
+.explicacion-tareas-card h4 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  margin: 0 0 4px;
+}
+.explicacion-tareas-card p {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
 .tarea-item {
   background: var(--card-bg);
   border: 1px solid var(--line);
