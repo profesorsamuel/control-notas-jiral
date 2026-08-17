@@ -176,11 +176,98 @@ body {
 }
 #btn-volver:hover { border-color: var(--ink); color: var(--ink); }
 
-#vista-titulo {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 26px;
-  margin: 0 0 24px;
+/* ---------- Ficha institucional (Escuela · Materia · Profesor · Grado) ---------- */
+.ficha-clase {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 20px 22px 18px;
+  margin-bottom: 28px;
 }
+
+.ficha-escuela {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(18px, 2.6vw, 22px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.ficha-datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+}
+
+.ficha-datos p {
+  margin: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.ficha-datos p span {
+  display: inline-block;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+  margin-right: 6px;
+}
+
+.ficha-datos p span::after { content: ':'; }
+
+@media (max-width: 480px) {
+  .ficha-datos { flex-direction: column; gap: 8px; }
+}
+
+/* ---------- Pestañas "Clase 1, Clase 2..." ---------- */
+.material-titulo {
+  font-family: 'Space Grotesk', sans-serif;
+  margin: 0 0 14px;
+}
+
+.clase-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.clase-tab {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 13px;
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  transition: background .15s ease, color .15s ease, border-color .15s ease, transform .15s ease;
+}
+
+.clase-tab:hover {
+  border-color: var(--accent, var(--ciencias));
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.clase-tab.activa {
+  background: var(--accent, var(--ciencias));
+  border-color: var(--accent, var(--ciencias));
+  color: #fff;
+}
+
+.clase-tab.examen.activa { background: var(--coral); border-color: var(--coral); }
+
+.clase-panel.oculto { display: none; }
 
 .tarea-item {
   background: var(--card-bg);
