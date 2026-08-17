@@ -566,3 +566,76 @@ body {
 .form-entrega .msg { font-size: 12px; margin: 0; }
 .form-entrega .msg.error { color: #b3402a; }
 .form-entrega .msg.ok { color: var(--ciencias-dark); }
+
+/* ---------- Vista previa del archivo/enlace ya entregado ---------- */
+.entrega-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  max-width: 340px;
+}
+.entrega-preview:hover { border-color: var(--ciencias); }
+
+.entrega-preview-icono {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.entrega-preview-nombre {
+  font-size: 13px;
+  color: var(--ink-soft);
+  word-break: break-all;
+}
+
+.entrega-preview-imagen {
+  padding: 0;
+  overflow: hidden;
+  display: block;
+}
+.entrega-preview-imagen img {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  max-height: 160px;
+  object-fit: cover;
+}
+
+.btn-editar-entrega {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 7px 14px;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.btn-editar-entrega:hover { border-color: var(--ink); color: var(--ink); }
+
+.form-entrega-botones {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-cancelar-entrega {
+  align-self: flex-start;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+.btn-cancelar-entrega:hover { border-color: var(--ink); color: var(--ink); }
