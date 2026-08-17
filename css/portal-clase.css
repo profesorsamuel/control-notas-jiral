@@ -348,6 +348,13 @@ body {
 }
 #btn-volver-clase:hover { border-color: var(--ink); color: var(--ink); }
 
+/* ---------- Separador entre lecciones y tareas ---------- */
+.separador-tareas {
+  border: none;
+  border-top: 1px dashed var(--line);
+  margin: 28px 0 20px;
+}
+
 .tarea-item {
   background: var(--card-bg);
   border: 1px solid var(--line);
