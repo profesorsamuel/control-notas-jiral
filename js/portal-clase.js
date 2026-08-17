@@ -35,6 +35,11 @@ function formatearFechaHora(fechaISO) {
   return d.toLocaleString('es-PA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+function esImagen(nombreOUrl) {
+  if (!nombreOUrl) return false;
+  return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(nombreOUrl);
+}
+
 function sanitizarNombre(str) {
   return str
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -131,12 +136,28 @@ async function cargarMaterialClase(materia, grado) {
           </div>
         ` : ''}
         ${c.archivo_url ? `<a class="btn-descargar" href="${c.archivo_url}" target="_blank" rel="noopener">${c.tipo === 'archivo' ? '↓ Descargar material' : '↗ Abrir enlace'}</a>` : ''}
-        ${lecciones.length ? `
-          <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">Lecciones:</p>
-          <div style="display:flex; flex-wrap:wrap; gap:8px;">
-            ${lecciones.map(l => `<a class="btn-descargar" style="margin-top:0;" href="${l.archivo_url}" target="_blank" rel="noopener">${l.tipo === 'archivo' ? '↓' : '↗'} ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Descargar' : 'Abrir enlace')}</a>`).join('')}
-          </div>
-        ` : ''}
+        ${lecciones.length ? (() => {
+          const imagenes = lecciones.filter(l => l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url));
+          const otras = lecciones.filter(l => !imagenes.includes(l));
+          return `
+            <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">Lecciones:</p>
+            ${imagenes.length ? `
+              <div class="leccion-miniaturas">
+                ${imagenes.map(l => `
+                  <a class="leccion-miniatura" href="${l.archivo_url}" target="_blank" rel="noopener" title="${l.nombre ? escapeHtml(l.nombre) : 'Ver imagen'}">
+                    <img src="${l.archivo_url}" alt="${l.nombre ? escapeHtml(l.nombre) : 'Lección'}" loading="lazy">
+                    ${l.nombre ? `<span>${escapeHtml(l.nombre)}</span>` : ''}
+                  </a>
+                `).join('')}
+              </div>
+            ` : ''}
+            ${otras.length ? `
+              <div style="display:flex; flex-wrap:wrap; gap:8px; ${imagenes.length ? 'margin-top:8px;' : ''}">
+                ${otras.map(l => `<a class="btn-descargar" style="margin-top:0;" href="${l.archivo_url}" target="_blank" rel="noopener">${l.tipo === 'archivo' ? '↓' : '↗'} ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Descargar' : 'Abrir enlace')}</a>`).join('')}
+              </div>
+            ` : ''}
+          `;
+        })() : ''}
         ${tareasDeEsta.length ? `
           <p style="font-size:12px; color:var(--muted); margin:10px 0 0;">Tareas de esta clase:</p>
           <ul style="margin:4px 0 0; padding-left:18px; font-size:13px;">
