@@ -232,6 +232,7 @@ formClase.addEventListener('submit', async (e) => {
   const gradosSeleccionados = Array.from(
     fcGrados.querySelectorAll('input[name="grado"]:checked')
   ).map(cb => cb.value);
+  const nombreClase = document.getElementById('fc-nombre').value.trim() || null;
   const fechaInicio = document.getElementById('fc-inicio').value || null;
   const fechaFin = document.getElementById('fc-fin').value || null;
   const archivoInput = document.getElementById('fc-archivo');
@@ -280,7 +281,7 @@ formClase.addEventListener('submit', async (e) => {
 
       const { error: errInsert } = await sb.from('clases').insert({
         materia, grado, numero: siguienteNumero,
-        es_examen_final: false,
+        es_examen_final: false, nombre: nombreClase,
         fecha_inicio: fechaInicio, fecha_fin: fechaFin,
         tipo, archivo_url, archivo_nombre,
       });
@@ -323,7 +324,7 @@ async function cargarClasesAdmin() {
     <div class="tarea-admin-item" data-id="${c.id}">
       <div class="info">
         <div class="tag">${c.materia} · ${c.grado}</div>
-        <strong>Clase ${c.numero}</strong>
+        <strong>Clase ${c.numero}${c.nombre ? `: ${escapeHtml(c.nombre)}` : ''}</strong>
         ${c.fecha_inicio || c.fecha_fin ? `<div class="tag">${formatearFechaCorta(c.fecha_inicio) || '?'} — ${formatearFechaCorta(c.fecha_fin) || '?'}</div>` : ''}
       </div>
       <button class="btn-borrar" data-id="${c.id}" data-archivo="${c.tipo === 'archivo' ? extraerRutaClase(c.archivo_url) : ''}">Borrar</button>
