@@ -57,6 +57,76 @@ function esImagen(nombreOUrl) {
   return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(nombreOUrl);
 }
 
+function nombreArchivoDeUrl(url) {
+  try {
+    const limpio = url.split('?')[0];
+    const partes = limpio.split('/');
+    return decodeURIComponent(partes[partes.length - 1] || url);
+  } catch {
+    return url;
+  }
+}
+
+function extensionDeUrl(url) {
+  const nombre = nombreArchivoDeUrl(url);
+  const match = nombre.match(/\.([a-zA-Z0-9]+)$/);
+  return match ? match[1].toLowerCase() : '';
+}
+
+function dominioDeUrl(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
+const ICONOS_EXTENSION = {
+  doc: '📄', docx: '📄', odt: '📄',
+  ppt: '📊', pptx: '📊',
+  xls: '📈', xlsx: '📈', csv: '📈',
+  pdf: '📕',
+  zip: '🗜️', rar: '🗜️',
+};
+
+// ---------- Cómo se ve cada lección: imagen, archivo (Word/PDF/PPT...) o enlace ----------
+function renderLeccionItem(l) {
+  // Imagen: miniatura recortada, clic para verla en tamaño completo.
+  if (l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url)) {
+    return `
+      <a class="leccion-miniatura" href="${l.archivo_url}" target="_blank" rel="noopener" title="${l.nombre ? escapeHtml(l.nombre) : 'Ver imagen'}">
+        <img src="${l.archivo_url}" alt="${l.nombre ? escapeHtml(l.nombre) : 'Lección'}" loading="lazy">
+        ${l.nombre ? `<span>${escapeHtml(l.nombre)}</span>` : ''}
+      </a>
+    `;
+  }
+
+  // Archivo (Word, PDF, PowerPoint, Excel...): icono según el tipo + nombre,
+  // clic para descargarlo/abrirlo.
+  if (l.tipo === 'archivo') {
+    const ext = extensionDeUrl(l.archivo_nombre || l.archivo_url);
+    return `
+      <a class="leccion-archivo" href="${l.archivo_url}" target="_blank" rel="noopener">
+        <span class="leccion-archivo-icono">${ICONOS_EXTENSION[ext] || '📎'}</span>
+        <span class="leccion-archivo-nombre">${l.nombre ? escapeHtml(l.nombre) : escapeHtml(nombreArchivoDeUrl(l.archivo_url))}</span>
+        <span class="leccion-archivo-descargar">↓</span>
+      </a>
+    `;
+  }
+
+  // Enlace: muestra un adelanto (nombre + dominio), clic para abrir todo.
+  return `
+    <a class="leccion-enlace" href="${l.archivo_url}" target="_blank" rel="noopener">
+      <span class="leccion-enlace-icono">🔗</span>
+      <span class="leccion-enlace-texto">
+        <span class="leccion-enlace-nombre">${l.nombre ? escapeHtml(l.nombre) : 'Ver enlace'}</span>
+        <span class="leccion-enlace-dominio">${escapeHtml(dominioDeUrl(l.archivo_url))}</span>
+      </span>
+      <span class="leccion-enlace-abrir">↗</span>
+    </a>
+  `;
+}
+
 function sanitizarNombre(str) {
   return str
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -217,9 +287,6 @@ async function abrirDetalleClase(materia, grado, clase) {
     .from('lecciones').select('*').eq('clase_id', clase.id).order('creado_en', { ascending: true });
   if (errLecciones) console.error(errLecciones);
 
-  const imagenes = (lecciones || []).filter(l => l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url));
-  const otras = (lecciones || []).filter(l => !imagenes.includes(l));
-
   contenedor.innerHTML = `
     <article class="tarea-item" style="--accent:${accent}">
       <h3>Clase ${clase.numero}${clase.nombre ? `: ${escapeHtml(clase.nombre)}` : ''}</h3>
@@ -231,21 +298,9 @@ async function abrirDetalleClase(materia, grado, clase) {
       ${clase.archivo_url ? `<a class="btn-descargar" href="${clase.archivo_url}" target="_blank" rel="noopener">${clase.tipo === 'archivo' ? '↓ Descargar material' : '↗ Abrir enlace'}</a>` : ''}
       ${(lecciones && lecciones.length) ? `
         <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">Lecciones:</p>
-        ${imagenes.length ? `
-          <div class="leccion-miniaturas">
-            ${imagenes.map(l => `
-              <a class="leccion-miniatura" href="${l.archivo_url}" target="_blank" rel="noopener" title="${l.nombre ? escapeHtml(l.nombre) : 'Ver imagen'}">
-                <img src="${l.archivo_url}" alt="${l.nombre ? escapeHtml(l.nombre) : 'Lección'}" loading="lazy">
-                ${l.nombre ? `<span>${escapeHtml(l.nombre)}</span>` : ''}
-              </a>
-            `).join('')}
-          </div>
-        ` : ''}
-        ${otras.length ? `
-          <div style="display:flex; flex-wrap:wrap; gap:8px; ${imagenes.length ? 'margin-top:8px;' : ''}">
-            ${otras.map(l => `<a class="btn-descargar" style="margin-top:0;" href="${l.archivo_url}" target="_blank" rel="noopener">${l.tipo === 'archivo' ? '↓' : '↗'} ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Descargar' : 'Abrir enlace')}</a>`).join('')}
-          </div>
-        ` : ''}
+        <div class="leccion-miniaturas">
+          ${lecciones.map(l => renderLeccionItem(l)).join('')}
+        </div>
       ` : `<p class="estado-vacio" style="padding:6px 0 0;">Todavía no hay lecciones en esta clase.</p>`}
     </article>
   `;
@@ -492,30 +547,6 @@ async function cargarTareas(materia, grado) {
 }
 
 // ---------- Vista previa del archivo/enlace ya entregado ----------
-function nombreArchivoDeUrl(url) {
-  try {
-    const limpio = url.split('?')[0];
-    const partes = limpio.split('/');
-    return decodeURIComponent(partes[partes.length - 1] || url);
-  } catch {
-    return url;
-  }
-}
-
-function extensionDeUrl(url) {
-  const nombre = nombreArchivoDeUrl(url);
-  const match = nombre.match(/\.([a-zA-Z0-9]+)$/);
-  return match ? match[1].toLowerCase() : '';
-}
-
-const ICONOS_EXTENSION = {
-  doc: '📄', docx: '📄', odt: '📄',
-  ppt: '📊', pptx: '📊',
-  xls: '📈', xlsx: '📈', csv: '📈',
-  pdf: '📕',
-  zip: '🗜️', rar: '🗜️',
-};
-
 function renderVistaPreviaEntrega(entrega) {
   if (entrega.tipo === 'enlace') {
     return `
