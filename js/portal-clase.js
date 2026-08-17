@@ -11,7 +11,7 @@ const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANO
 
 const vistaClases = document.getElementById('vista-clases');
 const vistaTareas = document.getElementById('vista-tareas');
-const vistaTitulo = document.getElementById('vista-titulo');
+const fichaClase = document.getElementById('ficha-clase');
 const selectorEstudiante = document.getElementById('selector-estudiante');
 const listaTareas = document.getElementById('lista-tareas');
 const btnVolver = document.getElementById('btn-volver');
@@ -21,6 +21,23 @@ const ACCENTOS = {
   'Ciencias': 'var(--ciencias)',
   'Informática': 'var(--informatica)',
 };
+
+// Datos fijos de la ficha (encabezado tipo "hoja de trabajo")
+const ESCUELA_NOMBRE = 'C.E.B.G. El Jiral';
+const PROFESOR_NOMBRE = 'Samuel Ortega';
+
+// ---------- Ficha institucional (escuela · materia · profesor · grado) ----------
+function renderFicha(materia, grado) {
+  if (!fichaClase) return;
+  fichaClase.innerHTML = `
+    <p class="ficha-escuela">${escapeHtml(ESCUELA_NOMBRE)}</p>
+    <div class="ficha-datos">
+      <p><span>Materia</span>${escapeHtml(materia)}</p>
+      <p><span>Profesor</span>${escapeHtml(PROFESOR_NOMBRE)}</p>
+      <p><span>Grado</span>${escapeHtml(grado)}</p>
+    </div>
+  `;
+}
 
 const CLAVE_IDENTIDAD = 'nj_portal_identidad';
 
@@ -123,63 +140,92 @@ async function cargarMaterialClase(materia, grado) {
   });
 
   const accent = ACCENTOS[materia] || 'var(--ciencias)';
+  const hayClases = listaClasesData.length > 0;
 
-  const tarjetasClases = listaClasesData.map(c => {
+  // ---------- Pestañas: "Clase 1", "Clase 2"... + "Examen final" ----------
+  const pestanasClases = listaClasesData.map((c, i) => `
+    <button type="button" class="clase-tab ${i === 0 ? 'activa' : ''}" style="--accent:${accent}" data-clase-tab="clase-${c.id}">
+      Clase ${c.numero}
+    </button>
+  `).join('');
+
+  const pestanaExamen = examen ? `
+    <button type="button" class="clase-tab examen ${!hayClases ? 'activa' : ''}" data-clase-tab="clase-examen">
+      📕 Examen final
+    </button>
+  ` : '';
+
+  // ---------- Panel de cada clase: sus lecciones + sus tareas ----------
+  const panelesClases = listaClasesData.map((c, i) => {
     const lecciones = leccionesPorClase[c.id] || [];
     const tareasDeEsta = tareasPorClase[c.id] || tareasPorClase[c.numero] || [];
     return `
-      <article class="tarea-item" style="--accent:${accent}">
-        <h3>Clase ${c.numero}${c.nombre ? `: ${escapeHtml(c.nombre)}` : ''}</h3>
-        ${(c.fecha_inicio || c.fecha_fin) ? `
-          <div class="tarea-meta">
-            <span>${formatearFecha(c.fecha_inicio) || '?'} — ${formatearFecha(c.fecha_fin) || '?'}</span>
-          </div>
-        ` : ''}
-        ${c.archivo_url ? `<a class="btn-descargar" href="${c.archivo_url}" target="_blank" rel="noopener">${c.tipo === 'archivo' ? '↓ Descargar material' : '↗ Abrir enlace'}</a>` : ''}
-        ${lecciones.length ? (() => {
-          const imagenes = lecciones.filter(l => l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url));
-          const otras = lecciones.filter(l => !imagenes.includes(l));
-          return `
-            <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">Lecciones:</p>
-            ${imagenes.length ? `
-              <div class="leccion-miniaturas">
-                ${imagenes.map(l => `
-                  <a class="leccion-miniatura" href="${l.archivo_url}" target="_blank" rel="noopener" title="${l.nombre ? escapeHtml(l.nombre) : 'Ver imagen'}">
-                    <img src="${l.archivo_url}" alt="${l.nombre ? escapeHtml(l.nombre) : 'Lección'}" loading="lazy">
-                    ${l.nombre ? `<span>${escapeHtml(l.nombre)}</span>` : ''}
-                  </a>
-                `).join('')}
-              </div>
-            ` : ''}
-            ${otras.length ? `
-              <div style="display:flex; flex-wrap:wrap; gap:8px; ${imagenes.length ? 'margin-top:8px;' : ''}">
-                ${otras.map(l => `<a class="btn-descargar" style="margin-top:0;" href="${l.archivo_url}" target="_blank" rel="noopener">${l.tipo === 'archivo' ? '↓' : '↗'} ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Descargar' : 'Abrir enlace')}</a>`).join('')}
-              </div>
-            ` : ''}
-          `;
-        })() : ''}
-        ${tareasDeEsta.length ? `
-          <p style="font-size:12px; color:var(--muted); margin:10px 0 0;">Tareas de esta clase:</p>
-          <ul style="margin:4px 0 0; padding-left:18px; font-size:13px;">
-            ${tareasDeEsta.map(t => `<li>${escapeHtml(t.titulo)}</li>`).join('')}
-          </ul>
-        ` : ''}
-      </article>
+      <div class="clase-panel ${i === 0 ? '' : 'oculto'}" data-clase-panel="clase-${c.id}">
+        <article class="tarea-item" style="--accent:${accent}">
+          <h3>Clase ${c.numero}${c.nombre ? `: ${escapeHtml(c.nombre)}` : ''}</h3>
+          ${(c.fecha_inicio || c.fecha_fin) ? `
+            <div class="tarea-meta">
+              <span>${formatearFecha(c.fecha_inicio) || '?'} — ${formatearFecha(c.fecha_fin) || '?'}</span>
+            </div>
+          ` : ''}
+          ${c.archivo_url ? `<a class="btn-descargar" href="${c.archivo_url}" target="_blank" rel="noopener">${c.tipo === 'archivo' ? '↓ Descargar material' : '↗ Abrir enlace'}</a>` : ''}
+          ${lecciones.length ? (() => {
+            const imagenes = lecciones.filter(l => l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url));
+            const otras = lecciones.filter(l => !imagenes.includes(l));
+            return `
+              <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">Lecciones:</p>
+              ${imagenes.length ? `
+                <div class="leccion-miniaturas">
+                  ${imagenes.map(l => `
+                    <a class="leccion-miniatura" href="${l.archivo_url}" target="_blank" rel="noopener" title="${l.nombre ? escapeHtml(l.nombre) : 'Ver imagen'}">
+                      <img src="${l.archivo_url}" alt="${l.nombre ? escapeHtml(l.nombre) : 'Lección'}" loading="lazy">
+                      ${l.nombre ? `<span>${escapeHtml(l.nombre)}</span>` : ''}
+                    </a>
+                  `).join('')}
+                </div>
+              ` : ''}
+              ${otras.length ? `
+                <div style="display:flex; flex-wrap:wrap; gap:8px; ${imagenes.length ? 'margin-top:8px;' : ''}">
+                  ${otras.map(l => `<a class="btn-descargar" style="margin-top:0;" href="${l.archivo_url}" target="_blank" rel="noopener">${l.tipo === 'archivo' ? '↓' : '↗'} ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Descargar' : 'Abrir enlace')}</a>`).join('')}
+                </div>
+              ` : ''}
+            `;
+          })() : `<p class="estado-vacio" style="padding:6px 0 0;">Todavía no hay lecciones en esta clase.</p>`}
+          ${tareasDeEsta.length ? `
+            <p style="font-size:12px; color:var(--muted); margin:10px 0 0;">Tareas de esta clase:</p>
+            <ul style="margin:4px 0 0; padding-left:18px; font-size:13px;">
+              ${tareasDeEsta.map(t => `<li>${escapeHtml(t.titulo)}</li>`).join('')}
+            </ul>
+          ` : ''}
+        </article>
+      </div>
     `;
   }).join('');
 
-  const tarjetaExamen = examen ? `
-    <article class="tarea-item" style="--accent:var(--coral); border-color:var(--coral);">
-      <h3>📕 Examen final</h3>
-      <a class="btn-descargar" href="${examen.archivo_url}" target="_blank" rel="noopener">${examen.tipo === 'archivo' ? '↓ Descargar examen' : '↗ Abrir enlace'}</a>
-    </article>
+  const panelExamen = examen ? `
+    <div class="clase-panel ${!hayClases ? '' : 'oculto'}" data-clase-panel="clase-examen">
+      <article class="tarea-item" style="--accent:var(--coral); border-color:var(--coral);">
+        <h3>📕 Examen final</h3>
+        <a class="btn-descargar" href="${examen.archivo_url}" target="_blank" rel="noopener">${examen.tipo === 'archivo' ? '↓ Descargar examen' : '↗ Abrir enlace'}</a>
+      </article>
+    </div>
   ` : '';
 
   contenedor.innerHTML = `
-    <h3 style="font-family:'Space Grotesk',sans-serif; margin:0 0 12px;">Material de clase</h3>
-    ${tarjetasClases}
-    ${tarjetaExamen}
+    <h3 class="material-titulo">Material de clase</h3>
+    <div class="clase-tabs">${pestanasClases}${pestanaExamen}</div>
+    <div class="clase-paneles">${panelesClases}${panelExamen}</div>
   `;
+
+  // Al hacer clic en una pestaña ("Clase 1", "Clase 2"...) se muestra
+  // solo el panel de esa clase (sus lecciones y sus tareas).
+  contenedor.querySelectorAll('[data-clase-tab]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const objetivo = boton.dataset.claseTab;
+      contenedor.querySelectorAll('[data-clase-tab]').forEach(b => b.classList.toggle('activa', b === boton));
+      contenedor.querySelectorAll('[data-clase-panel]').forEach(p => p.classList.toggle('oculto', p.dataset.clasePanel !== objetivo));
+    });
+  });
 }
 
 async function cargarConteos() {
@@ -196,7 +242,7 @@ async function cargarConteos() {
 
 // ---------- Abrir una clase (materia + grado) ----------
 async function abrirClase(materia, grado) {
-  vistaTitulo.textContent = `${materia} · ${grado}`;
+  renderFicha(materia, grado);
   listaTareas.innerHTML = '<p class="estado-cargando">Cargando…</p>';
   vistaClases.style.display = 'none';
   vistaTareas.classList.remove('oculto');
