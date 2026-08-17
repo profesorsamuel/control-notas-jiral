@@ -89,10 +89,8 @@ async function cargarMaterialClase(materia, grado) {
   if (!contenedor) return;
   contenedor.innerHTML = '';
 
-  const [{ data: clases, error: errClases }, { data: tareasResumen }] = await Promise.all([
-    sb.from('clases').select('*').eq('materia', materia).eq('grado', grado).order('numero', { ascending: true }),
-    sb.from('tareas').select('id, titulo, clase_numero').eq('materia', materia).eq('grado', grado),
-  ]);
+  const { data: clases, error: errClases } = await sb
+    .from('clases').select('*').eq('materia', materia).eq('grado', grado).order('numero', { ascending: true });
 
   if (errClases) { console.error(errClases); return; }
 
@@ -101,16 +99,29 @@ async function cargarMaterialClase(materia, grado) {
 
   if (!listaClasesData.length && !examen) return;
 
+  const idsClases = listaClasesData.map(c => c.id);
+  const [{ data: leccionesData }, { data: tareasResumen }] = await Promise.all([
+    idsClases.length ? sb.from('lecciones').select('*').in('clase_id', idsClases).order('creado_en', { ascending: true }) : Promise.resolve({ data: [] }),
+    sb.from('tareas').select('id, titulo, clase_id, clase_numero').eq('materia', materia).eq('grado', grado),
+  ]);
+
+  const leccionesPorClase = {};
+  (leccionesData || []).forEach(l => {
+    (leccionesPorClase[l.clase_id] = leccionesPorClase[l.clase_id] || []).push(l);
+  });
+
   const tareasPorClase = {};
   (tareasResumen || []).forEach(t => {
-    if (t.clase_numero == null) return;
-    (tareasPorClase[t.clase_numero] = tareasPorClase[t.clase_numero] || []).push(t);
+    const clave = t.clase_id || t.clase_numero; // compatibilidad con tareas antiguas ligadas solo por número
+    if (clave == null) return;
+    (tareasPorClase[clave] = tareasPorClase[clave] || []).push(t);
   });
 
   const accent = ACCENTOS[materia] || 'var(--ciencias)';
 
   const tarjetasClases = listaClasesData.map(c => {
-    const tareasDeEsta = tareasPorClase[c.numero] || [];
+    const lecciones = leccionesPorClase[c.id] || [];
+    const tareasDeEsta = tareasPorClase[c.id] || tareasPorClase[c.numero] || [];
     return `
       <article class="tarea-item" style="--accent:${accent}">
         <h3>Clase ${c.numero}${c.nombre ? `: ${escapeHtml(c.nombre)}` : ''}</h3>
@@ -119,7 +130,13 @@ async function cargarMaterialClase(materia, grado) {
             <span>${formatearFecha(c.fecha_inicio) || '?'} — ${formatearFecha(c.fecha_fin) || '?'}</span>
           </div>
         ` : ''}
-        <a class="btn-descargar" href="${c.archivo_url}" target="_blank" rel="noopener">${c.tipo === 'archivo' ? '↓ Descargar material' : '↗ Abrir enlace'}</a>
+        ${c.archivo_url ? `<a class="btn-descargar" href="${c.archivo_url}" target="_blank" rel="noopener">${c.tipo === 'archivo' ? '↓ Descargar material' : '↗ Abrir enlace'}</a>` : ''}
+        ${lecciones.length ? `
+          <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">Lecciones:</p>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            ${lecciones.map(l => `<a class="btn-descargar" style="margin-top:0;" href="${l.archivo_url}" target="_blank" rel="noopener">${l.tipo === 'archivo' ? '↓' : '↗'} ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Descargar' : 'Abrir enlace')}</a>`).join('')}
+          </div>
+        ` : ''}
         ${tareasDeEsta.length ? `
           <p style="font-size:12px; color:var(--muted); margin:10px 0 0;">Tareas de esta clase:</p>
           <ul style="margin:4px 0 0; padding-left:18px; font-size:13px;">
