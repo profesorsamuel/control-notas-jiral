@@ -71,6 +71,13 @@ body {
 }
 .portal-header a.volver-index:hover { border-color: var(--ink); color: var(--ink); }
 
+.header-botones {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* ---------- Grupos por materia ---------- */
 .materia-group { margin-bottom: 40px; }
 
