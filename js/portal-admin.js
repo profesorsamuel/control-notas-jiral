@@ -3,7 +3,6 @@ const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANO
 
 const GRADOS_POR_MATERIA = {
   'Ciencias Naturales': ['9A', '9B', '9C'],
-  'Ciencias': ['8A'],
   'Informática': ['8A', '8B'],
 };
 
