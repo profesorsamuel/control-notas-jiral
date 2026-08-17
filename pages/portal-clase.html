@@ -69,13 +69,24 @@
 
   </main>
 
-  <!-- ---------- Vista: tareas de una clase ---------- -->
+  <!-- ---------- Vista: dentro de una materia+grado ---------- -->
   <section id="vista-tareas" class="vista-tareas oculto">
     <button id="btn-volver">← Volver a las clases</button>
     <div id="ficha-clase" class="ficha-clase"></div>
-    <div id="material-clase"></div>
-    <div id="selector-estudiante"></div>
-    <div id="lista-tareas"></div>
+
+    <!-- Paso 2: lista de "Clase 1", "Clase 2"... (y Examen final) -->
+    <div id="vista-lista-clases">
+      <h3 class="material-titulo">Clases</h3>
+      <div id="lista-clases-grid" class="clases-grid"></div>
+    </div>
+
+    <!-- Paso 3: detalle de UNA clase (sus lecciones + sus tareas) -->
+    <div id="vista-detalle-clase" class="oculto">
+      <button id="btn-volver-clase">← Volver a la lista de clases</button>
+      <div id="detalle-clase"></div>
+      <div id="selector-estudiante"></div>
+      <div id="lista-tareas"></div>
+    </div>
   </section>
 
 </div>
