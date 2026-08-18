@@ -315,6 +315,8 @@ function construirTablaHtml(filas, meta) {
 
         const pct = calcularPct(f.reprobados, f.matricula);
         const cumple = pct <= meta;
+        const tope = Math.floor(f.matricula * meta / 100 + 1e-9);
+        const faltan = Math.max(0, f.reprobados - tope);
 
         return `<tr>
             <td><strong>${escapeHtml(f.etiqueta)}</strong></td>
@@ -324,11 +326,15 @@ function construirTablaHtml(filas, meta) {
             <td>${f.sinCalif}</td>
             <td><span class="pct-badge ${cumple ? 'ok' : 'mal'}">${formatearPct(pct)}</span></td>
             <td><span class="estado-badge ${cumple ? 'ok' : 'mal'}">${cumple ? '✅ Dentro de meta' : '⚠️ Sobre la meta'}</span></td>
+            <td>${tope}</td>
+            <td>${faltan > 0 ? `<strong>${faltan}</strong>` : '—'}</td>
         </tr>`;
     }).join("");
 
     const pctTotal = calcularPct(totalReprobados, totalMatricula);
     const cumpleTotal = pctTotal <= meta;
+    const topeTotal = Math.floor(totalMatricula * meta / 100 + 1e-9);
+    const faltanTotal = Math.max(0, totalReprobados - topeTotal);
 
     const filaTotales = `<tr class="fila-totales">
         <td><strong>TOTAL GENERAL</strong></td>
@@ -338,6 +344,8 @@ function construirTablaHtml(filas, meta) {
         <td>${totalSinCalif}</td>
         <td><span class="pct-badge ${cumpleTotal ? 'ok' : 'mal'}">${formatearPct(pctTotal)}</span></td>
         <td><span class="estado-badge ${cumpleTotal ? 'ok' : 'mal'}">${cumpleTotal ? '✅ Dentro de meta' : '⚠️ Sobre la meta'}</span></td>
+        <td>${topeTotal}</td>
+        <td>${faltanTotal > 0 ? `<strong>${faltanTotal}</strong>` : '—'}</td>
     </tr>`;
 
     return {
@@ -353,6 +361,8 @@ function construirTablaHtml(filas, meta) {
                     <th>SIN CALIF.</th>
                     <th>% FRACASO</th>
                     <th>ESTADO vs META</th>
+                    <th>TOPE PERMITIDO</th>
+                    <th>FALTAN POR APROBAR</th>
                 </tr>
             </thead>
             <tbody>
@@ -369,6 +379,9 @@ function construirNotasHtml() {
         <strong>NOTA:</strong> El % de fracaso se calcula sobre la matrícula total del salón
         (reprobados ÷ matrícula). Un estudiante "reprobado" es aquel cuyo promedio final
         (apreciación, ejercicios y examen) está por debajo de ${PROMEDIO_MINIMO_APROBAR.toFixed(1)}.
+        "Tope permitido" es la cantidad máxima de reprobados que puede tener ese grado sin pasarse
+        de la meta. "Faltan por aprobar" es cuántos de los reprobados actuales deben subir a
+        ${PROMEDIO_MINIMO_APROBAR.toFixed(1)} o más para llegar exactamente a la meta.
     </div>
     <div class="fila-firmas">
         <div class="firma"><div class="linea-firma"></div>FIRMA DEL PROFESOR</div>
@@ -441,7 +454,7 @@ btnPdf.addEventListener("click", async () => {
         const ratio = Math.min((pageWidth - 24) / canvas.width, (pageHeight - 24) / canvas.height);
         const w = canvas.width * ratio;
         const h = canvas.height * ratio;
-        pdf.addImage(canvas.toDataURL("image/jpeg", 1.0), "JPEG", (pageWidth - w) / 2, (pageHeight - h) / 2, w, h);
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", (pageWidth - w) / 2, (pageHeight - h) / 2, w, h);
         const materia = selectMateria.value.replace(/\s+/g, "_");
         pdf.save(`Cuadro_Fracaso_${materia}_${selectTrimestre.value.replace(/\s+/g, "_")}.pdf`);
     } catch (err) {
