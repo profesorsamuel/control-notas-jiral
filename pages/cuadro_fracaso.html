@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuadro de Fracaso Escolar</title>
+
+    <link rel="icon" type="image/x-icon" href="../img/profesor-favicon.ico">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Mismo método de exportación a PDF que usa cuadro_aprobados.js -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+    <style>
+        :root {
+            --color-fondo: #f1f5f9;
+            --color-primario: #be123c;
+            --color-primario-oscuro: #9f1239;
+            --color-primario-claro: #ffe4e9;
+            --color-acento: #f59e0b;
+            --color-acento-oscuro: #b45309;
+            --color-texto: #1e293b;
+            --color-borde: #e2e8f0;
+            --color-ok: #16a34a;
+            --color-ok-claro: #dcfce7;
+            --color-mal: #dc2626;
+            --color-mal-claro: #fee2e2;
+        }
+
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: var(--color-fondo);
+            color: var(--color-texto);
+            padding: 20px;
+        }
+
+        h1, h2 { font-family: 'Baloo 2', 'Inter', Arial, sans-serif; }
+
+        .docente-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 26px;
+            margin-bottom: 22px;
+            box-shadow: 0 8px 24px rgba(159, 18, 57, .28);
+        }
+
+        .docente-header h1 { color: #fff; font-size: 1.5rem; margin: 0; }
+        .docente-header p { color: #ffe4e9; margin: 4px 0 0; font-size: 13px; }
+
+        .btn-header-accion {
+            background: var(--color-acento);
+            color: #fff;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-header-accion:hover { background: var(--color-acento-oscuro); color: #fff; }
+
+        .panel-blanco {
+            background: #fff;
+            padding: 18px 22px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 20px rgba(15,23,42,.06);
+        }
+
+        .panel-blanco label {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--color-primario);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .panel-blanco select, .panel-blanco input {
+            padding: 8px;
+            border: 1px solid var(--color-borde);
+            border-radius: 8px;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        .fila-controles {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .fila-controles > div { flex: 1 1 200px; }
+
+        #contenedorSalones {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .chip-check {
+            background: var(--color-primario-claro);
+            border: 1px solid var(--color-primario);
+            color: var(--color-primario-oscuro);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #btnGenerar {
+            background: var(--color-primario);
+            color: #fff;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        #btnGenerar:disabled { opacity: .6; }
+
+        .botonera-exportar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .botonera-exportar button {
+            border: none;
+            border-radius: 10px;
+            padding: 9px 18px;
+            font-weight: bold;
+            font-size: 14px;
+            color: #fff;
+        }
+        #btnPdf { background: #16a34a; }
+        #btnImprimir { background: var(--color-primario-oscuro); }
+
+        /* ============ Cuadro imprimible ============ */
+        #bloqueReporte {
+            display: none;
+        }
+
+        #contenidoReporte {
+            background: #fff;
+            padding: 22px 26px;
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 20px rgba(15,23,42,.06);
+        }
+
+        .encabezado-institucion {
+            text-align: center;
+            font-weight: 800;
+            font-size: 15px;
+            border: 1px solid var(--color-texto);
+            padding: 8px;
+            margin-bottom: 6px;
+        }
+        .encabezado-titulo {
+            text-align: center;
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        .encabezado-subtitulo {
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 14px;
+        }
+
+        .grid-datos {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px 22px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        /* ---- Resumen de meta (28% u otra meta configurable) ---- */
+        .resumen-meta {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+        .tarjeta-meta {
+            flex: 1 1 220px;
+            border-radius: 12px;
+            padding: 14px 18px;
+            border: 1px solid var(--color-borde);
+        }
+        .tarjeta-meta .etiqueta {
+            font-size: 11.5px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #64748b;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .tarjeta-meta .valor {
+            font-size: 26px;
+            font-weight: 800;
+            font-family: 'Baloo 2', sans-serif;
+        }
+        .tarjeta-meta.ok { background: var(--color-ok-claro); border-color: #86efac; }
+        .tarjeta-meta.ok .valor { color: var(--color-ok); }
+        .tarjeta-meta.mal { background: var(--color-mal-claro); border-color: #fca5a5; }
+        .tarjeta-meta.mal .valor { color: var(--color-mal); }
+        .tarjeta-meta.neutro .valor { color: var(--color-texto); }
+
+        table.tabla-cuadro {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 18px;
+        }
+        table.tabla-cuadro th, table.tabla-cuadro td {
+            border: 1px solid #333;
+            padding: 7px 6px;
+            text-align: center;
+        }
+        table.tabla-cuadro thead th {
+            background: var(--color-primario);
+            color: #fff;
+        }
+        table.tabla-cuadro .fila-totales td { background: #f1f5f9; font-weight: 700; }
+
+        .pct-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 12.5px;
+        }
+        .pct-badge.ok { background: var(--color-ok-claro); color: #15803d; }
+        .pct-badge.mal { background: var(--color-mal-claro); color: #b91c1c; }
+
+        .estado-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+        .estado-badge.ok { background: var(--color-ok-claro); color: #15803d; }
+        .estado-badge.mal { background: var(--color-mal-claro); color: #b91c1c; }
+
+        .nota-pie {
+            font-size: 11.5px;
+            color: #374151;
+            border-top: 1px solid var(--color-borde);
+            padding-top: 10px;
+            margin-top: 6px;
+        }
+        .fila-firmas {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 46px;
+        }
+        .firma { text-align: center; font-size: 12px; }
+        .linea-firma { width: 240px; border-top: 1px solid #444; margin-bottom: 6px; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #contenidoReporte, #contenidoReporte * { visibility: visible; }
+            #contenidoReporte {
+                position: absolute;
+                left: 0; top: 0;
+                width: 100%;
+                box-shadow: none;
+            }
+            @page { size: landscape; margin: 10mm; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="docente-header">
+        <div>
+            <h1 id="nombreProfesorHeader">Cargando...</h1>
+            <p>📉 Cuadro de fracaso escolar por salón</p>
+        </div>
+        <div>
+            <a href="profesor.html" class="btn-header-accion">↩️ Regresar a Docente</a>
+        </div>
+    </header>
+
+    <div class="panel-blanco">
+        <div class="fila-controles">
+            <div>
+                <label for="selectMateria">Asignatura</label>
+                <select id="selectMateria"><option value="">Cargando...</option></select>
+            </div>
+            <div>
+                <label for="selectTrimestre">Trimestre</label>
+                <select id="selectTrimestre">
+                    <option value="Trimestre 1">Trimestre 1</option>
+                    <option value="Trimestre 2">Trimestre 2</option>
+                    <option value="Trimestre 3">Trimestre 3</option>
+                </select>
+            </div>
+            <div>
+                <label for="inputAnio">Año electivo</label>
+                <input type="number" id="inputAnio">
+            </div>
+            <div>
+                <label for="selectJornada">Jornada</label>
+                <select id="selectJornada">
+                    <option value="">Selecciona</option>
+                    <option value="Matutina">Matutina</option>
+                    <option value="Vespertina">Vespertina</option>
+                    <option value="Nocturna">Nocturna</option>
+                </select>
+            </div>
+            <div>
+                <label for="inputMeta">Meta de fracaso (%)</label>
+                <input type="number" id="inputMeta" value="28" min="0" max="100" step="0.5">
+            </div>
+        </div>
+
+        <label>Grados a incluir</label>
+        <div id="contenedorSalones"><span class="small text-muted">Elige primero una asignatura.</span></div>
+
+        <button type="button" id="btnGenerar">📉 Generar cuadro</button>
+        <span id="estadoGeneracion" style="margin-left:10px; font-size:13px; color:var(--color-primario);"></span>
+    </div>
+
+    <div id="bloqueReporte">
+        <div class="botonera-exportar">
+            <button type="button" id="btnPdf">📄 Descargar PDF</button>
+            <button type="button" id="btnImprimir">🖨️ Imprimir</button>
+        </div>
+        <div id="contenidoReporte"></div>
+    </div>
+
+    <script type="module" src="../js/cuadro_fracaso.js"></script>
+</body>
+
+</html>
