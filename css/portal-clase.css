@@ -558,7 +558,8 @@ body {
 
 .selector-estudiante select,
 .selector-estudiante input[type="text"],
-.selector-estudiante input[type="tel"] {
+.selector-estudiante input[type="tel"],
+.selector-estudiante input[type="password"] {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--line);
@@ -581,6 +582,17 @@ body {
   cursor: pointer;
 }
 .selector-estudiante button:hover { filter: brightness(1.05); }
+
+.identidad-ayuda {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 10px 0 0;
+}
+.identidad-ayuda a {
+  color: var(--coral);
+  text-decoration: underline;
+}
 
 .banner-estudiante {
   display: flex;
