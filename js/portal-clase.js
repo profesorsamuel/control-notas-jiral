@@ -392,7 +392,7 @@ async function renderIdentidadWidget(materia, grado) {
   if (identidad && identidad.salonIncorrecto) {
     selectorEstudiante.innerHTML = `
       <div class="aviso-bloqueo">
-        🔒 La sesión iniciada es de <strong>${escapeHtml(identidad.nombre)}</strong> (${escapeHtml(identidad.salon)}), no de este salón.
+        ⚠️ Estás equivocado de salón: la sesión iniciada es de <strong>${escapeHtml(identidad.nombre)}</strong>, del salón ${escapeHtml(identidad.salon)}, no de este.
         <button class="cambiar" id="btn-cambiar-identidad" style="margin-left:6px;">Cerrar sesión</button>
       </div>
     `;
@@ -454,6 +454,21 @@ async function renderIdentidadWidget(materia, grado) {
     if (error) {
       btnIniciar.disabled = false;
       msg.textContent = 'Cédula o contraseña incorrecta.';
+      msg.className = 'msg error';
+      return;
+    }
+
+    // La cédula y contraseña son correctas, pero hay que confirmar
+    // que esa cuenta SÍ es de este salón antes de dejarlo entrar.
+    // Si no lo es, se cierra la sesión de inmediato: no se le deja
+    // "quedar iniciado" en el salón equivocado.
+    const identidad = await obtenerIdentidadActual(grado);
+
+    if (!identidad || identidad.salonIncorrecto) {
+      const salonReal = identidad?.salon ? ` (tu salón es ${escapeHtml(identidad.salon)})` : '';
+      await sb.auth.signOut();
+      btnIniciar.disabled = false;
+      msg.textContent = `⚠️ Estás equivocado de salón${salonReal}. Entra al portal de tu salón para poder entregar.`;
       msg.className = 'msg error';
       return;
     }
