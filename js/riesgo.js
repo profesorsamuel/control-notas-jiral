@@ -54,6 +54,12 @@ const btnImprimir = document.getElementById("btnImprimir");
 const btnDescargarPdf = document.getElementById("btnDescargarPdf");
 const btnCartasDropdown = document.getElementById("btnCartasDropdown");
 const btnDescargarCartasTodas = document.getElementById("btnDescargarCartasTodas");
+const btnDescargarCartasSeleccionadas = document.getElementById("btnDescargarCartasSeleccionadas");
+const btnDescargarCuadroConsejero = document.getElementById("btnDescargarCuadroConsejero");
+const barraSeleccionCartas = document.getElementById("barraSeleccionCartas");
+const btnSeleccionarTodasCartas = document.getElementById("btnSeleccionarTodasCartas");
+const btnQuitarSeleccionCartas = document.getElementById("btnQuitarSeleccionCartas");
+const contadorSeleccionCartas = document.getElementById("contadorSeleccionCartas");
 const cajaMensajeWhatsapp = document.getElementById("cajaMensajeWhatsapp");
 const textareaMensajeWhatsapp = document.getElementById("textareaMensajeWhatsapp");
 const btnRestaurarMensajeWa = document.getElementById("btnRestaurarMensajeWa");
@@ -359,6 +365,7 @@ async function obtenerMateriasYDocentes(salon) {
 // Cada elemento trae todo lo necesario para redactar UNA carta:
 // estudiante + materia + salón + notas de ese estudiante en esa materia.
 let listaCartasActual = [];
+let seleccionCartas = new Set(); // índices (de listaCartasActual) marcados con su casilla
 
 // A partir del código de salón (ej. "8A", "9B") intenta separar el
 // grado (número) de la sección (letra), para mostrarlo en la carta.
@@ -577,6 +584,46 @@ zonaReporte.addEventListener("click", (ev) => {
     generarPdfCartas([datos], nombreArchivo);
 });
 
+// ---- Selección con casillas (para elegir a quién descargarle la carta) ----
+function actualizarContadorSeleccion() {
+    const n = seleccionCartas.size;
+    contadorSeleccionCartas.textContent = `${n} seleccionado${n === 1 ? "" : "s"}`;
+}
+
+zonaReporte.addEventListener("change", (ev) => {
+    const casilla = ev.target.closest(".chk-carta");
+    if (!casilla) return;
+    const indice = Number(casilla.dataset.indice);
+    if (casilla.checked) seleccionCartas.add(indice);
+    else seleccionCartas.delete(indice);
+    actualizarContadorSeleccion();
+});
+
+btnSeleccionarTodasCartas.addEventListener("click", () => {
+    zonaReporte.querySelectorAll(".chk-carta").forEach((c) => {
+        c.checked = true;
+        seleccionCartas.add(Number(c.dataset.indice));
+    });
+    actualizarContadorSeleccion();
+});
+
+btnQuitarSeleccionCartas.addEventListener("click", () => {
+    zonaReporte.querySelectorAll(".chk-carta").forEach((c) => { c.checked = false; });
+    seleccionCartas.clear();
+    actualizarContadorSeleccion();
+});
+
+// Botón "Descargar cartas de los seleccionados" (menú desplegable).
+btnDescargarCartasSeleccionadas.addEventListener("click", () => {
+    if (seleccionCartas.size === 0) {
+        alert("Primero marca la casilla de uno o más estudiantes en la tabla (o usa \"Seleccionar todos\").");
+        return;
+    }
+    const indicesOrdenados = [...seleccionCartas].sort((a, b) => a - b);
+    const seleccionadas = indicesOrdenados.map((i) => listaCartasActual[i]).filter(Boolean);
+    generarPdfCartas(seleccionadas, "Cartas_estudiantes_seleccionados.pdf");
+});
+
 // Botón "Descargar carta de todos" (una sola en el menú desplegable).
 btnDescargarCartasTodas.addEventListener("click", () => {
     if (listaCartasActual.length === 0) {
@@ -585,6 +632,81 @@ btnDescargarCartasTodas.addEventListener("click", () => {
     }
     generarPdfCartas(listaCartasActual, "Cartas_estudiantes_en_riesgo.pdf");
 });
+
+// ---------------------------------------------------------------
+// 2.6) Cuadro para consejería: una tabla (no cartas) con todos los
+// estudiantes en riesgo del reporte actual y la nota mínima que cada
+// uno necesita en el examen para llegar a 3.0. Pensado para que
+// consejería lo tenga a mano sin tener que abrir cada carta.
+// ---------------------------------------------------------------
+function generarPdfCuadroConsejero() {
+    if (listaCartasActual.length === 0) {
+        alert("No hay datos para el cuadro todavía. Genera primero el reporte.");
+        return;
+    }
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const anchoPagina = pdf.internal.pageSize.getWidth();
+    const trimestre = selectTrimestreRiesgo.value;
+    const fechaGen = new Date().toLocaleString("es-PA", {
+        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(13);
+    pdf.text("C.E.B.G. EL JIRAL", anchoPagina / 2, 14, { align: "center" });
+    pdf.setFontSize(10.5);
+    pdf.text("Cuadro de seguimiento para consejería · Estudiantes en riesgo académico", anchoPagina / 2, 20, { align: "center" });
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.text(`${trimestre} · Generado el ${fechaGen}`, anchoPagina / 2, 25, { align: "center" });
+
+    const filas = listaCartasActual
+        .slice()
+        .sort((a, b) =>
+            a.salon.localeCompare(b.salon) ||
+            a.materia.localeCompare(b.materia) ||
+            a.nombre.localeCompare(b.nombre)
+        )
+        .map((d, i) => {
+            let notaCol;
+            if (!d.aplicaNotaMinima) {
+                notaCol = `Examen ya registrado (${formatoNota(d.promExa)})`;
+            } else if (d.imposibleAlcanzar) {
+                notaCol = "No alcanza ni con 5.0";
+            } else {
+                notaCol = d.notaMinima.toFixed(1);
+            }
+            return [
+                i + 1, d.nombre, d.salon, d.materia,
+                formatoNota(d.promApr), formatoNota(d.promEje), d.promFinal.toFixed(1), notaCol,
+            ];
+        });
+
+    pdf.autoTable({
+        startY: 30,
+        head: [["#", "Estudiante", "Salón", "Materia", "Aprec.", "Ejer.", "Prom. actual", "Nota mínima en examen (para 3.0)"]],
+        body: filas,
+        styles: { font: "helvetica", fontSize: 8.5, cellPadding: 2.4, valign: "middle" },
+        headStyles: { fillColor: [153, 27, 27], textColor: 255, fontStyle: "bold", halign: "center" },
+        alternateRowStyles: { fillColor: [254, 242, 242] },
+        columnStyles: {
+            0: { cellWidth: 8, halign: "center" },
+            1: { cellWidth: 58 },
+            2: { cellWidth: 20, halign: "center" },
+            3: { cellWidth: 45 },
+            4: { cellWidth: 18, halign: "center" },
+            5: { cellWidth: 18, halign: "center" },
+            6: { cellWidth: 26, halign: "center" },
+            7: { cellWidth: 55, halign: "center" },
+        },
+        margin: { left: 12, right: 12 },
+    });
+
+    pdf.save(`Cuadro_consejeria_${trimestre.replace(/\s+/g, "_")}.pdf`);
+}
+
+btnDescargarCuadroConsejero.addEventListener("click", generarPdfCuadroConsejero);
 
 // ---------------------------------------------------------------
 // 3) Generar el reporte en pantalla
@@ -694,6 +816,8 @@ function renderizarReporte(trimestre, reportePorSalon) {
     fechaMembrete.textContent = `${trimestre} · Fecha de impresión: ${fechaGeneracion}`;
 
     listaCartasActual = [];
+    seleccionCartas.clear();
+    actualizarContadorSeleccion();
 
     if (totalEnRiesgo === 0) {
         resumenTop.innerHTML = "";
@@ -701,6 +825,7 @@ function renderizarReporte(trimestre, reportePorSalon) {
         btnImprimir.style.display = "none";
         btnDescargarPdf.style.display = "none";
         btnCartasDropdown.style.display = "none";
+        barraSeleccionCartas.style.display = "none";
         cajaMensajeWhatsapp.style.display = "none";
         return;
     }
@@ -708,6 +833,7 @@ function renderizarReporte(trimestre, reportePorSalon) {
     btnImprimir.style.display = "";
     btnDescargarPdf.style.display = "";
     btnCartasDropdown.style.display = "";
+    barraSeleccionCartas.style.display = "";
     cajaMensajeWhatsapp.style.display = "";
 
     resumenTop.innerHTML = `
@@ -756,6 +882,8 @@ function renderizarReporte(trimestre, reportePorSalon) {
                             title="Descargar carta individual para el acudiente (PDF)">
                             <i class="fa-solid fa-file-lines"></i>
                         </button>`;
+                const casillaCarta = `<input type="checkbox" class="chk-carta" data-indice="${indiceCarta}"
+                            title="Marcar para incluir en 'Descargar cartas de los seleccionados'">`;
 
                 return `
                 <tr>
@@ -765,7 +893,7 @@ function renderizarReporte(trimestre, reportePorSalon) {
                     <td>${e.promEje !== null ? e.promEje.toFixed(1) : "–"}</td>
                     <td>${e.promExa !== null ? e.promExa.toFixed(1) : "–"}</td>
                     <td class="final">${e.promFinal.toFixed(1)}</td>
-                    <td class="no-imprimir"><div class="celda-acciones-fila">${botonWa}${botonCarta}</div></td>
+                    <td class="no-imprimir"><div class="celda-acciones-fila">${casillaCarta}${botonWa}${botonCarta}</div></td>
                 </tr>`;
             }).join("");
 
