@@ -52,6 +52,8 @@ const zonaReporte = document.getElementById("zonaReporte");
 const contenidoImprimible = document.getElementById("contenidoImprimible");
 const btnImprimir = document.getElementById("btnImprimir");
 const btnDescargarPdf = document.getElementById("btnDescargarPdf");
+const btnCartasDropdown = document.getElementById("btnCartasDropdown");
+const btnDescargarCartasTodas = document.getElementById("btnDescargarCartasTodas");
 const cajaMensajeWhatsapp = document.getElementById("cajaMensajeWhatsapp");
 const textareaMensajeWhatsapp = document.getElementById("textareaMensajeWhatsapp");
 const btnRestaurarMensajeWa = document.getElementById("btnRestaurarMensajeWa");
@@ -351,6 +353,240 @@ async function obtenerMateriasYDocentes(salon) {
 }
 
 // ---------------------------------------------------------------
+// 2.5) Cartas individuales para padres/acudientes (PDF)
+// ---------------------------------------------------------------
+// Se llena de nuevo cada vez que se genera/regenera el reporte.
+// Cada elemento trae todo lo necesario para redactar UNA carta:
+// estudiante + materia + salón + notas de ese estudiante en esa materia.
+let listaCartasActual = [];
+
+// A partir del código de salón (ej. "8A", "9B") intenta separar el
+// grado (número) de la sección (letra), para mostrarlo en la carta.
+// Si el código no sigue ese patrón, se muestra tal cual.
+function textoGradoDesdeSalon(salon) {
+    const m = String(salon || "").trim().match(/^(\d+)\s*[°º]?\s*([A-Za-z]*)$/);
+    if (!m) return salon || "—";
+    const grado = m[1];
+    const seccion = m[2] ? m[2].toUpperCase() : "";
+    return seccion ? `${grado}° Grado, Sección ${seccion}` : `${grado}° Grado`;
+}
+
+function formatoNota(n) {
+    return (n === null || n === undefined || isNaN(n)) ? "aún no registrada" : n.toFixed(1);
+}
+
+// Calcula la nota mínima que hace falta en el examen para que el
+// promedio final (promedio simple de las categorías con nota) llegue
+// a 3.0. Solo tiene sentido cuando el examen todavía no tiene nota.
+// Devuelve { aplica, notaMinima, imposible } .
+function calcularNotaMinimaExamen(promApr, promEje, promExa) {
+    if (promExa !== null && promExa !== undefined) {
+        return { aplica: false, notaMinima: null, imposible: false };
+    }
+    const presentes = [promApr, promEje].filter((v) => v !== null && v !== undefined);
+    const totalCategorias = presentes.length + 1; // +1 por el examen que falta
+    const sumaPresentes = presentes.reduce((a, b) => a + b, 0);
+    let necesaria = (PROMEDIO_MINIMO_APROBAR * totalCategorias) - sumaPresentes;
+    // Redondeamos hacia arriba a 1 decimal para garantizar que, tras el
+    // redondeo que usa el sistema al calcular el promedio final, sí
+    // alcance el mínimo (más vale pedir un poquito de más que de menos).
+    necesaria = Math.ceil(necesaria * 10) / 10;
+    const imposible = necesaria > 5;
+    if (necesaria < 0) necesaria = 0;
+    return { aplica: true, notaMinima: Math.min(necesaria, 5), imposible };
+}
+
+function textoFechaCartaHoy() {
+    const hoy = new Date();
+    const texto = hoy.toLocaleDateString("es-PA", { day: "numeric", month: "long", year: "numeric" });
+    return `El Jiral, ${texto}`;
+}
+
+// Dibuja UNA carta dentro del documento jsPDF ya creado (en la página
+// actual). El llamador se encarga de agregar una página nueva antes de
+// llamar a esta función para cada carta adicional.
+function dibujarCartaPDF(pdf, datos) {
+    const margenIzq = 25, margenDer = 25, anchoUtil = 210 - margenIzq - margenDer;
+    let y = 20;
+
+    const centrar = (texto, tam, negrita = true) => {
+        pdf.setFont("helvetica", negrita ? "bold" : "normal");
+        pdf.setFontSize(tam);
+        pdf.text(texto, 105, y, { align: "center" });
+        y += tam * 0.45;
+    };
+    const parrafo = (texto, tam = 10.5, espacioExtra = 3) => {
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(tam);
+        const lineas = pdf.splitTextToSize(texto, anchoUtil);
+        pdf.text(lineas, margenIzq, y);
+        y += lineas.length * (tam * 0.42) + espacioExtra;
+    };
+
+    // --- Membrete ---
+    centrar("REPÚBLICA DE PANAMÁ", 12);
+    centrar("MINISTERIO DE EDUCACIÓN", 12);
+    centrar("C.E.B.G. EL JIRAL", 12);
+    centrar("DEPARTAMENTO DE ORIENTACIÓN- CONSEJERÍA Y PROFESOR DE LA MATERIA", 9.5);
+    y += 4;
+    pdf.setDrawColor(153, 27, 27);
+    pdf.setLineWidth(0.6);
+    pdf.line(margenIzq, y, 210 - margenDer, y);
+    y += 9;
+
+    // --- Fecha y asunto ---
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10.5);
+    pdf.text(datos.fechaTexto, margenIzq, y);
+    y += 8;
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(10.5);
+    pdf.text(`Asunto: Seguimiento académico del estudiante`, margenIzq, y);
+    y += 9;
+
+    // --- Saludo ---
+    parrafo("Estimado(a) Padre, Madre o Acudiente:", 10.5, 5);
+
+    // --- Cuadro de datos del estudiante ---
+    pdf.setDrawColor(148, 163, 184);
+    pdf.setLineWidth(0.3);
+    const altoCaja = 20;
+    pdf.rect(margenIzq, y, anchoUtil, altoCaja);
+    pdf.setFontSize(9.7);
+    let yCaja = y + 5.5;
+    pdf.setFont("helvetica", "bold"); pdf.text("Estudiante:", margenIzq + 3, yCaja);
+    pdf.setFont("helvetica", "normal"); pdf.text(datos.nombre, margenIzq + 27, yCaja);
+    yCaja += 6;
+    pdf.setFont("helvetica", "bold"); pdf.text("Grado / Salón:", margenIzq + 3, yCaja);
+    pdf.setFont("helvetica", "normal"); pdf.text(`${datos.grado} (${datos.salon})`, margenIzq + 27, yCaja);
+    yCaja += 6;
+    pdf.setFont("helvetica", "bold"); pdf.text("Materia:", margenIzq + 3, yCaja);
+    pdf.setFont("helvetica", "normal"); pdf.text(datos.materia, margenIzq + 27, yCaja);
+    pdf.setFont("helvetica", "bold"); pdf.text("Trimestre:", margenIzq + 95, yCaja);
+    pdf.setFont("helvetica", "normal"); pdf.text(datos.trimestre, margenIzq + 118, yCaja);
+    y += altoCaja + 8;
+
+    // --- Cuerpo ---
+    parrafo(
+        `Reciba un cordial saludo de parte del Departamento de Orientación y Consejería, en conjunto con ` +
+        `el/la profesor(a) de la materia, del C.E.B.G. El Jiral. Nos dirigimos a usted de manera respetuosa para ` +
+        `informarle sobre el desempeño académico de su acudido(a) durante el ${datos.trimestre}.`
+    );
+
+    if (datos.aplicaNotaMinima) {
+        parrafo(
+            `Hasta la fecha, el/la estudiante registra un promedio de ${formatoNota(datos.promApr)} en el área de ` +
+            `Apreciación y ${formatoNota(datos.promEje)} en el área de Ejercicios, para un promedio actual de ` +
+            `${datos.promFinal.toFixed(1)} en la materia de ${datos.materia}. Le informamos que, para completar la ` +
+            `evaluación del trimestre, únicamente falta la nota correspondiente al examen.`
+        );
+        if (datos.imposibleAlcanzar) {
+            parrafo(
+                `Según los promedios registrados, aun obteniendo la nota máxima en el examen, el promedio podría ` +
+                `no alcanzar el mínimo de aprobación de 3.0 en esta materia. Por ello, es fundamental que el/la ` +
+                `estudiante se prepare con dedicación para obtener la mejor nota posible.`
+            );
+        } else {
+            parrafo(
+                `De acuerdo con los promedios actuales, el/la estudiante necesita obtener como mínimo ` +
+                `${datos.notaMinima.toFixed(1)} en el examen para poder alcanzar un promedio final de 3.0 en esta materia.`
+            );
+        }
+    } else {
+        parrafo(
+            `Hasta la fecha, el/la estudiante registra un promedio de ${formatoNota(datos.promApr)} en Apreciación, ` +
+            `${formatoNota(datos.promEje)} en Ejercicios y ${formatoNota(datos.promExa)} en el examen, para un ` +
+            `promedio final de ${datos.promFinal.toFixed(1)} en la materia de ${datos.materia}, por debajo del ` +
+            `mínimo de aprobación de 3.0.`
+        );
+    }
+
+    parrafo(
+        `Solicitamos de manera cordial su valioso apoyo para que el/la estudiante estudie y se prepare adecuadamente, ` +
+        `dedicando tiempo en casa para repasar los temas de la materia.`
+    );
+
+    parrafo(
+        `Le recordamos que los estudiantes ya cuentan con el temario del examen en sus manos, por lo que le ` +
+        `sugerimos revisarlo juntos(as) en casa.`
+    );
+
+    parrafo(
+        `Confiamos en que, con su apoyo y el esfuerzo del/de la estudiante, podrá alcanzar y superar el promedio ` +
+        `requerido. ¡Con dedicación y constancia, toda meta es alcanzable!`,
+        10.5, 8
+    );
+
+    // --- Firma institucional ---
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(10.5);
+    pdf.text("Atentamente,", margenIzq, y);
+    y += 12;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Departamento de Orientación y Consejería, C.E.B.G. El Jiral", margenIzq, y);
+    y += 12;
+
+    // --- Constancia de recibido ---
+    // Si el contenido de arriba resultó más largo de lo normal (nombres o
+    // materias largas), pasamos la constancia a una página nueva para que
+    // no se corte al final de la hoja.
+    if (y > 235) {
+        pdf.addPage();
+        y = 20;
+    }
+    pdf.setDrawColor(120, 120, 120);
+    pdf.setLineDashPattern([1, 1], 0);
+    pdf.line(margenIzq, y, 210 - margenDer, y);
+    pdf.setLineDashPattern([], 0);
+    y += 8;
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(10);
+    pdf.text("CONSTANCIA DE RECIBIDO", 105, y, { align: "center" });
+    y += 7;
+
+    parrafo(
+        `Yo, ______________________________________________, acudiente del estudiante ${datos.nombre}, hago ` +
+        `constar que recibí la presente comunicación y que apoyaré al estudiante en su preparación para el examen.`,
+        10, 10
+    );
+
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(10.5);
+    pdf.text("Firma del acudiente: __________________________________", margenIzq, y);
+    y += 10;
+    pdf.text("Fecha: ____________________", margenIzq, y);
+}
+
+// Genera y descarga un PDF con una o varias cartas (una por página).
+function generarPdfCartas(listaDatos, nombreArchivo) {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    listaDatos.forEach((datos, i) => {
+        if (i > 0) pdf.addPage();
+        dibujarCartaPDF(pdf, datos);
+    });
+    pdf.save(nombreArchivo);
+}
+
+// Botón individual de "Carta" en cada fila de la tabla.
+zonaReporte.addEventListener("click", (ev) => {
+    const boton = ev.target.closest(".btn-carta-fila");
+    if (!boton || boton.disabled) return;
+    const indice = Number(boton.dataset.indice);
+    const datos = listaCartasActual[indice];
+    if (!datos) return;
+    const nombreArchivo = `Carta_${datos.nombre.replace(/[^\w]+/g, "_")}_${datos.materia.replace(/[^\w]+/g, "_")}.pdf`;
+    generarPdfCartas([datos], nombreArchivo);
+});
+
+// Botón "Descargar carta de todos" (una sola en el menú desplegable).
+btnDescargarCartasTodas.addEventListener("click", () => {
+    if (listaCartasActual.length === 0) {
+        alert("No hay cartas para generar todavía. Genera primero el reporte.");
+        return;
+    }
+    generarPdfCartas(listaCartasActual, "Cartas_estudiantes_en_riesgo.pdf");
+});
+
+// ---------------------------------------------------------------
 // 3) Generar el reporte en pantalla
 // ---------------------------------------------------------------
 let generandoReporte = false;
@@ -457,17 +693,21 @@ function renderizarReporte(trimestre, reportePorSalon) {
     textoGenerado.textContent = `Generado el ${fechaGeneracion}`;
     fechaMembrete.textContent = `${trimestre} · Fecha de impresión: ${fechaGeneracion}`;
 
+    listaCartasActual = [];
+
     if (totalEnRiesgo === 0) {
         resumenTop.innerHTML = "";
         zonaReporte.innerHTML = `<p class="text-success text-center py-3">✅ Ningún estudiante de los salones elegidos está por debajo de ${PROMEDIO_MINIMO_APROBAR.toFixed(1)} en ${escapeHtml(trimestre)}.</p>`;
         btnImprimir.style.display = "none";
         btnDescargarPdf.style.display = "none";
+        btnCartasDropdown.style.display = "none";
         cajaMensajeWhatsapp.style.display = "none";
         return;
     }
 
     btnImprimir.style.display = "";
     btnDescargarPdf.style.display = "";
+    btnCartasDropdown.style.display = "";
     cajaMensajeWhatsapp.style.display = "";
 
     resumenTop.innerHTML = `
@@ -497,6 +737,26 @@ function renderizarReporte(trimestre, reportePorSalon) {
                             <i class="fa-brands fa-whatsapp"></i>
                         </button>`;
 
+                // Registramos los datos de esta carta y guardamos su índice
+                // para poder generarla al vuelo (individual o en el lote).
+                const { aplica, notaMinima, imposible } = calcularNotaMinimaExamen(e.promApr, e.promEje, e.promExa);
+                const indiceCarta = listaCartasActual.length;
+                listaCartasActual.push({
+                    nombre: e.nombre,
+                    salon,
+                    grado: textoGradoDesdeSalon(salon),
+                    materia,
+                    docente: nombreDocente,
+                    trimestre,
+                    promApr: e.promApr, promEje: e.promEje, promExa: e.promExa, promFinal: e.promFinal,
+                    aplicaNotaMinima: aplica, notaMinima, imposibleAlcanzar: imposible,
+                    fechaTexto: textoFechaCartaHoy(),
+                });
+                const botonCarta = `<button type="button" class="btn-carta-fila" data-indice="${indiceCarta}"
+                            title="Descargar carta individual para el acudiente (PDF)">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </button>`;
+
                 return `
                 <tr>
                     <td>${i + 1}</td>
@@ -505,7 +765,7 @@ function renderizarReporte(trimestre, reportePorSalon) {
                     <td>${e.promEje !== null ? e.promEje.toFixed(1) : "–"}</td>
                     <td>${e.promExa !== null ? e.promExa.toFixed(1) : "–"}</td>
                     <td class="final">${e.promFinal.toFixed(1)}</td>
-                    <td class="no-imprimir">${botonWa}</td>
+                    <td class="no-imprimir"><div class="celda-acciones-fila">${botonWa}${botonCarta}</div></td>
                 </tr>`;
             }).join("");
 
@@ -519,7 +779,7 @@ function renderizarReporte(trimestre, reportePorSalon) {
                     </div>
                     <table>
                         <thead>
-                            <tr><th>#</th><th>Estudiante</th><th>Prom. Aprec.</th><th>Prom. Ejer.</th><th>Prom. Examen</th><th>Prom. Final</th><th class="no-imprimir">WhatsApp</th></tr>
+                            <tr><th>#</th><th>Estudiante</th><th>Prom. Aprec.</th><th>Prom. Ejer.</th><th>Prom. Examen</th><th>Prom. Final</th><th class="no-imprimir">Acciones</th></tr>
                         </thead>
                         <tbody>${filas}</tbody>
                     </table>
