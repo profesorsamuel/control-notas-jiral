@@ -39,7 +39,14 @@ function renderFicha(materia, grado) {
   `;
 }
 
-const CLAVE_IDENTIDAD = 'nj_portal_identidad';
+// Convierte una cédula en el correo "interno" que usa Supabase Auth
+// para esa cuenta. Debe ser EXACTAMENTE la misma función que usan
+// registro.js y login.js, para que el estudiante pueda entrar aquí
+// con la misma cédula + contraseña que ya usa para ver sus notas.
+function cedulaAEmail(cedula) {
+  const cedulaLimpia = cedula.trim().toLowerCase().replace(/[\s-]/g, '');
+  return `${cedulaLimpia}@notasjiral.local`;
+}
 
 function formatearFecha(fechaISO) {
   if (!fechaISO) return null;
@@ -139,40 +146,47 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ---------- Identidad guardada en este navegador ----------
-// { estudianteId, nombre, cedula, telefono, salon }
-function obtenerIdentidadGuardada() {
-  try {
-    const bruto = localStorage.getItem(CLAVE_IDENTIDAD);
-    if (!bruto) return null;
-    const datos = JSON.parse(bruto);
-    if (!datos || !datos.estudianteId || !datos.nombre) return null;
-    return datos;
-  } catch {
-    return null;
+// ---------- Identidad: ahora se basa en una sesión real de Supabase Auth ----------
+// Antes bastaba con elegir el nombre de una lista, así que cualquiera
+// podía hacerse pasar por otro estudiante (y hasta eliminar sus
+// entregas). Ahora hace falta iniciar sesión con la MISMA cédula +
+// contraseña que el estudiante ya usa para ver sus notas
+// (login.html / registro.html), y la identidad se saca de esa cuenta,
+// nunca de algo que la persona pueda escribir a mano.
+//
+// Devuelve:
+//   null                                          -> nadie ha iniciado sesión
+//   { estudianteId, nombre, cedula, salon }        -> sesión válida de estudiante
+//   { salonIncorrecto: true, nombre, salon }       -> sesión válida, pero de OTRO salón
+async function obtenerIdentidadActual(grado) {
+  const { data: { user }, error: errUser } = await sb.auth.getUser();
+  if (errUser || !user || !user.email) return null;
+
+  const { data: estudiante, error: errEst } = await sb
+    .from('estudiantes')
+    .select('id, nombre, cedula, salon')
+    .eq('correo', user.email)
+    .maybeSingle();
+
+  if (errEst || !estudiante) return null;
+
+  if (estudiante.salon !== grado) {
+    return { salonIncorrecto: true, nombre: estudiante.nombre, salon: estudiante.salon };
   }
+
+  return {
+    estudianteId: estudiante.id,
+    nombre: estudiante.nombre,
+    cedula: estudiante.cedula,
+    telefono: '',
+    salon: estudiante.salon,
+  };
 }
 
-function guardarIdentidad(identidad) {
-  try {
-    localStorage.setItem(CLAVE_IDENTIDAD, JSON.stringify(identidad));
-  } catch {
-    // Si el navegador bloquea localStorage (modo privado, etc.) no pasa
-    // nada grave: simplemente se le volverá a pedir la próxima vez.
-  }
-}
-
-function borrarIdentidad() {
-  try { localStorage.removeItem(CLAVE_IDENTIDAD); } catch {}
-}
-
-// Identidad guardada, pero solo sirve si es del mismo salón que se
-// está viendo ahora mismo (si alguien más usa el mismo dispositivo
-// para otro grado, se le vuelve a pedir su nombre).
-function identidadValidaPara(grado) {
-  const identidad = obtenerIdentidadGuardada();
-  if (!identidad || identidad.salon !== grado) return null;
-  return identidad;
+// Identidad "usable" para entregar/editar/eliminar tareas: solo si de
+// verdad corresponde a un estudiante de ESTE salón.
+function identidadUtilizable(identidad) {
+  return identidad && identidad.estudianteId ? identidad : null;
 }
 
 // ---------- Navegación dentro de una materia+grado ----------
@@ -319,7 +333,7 @@ async function abrirDetalleClase(materia, grado, clase) {
     ` : ''}
   `;
 
-  renderIdentidadWidget(materia, grado);
+  await renderIdentidadWidget(materia, grado);
   await cargarTareas(materia, grado);
 }
 
@@ -346,101 +360,112 @@ async function abrirClase(materia, grado) {
 }
 
 // ---------- Widget de identidad (arriba de la lista de tareas) ----------
-// Si ya sabemos quién es (mismo salón), se muestra un banner chiquito.
-// Si no, se muestra el selector con la lista de estudiantes del salón
-// + teléfono. Esto NO bloquea ver las tareas, solo hace falta para
-// poder entregarlas.
-function renderIdentidadWidget(materia, grado) {
-  const identidad = identidadValidaPara(grado);
+// Si ya hay una sesión real iniciada (misma cédula + contraseña que
+// usa para ver sus notas), se muestra un banner con su nombre y un
+// botón para cerrar sesión. Si no, se pide iniciar sesión. Esto NO
+// bloquea ver las tareas ni el material de clase, solo hace falta
+// para poder entregar, editar o eliminar una entrega.
+async function renderIdentidadWidget(materia, grado) {
+  selectorEstudiante.innerHTML = '<p class="estado-cargando">Cargando…</p>';
+  const identidad = await obtenerIdentidadActual(grado);
 
-  if (identidad) {
+  // Caso 1: sesión válida de un estudiante de ESTE salón.
+  if (identidad && identidad.estudianteId) {
     selectorEstudiante.innerHTML = `
       <div class="banner-estudiante">
         <span>👤 ${escapeHtml(identidad.nombre)}</span>
-        <button class="cambiar" id="btn-cambiar-identidad">¿No eres tú? Cambiar</button>
+        <button class="cambiar" id="btn-cambiar-identidad">Cerrar sesión</button>
       </div>
     `;
     document.getElementById('btn-cambiar-identidad').addEventListener('click', async () => {
-      borrarIdentidad();
-      renderIdentidadWidget(materia, grado);
+      await sb.auth.signOut();
+      await renderIdentidadWidget(materia, grado);
       await cargarTareas(materia, grado);
     });
     return;
   }
 
+  // Caso 2: hay sesión, pero es de un estudiante de OTRO salón (por
+  // ejemplo un hermano, o alguien que dejó su sesión abierta en un
+  // dispositivo compartido). No se le deja entregar tareas de un
+  // salón que no es el suyo.
+  if (identidad && identidad.salonIncorrecto) {
+    selectorEstudiante.innerHTML = `
+      <div class="aviso-bloqueo">
+        🔒 La sesión iniciada es de <strong>${escapeHtml(identidad.nombre)}</strong> (${escapeHtml(identidad.salon)}), no de este salón.
+        <button class="cambiar" id="btn-cambiar-identidad" style="margin-left:6px;">Cerrar sesión</button>
+      </div>
+    `;
+    document.getElementById('btn-cambiar-identidad').addEventListener('click', async () => {
+      await sb.auth.signOut();
+      await renderIdentidadWidget(materia, grado);
+      await cargarTareas(materia, grado);
+    });
+    return;
+  }
+
+  // Caso 3: nadie ha iniciado sesión. Se pide la misma cédula +
+  // contraseña que ya usa para "Ver mis notas" / el portal del
+  // estudiante, en vez de dejarlo elegir su nombre de una lista.
   selectorEstudiante.innerHTML = `
     <div class="selector-estudiante" id="identidad-widget">
-      <label for="idNombreSelect">Tu nombre (elige de la lista de tu salón)</label>
-      <select id="idNombreSelect"><option value="">Cargando estudiantes…</option></select>
-      <label for="idTelefono">Teléfono</label>
-      <input type="tel" id="idTelefono" placeholder="6000-0000">
-      <button id="btn-guardar-identidad">Guardar y poder entregar tareas</button>
+      <label for="idCedula">Tu cédula</label>
+      <input type="text" id="idCedula" placeholder="0-000-0000" autocomplete="off">
+      <label for="idPassword">Tu contraseña</label>
+      <input type="password" id="idPassword" placeholder="Contraseña" autocomplete="current-password">
+      <button id="btn-iniciar-sesion-identidad">Iniciar sesión y poder entregar tareas</button>
       <p class="msg" id="msgIdentidad"></p>
+      <p class="identidad-ayuda">
+        ¿No tienes cuenta todavía? <a href="registro.html?tipo=estudiante">Regístrate aquí</a> ·
+        ¿Olvidaste tu contraseña? <a href="login.html">Recupérala aquí</a>
+      </p>
     </div>
   `;
 
-  cargarSelectorNombres(grado);
+  const inputCedula = document.getElementById('idCedula');
+  const inputPassword = document.getElementById('idPassword');
+  const btnIniciar = document.getElementById('btn-iniciar-sesion-identidad');
+  const msg = document.getElementById('msgIdentidad');
 
-  document.getElementById('btn-guardar-identidad').addEventListener('click', async () => {
-    const select = document.getElementById('idNombreSelect');
-    const opcion = select.selectedOptions[0];
-    const telefono = document.getElementById('idTelefono').value.trim();
-    const msg = document.getElementById('msgIdentidad');
+  const intentarIniciarSesion = async () => {
+    const cedula = inputCedula.value.trim();
+    const password = inputPassword.value;
 
-    if (!select.value) {
-      msg.textContent = 'Selecciona tu nombre en la lista.';
+    if (!cedula) {
+      msg.textContent = 'Escribe tu cédula.';
       msg.className = 'msg error';
       return;
     }
-    if (!telefono) {
-      msg.textContent = 'Escribe tu teléfono.';
+    if (!password) {
+      msg.textContent = 'Escribe tu contraseña.';
       msg.className = 'msg error';
       return;
     }
 
-    const identidad = {
-      estudianteId: opcion.dataset.id,
-      nombre: opcion.dataset.nombre,
-      cedula: opcion.dataset.cedula || '',
-      telefono,
-      salon: grado,
-    };
-    guardarIdentidad(identidad);
+    btnIniciar.disabled = true;
+    msg.textContent = 'Verificando…';
+    msg.className = 'msg';
 
-    renderIdentidadWidget(materia, grado);
+    const { error } = await sb.auth.signInWithPassword({
+      email: cedulaAEmail(cedula),
+      password,
+    });
+
+    if (error) {
+      btnIniciar.disabled = false;
+      msg.textContent = 'Cédula o contraseña incorrecta.';
+      msg.className = 'msg error';
+      return;
+    }
+
+    await renderIdentidadWidget(materia, grado);
     await cargarTareas(materia, grado);
+  };
+
+  btnIniciar.addEventListener('click', intentarIniciarSesion);
+  inputPassword.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') intentarIniciarSesion();
   });
-}
-
-// Carga la lista de estudiantes de ese salón (la misma que ya usa el
-// profesor/administrador en "estudiantes") para el <select>.
-async function cargarSelectorNombres(grado) {
-  const select = document.getElementById('idNombreSelect');
-  if (!select) return;
-
-  const { data: estudiantes, error } = await sb
-    .from('estudiantes')
-    .select('id, nombre, cedula')
-    .eq('salon', grado)
-    .order('nombre', { ascending: true });
-
-  if (error) {
-    console.error(error);
-    select.innerHTML = '<option value="">No se pudo cargar la lista. Recarga la página.</option>';
-    return;
-  }
-
-  if (!estudiantes || !estudiantes.length) {
-    select.innerHTML = '<option value="">Tu salón todavía no tiene estudiantes cargados. Avísale al profesor.</option>';
-    return;
-  }
-
-  select.innerHTML = '<option value="">Selecciona tu nombre</option>' +
-    estudiantes.map(e => `
-      <option value="${e.id}" data-id="${e.id}" data-nombre="${escapeHtml(e.nombre)}" data-cedula="${escapeHtml(e.cedula || '')}">
-        ${escapeHtml(e.nombre)}
-      </option>
-    `).join('');
 }
 
 function determinarEstado(fechaEntrega) {
@@ -483,7 +508,7 @@ function formatearFechaDeDate(d) {
 async function cargarTareas(materia, grado) {
   listaTareas.innerHTML = '<p class="estado-cargando">Cargando tareas…</p>';
 
-  const identidad = identidadValidaPara(grado);
+  const identidad = identidadUtilizable(await obtenerIdentidadActual(grado));
 
   const promesas = [
     sb.from('tareas').select('*').eq('materia', materia).eq('grado', grado).order('creado_en', { ascending: false }),
@@ -694,7 +719,7 @@ function renderEstadoEntrega(tarea, entrega, identidad) {
       <span class="badge-estado pendiente">Pendiente</span>
       ${avisoTarde}
       <p style="font-size:12px; color:var(--muted); margin:6px 0 0;">
-        <a href="#" data-ir-a-identidad style="color:var(--muted);">Selecciona tu nombre arriba para poder entregarla ↑</a>
+        <a href="#" data-ir-a-identidad style="color:var(--muted);">Inicia sesión arriba para poder entregarla ↑</a>
       </p>
     `;
   }
