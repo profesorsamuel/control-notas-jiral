@@ -11,14 +11,46 @@
 <div class="portal-wrap">
 
   <header class="portal-header">
-    <div>
-      <p class="eyebrow">Prof. Samuel</p>
-      <h1>Portal de Clase</h1>
+    <div class="escuela-linea">
+      <img class="escudo" src="../img/escudo-jiral.png" alt="Escudo C.E.B.G. El Jiral">
+      <div>
+        <p class="escuela-nombre">C.E.B.G. El Jiral</p>
+        <p class="eyebrow">Prof. Samuel</p>
+        <h1>Portal de Clase</h1>
+      </div>
     </div>
     <div class="header-botones">
+      <span id="badge-trimestre" class="badge-trimestre">cargando trimestre…</span>
       <a class="volver-index" href="../index.html">← Inicio</a>
     </div>
   </header>
+
+  <!-- ---------- Días libres del trimestre ---------- -->
+  <section id="dias-libres" class="dias-libres-card">
+    <h3>📅 Días libres de este trimestre</h3>
+    <div id="dias-libres-lista" class="dias-libres-lista"></div>
+  </section>
+
+  <!-- ---------- Accesos rápidos del portal estudiantil ---------- -->
+  <nav class="accesos-rapidos" aria-label="Accesos rápidos">
+    <a href="consulta.html" class="acceso-btn acceso-btn-activo">
+      <span class="acceso-icono">📊</span>
+      <span class="acceso-texto">
+        <span class="acceso-titulo">Ver mis notas</span>
+        <span class="acceso-subtitulo">Escribe tu cédula para ver y descargar tus notas de todas las materias</span>
+      </span>
+    </a>
+    <button type="button" class="acceso-btn" data-proximamente>
+      <span class="acceso-icono">🗓️</span>Calendario escolar
+    </button>
+    <button type="button" class="acceso-btn" data-proximamente>
+      <span class="acceso-icono">🕒</span>Mi horario
+    </button>
+    <button type="button" class="acceso-btn" data-proximamente>
+      <span class="acceso-icono">📚</span>Biblioteca / recursos
+    </button>
+  </nav>
+  <p id="toast-proximamente" class="toast-proximamente oculto"></p>
 
   <!-- ---------- Vista: lista de clases ---------- -->
   <main id="vista-clases">
@@ -93,6 +125,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/portal-config.js"></script>
+<script src="../js/portal-calendario.js"></script>
 <script src="../js/portal-clase.js"></script>
 </body>
 </html>
