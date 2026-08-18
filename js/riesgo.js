@@ -639,71 +639,219 @@ btnDescargarCartasTodas.addEventListener("click", () => {
 // uno necesita en el examen para llegar a 3.0. Pensado para que
 // consejería lo tenga a mano sin tener que abrir cada carta.
 // ---------------------------------------------------------------
+// Clasifica qué tan comprometido está el estudiante según la nota que
+// necesita en el examen, para que consejería identifique de un vistazo
+// a quiénes hay que darles seguimiento más de cerca (los que necesitan
+// más de 4.0 están "muy comprometidos").
+function calcularNivelUrgencia(d) {
+    if (!d.aplicaNotaMinima) {
+        return { texto: "Trimestre ya evaluado", color: [100, 116, 139] };
+    }
+    if (d.imposibleAlcanzar) {
+        return { texto: "CRÍTICO – no alcanza ni con 5.0", color: [127, 29, 29] };
+    }
+    if (d.notaMinima > 4.0) {
+        return { texto: "Muy comprometido (necesita > 4.0)", color: [185, 28, 28] };
+    }
+    if (d.notaMinima > 3.5) {
+        return { texto: "Comprometido (necesita > 3.5)", color: [217, 119, 6] };
+    }
+    return { texto: "Leve", color: [21, 128, 61] };
+}
+
 function generarPdfCuadroConsejero() {
     if (listaCartasActual.length === 0) {
         alert("No hay datos para el cuadro todavía. Genera primero el reporte.");
         return;
     }
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const anchoPagina = pdf.internal.pageSize.getWidth();
-    const trimestre = selectTrimestreRiesgo.value;
-    const fechaGen = new Date().toLocaleString("es-PA", {
-        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+    generarPdfCuadroConsejeroAsync().catch((err) => {
+        console.error(err);
+        alert("No se pudo generar el cuadro para consejería: " + err.message);
     });
+}
 
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(13);
-    pdf.text("C.E.B.G. EL JIRAL", anchoPagina / 2, 14, { align: "center" });
-    pdf.setFontSize(10.5);
-    pdf.text("Cuadro de seguimiento para consejería · Estudiantes en riesgo académico", anchoPagina / 2, 20, { align: "center" });
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
-    pdf.text(`${trimestre} · Generado el ${fechaGen}`, anchoPagina / 2, 25, { align: "center" });
+async function generarPdfCuadroConsejeroAsync() {
+    const btnTextoOriginal = btnDescargarCuadroConsejero.innerHTML;
+    btnDescargarCuadroConsejero.disabled = true;
+    btnDescargarCuadroConsejero.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Generando...`;
 
-    const filas = listaCartasActual
-        .slice()
-        .sort((a, b) =>
-            a.salon.localeCompare(b.salon) ||
-            a.materia.localeCompare(b.materia) ||
-            a.nombre.localeCompare(b.nombre)
-        )
-        .map((d, i) => {
-            let notaCol;
-            if (!d.aplicaNotaMinima) {
-                notaCol = `Examen ya registrado (${formatoNota(d.promExa)})`;
-            } else if (d.imposibleAlcanzar) {
-                notaCol = "No alcanza ni con 5.0";
-            } else {
-                notaCol = d.notaMinima.toFixed(1);
-            }
-            return [
-                i + 1, d.nombre, d.salon, d.materia,
-                formatoNota(d.promApr), formatoNota(d.promEje), d.promFinal.toFixed(1), notaCol,
-            ];
+    try {
+        const trimestre = selectTrimestreRiesgo.value;
+        const fechaGen = new Date().toLocaleString("es-PA", {
+            day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
         });
 
-    pdf.autoTable({
-        startY: 30,
-        head: [["#", "Estudiante", "Salón", "Materia", "Aprec.", "Ejer.", "Prom. actual", "Nota mínima en examen (para 3.0)"]],
-        body: filas,
-        styles: { font: "helvetica", fontSize: 8.5, cellPadding: 2.4, valign: "middle" },
-        headStyles: { fillColor: [153, 27, 27], textColor: 255, fontStyle: "bold", halign: "center" },
-        alternateRowStyles: { fillColor: [254, 242, 242] },
-        columnStyles: {
-            0: { cellWidth: 8, halign: "center" },
-            1: { cellWidth: 58 },
-            2: { cellWidth: 20, halign: "center" },
-            3: { cellWidth: 45 },
-            4: { cellWidth: 18, halign: "center" },
-            5: { cellWidth: 18, halign: "center" },
-            6: { cellWidth: 26, halign: "center" },
-            7: { cellWidth: 55, halign: "center" },
-        },
-        margin: { left: 12, right: 12 },
-    });
+        // Nombre del consejero(a) de cada salón involucrado, para
+        // mencionarlo en la sección de comentarios de cada grupo.
+        const salonesUnicos = [...new Set(listaCartasActual.map((d) => d.salon))];
+        const nombreConsejeroPorSalon = {};
+        if (salonesUnicos.length > 0) {
+            const { data: filasConsejeros, error } = await supabase
+                .from("consejeros")
+                .select("salon, nombre")
+                .in("salon", salonesUnicos);
+            if (error) console.error(error);
+            (filasConsejeros || []).forEach((c) => {
+                nombreConsejeroPorSalon[(c.salon || "").trim().toUpperCase()] = c.nombre || "";
+            });
+        }
 
-    pdf.save(`Cuadro_consejeria_${trimestre.replace(/\s+/g, "_")}.pdf`);
+        // Agrupamos por salón + materia (igual que el reporte en pantalla),
+        // para poder mostrar arriba de cada tabla el/la profesor(a), el
+        // grado y la materia, sin repetirlos en cada fila.
+        const gruposMap = {};
+        listaCartasActual.forEach((d) => {
+            const clave = `${d.salon}|||${d.materia}`;
+            (gruposMap[clave] ??= { salon: d.salon, materia: d.materia, docente: d.docente, items: [] }).items.push(d);
+        });
+        const listaGrupos = Object.values(gruposMap).sort((a, b) =>
+            a.salon.localeCompare(b.salon) || a.materia.localeCompare(b.materia)
+        );
+        listaGrupos.forEach((g) => g.items.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+        const anchoPagina = pdf.internal.pageSize.getWidth();
+        const altoPagina = pdf.internal.pageSize.getHeight();
+        const margenIzq = 12, margenDer = 12;
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(13);
+        pdf.text("C.E.B.G. EL JIRAL", anchoPagina / 2, 14, { align: "center" });
+        pdf.setFontSize(10.5);
+        pdf.text("Cuadro de seguimiento para consejería · Estudiantes en riesgo académico", anchoPagina / 2, 20, { align: "center" });
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.text(`${trimestre} · Generado el ${fechaGen}`, anchoPagina / 2, 25, { align: "center" });
+
+        let y = 31;
+
+        listaGrupos.forEach((grupo, idxGrupo) => {
+            // Si queda muy poco espacio en la página para empezar un grupo
+            // nuevo, saltamos a una página en blanco antes de dibujarlo.
+            if (idxGrupo > 0 && y > altoPagina - 55) {
+                pdf.addPage();
+                y = 15;
+            }
+
+            const grado = textoGradoDesdeSalon(grupo.salon);
+
+            // --- Barra de título del grupo (salón + grado) ---
+            pdf.setFillColor(153, 27, 27);
+            pdf.rect(margenIzq, y, anchoPagina - margenIzq - margenDer, 7, "F");
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(10);
+            pdf.text(`Salón ${grupo.salon}  ·  ${grado}`, margenIzq + 3, y + 5);
+            pdf.setTextColor(0, 0, 0);
+            y += 11;
+
+            // --- Datos del grupo: profesor(a), grado y materia ---
+            pdf.setFontSize(9.3);
+            pdf.setFont("helvetica", "bold"); pdf.text("Profesor(a) de la materia:", margenIzq, y);
+            pdf.setFont("helvetica", "normal");
+            pdf.text(grupo.docente && grupo.docente !== "—" ? grupo.docente : "No asignado(a)", margenIzq + 43, y);
+
+            pdf.setFont("helvetica", "bold"); pdf.text("Grado:", margenIzq + 110, y);
+            pdf.setFont("helvetica", "normal"); pdf.text(grado, margenIzq + 122, y);
+
+            pdf.setFont("helvetica", "bold"); pdf.text("Materia:", margenIzq + 165, y);
+            pdf.setFont("helvetica", "normal"); pdf.text(grupo.materia, margenIzq + 179, y);
+            y += 6;
+
+            // --- Tabla del grupo (sin columnas de Salón/Materia, ya van arriba) ---
+            const niveles = grupo.items.map((d) => calcularNivelUrgencia(d));
+            const filas = grupo.items.map((d, i) => {
+                let notaCol;
+                if (!d.aplicaNotaMinima) notaCol = `Examen ya registrado (${formatoNota(d.promExa)})`;
+                else if (d.imposibleAlcanzar) notaCol = "No alcanza ni con 5.0";
+                else notaCol = d.notaMinima.toFixed(1);
+                return [i + 1, d.nombre, formatoNota(d.promApr), formatoNota(d.promEje), d.promFinal.toFixed(1), notaCol, niveles[i].texto];
+            });
+
+            pdf.autoTable({
+                startY: y,
+                head: [["#", "Estudiante", "Aprec.", "Ejer.", "Prom. actual", "Mínimo en examen para pasar (3.0)", "Nivel de compromiso"]],
+                body: filas,
+                styles: { font: "helvetica", fontSize: 8.3, cellPadding: 2.1, valign: "middle" },
+                headStyles: { fillColor: [127, 29, 29], textColor: 255, fontStyle: "bold", halign: "center", fontSize: 7.8 },
+                alternateRowStyles: { fillColor: [254, 242, 242] },
+                columnStyles: {
+                    0: { cellWidth: 8, halign: "center" },
+                    1: { cellWidth: 68 },
+                    2: { cellWidth: 20, halign: "center" },
+                    3: { cellWidth: 20, halign: "center" },
+                    4: { cellWidth: 26, halign: "center" },
+                    5: { cellWidth: 50, halign: "center" },
+                    6: { cellWidth: 58, halign: "center" },
+                },
+                margin: { left: margenIzq, right: margenDer },
+                didParseCell: (data) => {
+                    if (data.section === "body" && (data.column.index === 5 || data.column.index === 6)) {
+                        const nivel = niveles[data.row.index];
+                        if (nivel) {
+                            data.cell.styles.textColor = nivel.color;
+                            data.cell.styles.fontStyle = "bold";
+                        }
+                    }
+                },
+            });
+
+            y = pdf.lastAutoTable.finalY + 4;
+
+            // --- Comentarios para el/la consejero(a) de este salón ---
+            const nombreConsejero = nombreConsejeroPorSalon[grupo.salon.trim().toUpperCase()] || "";
+            const altoCajaComentarios = 16;
+            if (y + altoCajaComentarios > altoPagina - 10) {
+                pdf.addPage();
+                y = 15;
+            }
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(9);
+            pdf.text(
+                `Comentarios para el/la consejero(a) del salón ${grupo.salon}${nombreConsejero ? ` (${nombreConsejero})` : " (sin consejero(a) asignado(a))"}:`,
+                margenIzq, y
+            );
+            y += 3;
+            pdf.setDrawColor(148, 163, 184);
+            pdf.setLineWidth(0.25);
+            pdf.rect(margenIzq, y, anchoPagina - margenIzq - margenDer, altoCajaComentarios);
+            for (let linea = 1; linea <= 2; linea++) {
+                const yLinea = y + (altoCajaComentarios / 3) * linea;
+                pdf.setDrawColor(203, 213, 225);
+                pdf.line(margenIzq + 3, yLinea, anchoPagina - margenDer - 3, yLinea);
+            }
+            y += altoCajaComentarios + 10;
+        });
+
+        // --- Leyenda de niveles, al final del documento ---
+        if (y > altoPagina - 35) { pdf.addPage(); y = 15; }
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(8.5);
+        pdf.text("Nivel de compromiso (según la nota mínima que necesita en el examen para llegar a 3.0):", margenIzq, y);
+        y += 5;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(8);
+        const leyenda = [
+            { color: [21, 128, 61], texto: "Leve: necesita 3.5 o menos." },
+            { color: [217, 119, 6], texto: "Comprometido: necesita más de 3.5." },
+            { color: [185, 28, 28], texto: "Muy comprometido: necesita más de 4.0." },
+            { color: [127, 29, 29], texto: "Crítico: no alcanza ni obteniendo 5.0 en el examen." },
+        ];
+        leyenda.forEach((it) => {
+            pdf.setFillColor(...it.color);
+            pdf.circle(margenIzq + 1, y - 1, 1.1, "F");
+            pdf.setTextColor(...it.color);
+            pdf.text(it.texto, margenIzq + 5, y);
+            y += 4.6;
+        });
+        pdf.setTextColor(0, 0, 0);
+
+        pdf.save(`Cuadro_consejeria_${trimestre.replace(/\s+/g, "_")}.pdf`);
+    } finally {
+        btnDescargarCuadroConsejero.disabled = false;
+        btnDescargarCuadroConsejero.innerHTML = btnTextoOriginal;
+    }
 }
 
 btnDescargarCuadroConsejero.addEventListener("click", generarPdfCuadroConsejero);
