@@ -2513,6 +2513,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const consultasSalonEl = document.getElementById("consultasSalon");
     const consultasOrdenEl = document.getElementById("consultasOrden");
     const consultasBuscarEl = document.getElementById("consultasBuscar");
+    const consultasFechaDesdeEl = document.getElementById("consultasFechaDesde");
+    const consultasFechaHastaEl = document.getElementById("consultasFechaHasta");
+    const btnLimpiarFechaConsultas = document.getElementById("btnLimpiarFechaConsultas");
+    const consultasFechaResumenEl = document.getElementById("consultasFechaResumen");
     const btnCargarConsultas = document.getElementById("btnCargarConsultas");
     const tablaConsultasAdmin = document.getElementById("tablaConsultasAdmin");
     const tablaTopConsultas = document.getElementById("tablaTopConsultas");
@@ -2598,9 +2602,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         const orden = consultasOrdenEl.value;
         const colspan = mostrarColumnaSalon ? 6 : 5;
 
+        // ---- Filtro de fecha (Desde / Hasta), sobre lo ya cargado en memoria ----
+        const valorDesde = consultasFechaDesdeEl?.value || "";
+        const valorHasta = consultasFechaHastaEl?.value || "";
+        const desde = valorDesde ? new Date(`${valorDesde}T00:00:00`) : null;
+        const hasta = valorHasta ? new Date(`${valorHasta}T23:59:59.999`) : null;
+
+        const consultasEnRango = consultasCargadasAdmin.filter((c) => {
+            if (!desde && !hasta) return true;
+            const f = new Date(c.creado_en);
+            if (desde && f < desde) return false;
+            if (hasta && f > hasta) return false;
+            return true;
+        });
+
+        if (consultasFechaResumenEl) {
+            consultasFechaResumenEl.textContent = (desde || hasta)
+                ? `Mostrando ${consultasEnRango.length} de ${consultasCargadasAdmin.length} consultas en ese rango de fechas.`
+                : "";
+        }
+
         // ---- Conteo por estudiante (para el top y para "sin consultar") ----
         const conteoPorNombre = {};
-        consultasCargadasAdmin.forEach((c) => {
+        consultasEnRango.forEach((c) => {
             if (!c.encontrado || !c.nombre) return;
             if (!conteoPorNombre[c.nombre]) {
                 conteoPorNombre[c.nombre] = {
@@ -2616,7 +2640,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         const nombresQueConsultaron = new Set(Object.keys(conteoPorNombre));
-        const totalConPdf = consultasCargadasAdmin.filter((c) => c.pdf_descargado).length;
+        const totalConPdf = consultasEnRango.filter((c) => c.pdf_descargado).length;
 
         const nombresDelAlcance = new Set((scope || []).map((e) => (e.nombre || "").trim()));
         let sinConsultar = 0;
@@ -2624,7 +2648,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!nombresQueConsultaron.has(n)) sinConsultar++;
         });
 
-        statConsultasTotal.textContent = consultasCargadasAdmin.length;
+        statConsultasTotal.textContent = consultasEnRango.length;
         statConsultasDistintos.textContent = nombresQueConsultaron.size;
         statConsultasPdf.textContent = totalConPdf;
         statConsultasSin.textContent = sinConsultar;
@@ -2648,7 +2672,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             `).join("");
 
         // ---- Historial completo, filtrado y ordenado ----
-        let filtradas = consultasCargadasAdmin.filter((c) => {
+        let filtradas = consultasEnRango.filter((c) => {
             if (!texto) return true;
             const nombre = (c.nombre || "").toLowerCase();
             const cedula = (c.cedula || "").toLowerCase();
@@ -2703,6 +2727,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     if (consultasBuscarEl) {
         consultasBuscarEl.addEventListener("input", () => renderConsultasAdmin());
+    }
+    if (consultasFechaDesdeEl) {
+        consultasFechaDesdeEl.addEventListener("change", () => renderConsultasAdmin());
+    }
+    if (consultasFechaHastaEl) {
+        consultasFechaHastaEl.addEventListener("change", () => renderConsultasAdmin());
+    }
+    if (btnLimpiarFechaConsultas) {
+        btnLimpiarFechaConsultas.addEventListener("click", () => {
+            if (consultasFechaDesdeEl) consultasFechaDesdeEl.value = "";
+            if (consultasFechaHastaEl) consultasFechaHastaEl.value = "";
+            renderConsultasAdmin();
+        });
     }
 
     // Se expone para que admin.html la llame la primera vez que se
