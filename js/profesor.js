@@ -176,6 +176,7 @@ const btnEstudiantesSeleccionarTodos = document.getElementById("btnEstudiantesSe
 const btnEstudiantesSeleccionarNinguno = document.getElementById("btnEstudiantesSeleccionarNinguno");
 const btnExportarPdf = document.getElementById("btnExportarPdf");
 const btnExportarJpg = document.getElementById("btnExportarJpg");
+const btnExportarNotaMinima = document.getElementById("btnExportarNotaMinima");
 
 // ---------------------------------------------------------------
 // "Chips" (botoncitos con gancho) para elegir Salón / Materia en vez
@@ -2555,6 +2556,256 @@ btnExportarJpg?.addEventListener("click", async () => {
     } finally {
         btnExportarJpg.disabled = false;
         btnExportarJpg.innerHTML = `<span class="btn-exportar-icono">🖼️</span><span class="btn-exportar-texto">Descargar JPG</span>`;
+    }
+});
+
+// =========================================================
+// EXPORTAR "NOTA MÍNIMA EN EL EXAMEN" (PDF) — cuánto necesita
+// sacar cada estudiante en lo que falta del Examen para llegar
+// al Prom. Final mínimo de aprobación (por defecto 3.0).
+// =========================================================
+
+// Para cada estudiante calcula, a partir de sus notas ya cargadas
+// en memoria (grupoActual / historiaPorEstudiante / casillasTabla),
+// el promedio de Apreciación, el de Ejercicios, cuántas casillas de
+// Examen existen en total, cuántas ya tienen nota y qué promedio
+// necesita sacar en las que faltan para que el Prom. Final llegue
+// exactamente a la meta (PROMEDIO_MINIMO_APROBAR).
+function calcularNotaMinimaExamenPorEstudiante(est, meta = PROMEDIO_MINIMO_APROBAR) {
+    const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
+    const apr = [], eje = [], exaExistentes = [];
+    let totalCasillasExamen = 0;
+
+    casillasTabla.forEach((c) => {
+        const claveCas = claveCasilla(c.tipo, c.numero);
+        const n = historial[claveCas];
+        const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
+        const valorNum = crudo === "" ? null : parseFloat(formatearNotaFinal(String(crudo)));
+        const valido = valorNum !== null && !Number.isNaN(valorNum);
+
+        if (c.tipo === "apreciacion") {
+            if (valido) apr.push(valorNum);
+        } else if (c.tipo === "examen") {
+            totalCasillasExamen++;
+            if (valido) exaExistentes.push(valorNum);
+        } else {
+            if (valido) eje.push(valorNum);
+        }
+    });
+
+    const promApr = apr.length ? apr.reduce((a, b) => a + b, 0) / apr.length : null;
+    const promEje = eje.length ? eje.reduce((a, b) => a + b, 0) / eje.length : null;
+    const faltantesExamen = totalCasillasExamen - exaExistentes.length;
+    const sumaExamenExistente = exaExistentes.reduce((a, b) => a + b, 0);
+
+    if (promApr === null || promEje === null) {
+        return { estado: "faltan_base", promApr, promEje, notaNecesaria: null };
+    }
+    if (totalCasillasExamen === 0 || faltantesExamen === 0) {
+        // Ya no hay casillas de examen pendientes: el promedio final
+        // ya quedó definido (o no hay examen configurado en absoluto).
+        const promExamen = exaExistentes.length ? sumaExamenExistente / exaExistentes.length : null;
+        const presentes = [promApr, promEje, promExamen].filter((v) => v !== null);
+        const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
+        return { estado: "definido", promApr, promEje, promFinal, notaNecesaria: null };
+    }
+
+    // Prom.Final = (promApr + promEje + promExamenFinal) / 3  =>
+    // promExamenFinal = 3*meta - promApr - promEje
+    const promExamenNecesario = 3 * meta - promApr - promEje;
+    // promExamenFinal = (sumaExamenExistente + sumaFaltante) / totalCasillasExamen
+    const sumaFaltanteNecesaria = promExamenNecesario * totalCasillasExamen - sumaExamenExistente;
+    const notaMediaFaltante = sumaFaltanteNecesaria / faltantesExamen;
+
+    if (notaMediaFaltante <= 0) {
+        return { estado: "ya_aprobado", promApr, promEje, notaNecesaria: 0 };
+    }
+    if (notaMediaFaltante > NOTA_MAXIMA_ESCALA) {
+        return { estado: "imposible", promApr, promEje, notaNecesaria: NOTA_MAXIMA_ESCALA };
+    }
+    return { estado: "necesita", promApr, promEje, notaNecesaria: notaMediaFaltante, faltantesExamen };
+}
+
+// La app limita cada casilla a un máximo de 5 (ver formatearNotaFinal),
+// así que esa es también la nota máxima posible en el examen.
+const NOTA_MAXIMA_ESCALA = 5;
+
+function construirTablaNotaMinima(meta) {
+    const tabla = document.createElement("table");
+    const estiloTh = `background:${REPORTE_COLOR_OSCURO}; color:#fff; padding:10px 8px; font-size:12.5px; font-weight:600; letter-spacing:.2px;`;
+
+    const thead = document.createElement("thead");
+    const trCabecera = document.createElement("tr");
+    trCabecera.innerHTML = `
+        <th style="${estiloTh} width:36px;">#</th>
+        <th style="${estiloTh} text-align:left; min-width:190px;">Estudiante</th>
+        <th style="${estiloTh}">Prom. Aprec.</th>
+        <th style="${estiloTh}">Prom. Ejer.</th>
+        <th style="${estiloTh} background:#15803d;">Nota mínima en el Examen</th>
+        <th style="${estiloTh} text-align:left;">Observación</th>`;
+    thead.appendChild(trCabecera);
+    tabla.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    grupoActual.forEach((est, i) => {
+        const r = calcularNotaMinimaExamenPorEstudiante(est, meta);
+        const tr = document.createElement("tr");
+        tr.style.backgroundColor = i % 2 === 0 ? "#ffffff" : "#fafaff";
+
+        const celda = (html, extra = "") => {
+            const td = document.createElement("td");
+            td.style.cssText = `padding:7px 8px; font-size:12.5px; ${extra}`;
+            td.innerHTML = html;
+            return td;
+        };
+
+        tr.appendChild(celda(String(i + 1), "text-align:center; color:#6b7280;"));
+        tr.appendChild(celda(escapeHtml(est.nombre && est.nombre.trim() ? est.nombre : "(Sin nombre registrado)"), "text-align:left; font-weight:500;"));
+        tr.appendChild(celda(r.promApr !== null ? r.promApr.toFixed(1) : "–", "text-align:center;"));
+        tr.appendChild(celda(r.promEje !== null ? r.promEje.toFixed(1) : "–", "text-align:center;"));
+
+        let notaHtml = "–";
+        let obs = "";
+        if (r.estado === "faltan_base") {
+            obs = "Faltan notas de Apreciación y/o Ejercicios";
+        } else if (r.estado === "definido") {
+            const bajo = r.promFinal !== null && r.promFinal < meta;
+            notaHtml = "—";
+            obs = r.promFinal === null
+                ? "Sin notas registradas"
+                : `Ya tiene Prom. Final = ${r.promFinal.toFixed(1)} (${bajo ? "no alcanza" : "alcanza"} el mínimo)`;
+        } else if (r.estado === "ya_aprobado") {
+            notaHtml = "0.0";
+            obs = "Ya está aprobado(a) con las notas actuales";
+        } else if (r.estado === "imposible") {
+            notaHtml = `<span style="color:#b91c1c; font-weight:700;">${NOTA_MAXIMA_ESCALA.toFixed(1)}</span>`;
+            obs = `No alcanza a llegar a ${meta.toFixed(1)} aunque saque ${NOTA_MAXIMA_ESCALA.toFixed(1)} en el examen`;
+        } else if (r.estado === "necesita") {
+            notaHtml = `<span style="font-weight:700; color:${REPORTE_COLOR_OSCURO};">${r.notaNecesaria.toFixed(1)}</span>`;
+            obs = r.faltantesExamen > 1
+                ? `Promedio necesario en las ${r.faltantesExamen} casillas de Examen que faltan`
+                : "Debe alcanzarla para llegar al mínimo";
+        }
+
+        tr.appendChild(celda(notaHtml, "text-align:center;"));
+        tr.appendChild(celda(obs, "text-align:left; color:#4b5563; font-size:11.5px;"));
+        tbody.appendChild(tr);
+    });
+    tabla.appendChild(tbody);
+
+    tabla.querySelectorAll("th, td").forEach((cell) => {
+        cell.style.border = `1px solid ${REPORTE_COLOR_BORDE}`;
+    });
+
+    return tabla;
+}
+
+function construirReporteNotaMinimaHtml() {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const meta = PROMEDIO_MINIMO_APROBAR;
+    const fechaHoyTexto = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
+    const horaHoyTexto = new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+
+    const tablaNotaMinima = construirTablaNotaMinima(meta);
+
+    const dato = (etiqueta, valor) => `
+        <div style="flex:1; min-width:150px;">
+            <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:#9691e8; font-weight:600;">${etiqueta}</div>
+            <div style="font-size:14.5px; font-weight:600; color:#1f2937; margin-top:2px;">${valor}</div>
+        </div>`;
+
+    const contenedor = document.createElement("div");
+    contenedor.style.cssText = `background:#fff; width:1050px; font-family:${REPORTE_FUENTE}; color:${REPORTE_COLOR_TEXTO};`;
+    contenedor.innerHTML = `
+        <div style="background:linear-gradient(135deg, ${REPORTE_COLOR_PRIMARIO} 0%, ${REPORTE_COLOR_OSCURO} 100%); padding:26px 32px; display:flex; align-items:center; justify-content:space-between;">
+            <div>
+                <div style="font-size:20px; font-weight:700; color:#fff; letter-spacing:.2px;">🏫 Centro Básico General El Jiral</div>
+                <div style="font-size:13px; color:#d9d7fb; margin-top:4px;">Nota mínima necesaria en el examen para aprobar el trimestre</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:12px; color:#d9d7fb;">${fechaHoyTexto}</div>
+                <div style="display:inline-block; margin-top:6px; background:rgba(255,255,255,0.18); color:#fff; font-size:12px; font-weight:600; padding:4px 12px; border-radius:14px;">${escapeHtml(trimestre)}</div>
+            </div>
+        </div>
+
+        <div style="padding:18px 32px 4px; display:flex; flex-wrap:wrap; gap:18px; background:${REPORTE_COLOR_CLARO}; border-bottom:1px solid ${REPORTE_COLOR_BORDE};">
+            ${dato("Profesor(a)", escapeHtml(nombreProfesor))}
+            ${dato("Materia", escapeHtml(materia))}
+            ${dato("Salón", escapeHtml(salon))}
+            ${dato("Promedio mínimo para aprobar", meta.toFixed(1))}
+        </div>
+
+        <div style="padding:16px 32px 0;">
+            <p style="font-size:11.5px; color:#4b5563; line-height:1.5; margin:0 0 12px;">
+                El promedio final se calcula como el promedio simple de Apreciación, Ejercicios y Examen.
+                La columna "Nota mínima en el Examen" indica la nota (o el promedio, si faltan varias
+                casillas de examen) que cada estudiante necesita para llegar a un Prom. Final de ${meta.toFixed(1)}.
+            </p>
+            <div id="tablaNotaMinimaContenedor" style="box-shadow:0 1px 3px rgba(0,0,0,0.08);"></div>
+        </div>
+
+        <div style="padding:40px 32px 28px; display:flex; justify-content:center;">
+            <div style="text-align:center;">
+                <div style="border-top:1px solid #9ca3af; width:280px; margin-bottom:6px;"></div>
+                <div style="font-size:12.5px; color:#4b5563;">Firma del/de la docente</div>
+            </div>
+        </div>
+
+        <div style="border-top:1px solid ${REPORTE_COLOR_BORDE}; padding:12px 32px; display:flex; justify-content:space-between; font-size:10.5px; color:#9ca3af;">
+            <span>Generado el ${fechaHoyTexto} a las ${horaHoyTexto}</span>
+            <span>Sistema de Control de Notas · Centro Básico General El Jiral</span>
+        </div>
+    `;
+    contenedor.querySelector("#tablaNotaMinimaContenedor").appendChild(tablaNotaMinima);
+    tablaNotaMinima.style.width = "100%";
+    tablaNotaMinima.style.borderCollapse = "collapse";
+
+    return contenedor;
+}
+
+async function generarCanvasNotaMinima() {
+    const contenedor = construirReporteNotaMinimaHtml();
+    contenedor.style.position = "fixed";
+    contenedor.style.left = "-99999px";
+    contenedor.style.top = "0";
+    document.body.appendChild(contenedor);
+
+    try {
+        if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+        }
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const canvas = await html2canvas(contenedor, { scale: 3, backgroundColor: "#ffffff" });
+        return canvas;
+    } finally {
+        contenedor.remove();
+    }
+}
+
+btnExportarNotaMinima?.addEventListener("click", async () => {
+    if (!selectSalonNota.value || !selectMateriaNota.value) return alert("Primero carga un salón y materia.");
+    btnExportarNotaMinima.disabled = true;
+    btnExportarNotaMinima.innerHTML = `<span class="btn-exportar-icono">⏳</span><span class="btn-exportar-texto">Generando PDF...</span>`;
+    try {
+        const canvas = await generarCanvasNotaMinima();
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+        const w = canvas.width * ratio;
+        const h = canvas.height * ratio;
+        const y = Math.max(16, (pageHeight - h) / 2);
+        pdf.addImage(canvas.toDataURL("image/jpeg", 1.0), "JPEG", (pageWidth - w) / 2, y, w, h);
+        pdf.save(`NotaMinimaExamen_${selectMateriaNota.value}_${selectSalonNota.value}.pdf`);
+    } catch (err) {
+        console.error(err);
+        alert("No se pudo generar el PDF: " + err.message);
+    } finally {
+        btnExportarNotaMinima.disabled = false;
+        btnExportarNotaMinima.innerHTML = `<span class="btn-exportar-icono">🎯</span><span class="btn-exportar-texto">Nota mínima en Examen (PDF)</span>`;
     }
 });
 
