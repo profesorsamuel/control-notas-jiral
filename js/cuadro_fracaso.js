@@ -15,6 +15,8 @@ function escapeHtml(str) {
 
 // Mismo umbral que usa profesor.js / cuadro_aprobados.js para decidir aprobado/reprobado.
 const PROMEDIO_MINIMO_APROBAR = 3.0;
+// La app limita cada casilla de nota a un máximo de 5 (ver formatearNotaFinal en profesor.js).
+const NOTA_MAXIMA_ESCALA = 5;
 
 function calcularPct(numerador, denominador) {
     if (!denominador) return 0;
@@ -208,24 +210,42 @@ async function calcularDatosSalon(salon, materia, trimestre) {
         aprobados: 0,
         reprobados: 0,
         sinCalif: 0,
+        detalleEstudiantes: [],
     };
 
     lista.forEach((est) => {
         const grupos = gruposPorEstudiante[est.id];
-        const promedios = grupos
-            ? [grupos.apr, grupos.eje, grupos.exa].filter((l) => l.length).map((l) => l.reduce((a, b) => a + b, 0) / l.length)
-            : [];
+        const promApr = grupos && grupos.apr.length ? grupos.apr.reduce((a, b) => a + b, 0) / grupos.apr.length : null;
+        const promEje = grupos && grupos.eje.length ? grupos.eje.reduce((a, b) => a + b, 0) / grupos.eje.length : null;
+        const promExa = grupos && grupos.exa.length ? grupos.exa.reduce((a, b) => a + b, 0) / grupos.exa.length : null;
+        const promedios = [promApr, promEje, promExa].filter((v) => v !== null);
 
         if (!promedios.length) {
             resumen.sinCalif++;
             return;
         }
         const promFinal = promedios.reduce((a, b) => a + b, 0) / promedios.length;
-        if (promFinal < PROMEDIO_MINIMO_APROBAR) {
-            resumen.reprobados++;
-        } else {
+        const aprobado = promFinal >= PROMEDIO_MINIMO_APROBAR;
+        if (aprobado) {
             resumen.aprobados++;
+        } else {
+            resumen.reprobados++;
         }
+
+        // Para el cuadro de "en riesgo de entrar en fracaso": solo tiene
+        // sentido para estudiantes que hoy están aprobados con base en
+        // Apreciación y Ejercicios, pero que todavía no tienen nota de
+        // Examen — su promedio puede bajar cuando esa nota se registre.
+        resumen.detalleEstudiantes.push({
+            nombre: est.nombre && est.nombre.trim() ? est.nombre : "(Sin nombre registrado)",
+            salonEtiqueta: resumen.etiqueta,
+            promApr,
+            promEje,
+            promExa,
+            promFinal,
+            aprobado,
+            tieneExamen: promExa !== null,
+        });
     });
 
     return resumen;
@@ -390,6 +410,86 @@ function construirNotasHtml() {
 }
 
 // =========================================================
+// 5.1) ESTUDIANTES QUE PUEDEN ENTRAR EN RIESGO (aprobados hoy,
+//      pero todavía sin nota de Examen): nota mínima que necesitan
+//      en el Examen para no caer por debajo del promedio mínimo.
+// =========================================================
+
+function construirTablaRiesgoHtml(filas, meta) {
+    const candidatos = [];
+    filas.forEach((f) => {
+        (f.detalleEstudiantes || []).forEach((est) => {
+            if (!est.aprobado) return;          // ya está en riesgo/reprobado, no aplica aquí
+            if (est.tieneExamen) return;         // ya tiene nota de examen registrada
+            if (est.promApr === null || est.promEje === null) return;
+
+            const notaMinima = 3 * meta - est.promApr - est.promEje;
+            let estadoNota, notaMostrar;
+            if (notaMinima <= 0) {
+                estadoNota = "ok";
+                notaMostrar = "0.0";
+            } else if (notaMinima > NOTA_MAXIMA_ESCALA) {
+                estadoNota = "mal";
+                notaMostrar = `${NOTA_MAXIMA_ESCALA.toFixed(1)} (no le alcanza)`;
+            } else {
+                estadoNota = notaMinima >= 3.5 ? "mal" : "ok";
+                notaMostrar = notaMinima.toFixed(1);
+            }
+
+            candidatos.push({
+                salon: est.salonEtiqueta,
+                nombre: est.nombre,
+                promApr: est.promApr,
+                promEje: est.promEje,
+                notaMinima,
+                notaMostrar,
+                estadoNota,
+            });
+        });
+    });
+
+    if (!candidatos.length) {
+        return `
+        <h3 class="titulo-seccion-riesgo">Estudiantes que deben cuidar su nota de Examen</h3>
+        <div class="nota-pie">No hay estudiantes aprobados a la espera de nota de Examen en los grados seleccionados.</div>`;
+    }
+
+    candidatos.sort((a, b) => b.notaMinima - a.notaMinima || a.nombre.localeCompare(b.nombre));
+
+    const filasHtml = candidatos.map((c) => `
+        <tr>
+            <td style="text-align:left;"><strong>${escapeHtml(c.nombre)}</strong></td>
+            <td>${escapeHtml(c.salon)}</td>
+            <td>${c.promApr.toFixed(1)}</td>
+            <td>${c.promEje.toFixed(1)}</td>
+            <td><span class="pct-badge ${c.estadoNota === 'ok' ? 'ok' : 'mal'}">${c.notaMostrar}</span></td>
+        </tr>`).join("");
+
+    return `
+    <h3 class="titulo-seccion-riesgo">⚠️ Estudiantes que deben cuidar su nota de Examen</h3>
+    <div class="nota-pie" style="margin-bottom:10px;">
+        Estos estudiantes <strong>no están en riesgo actualmente</strong>, pero todavía no tienen nota
+        de Examen registrada en Ciencias Naturales. Si sacan una nota más baja de la indicada,
+        podrían pasar a estar en riesgo. La columna "Nota mínima en el Examen" es lo que necesitan
+        sacar para mantener su promedio final en ${meta.toFixed(1)} o más.
+    </div>
+    <table class="tabla-cuadro">
+        <thead>
+            <tr>
+                <th>ESTUDIANTE</th>
+                <th>SALÓN</th>
+                <th>PROM. APREC.</th>
+                <th>PROM. EJER.</th>
+                <th>NOTA MÍNIMA EN EL EXAMEN</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${filasHtml}
+        </tbody>
+    </table>`;
+}
+
+// =========================================================
 // 6) GENERAR CUADRO
 // =========================================================
 
@@ -419,6 +519,7 @@ btnGenerar.addEventListener("click", async () => {
             ${construirEncabezadoHtml(filas)}
             ${construirResumenMeta(totalMatricula, totalReprobados, meta)}
             ${tablaHtml}
+            ${construirTablaRiesgoHtml(filas, PROMEDIO_MINIMO_APROBAR)}
             ${construirNotasHtml()}
         `;
         bloqueReporte.style.display = "block";
