@@ -1667,7 +1667,7 @@ async function guardarNotas(esAutomatico = false) {
 // independiente de la papelera: cubre el caso de un desastre mayor
 // en la base de datos, no solo un borrado accidental.
 
-const MINUTOS_INACTIVIDAD_RESPALDO = 10;
+const MINUTOS_INACTIVIDAD_RESPALDO = 5;
 const URL_FUNCION_ENVIAR_NOTAS = "https://luewrpzgetqslxqmdcxv.functions.supabase.co/enviar-notas-correo";
 
 let cambiosPendientesRespaldo = [];
