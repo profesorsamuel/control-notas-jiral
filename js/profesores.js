@@ -1667,15 +1667,8 @@ async function guardarNotas(esAutomatico = false) {
 // independiente de la papelera: cubre el caso de un desastre mayor
 // en la base de datos, no solo un borrado accidental.
 
-const EMAILJS_SERVICE_ID = "service_avsesik";
-const EMAILJS_TEMPLATE_ID = "template_00nky6m";
-const EMAILJS_PUBLIC_KEY = "2PasfycZJSW6hDpqg";
 const MINUTOS_INACTIVIDAD_RESPALDO = 10;
 const URL_FUNCION_ENVIAR_NOTAS = "https://luewrpzgetqslxqmdcxv.functions.supabase.co/enviar-notas-correo";
-
-if (window.emailjs) {
-    window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-}
 
 let cambiosPendientesRespaldo = [];
 let temporizadorRespaldo = null;
@@ -1702,8 +1695,25 @@ function reiniciarTemporizadorRespaldo() {
     temporizadorRespaldo = setTimeout(enviarRespaldoPorCorreo, MINUTOS_INACTIVIDAD_RESPALDO * 60 * 1000);
 }
 
+// Genera el Excel real del salón/materia/trimestre que se está
+// editando y lo manda por el mismo camino que usa el botón manual
+// "Enviar notas por correo" (función de Supabase -> Resend), con el
+// mismo patrón de asunto "Notas — ..." para que el script de Apps
+// Script del docente lo detecte solo y lo guarde en Drive.
 async function enviarRespaldoPorCorreo() {
-    if (!window.emailjs || cambiosPendientesRespaldo.length === 0) return;
+    if (cambiosPendientesRespaldo.length === 0) return;
+
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+
+    if (!salon || !materia || !trimestre) {
+        // No hay suficiente contexto todavía (por ejemplo, se cambió
+        // de pantalla); se reintenta más adelante sin perder los
+        // cambios acumulados.
+        reiniciarTemporizadorRespaldo();
+        return;
+    }
 
     const filas = cambiosPendientesRespaldo.map((c) =>
         `<tr>` +
@@ -1727,20 +1737,40 @@ async function enviarRespaldoPorCorreo() {
             <tbody>${filas}</tbody>
         </table>`;
 
-    const parametros = {
-        profesor: nombreProfesor,
-        materia: selectMateriaNota.value,
-        salon: selectSalonNota.value,
-        trimestre: selectTrimestreNota.value,
-        fecha: new Date().toLocaleString("es-PA"),
-        tabla_notas: tablaHtml,
-    };
+    const htmlCompleto = `
+        <div style="font-family:Arial,sans-serif;">
+            <h2 style="color:#1f4e79;">📋 Respaldo automático de notas — ${escapeHtml(nombreProfesor)}</h2>
+            <p><strong>Salón:</strong> ${escapeHtml(salon)} &nbsp; <strong>Materia:</strong> ${escapeHtml(materia)} &nbsp; <strong>Trimestre:</strong> ${escapeHtml(trimestre)}<br>
+            <strong>Cambios desde el último respaldo:</strong></p>
+            ${tablaHtml}
+        </div>`;
 
     try {
-        await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, parametros);
+        const { data: { session } } = await supabase.auth.getSession();
+        const base64Excel = await construirExcelSnapshot([{ salon, materia }], trimestre);
+        const nombreArchivoExcel = `Notas ${salon} - ${materia} - ${trimestre}.xlsx`;
+
+        const respuesta = await fetch(URL_FUNCION_ENVIAR_NOTAS, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+                asunto: `Notas — ${salon} — ${materia} — ${trimestre}`,
+                html: htmlCompleto,
+                adjunto: { nombreArchivo: nombreArchivoExcel, base64Content: base64Excel },
+            }),
+        });
+
+        if (!respuesta.ok) {
+            const resultado = await respuesta.json().catch(() => ({}));
+            throw new Error(resultado?.error || "El servidor rechazó el envío.");
+        }
+
         cambiosPendientesRespaldo = [];
     } catch (err) {
-        console.error("❌ No se pudo enviar el respaldo automático por correo:", err);
+        console.error("❌ No se pudo enviar el respaldo automático:", err);
         // No se pierden los cambios acumulados: se reintenta en el
         // siguiente ciclo de inactividad.
         reiniciarTemporizadorRespaldo();
