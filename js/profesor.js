@@ -1726,7 +1726,7 @@ async function guardarNotas(esAutomatico = false) {
 // independiente de la papelera: cubre el caso de un desastre mayor
 // en la base de datos, no solo un borrado accidental.
 
-const MINUTOS_INACTIVIDAD_RESPALDO = 5;
+const MINUTOS_INACTIVIDAD_RESPALDO = 0.5; // 🔧 TEMPORAL para pruebas — regresar a 5 cuando funcione
 const URL_FUNCION_ENVIAR_NOTAS = "https://luewrpzgetqslxqmdcxv.functions.supabase.co/enviar-notas-correo";
 
 let cambiosPendientesRespaldo = [];
@@ -1746,6 +1746,7 @@ function registrarCambioParaRespaldo(item) {
         nota: item.nota,
         hora: new Date().toLocaleString("es-PA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
     });
+    console.log(`🕐 [Respaldo] Cambio registrado (${cambiosPendientesRespaldo.length} pendiente(s)). Se enviará en ${MINUTOS_INACTIVIDAD_RESPALDO} min si no hay más cambios.`);
     reiniciarTemporizadorRespaldo();
 }
 
@@ -1760,14 +1761,17 @@ function reiniciarTemporizadorRespaldo() {
 // mismo patrón de asunto "Notas — ..." para que el script de Apps
 // Script del docente lo detecte solo y lo guarde en Drive.
 async function enviarRespaldoPorCorreo() {
+    console.log("📤 [Respaldo] Disparó el temporizador. Pendientes:", cambiosPendientesRespaldo.length);
     if (cambiosPendientesRespaldo.length === 0) return;
 
     const salon = selectSalonNota.value;
     const materia = selectMateriaNota.value;
     const trimestre = selectTrimestreNota.value;
+    console.log("📤 [Respaldo] Contexto:", { salon, materia, trimestre });
 
     if (!salon || !materia || !trimestre) {
         // No hay suficiente contexto todavía (por ejemplo, el docente
+
         // cambió de pantalla); se reintenta más adelante sin perder
         // los cambios acumulados.
         reiniciarTemporizadorRespaldo();
@@ -1827,6 +1831,7 @@ async function enviarRespaldoPorCorreo() {
             throw new Error(resultado?.error || "El servidor rechazó el envío.");
         }
 
+        console.log("✅ [Respaldo] Enviado correctamente:", nombreArchivoExcel);
         cambiosPendientesRespaldo = [];
     } catch (err) {
         console.error("❌ No se pudo enviar el respaldo automático:", err);
