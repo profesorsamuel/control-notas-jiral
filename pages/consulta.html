@@ -19,7 +19,7 @@
         body {
             font-family: Arial, Helvetica, sans-serif;
             margin: 0;
-            background: #f1f5f9;
+            background: var(--fondo);
             padding: 20px;
         }
 
@@ -34,13 +34,13 @@
         }
 
         .encabezado h1 {
-            color: #1e3a8a;
+            color: var(--azul-oscuro);
             margin: 10px 0 4px;
             font-size: 1.7rem;
         }
 
         .encabezado p {
-            color: #64748b;
+            color: var(--texto-suave);
             margin: 0;
         }
 
@@ -68,7 +68,7 @@
         .fila-busqueda input[type="password"] {
             width: 100%;
             padding: 12px 40px 12px 12px;
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--borde);
             border-radius: 8px;
             font-size: 16px;
         }
@@ -82,14 +82,14 @@
             background: none;
             cursor: pointer;
             font-size: 16px;
-            color: #64748b;
+            color: var(--texto-suave);
         }
 
         button.btn-buscar {
             padding: 12px 22px;
             border: none;
             border-radius: 8px;
-            background: #2563eb;
+            background: var(--azul);
             color: #fff;
             font-size: 16px;
             font-weight: bold;
@@ -97,7 +97,7 @@
         }
 
         button.btn-buscar:hover { background: #1d4ed8; }
-        button.btn-buscar:disabled { background: #94a3b8; cursor: not-allowed; }
+        button.btn-buscar:disabled { background: var(--texto-mas-suave); cursor: not-allowed; }
 
         .mensaje {
             margin-top: 14px;
@@ -130,7 +130,7 @@
             font-size: 1.25rem;
         }
 
-        .resumen-estudiante p { margin: 0; color: #64748b; }
+        .resumen-estudiante p { margin: 0; color: var(--texto-suave); }
 
         .acciones {
             display: flex;
@@ -153,7 +153,7 @@
         select#filtroTrimestre {
             padding: 8px 10px;
             border-radius: 6px;
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--borde);
         }
 
         .materia-card {
@@ -179,7 +179,7 @@
 
         table.tabla-notas th,
         table.tabla-notas td {
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--borde);
             padding: 8px 6px;
         }
 
@@ -190,7 +190,7 @@
 
         table.tabla-notas td.promedio {
             font-weight: 700;
-            background: #f1f5f9;
+            background: var(--fondo);
         }
 
         table.tabla-notas td.promedio-fracaso {
@@ -260,7 +260,7 @@
         }
 
         .btn-registro-rapido {
-            background: #2563eb;
+            background: var(--azul);
             color: #fff;
         }
 
@@ -270,7 +270,7 @@
 
         .btn-datos-rapido {
             background: #ffffff;
-            color: #2563eb;
+            color: var(--azul);
             border: 1px solid #93c5fd;
         }
 
@@ -282,7 +282,7 @@
             display: block;
             text-align: center;
             margin-top: 20px;
-            color: #2563eb;
+            color: var(--azul);
             text-decoration: none;
             font-weight: bold;
         }
@@ -295,9 +295,10 @@
             .resumen-estudiante { flex-direction: column; align-items: flex-start; }
         }
     </style>
+    <link rel="stylesheet" href="../css/temas.css">
 </head>
 
-<body>
+<body class="tema-datos">
 
     <div class="contenedor">
 
