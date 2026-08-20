@@ -97,11 +97,12 @@ const ETIQUETAS_ASISTENCIA_APR = { presente: "Presente", ausente: "Ausente", tar
 // 1) ESTADO DE LAS APRECIACIONES (activa / completada / bloqueada)
 // =========================================================
 
-export async function obtenerEstadoApreciaciones(materia, trimestre) {
+export async function obtenerEstadoApreciaciones(materia, salon, trimestre) {
     const { data, error } = await supabase
         .from("apreciaciones_estado")
         .select("numero, estado, modo")
         .eq("materia", materia)
+        .eq("salon", salon)
         .eq("trimestre", trimestre)
         .order("numero", { ascending: true });
 
@@ -115,9 +116,10 @@ export async function obtenerEstadoApreciaciones(materia, trimestre) {
 // Si esta materia/trimestre todavía no tiene ninguna fila de estado,
 // significa que nunca se usó el sistema nuevo aquí: activamos Aprec. 4
 // automáticamente (punto 2). No hace nada si ya existía.
-export async function asegurarApreciacion4Activa(materia, trimestre) {
+export async function asegurarApreciacion4Activa(materia, salon, trimestre) {
     const { error } = await supabase.rpc("activar_primera_apreciacion_nueva", {
         p_materia: materia,
+        p_salon: salon,
         p_trimestre: trimestre,
     });
     if (error) console.error("No se pudo activar Apreciación 4:", error);
@@ -129,12 +131,12 @@ export async function asegurarApreciacion4Activa(materia, trimestre) {
 // se agrega ninguna columna de "vista previa" automática — para abrir
 // la siguiente Apreciación el profesor usa el botón "➕" en la tabla
 // (ver profesor.js).
-export async function calcularColumnasApreciacionesNuevas(materia, trimestre) {
-    let estados = await obtenerEstadoApreciaciones(materia, trimestre);
+export async function calcularColumnasApreciacionesNuevas(materia, salon, trimestre) {
+    let estados = await obtenerEstadoApreciaciones(materia, salon, trimestre);
 
     if (estados.length === 0) {
-        await asegurarApreciacion4Activa(materia, trimestre);
-        estados = await obtenerEstadoApreciaciones(materia, trimestre);
+        await asegurarApreciacion4Activa(materia, salon, trimestre);
+        estados = await obtenerEstadoApreciaciones(materia, salon, trimestre);
     }
 
     return estados; // [{numero, estado, modo}, ...] ordenado
@@ -144,19 +146,19 @@ export async function calcularColumnasApreciacionesNuevas(materia, trimestre) {
 // da clic al "➕" de esa columna en la tabla principal. Si por
 // cualquier razón ya existiera una fila con ese número, no la pisa
 // (ignoreDuplicates) para no borrar una que ya estuviera en curso.
-export async function activarApreciacionSiguiente(materia, trimestre, numero) {
+export async function activarApreciacionSiguiente(materia, salon, trimestre, numero) {
     const { error } = await supabase.from("apreciaciones_estado").upsert(
-        { materia, trimestre, numero, estado: "activa", modo: null },
-        { onConflict: "materia,trimestre,numero", ignoreDuplicates: true }
+        { materia, salon, trimestre, numero, estado: "activa", modo: null },
+        { onConflict: "materia,salon,trimestre,numero", ignoreDuplicates: true }
     );
     if (error) { console.error("No se pudo activar la siguiente Apreciación:", error); return false; }
     return true;
 }
 
-export async function elegirModoApreciacion(materia, trimestre, numeroApreciacion, modo) {
+export async function elegirModoApreciacion(materia, salon, trimestre, numeroApreciacion, modo) {
     const { error } = await supabase.from("apreciaciones_estado")
         .update({ modo, updated_at: new Date().toISOString() })
-        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
+        .eq("materia", materia).eq("salon", salon).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
     if (error) console.error("No se pudo guardar el modo de la apreciación:", error);
     return !error;
 }
@@ -180,17 +182,17 @@ export async function revisarAvanceApreciacionesDirectas(materia, salon, trimest
 
 // Marca la apreciación como completada aunque falten estudiantes por
 // registrar: el profesor decide, sin depender del conteo automático.
-export async function completarApreciacionManual(materia, trimestre, numeroApreciacion) {
+export async function completarApreciacionManual(materia, salon, trimestre, numeroApreciacion) {
     const { error } = await supabase.rpc("completar_apreciacion_manual", {
-        p_materia: materia, p_trimestre: trimestre, p_numero: numeroApreciacion,
+        p_materia: materia, p_salon: salon, p_trimestre: trimestre, p_numero: numeroApreciacion,
     });
     if (error) { console.error(error); return false; }
     return true;
 }
 
-export async function reiniciarApreciacionActiva(materia, trimestre, numeroApreciacion) {
+export async function reiniciarApreciacionActiva(materia, salon, trimestre, numeroApreciacion) {
     const { data: seReinicio, error } = await supabase.rpc("reiniciar_apreciacion_activa", {
-        p_materia: materia, p_trimestre: trimestre, p_numero: numeroApreciacion,
+        p_materia: materia, p_salon: salon, p_trimestre: trimestre, p_numero: numeroApreciacion,
     });
     if (error) { console.error(error); return false; }
     return !!seReinicio;
@@ -204,10 +206,10 @@ export async function reiniciarApreciacionActiva(materia, trimestre, numeroAprec
 // Apreciación 4 y ya se activó la Apreciación 5, ambas quedan activas
 // a la vez (no se desactiva la siguiente), así que el docente puede
 // seguir corrigiendo la 4 sin perder el avance que ya hizo en la 5.
-export async function reabrirApreciacionParaEditar(materia, trimestre, numeroApreciacion) {
+export async function reabrirApreciacionParaEditar(materia, salon, trimestre, numeroApreciacion) {
     const { error } = await supabase.from("apreciaciones_estado")
         .update({ estado: "activa", updated_at: new Date().toISOString() })
-        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
+        .eq("materia", materia).eq("salon", salon).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
     if (error) { console.error("No se pudo reabrir la apreciación:", error); return false; }
     return true;
 }
@@ -218,13 +220,32 @@ export async function reabrirApreciacionParaEditar(materia, trimestre, numeroApr
 // también la fila de estado, así que la columna desaparece de la
 // tabla como si nunca hubiera existido. Útil cuando se agregó una
 // columna de más por error (ej. "+" tocado sin querer).
-export async function eliminarApreciacionColumna(materia, trimestre, numeroApreciacion) {
-    const { error: errNotas } = await supabase.from("notas").delete()
-        .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", "apreciacion").eq("numero", numeroApreciacion);
-    if (errNotas) { console.error("No se pudo borrar las notas de la apreciación:", errNotas); return { ok: false, error: errNotas }; }
+export async function eliminarApreciacionColumna(materia, salon, trimestre, numeroApreciacion) {
+    // "notas" y "comportamiento_detalle" no tienen columna salon propia
+    // (se identifica el salón del estudiante a través de la tabla
+    // "estudiantes"), así que primero averiguamos qué estudiantes son
+    // de este salón para poder acotar el borrado solo a ellos.
+    const { data: estudiantesSalon, error: errEst } = await supabase.from("estudiantes")
+        .select("id, correo").eq("salon", salon);
+    if (errEst) { console.error("No se pudo buscar los estudiantes del salón:", errEst); return { ok: false, error: errEst }; }
+    const idsEstudiantes = (estudiantesSalon || []).map((e) => e.id);
+    const correosEstudiantes = (estudiantesSalon || []).map((e) => e.correo).filter(Boolean);
+
+    if (idsEstudiantes.length > 0) {
+        const { error: errNotasId } = await supabase.from("notas").delete()
+            .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", "apreciacion").eq("numero", numeroApreciacion)
+            .in("estudiante_id", idsEstudiantes);
+        if (errNotasId) { console.error("No se pudo borrar las notas de la apreciación:", errNotasId); return { ok: false, error: errNotasId }; }
+    }
+    if (correosEstudiantes.length > 0) {
+        const { error: errNotasCorreo } = await supabase.from("notas").delete()
+            .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", "apreciacion").eq("numero", numeroApreciacion)
+            .in("correo", correosEstudiantes);
+        if (errNotasCorreo) { console.error("No se pudo borrar las notas de la apreciación:", errNotasCorreo); return { ok: false, error: errNotasCorreo }; }
+    }
 
     const { data: actividades, error: errBuscarAct } = await supabase.from("actividades_apreciacion")
-        .select("id").eq("materia", materia).eq("trimestre", trimestre).eq("numero_apreciacion", numeroApreciacion);
+        .select("id").eq("materia", materia).eq("salon", salon).eq("trimestre", trimestre).eq("numero_apreciacion", numeroApreciacion);
     if (errBuscarAct) { console.error("No se pudo buscar las actividades de la apreciación:", errBuscarAct); return { ok: false, error: errBuscarAct }; }
 
     const idsActividades = (actividades || []).map((a) => a.id);
@@ -236,12 +257,15 @@ export async function eliminarApreciacionColumna(materia, trimestre, numeroAprec
         if (errAct) { console.error("No se pudo borrar las actividades:", errAct); return { ok: false, error: errAct }; }
     }
 
-    const { error: errComportamiento } = await supabase.from("comportamiento_detalle").delete()
-        .eq("materia", materia).eq("trimestre", trimestre).eq("numero_apreciacion", numeroApreciacion);
-    if (errComportamiento) { console.error("No se pudo borrar el comportamiento de la apreciación:", errComportamiento); return { ok: false, error: errComportamiento }; }
+    if (idsEstudiantes.length > 0) {
+        const { error: errComportamiento } = await supabase.from("comportamiento_detalle").delete()
+            .eq("materia", materia).eq("trimestre", trimestre).eq("numero_apreciacion", numeroApreciacion)
+            .in("estudiante_id", idsEstudiantes);
+        if (errComportamiento) { console.error("No se pudo borrar el comportamiento de la apreciación:", errComportamiento); return { ok: false, error: errComportamiento }; }
+    }
 
     const { error: errEstado } = await supabase.from("apreciaciones_estado").delete()
-        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
+        .eq("materia", materia).eq("salon", salon).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
     if (errEstado) { console.error("No se pudo borrar el estado de la apreciación:", errEstado); return { ok: false, error: errEstado }; }
 
     return { ok: true };
@@ -301,11 +325,11 @@ export async function guardarConfigPesos({ peso_asistencia, peso_comportamiento,
 // las asistencias que ya tomó dentro del rango que él mismo define
 // para esta apreciación.
 
-export async function obtenerRangoFechas(materia, trimestre, numeroApreciacion) {
+export async function obtenerRangoFechas(materia, salon, trimestre, numeroApreciacion) {
     const { data, error } = await supabase
         .from("apreciaciones_estado")
         .select("fecha_inicio, fecha_fin, fechas_asistencia_excluidas")
-        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion)
+        .eq("materia", materia).eq("salon", salon).eq("trimestre", trimestre).eq("numero", numeroApreciacion)
         .maybeSingle();
     if (error) { console.error(error); return { fecha_inicio: null, fecha_fin: null, fechas_asistencia_excluidas: [] }; }
     return data || { fecha_inicio: null, fecha_fin: null, fechas_asistencia_excluidas: [] };
@@ -315,18 +339,18 @@ export async function obtenerRangoFechas(materia, trimestre, numeroApreciacion) 
 // promedio de esta Apreciación" (ej. una fecha mal tomada). No borra
 // la asistencia real -solo la excluye de este cálculo-, y queda
 // guardado en la base de datos (no se pierde al recargar la página).
-export async function guardarFechasAsistenciaExcluidas(materia, trimestre, numeroApreciacion, fechas) {
+export async function guardarFechasAsistenciaExcluidas(materia, salon, trimestre, numeroApreciacion, fechas) {
     const { error } = await supabase.from("apreciaciones_estado")
         .update({ fechas_asistencia_excluidas: fechas, updated_at: new Date().toISOString() })
-        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
+        .eq("materia", materia).eq("salon", salon).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
     if (error) console.error("No se pudo guardar las fechas de asistencia excluidas:", error);
     return !error;
 }
 
-export async function guardarRangoFechas(materia, trimestre, numeroApreciacion, fechaInicio, fechaFin) {
+export async function guardarRangoFechas(materia, salon, trimestre, numeroApreciacion, fechaInicio, fechaFin) {
     const { error } = await supabase.from("apreciaciones_estado")
         .update({ fecha_inicio: fechaInicio, fecha_fin: fechaFin, updated_at: new Date().toISOString() })
-        .eq("materia", materia).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
+        .eq("materia", materia).eq("salon", salon).eq("trimestre", trimestre).eq("numero", numeroApreciacion);
     if (error) console.error("No se pudo guardar el rango de fechas:", error);
     return { ok: !error, error };
 }
@@ -496,11 +520,11 @@ async function guardarComportamiento(materia, trimestre, numeroApreciacion, fech
 // 5) ACTIVIDADES (en clase / para la casa)
 // =========================================================
 
-async function obtenerActividades(materia, trimestre, numeroApreciacion, tipoActividad) {
+async function obtenerActividades(materia, salon, trimestre, numeroApreciacion, tipoActividad) {
     const { data: actividades, error } = await supabase
         .from("actividades_apreciacion")
         .select("id, nombre, orden, fecha")
-        .eq("materia", materia).eq("trimestre", trimestre)
+        .eq("materia", materia).eq("salon", salon).eq("trimestre", trimestre)
         .eq("numero_apreciacion", numeroApreciacion).eq("tipo_actividad", tipoActividad)
         .order("orden", { ascending: true });
 
@@ -524,9 +548,9 @@ async function obtenerActividades(materia, trimestre, numeroApreciacion, tipoAct
 // la actividad, para poder tener varias el mismo día (varias preguntas
 // al mismo estudiante) y para bloquear la nota si ese día el estudiante
 // estuvo Ausente/Fuga/Permiso. tipoActividad "casa" no usa fecha.
-async function crearActividad(materia, trimestre, numeroApreciacion, tipoActividad, nombre, orden, fecha = null) {
+async function crearActividad(materia, salon, trimestre, numeroApreciacion, tipoActividad, nombre, orden, fecha = null) {
     const { data, error } = await supabase.from("actividades_apreciacion")
-        .insert([{ materia, trimestre, numero_apreciacion: numeroApreciacion, tipo_actividad: tipoActividad, nombre, orden, fecha }])
+        .insert([{ materia, salon, trimestre, numero_apreciacion: numeroApreciacion, tipo_actividad: tipoActividad, nombre, orden, fecha }])
         .select("id, nombre, orden, fecha").single();
     if (error) { console.error(error); return null; }
     return { ...data, notas: {} };
@@ -687,12 +711,12 @@ export async function abrirSelectorModo({ materia, salon, trimestre, numeroAprec
     modalBootstrap.show();
 
     document.getElementById("btnModoDirecto").onclick = async () => {
-        await elegirModoApreciacion(materia, trimestre, numeroApreciacion, "directo");
+        await elegirModoApreciacion(materia, salon, trimestre, numeroApreciacion, "directo");
         modalBootstrap.hide();
         onModoElegido?.("directo");
     };
     document.getElementById("btnModoDetallado").onclick = async () => {
-        await elegirModoApreciacion(materia, trimestre, numeroApreciacion, "detallado");
+        await elegirModoApreciacion(materia, salon, trimestre, numeroApreciacion, "detallado");
         el.btnGuardar && (el.btnGuardar.style.display = "inline-block");
         onModoElegido?.("detallado");
         await abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado: "activa", estudiantes, correoProfesor, etiquetaPersonalizada });
@@ -726,14 +750,14 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
     // primero el candado en la tabla, no desde aquí adentro.
     const soloLectura = candadoManual || estado === "completada";
 
-    const rango = await obtenerRangoFechas(materia, trimestre, numeroApreciacion);
+    const rango = await obtenerRangoFechas(materia, salon, trimestre, numeroApreciacion);
 
     const [pesos, asistenciaTabla, comportamientoTabla, actividadesClase, actividadesCasa] = await Promise.all([
         obtenerConfigPesos(),
         obtenerAsistenciaPorRango(materia, salon, rango.fecha_inicio, rango.fecha_fin, correoProfesor),
         obtenerComportamientoTabla(materia, trimestre, numeroApreciacion),
-        obtenerActividades(materia, trimestre, numeroApreciacion, "clase"),
-        obtenerActividades(materia, trimestre, numeroApreciacion, "casa"),
+        obtenerActividades(materia, salon, trimestre, numeroApreciacion, "clase"),
+        obtenerActividades(materia, salon, trimestre, numeroApreciacion, "casa"),
     ]);
 
     // Notas ya guardadas para esta apreciación (si se está reabriendo
@@ -797,7 +821,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
         );
         if (!ok) return;
         el.btnReabrir.disabled = true;
-        const reabierta = await reabrirApreciacionParaEditar(materia, trimestre, numeroApreciacion);
+        const reabierta = await reabrirApreciacionParaEditar(materia, salon, trimestre, numeroApreciacion);
         el.btnReabrir.disabled = false;
         if (!reabierta) { alert("❌ No se pudo reabrir la apreciación."); return; }
         await abrirDetalleApreciacion({ materia, salon, trimestre, numeroApreciacion, estado: "activa", estudiantes, correoProfesor, etiquetaPersonalizada });
@@ -872,7 +896,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
                 return;
             }
 
-            const seCompleto = await completarApreciacionManual(materia, trimestre, numeroApreciacion);
+            const seCompleto = await completarApreciacionManual(materia, salon, trimestre, numeroApreciacion);
             if (!seCompleto) {
                 alert("No se pudo completar la apreciación.");
                 return;
@@ -1515,7 +1539,7 @@ function pintarModal(estado_) {
     function sincronizarExclusionAsistencia() {
         estado_.fechasAsistenciaExcluidas = new Set(columnasOcultas.asistencia);
         guardarFechasAsistenciaExcluidas(
-            estado_.materia, estado_.trimestre, estado_.numeroApreciacion,
+            estado_.materia, estado_.salon, estado_.trimestre, estado_.numeroApreciacion,
             [...estado_.fechasAsistenciaExcluidas]
         );
     }
@@ -1560,7 +1584,7 @@ function pintarModal(estado_) {
         );
         if (!ok) return;
 
-        await elegirModoApreciacion(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, "directo");
+        await elegirModoApreciacion(estado_.materia, estado_.salon, estado_.trimestre, estado_.numeroApreciacion, "directo");
 
         const modalBootstrap = bootstrap.Modal.getInstance(document.getElementById("modalApreciacionDetalle"));
         modalBootstrap?.hide();
@@ -1584,7 +1608,7 @@ function pintarModal(estado_) {
         if (!inicio || !fin) { alert("Elige ambas fechas (revisa que el día, mes y año estén completos)."); return; }
         if (inicio > fin) { alert("La fecha 'Desde' no puede ser posterior a 'Hasta'."); return; }
 
-        const resultado = await guardarRangoFechas(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, inicio, fin);
+        const resultado = await guardarRangoFechas(estado_.materia, estado_.salon, estado_.trimestre, estado_.numeroApreciacion, inicio, fin);
         if (!resultado.ok) {
             alert("❌ No se pudo guardar el rango de fechas.\n\nMotivo: " + (resultado.error?.message || "desconocido"));
             return;
@@ -1731,7 +1755,7 @@ function pintarModal(estado_) {
             // automáticamente (se pueden crear varias el mismo día);
             // las "para la casa" no usan fecha.
             const fecha = tipoActividad === "clase" ? obtenerFechaHoyISOApreciacion() : null;
-            const nueva = await crearActividad(estado_.materia, estado_.trimestre, estado_.numeroApreciacion, tipoActividad, nombre, lista.length, fecha);
+            const nueva = await crearActividad(estado_.materia, estado_.salon, estado_.trimestre, estado_.numeroApreciacion, tipoActividad, nombre, lista.length, fecha);
             if (!nueva) { alert("No se pudo crear la actividad."); return; }
             lista.push(nueva);
             pintarModal(estado_);
