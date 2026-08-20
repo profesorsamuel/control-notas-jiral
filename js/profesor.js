@@ -1624,7 +1624,22 @@ async function guardarNotas(esAutomatico = false) {
     const aGuardar = [];
     inputs.forEach((input) => {
         const valor = input.value.trim();
-        if (valor === "") return;
+        if (valor === "") {
+            // La casilla quedó vacía. Si ya existía una nota guardada en
+            // la base de datos para esta casilla (tiene notaId), hay que
+            // eliminarla de verdad; si nunca existió, no hay nada que
+            // hacer y no se marca como "cambio pendiente" otra vez.
+            if (input.dataset.notaId && input.dataset.ultimoValorGuardado !== "") {
+                aGuardar.push({
+                    input,
+                    notaId: input.dataset.notaId,
+                    tipo: input.dataset.tipo,
+                    numero: parseInt(input.dataset.numero, 10),
+                    borrar: true
+                });
+            }
+            return;
+        }
         const notaNum = parseFloat(valor);
         if (isNaN(notaNum)) return;
         if (esAutomatico && input.dataset.ultimoValorGuardado === valor) return;
@@ -1653,7 +1668,17 @@ async function guardarNotas(esAutomatico = false) {
     for (let i = 0; i < aGuardar.length; i++) {
         const item = aGuardar[i];
 
-        if (item.notaId) {
+        if (item.borrar) {
+            const { error } = await supabase.from("notas").delete().eq("id", item.notaId);
+            if (error) { fallidas++; } else {
+                exitosas++;
+                item.input.dataset.notaId = "";
+                item.input.dataset.ultimoValorGuardado = "";
+                const claveEst = `id:${item.input.dataset.estudianteId}`;
+                const claveCas = claveCasilla(item.tipo, item.numero);
+                if (historiaPorEstudiante[claveEst]) delete historiaPorEstudiante[claveEst][claveCas];
+            }
+        } else if (item.notaId) {
             const { error } = await supabase.from("notas").update({ nota: item.nota, fecha: hoy, origen: "profesor" }).eq("id", item.notaId);
             if (error) { fallidas++; } else {
                 exitosas++;
