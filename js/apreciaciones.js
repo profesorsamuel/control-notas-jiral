@@ -280,33 +280,53 @@ export function iconoApreciacion(estado) {
 // =========================================================
 // 2) PESOS Y VALORES (leídos de config_pesos_apreciacion)
 // =========================================================
+// IMPORTANTE: cada combinación materia + salón + trimestre tiene SU
+// PROPIA fila de pesos. Nunca se lee ni se escribe una fila
+// compartida entre salones/materias — así, modificar la fórmula de
+// una apreciación (p. ej. 9A) jamás mueve la nota de otra (p. ej.
+// 9B), aunque sea la misma materia.
 
-export async function obtenerConfigPesos() {
+const PESOS_POR_DEFECTO = {
+    peso_asistencia: 10, peso_comportamiento: 10,
+    peso_actividades_clase: 50, peso_actividades_casa: 30,
+};
+
+export async function obtenerConfigPesos(materia, salon, trimestre) {
     const { data, error } = await supabase
         .from("config_pesos_apreciacion")
         .select("*")
-        .eq("id", 1)
+        .eq("materia", materia)
+        .eq("salon", salon)
+        .eq("trimestre", trimestre)
         .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
         console.error("No se pudo leer config_pesos_apreciacion, usando valores por defecto.", error);
-        return {
-            peso_asistencia: 10, peso_comportamiento: 10,
-            peso_actividades_clase: 50, peso_actividades_casa: 30,
-        };
+        return { ...PESOS_POR_DEFECTO };
     }
+    // Si esta materia/salón/trimestre todavía no tiene su propia fila
+    // (nunca se tocaron los porcentajes aquí), se usan los valores por
+    // defecto SOLO en memoria — no se copian de ninguna otra fila.
+    if (!data) return { ...PESOS_POR_DEFECTO };
     return data;
 }
 
-export async function guardarConfigPesos({ peso_asistencia, peso_comportamiento, peso_actividades_clase, peso_actividades_casa }) {
+export async function guardarConfigPesos(materia, salon, trimestre, { peso_asistencia, peso_comportamiento, peso_actividades_clase, peso_actividades_casa }) {
     const suma = Number(peso_asistencia) + Number(peso_comportamiento) + Number(peso_actividades_clase) + Number(peso_actividades_casa);
     if (Math.round(suma) !== 100) {
         return { ok: false, error: { message: `Los 4 porcentajes deben sumar 100. Ahora mismo suman ${suma}.` } };
     }
-    const { error } = await supabase.from("config_pesos_apreciacion").update({
-        peso_asistencia, peso_comportamiento, peso_actividades_clase, peso_actividades_casa,
-        updated_at: new Date().toISOString(),
-    }).eq("id", 1);
+    // upsert por materia+salon+trimestre: crea la fila de esta
+    // apreciación si no existía, o actualiza SOLO esa fila si ya
+    // existía. Nunca toca la fila de otro salón/materia/trimestre.
+    const { error } = await supabase.from("config_pesos_apreciacion").upsert(
+        {
+            materia, salon, trimestre,
+            peso_asistencia, peso_comportamiento, peso_actividades_clase, peso_actividades_casa,
+            updated_at: new Date().toISOString(),
+        },
+        { onConflict: "materia,salon,trimestre" }
+    );
     return { ok: !error, error };
 }
 
@@ -753,7 +773,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
     const rango = await obtenerRangoFechas(materia, salon, trimestre, numeroApreciacion);
 
     const [pesos, asistenciaTabla, comportamientoTabla, actividadesClase, actividadesCasa] = await Promise.all([
-        obtenerConfigPesos(),
+        obtenerConfigPesos(materia, salon, trimestre),
         obtenerAsistenciaPorRango(materia, salon, rango.fecha_inicio, rango.fecha_fin, correoProfesor),
         obtenerComportamientoTabla(materia, trimestre, numeroApreciacion),
         obtenerActividades(materia, salon, trimestre, numeroApreciacion, "clase"),
@@ -1148,7 +1168,7 @@ export function imprimirApreciacion(estado_) {
 function pintarModal(estado_) {
     const el = obtenerElementosModal();
     const {
-        estudiantes, fechaInicio, fechaFin,
+        materia, salon, trimestre, estudiantes, fechaInicio, fechaFin,
         asistenciaFechas, asistenciaPorFecha,
         comportamientoFechas, comportamientoPorFecha,
         actividadesClase, actividadesCasa, soloLectura, numeroApreciacion, pesos,
@@ -1405,9 +1425,9 @@ function pintarModal(estado_) {
     // --- Fórmula de esta Apreciación (asistencia, comportamiento,
     // actividades): antes vivía fuera del modal, arriba de "Registrar
     // notas". Ahora vive aquí porque es lo que regula cómo sale la
-    // nota final de esta apreciación. Sigue siendo una sola
-    // configuración global (aplica a todas las Apreciaciones 4+, en
-    // todas las materias y salones), solo cambió dónde se edita. ---
+    // nota final de esta apreciación. Es independiente por materia +
+    // salón + trimestre: cambiarla aquí NUNCA afecta la fórmula de
+    // otro salón, otra materia u otro trimestre. ---
     const bloqueFormulaPesos = () => {
         if (soloLectura) {
             return `
@@ -1422,7 +1442,7 @@ function pintarModal(estado_) {
                     ⚙️ Fórmula de esta Apreciación (asistencia, comportamiento, actividades)
                 </summary>
                 <p class="small text-muted" style="margin:8px 0;">
-                    Estos 4 porcentajes deben sumar 100% y aplican para todas las Apreciaciones 4 en adelante, en todas las materias y salones.
+                    Estos 4 porcentajes deben sumar 100% y aplican SOLO para las Apreciaciones 4 en adelante de <strong>${escapeHtml(materia)} · ${escapeHtml(salon)}</strong> en este trimestre. No afectan a ningún otro salón, materia o trimestre.
                 </p>
                 <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:end;">
                     <div>
@@ -1507,7 +1527,7 @@ function pintarModal(estado_) {
                 peso_actividades_clase: parseFloat(document.getElementById(idsPesoModal.actClase).value) || 0,
                 peso_actividades_casa: parseFloat(document.getElementById(idsPesoModal.actCasa).value) || 0,
             };
-            const resultado = await guardarConfigPesos(nuevosPesos);
+            const resultado = await guardarConfigPesos(estado_.materia, estado_.salon, estado_.trimestre, nuevosPesos);
             if (!resultado.ok) { alert("❌ " + resultado.error.message); return; }
 
             // Se guardan en el estado en memoria y se vuelve a dibujar el
@@ -1516,7 +1536,7 @@ function pintarModal(estado_) {
             estado_.pesos = nuevosPesos;
             pintarModal(estado_);
             calcularYPintarNotasFinales(estado_);
-            alert("✅ Porcentajes guardados. Se van a usar de aquí en adelante para todas las Apreciaciones 4+.");
+            alert(`✅ Porcentajes guardados. Se van a usar de aquí en adelante SOLO para las Apreciaciones 4+ de ${estado_.materia} · ${estado_.salon} en este trimestre. Ningún otro salón, materia o trimestre cambia.`);
         });
     }
 
