@@ -25,7 +25,7 @@
     background: var(--coral); color:#fff; font-weight:600; cursor:pointer; font-size:14px;
   }
   .login-box button:hover, .form-tarea button:hover { filter:brightness(1.05); }
-  .msg-error { color:#b3402a; font-size:13px; margin-top:10px; }
+  .msg-error { color:var(--rojo); font-size:13px; margin-top:10px; }
   .msg-ok { color: var(--ciencias-dark); font-size:13px; margin-top:10px; }
 
   .panel.oculto { display:none; }
@@ -47,7 +47,7 @@
     user-select:none;
   }
   .grados-check label:has(input:checked) {
-    border-color: var(--coral); background: #fdf1ed; font-weight:600;
+    border-color: var(--coral); background: var(--rojo-fondo2); font-weight:600;
   }
   .grados-check input { accent-color: var(--coral); }
 
@@ -59,10 +59,10 @@
   .tarea-admin-item .info { font-size: 14px; }
   .tarea-admin-item .info .tag { font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); }
   .btn-borrar {
-    border:1px solid #d9c9c3; background:#fff; color:#b3402a; border-radius: var(--radius);
+    border:1px solid var(--borde-calido); background:#fff; color:var(--rojo); border-radius: var(--radius);
     padding: 6px 10px; font-size:12px; cursor:pointer; white-space:nowrap;
   }
-  .btn-borrar:hover { background:#fbeceb; }
+  .btn-borrar:hover { background:var(--rojo-fondo); }
   #btn-salir {
     background:none; border:1px solid var(--line); color:var(--ink-soft);
     padding:8px 14px; border-radius:var(--radius); font-family:'IBM Plex Mono',monospace;
@@ -175,7 +175,7 @@
     border-radius:999px; width:24px; height:24px; line-height:1; font-size:12px;
     cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;
   }
-  .clase-tab-borrar:hover { border-color:#b3402a; color:#b3402a; background:#fbeceb; }
+  .clase-tab-borrar:hover { border-color:var(--rojo); color:var(--rojo); background:var(--rojo-fondo); }
 
   /* ---- Panel de la clase seleccionada ---- */
   .clase-panel {
@@ -230,8 +230,9 @@
   .btn-ver-adjunto:hover { border-color: var(--coral); color: var(--coral); }
   .seccion-divisoria { border:none; border-top:1px dashed var(--line); margin: 18px 0; }
 </style>
+    <link rel="stylesheet" href="../css/temas.css">
 </head>
-<body>
+<body class="tema-portal">
 
 <div class="portal-wrap">
 
