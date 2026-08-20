@@ -25,7 +25,7 @@
     background: var(--coral); color:#fff; font-weight:600; cursor:pointer; font-size:14px;
   }
   .login-box button:hover { filter:brightness(1.05); }
-  .msg-error { color:#b3402a; font-size:13px; margin-top:10px; }
+  .msg-error { color:var(--rojo); font-size:13px; margin-top:10px; }
   .msg-ok { color: var(--ciencias-dark); font-size:13px; margin-top:10px; }
 
   .panel.oculto { display:none; }
@@ -166,11 +166,12 @@
     border-radius: 999px;
     white-space: nowrap;
   }
-  .badge-tabla.a-tiempo { background: #eaf2e6; color: var(--ciencias-dark); }
-  .badge-tabla.tarde { background: #fdf1ed; color: #b3402a; }
+  .badge-tabla.a-tiempo { background: var(--verde-fondo); color: var(--ciencias-dark); }
+  .badge-tabla.tarde { background: var(--rojo-fondo2); color: var(--rojo); }
 </style>
+    <link rel="stylesheet" href="../css/temas.css">
 </head>
-<body>
+<body class="tema-portal">
 
 <div class="portal-wrap">
 
