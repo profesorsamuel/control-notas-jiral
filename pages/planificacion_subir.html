@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
     body {
-        background: linear-gradient(135deg, #4b3fb3, #2f7bd1);
+        background: linear-gradient(135deg, var(--morado-oscuro), var(--azul-medio));
         min-height: 100vh;
         font-family: "Segoe UI", Arial, sans-serif;
         padding: 24px 12px;
@@ -22,7 +22,7 @@
         overflow: hidden;
     }
     .encabezado-planificacion {
-        background: linear-gradient(90deg, #3a6fd8, #5a4fcf);
+        background: linear-gradient(90deg, var(--azul-claro), var(--morado));
         color: #fff;
         padding: 18px 24px;
         text-align: center;
@@ -47,11 +47,11 @@
         background: #f8f9ff;
         transition: border-color .15s, background .15s;
     }
-    .zona-subida.tiene-archivo { border-color: #28a745; background: #f2fbf4; }
+    .zona-subida.tiene-archivo { border-color: var(--verde-ok); background: #f2fbf4; }
     .zona-subida.error { border-color: #dc3545; background: #fdf2f3; }
     .zona-subida input[type="file"] { display: none; }
-    .zona-subida .icono-subida { font-size: 1.6rem; color: #5a4fcf; }
-    .zona-subida.tiene-archivo .icono-subida { color: #28a745; }
+    .zona-subida .icono-subida { font-size: 1.6rem; color: var(--morado); }
+    .zona-subida.tiene-archivo .icono-subida { color: var(--verde-ok); }
     .zona-subida .nombre-archivo { font-size: .85rem; font-weight: 600; margin-top: 6px; word-break: break-word; }
     .zona-subida .btn-elegir { margin-top: 8px; }
     .zona-subida .btn-quitar { margin-top: 6px; }
@@ -66,8 +66,9 @@
         background: #fff8e6; border: 1px solid #f1e0a8; font-size: .8rem; color: #6b5a17;
     }
 </style>
+    <link rel="stylesheet" href="../css/temas.css">
 </head>
-<body>
+<body class="tema-planificacion">
 
 <div class="tarjeta-principal">
     <div class="encabezado-planificacion">
