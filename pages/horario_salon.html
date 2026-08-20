@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
     body {
-        background: linear-gradient(135deg, #4b3fb3, #2f7bd1);
+        background: linear-gradient(135deg, var(--morado-oscuro), var(--azul-medio));
         min-height: 100vh;
         font-family: "Segoe UI", Arial, sans-serif;
         padding: 24px 12px;
@@ -23,7 +23,7 @@
         overflow: hidden;
     }
     .encabezado-horario {
-        background: linear-gradient(90deg, #3a6fd8, #5a4fcf);
+        background: linear-gradient(90deg, var(--azul-claro), var(--morado));
         color: #fff;
         padding: 18px 24px;
         text-align: center;
@@ -34,7 +34,7 @@
     .contenedor-tabla { overflow-x: auto; padding: 16px; }
     table.tabla-horario { width: 100%; border-collapse: collapse; min-width: 720px; }
     table.tabla-horario th {
-        background: #5a4fcf; color: #fff; padding: 10px 8px; font-size: .85rem; text-align: center;
+        background: var(--morado); color: #fff; padding: 10px 8px; font-size: .85rem; text-align: center;
     }
     table.tabla-horario td {
         border: 1px solid #eee; padding: 6px; vertical-align: top; text-align: center; font-size: .82rem;
@@ -46,7 +46,7 @@
         border-radius: 8px; padding: 6px; height: 100%; cursor: pointer; position: relative;
         display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;
     }
-    .celda-bloque.tipo-clase { background: #e8ecfb; color: #2f3ea3; }
+    .celda-bloque.tipo-clase { background: #e8ecfb; color: var(--indigo); }
     .celda-bloque.tipo-otro { background: #fdeee0; color: #c0530a; }
     .celda-bloque:hover { filter: brightness(0.95); }
     .celda-vacia {
@@ -75,8 +75,9 @@
     #estadoHorario { text-align: center; padding: 6px 24px 16px; font-size: .85rem; min-height: 20px; }
     #sinSalon { text-align: center; padding: 40px 20px; color: #888; }
 </style>
+    <link rel="stylesheet" href="../css/temas.css">
 </head>
-<body>
+<body class="tema-planificacion">
 
 <div class="tarjeta-principal">
     <div class="encabezado-horario">
