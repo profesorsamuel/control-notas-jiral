@@ -30,7 +30,7 @@
         body {
             margin: 0;
             font-family: Arial, Helvetica, sans-serif;
-            background: #f1f5f9;
+            background: var(--fondo);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -57,12 +57,12 @@
 
         .encabezado h1 {
             margin: 0;
-            color: #1e3a8a;
+            color: var(--azul-oscuro);
             font-size: 26px;
         }
 
         .encabezado p {
-            color: #64748b;
+            color: var(--texto-suave);
             margin-top: 8px;
             line-height: 1.5;
         }
@@ -75,14 +75,14 @@
             display: block;
             font-weight: bold;
             margin-bottom: 7px;
-            color: #334155;
+            color: var(--texto-oscuro);
         }
 
         input,
         select {
             width: 100%;
             padding: 12px;
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--borde);
             border-radius: 8px;
             font-size: 16px;
             outline: none;
@@ -91,13 +91,13 @@
 
         input:focus,
         select:focus {
-            border-color: #2563eb;
+            border-color: var(--azul);
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
         select:disabled {
-            background: #f1f5f9;
-            color: #94a3b8;
+            background: var(--fondo);
+            color: var(--texto-mas-suave);
         }
 
         button {
@@ -105,7 +105,7 @@
             padding: 13px;
             border: none;
             border-radius: 8px;
-            background: #2563eb;
+            background: var(--azul);
             color: #ffffff;
             font-size: 17px;
             font-weight: bold;
@@ -117,7 +117,7 @@
         }
 
         button:disabled {
-            background: #94a3b8;
+            background: var(--texto-mas-suave);
             cursor: not-allowed;
         }
 
@@ -152,7 +152,7 @@
             display: block;
             text-align: center;
             margin-top: 20px;
-            color: #2563eb;
+            color: var(--azul);
             text-decoration: none;
             font-weight: bold;
         }
@@ -163,13 +163,14 @@
 
         .nota {
             font-size: 13px;
-            color: #64748b;
+            color: var(--texto-suave);
             margin-top: 6px;
         }
     </style>
+    <link rel="stylesheet" href="../css/temas.css">
 </head>
 
-<body>
+<body class="tema-datos">
 
     <div class="contenedor">
 
