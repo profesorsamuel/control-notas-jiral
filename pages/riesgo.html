@@ -31,7 +31,7 @@
         h1, h2, .titulo-fuente { font-family: "Baloo 2", "Inter", Arial, sans-serif; }
 
         .encabezado {
-            background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
+            background: linear-gradient(135deg, var(--rojo-alerta) 0%, var(--rojo-alerta-oscuro) 100%);
             color: #fff;
             padding: 18px 22px;
             display: flex; justify-content: space-between; align-items: center;
@@ -49,43 +49,43 @@
         }
         .tarjeta label { font-weight: 700; font-size: .82rem; color: #475569; display: block; margin-bottom: 4px; }
         .tarjeta select {
-            padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; min-width: 180px;
+            padding: 8px 12px; border-radius: 8px; border: 1px solid var(--borde); min-width: 180px;
         }
         .fila-filtros { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
-        .texto-fijo { font-weight: 700; color: #991b1b; font-size: 1rem; padding: 8px 0; }
+        .texto-fijo { font-weight: 700; color: var(--rojo-alerta); font-size: 1rem; padding: 8px 0; }
 
         /* ---- Selector de salones tipo "chips", multi-selección ---- */
         .chips-salones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
         .chip-salon {
             display: inline-flex; align-items: center; gap: 6px;
-            padding: 6px 14px; border-radius: 20px; border: 1px solid #cbd5e1;
+            padding: 6px 14px; border-radius: 20px; border: 1px solid var(--borde);
             background: #f8fafc; cursor: pointer; font-size: .85rem; user-select: none;
             transition: background .12s, border-color .12s, color .12s;
         }
-        .chip-salon:hover { border-color: #991b1b; }
-        .chip-salon.activo { background: #991b1b; border-color: #991b1b; color: #fff; font-weight: 700; }
+        .chip-salon:hover { border-color: var(--rojo-alerta); }
+        .chip-salon.activo { background: var(--rojo-alerta); border-color: var(--rojo-alerta); color: #fff; font-weight: 700; }
         .acciones-chips { display: flex; gap: 12px; margin-top: 6px; }
         .acciones-chips button {
-            border: none; background: none; color: #991b1b; font-size: .78rem;
+            border: none; background: none; color: var(--rojo-alerta); font-size: .78rem;
             font-weight: 700; padding: 0; cursor: pointer; text-decoration: underline;
         }
 
-        .btn-riesgo { background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%); border: none; color: #fff; }
+        .btn-riesgo { background: linear-gradient(135deg, #ef4444 0%, var(--rojo-alerta) 100%); border: none; color: #fff; }
         .btn-riesgo:hover { color: #fff; opacity: .92; }
         .btn-riesgo:disabled { opacity: .6; }
 
         /* ---- Membrete / ficha formal por materia (pantalla + impresión) ---- */
         .membrete-escuela { text-align: center; margin-bottom: 14px; }
-        .membrete-escuela h1 { font-size: 1.15rem; color: #7f1d1d; margin: 0; letter-spacing: .5px; }
-        .membrete-escuela .subt-membrete { font-size: .82rem; color: #64748b; margin: 2px 0 0; }
+        .membrete-escuela h1 { font-size: 1.15rem; color: var(--rojo-alerta-oscuro); margin: 0; letter-spacing: .5px; }
+        .membrete-escuela .subt-membrete { font-size: .82rem; color: var(--texto-suave); margin: 2px 0 0; }
         .membrete-escuela .fecha-membrete { font-size: .78rem; color: #94a3b8; margin: 2px 0 0; }
 
         .titulo-salon {
-            font-size: 1.02rem; color: #fff; background: #7f1d1d;
+            font-size: 1.02rem; color: #fff; background: var(--rojo-alerta-oscuro);
             padding: 7px 14px; border-radius: 8px 8px 0 0; margin: 22px 0 0;
         }
         .ficha-materia {
-            border: 1px solid #991b1b; border-top: none; border-radius: 0 0 8px 8px;
+            border: 1px solid var(--rojo-alerta); border-top: none; border-radius: 0 0 8px 8px;
             padding: 14px 16px 10px; margin-bottom: 14px;
         }
         .ficha-materia:first-of-type { margin-top: 0; }
@@ -93,29 +93,29 @@
             display: flex; flex-wrap: wrap; gap: 4px 28px; font-size: .86rem;
             border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px;
         }
-        .datos-ficha span { color: #334155; }
-        .datos-ficha b { color: #7f1d1d; }
+        .datos-ficha span { color: var(--texto-oscuro); }
+        .datos-ficha b { color: var(--rojo-alerta-oscuro); }
 
-        #zonaReporte h2.conteo-materia { font-size: .95rem; color: #991b1b; margin: 0 0 6px; }
-        #zonaReporte h2.conteo-materia .conteo { font-weight: normal; color: #64748b; font-size: .8rem; }
+        #zonaReporte h2.conteo-materia { font-size: .95rem; color: var(--rojo-alerta); margin: 0 0 6px; }
+        #zonaReporte h2.conteo-materia .conteo { font-weight: normal; color: var(--texto-suave); font-size: .8rem; }
         #zonaReporte table { border-collapse: collapse; width: 100%; font-size: .84rem; margin-bottom: 4px; }
         #zonaReporte th, #zonaReporte td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: center; }
-        #zonaReporte th { background: #991b1b; color: #fff; }
+        #zonaReporte th { background: var(--rojo-alerta); color: #fff; }
         #zonaReporte td.nombre { text-align: left; font-weight: 600; }
-        #zonaReporte td.final { font-weight: 700; color: #991b1b; background: #fef2f2; }
+        #zonaReporte td.final { font-weight: 700; color: var(--rojo-alerta); background: #fef2f2; }
 
         .linea-envio {
-            margin-top: 10px; font-size: .84rem; color: #334155;
+            margin-top: 10px; font-size: .84rem; color: var(--texto-oscuro);
             display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
         }
         .linea-envio .casilla {
-            display: inline-block; width: 14px; height: 14px; border: 1.4px solid #334155;
+            display: inline-block; width: 14px; height: 14px; border: 1.4px solid var(--texto-oscuro);
             border-radius: 3px; margin-left: 10px;
         }
 
         #resumenTop { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
         .pastilla-resumen {
-            background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;
+            background: #fef2f2; color: var(--rojo-alerta); border: 1px solid #fecaca;
             border-radius: 10px; padding: 8px 14px; font-size: .84rem; font-weight: 700;
         }
 
@@ -134,7 +134,7 @@
             transition: opacity .12s;
         }
         .btn-whatsapp-fila:hover { opacity: .85; }
-        .btn-whatsapp-fila:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-whatsapp-fila:disabled { background: var(--borde); cursor: not-allowed; }
 
         /* ---- Botón de Carta (PDF individual) por estudiante ---- */
         .btn-carta-fila {
@@ -144,7 +144,7 @@
             transition: opacity .12s;
         }
         .btn-carta-fila:hover { opacity: .85; }
-        .btn-carta-fila:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-carta-fila:disabled { background: var(--borde); cursor: not-allowed; }
         .celda-acciones-fila { display: flex; gap: 6px; justify-content: center; align-items: center; }
         .chk-carta { width: 15px; height: 15px; cursor: pointer; }
 
@@ -179,9 +179,10 @@
             .ficha-materia { break-inside: avoid; }
         }
     </style>
+    <link rel="stylesheet" href="../css/temas.css">
 </head>
 
-<body>
+<body class="tema-riesgo">
 
     <header class="encabezado no-imprimir">
         <div>
