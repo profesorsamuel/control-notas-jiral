@@ -17,18 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
     <style>
-        :root {
-            --color-fondo: #f1f5f9;
-            --color-primario: #4f46e5;
-            --color-primario-oscuro: #3730a3;
-            --color-primario-claro: #eef2ff;
-            --color-acento: #f59e0b;
-            --color-acento-oscuro: #b45309;
-            --color-texto: #1e293b;
-            --color-borde: #e2e8f0;
-        }
-
-        body {
+body {
             font-family: 'Inter', Arial, sans-serif;
             background: var(--color-fondo);
             color: var(--color-texto);
@@ -269,9 +258,10 @@
             @page { size: landscape; margin: 10mm; }
         }
     </style>
+    <link rel="stylesheet" href="../css/temas.css">
 </head>
 
-<body>
+<body class="tema-docente">
 
     <header class="docente-header">
         <div>
