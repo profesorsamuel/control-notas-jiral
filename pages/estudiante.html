@@ -34,7 +34,7 @@
         }
 
         h1 {
-            color: #1f4e79;
+            color: var(--azul);
         }
 
         #usuario {
@@ -50,7 +50,7 @@
 
         #nombreEstudiante {
             font-size: 1.6rem;
-            color: #1f4e79;
+            color: var(--azul);
             margin: 0 0 4px;
         }
 
@@ -104,7 +104,7 @@
         }
 
         #btnGuardarTodo {
-            background: #1f4e79;
+            background: var(--azul);
         }
 
         #btnGuardarTodo:hover {
@@ -138,7 +138,7 @@
 
         .filtro-trimestre label {
             font-weight: bold;
-            color: #1f4e79;
+            color: var(--azul);
         }
 
         #filtroTrimestre {
@@ -168,9 +168,9 @@
 
         .btn-toggle-seccion {
             padding: 7px 12px;
-            border: 1px solid #1f4e79;
+            border: 1px solid var(--azul);
             background: white;
-            color: #1f4e79;
+            color: var(--azul);
             border-radius: 5px;
             font-size: 13px;
             font-weight: 600;
@@ -182,14 +182,14 @@
         }
 
         .btn-toggle-seccion[aria-pressed="true"] {
-            background: #1f4e79;
+            background: var(--azul);
             color: white;
         }
 
         .scroll-hint {
             display: none;
             font-size: 13px;
-            color: #1f4e79;
+            color: var(--azul);
             margin: 0 0 10px;
             text-align: center;
         }
@@ -209,7 +209,7 @@
 
         .materia-card h2 {
             margin: 0 0 12px;
-            color: #1f4e79;
+            color: var(--azul);
             font-size: 1.15rem;
         }
 
@@ -230,7 +230,7 @@
 
         .tabla-notas th,
         .tabla-notas td {
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--borde);
             padding: 8px 6px;
             min-width: 74px;
         }
@@ -253,7 +253,7 @@
         }
 
         .tabla-notas thead tr:first-child {
-            background-color: #1e293b;
+            background-color: var(--texto-oscuro);
             color: #ffffff;
         }
 
@@ -269,7 +269,7 @@
         }
 
         .tabla-notas td.celda-promedio {
-            background-color: #f1f5f9;
+            background-color: var(--fondo);
             font-weight: 700;
         }
 
@@ -283,7 +283,7 @@
         .celda-nota input[type="number"] {
             width: 56px;
             padding: 5px;
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--borde);
             border-radius: 5px;
             font-size: 14px;
             text-align: center;
@@ -304,8 +304,8 @@
         }
 
         .celda-nota.solo-lectura input {
-            background: #f1f5f9;
-            color: #475569;
+            background: var(--fondo);
+            color: var(--texto-suave);
         }
 
         .btn-companeros {
@@ -378,7 +378,7 @@
         }
 
         .th-prom {
-            background: #475569 !important;
+            background: var(--texto-suave) !important;
         }
 
         .th-final {
@@ -408,7 +408,7 @@
         td.celda-final {
             font-weight: 800;
             font-size: 1rem;
-            border-left: 2px solid #cbd5e1;
+            border-left: 2px solid var(--borde);
         }
 
         td.celda-final.aprobado {
@@ -481,21 +481,21 @@
         }
 
         .celda-tema-vacia {
-            background-color: #f1f5f9 !important;
+            background-color: var(--fondo) !important;
         }
 
         .celda-tema-fija {
             font-size: 11px;
             font-weight: normal;
             font-style: italic;
-            color: #475569;
+            color: var(--texto-suave);
             text-align: center;
         }
 
         .celda-tema-editable .input-tema {
             width: 100%;
             padding: 4px 6px;
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--borde);
             border-radius: 5px;
             font-size: 11px;
             font-weight: normal;
@@ -504,7 +504,7 @@
         }
 
         .celda-tema-editable .input-tema:disabled {
-            background: #f1f5f9;
+            background: var(--fondo);
             color: #94a3b8;
             border-style: dashed;
         }
@@ -523,9 +523,9 @@
 
         .btn-agregar-col {
             padding: 8px 14px;
-            border: 1px dashed #1f4e79;
+            border: 1px dashed var(--azul);
             background: #eef2ff;
-            color: #1f4e79;
+            color: var(--azul);
             border-radius: 6px;
             cursor: pointer;
             font-size: 13px;
@@ -544,7 +544,7 @@
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%) translateY(20px);
-            background: #1e293b;
+            background: var(--texto-oscuro);
             color: white;
             padding: 10px 18px;
             border-radius: 8px;
@@ -592,7 +592,7 @@
 
             .materia-card {
                 box-shadow: none !important;
-                border: 1px solid #cbd5e1 !important;
+                border: 1px solid var(--borde) !important;
                 break-inside: avoid;
                 margin-bottom: 15px !important;
             }
@@ -679,7 +679,7 @@
             }
 
             .tabla-notas thead .col-materia {
-                background-color: #1e293b;
+                background-color: var(--texto-oscuro);
                 z-index: 3;
             }
 
@@ -715,12 +715,12 @@
 
         .tarjeta-preguntas h2 {
             margin: 0 0 10px;
-            color: #1f4e79;
+            color: var(--azul);
             font-size: 1.2rem;
         }
 
         .tarjeta-preguntas p {
-            color: #475569;
+            color: var(--texto-suave);
             font-size: .88rem;
             margin: 0 0 18px;
             line-height: 1.45;
@@ -741,7 +741,7 @@
         .campo-pregunta input {
             width: 100%;
             padding: 10px;
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--borde);
             border-radius: 7px;
             font-size: .95rem;
         }
@@ -771,7 +771,7 @@
             padding: 11px;
             border: none;
             border-radius: 7px;
-            background: #1f4e79;
+            background: var(--azul);
             color: #fff;
             font-weight: bold;
             font-size: .95rem;
@@ -787,9 +787,10 @@
             cursor: not-allowed;
         }
     </style>
+    <link rel="stylesheet" href="../css/temas.css">
 </head>
 
-<body>
+<body class="tema-estudiante">
 
     <h1>📚 Registro de Notas</h1>
 
