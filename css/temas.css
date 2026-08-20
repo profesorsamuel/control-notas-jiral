@@ -1,0 +1,128 @@
+/* =====================================================
+   TEMAS.CSS — Sistema de temas del proyecto (Etapa 1)
+   =====================================================
+   Antes de esta etapa, cada página definía su propio
+   bloque `:root { --color-primario: ...; }` dentro de un
+   <style> local. Como varias páginas comparten la misma
+   identidad visual (mismo panel/rol), ese bloque estaba
+   copiado y pegado de forma idéntica en varios archivos:
+
+     - tema-institucional : asignaciones, materias,
+                             profesores, respaldos
+     - tema-docente        : profesor, cuadro_aprobados
+     - tema-docente-alerta : cuadro_fracaso (variante roja)
+     - tema-asistencia     : asistencia, tomar-asistencia
+     - tema-clasico        : inicio, timbre
+     - tema-historial      : historial-asistencia
+     - tema-salones        : salones
+     - tema-consejero      : consejero
+
+   Ahora cada página solo agrega la clase correspondiente
+   a su <body> (ej. <body class="tema-docente">) y enlaza
+   este archivo. Si mañana cambia un color de marca, se
+   edita en un solo lugar en vez de en 4 archivos.
+   ===================================================== */
+
+/* -------- Institucional (azul/verde corporativo) -------- */
+body.tema-institucional {
+    --color-primario: #1f4e79;
+    --color-primario-claro: #e8ecfb;
+    --color-acento: #198754;
+    --color-borde: #e3e8ef;
+    --color-fondo: #eef1f6;
+}
+
+/* -------- Docente (índigo) -------- */
+body.tema-docente {
+    --color-fondo: #f1f5f9;
+    --color-panel: #ffffff;
+    --color-primario: #4f46e5;
+    --color-primario-oscuro: #3730a3;
+    --color-primario-claro: #eef2ff;
+    --color-acento: #f59e0b;
+    --color-acento-oscuro: #b45309;
+    --color-texto: #1e293b;
+    --color-borde: #e2e8f0;
+}
+
+/* -------- Docente / alerta (variante roja, cuadro de fracaso) -------- */
+body.tema-docente-alerta {
+    --color-fondo: #f1f5f9;
+    --color-panel: #ffffff;
+    --color-primario: #be123c;
+    --color-primario-oscuro: #9f1239;
+    --color-primario-claro: #ffe4e9;
+    --color-acento: #f59e0b;
+    --color-acento-oscuro: #b45309;
+    --color-texto: #1e293b;
+    --color-borde: #e2e8f0;
+    --color-ok: #16a34a;
+    --color-ok-claro: #dcfce7;
+    --color-mal: #dc2626;
+    --color-mal-claro: #fee2e2;
+}
+
+/* -------- Asistencia (verde azulado / dorado) -------- */
+body.tema-asistencia {
+    --color-fondo: #faf6ee;
+    --color-panel: #ffffff;
+    --color-primario: #2f6f62;
+    --color-primario-oscuro: #234f45;
+    --color-primario-claro: #e3efec;
+    --color-acento: #cf8b2c;
+    --color-acento-oscuro: #a86f1f;
+    --color-texto: #2c2620;
+}
+
+/* -------- Clásico (tinta / bronce, estilo "diploma") -------- */
+body.tema-clasico {
+    --tinta: #14213d;
+    --tinta-2: #1f335e;
+    --bronce: #b8863b;
+    --bronce-claro: #dcae6b;
+    --bronce-oscuro: #8c6425;
+    --crema: #faf7f1;
+    --papel: #fffefb;
+    --texto: #211d17;
+    --texto-suave: #6b6459;
+    --borde: #e8e1d3;
+    --verde: #4f7a53;
+    --verde-fondo: #eaf2e6;
+    --rojo: #c0392b;
+    --rojo-fondo: #fbeae8;
+    --ambar: #a8781f;
+    --ambar-fondo: #fbf1de;
+    --radio: 20px;
+    --radio-sm: 12px;
+}
+
+/* -------- Historial de asistencia (tono "papel/tinta") -------- */
+body.tema-historial {
+    --ink: #182849;
+    --ink-soft: #4b5773;
+    --paper: #eef1f6;
+    --paper-card: #ffffff;
+    --rule: #c9d0e0;
+    --margin-line: #c65a4a;
+    --gold: #c1892e;
+    --teal: #2f6f6b;
+    --rose: #b8483f;
+    --amber: #c1892e;
+    --blue: #3160a8;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(24, 40, 73, .06), 0 8px 24px -12px rgba(24, 40, 73, .18);
+}
+
+/* -------- Salones (morado) -------- */
+body.tema-salones {
+    --fondo: #f3f1fb;
+    --panel: #ffffff;
+    --texto: #2c2740;
+    --borde: #e7e3f7;
+}
+
+/* -------- Consejero (azul Bootstrap) -------- */
+body.tema-consejero {
+    --jiral-azul: #0d6efd;
+    --jiral-azul-oscuro: #0a4fb5;
+}
