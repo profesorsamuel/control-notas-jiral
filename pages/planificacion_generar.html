@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
     body {
-        background: linear-gradient(135deg, #4b3fb3, #2f7bd1);
+        background: linear-gradient(135deg, var(--morado-oscuro), var(--azul-medio));
         min-height: 100vh;
         font-family: "Segoe UI", Arial, sans-serif;
         padding: 24px 12px;
@@ -22,7 +22,7 @@
         overflow: hidden;
     }
     .encabezado-planificacion {
-        background: linear-gradient(90deg, #3a6fd8, #5a4fcf);
+        background: linear-gradient(90deg, var(--azul-claro), var(--morado));
         color: #fff;
         padding: 18px 24px;
         text-align: center;
@@ -48,18 +48,19 @@
     .tarjeta-leccion .cabecera-leccion small { display: block; font-weight: 400; color: #777; font-size: .75rem; }
 
     .campo-formato { padding: 10px 16px; border-top: 1px solid #f0f0f5; }
-    .campo-formato .titulo-campo { font-weight: 700; font-size: .78rem; color: #5a4fcf; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; }
+    .campo-formato .titulo-campo { font-weight: 700; font-size: .78rem; color: var(--morado); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; }
     .opcion-radio { display: block; padding: 8px 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; font-size: .82rem; cursor: pointer; }
     .opcion-radio:hover { background: #f8f9ff; }
     .opcion-radio input { margin-right: 8px; }
-    .opcion-radio .etiqueta-opcion { font-weight: 700; color: #5a4fcf; }
+    .opcion-radio .etiqueta-opcion { font-weight: 700; color: var(--morado); }
 
     .caja-contenido-real { background: #fffaf0; border: 1px solid #f0e0b8; border-radius: 8px; padding: 10px; font-size: .78rem; white-space: pre-wrap; max-height: 160px; overflow: auto; }
 
     .acciones-guardar-leccion { text-align: right; padding: 10px 16px; background: #fafafa; }
 </style>
+    <link rel="stylesheet" href="../css/temas.css">
 </head>
-<body>
+<body class="tema-planificacion">
 
 <div class="tarjeta-principal">
     <div class="encabezado-planificacion">
