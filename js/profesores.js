@@ -1242,11 +1242,11 @@ function renderTabla() {
             e.stopPropagation();
             const numeroApreciacion = parseInt(btn.dataset.numero, 10);
             const ok = window.confirm(
-                `¿Eliminar por completo la Apreciación ${numeroApreciacion}? Esto borra sus notas, comportamiento y actividades, y la columna desaparece de la tabla (solo esta, no toca Aprec. 1, 2 ni 3). Nota: esta apreciación es la misma para todos los salones que tengan esta materia y trimestre, así que se elimina para todos ellos, no solo para este salón.`
+                `¿Eliminar por completo la Apreciación ${numeroApreciacion}? Esto borra sus notas, comportamiento y actividades, y la columna desaparece de la tabla (solo esta, no toca Aprec. 1, 2 ni 3). Esto solo afecta a este salón — los demás salones no se ven afectados.`
             );
             if (!ok) return;
-            const materia = selectMateriaNota.value, trimestre = selectTrimestreNota.value;
-            const resultado = await eliminarApreciacionColumna(materia, trimestre, numeroApreciacion);
+            const materia = selectMateriaNota.value, salon = selectSalonNota.value, trimestre = selectTrimestreNota.value;
+            const resultado = await eliminarApreciacionColumna(materia, salon, trimestre, numeroApreciacion);
             if (!resultado.ok) { alert("❌ No se pudo eliminar la columna.\n\nMotivo: " + (resultado.error?.message || "desconocido")); return; }
             cargarSalon();
         });
@@ -1271,7 +1271,7 @@ function renderTabla() {
                 const numerosActuales = Object.keys(estadoApreciacionesNuevas).map((n) => parseInt(n, 10));
                 const siguienteNumero = numerosActuales.length > 0 ? Math.max(...numerosActuales) + 1 : 4;
                 btn.disabled = true;
-                const ok = await activarApreciacionSiguiente(selectMateriaNota.value, selectTrimestreNota.value, siguienteNumero);
+                const ok = await activarApreciacionSiguiente(selectMateriaNota.value, selectSalonNota.value, selectTrimestreNota.value, siguienteNumero);
                 btn.disabled = false;
                 if (!ok) { alert("No se pudo agregar la siguiente Apreciación."); return; }
                 await cargarSalon();
@@ -1476,7 +1476,7 @@ async function cargarSalon() {
     // no duplicarlas si ya tenían notas guardadas.
     casillasTabla = casillasTabla.filter((c) => !(c.tipo === "apreciacion" && c.numero >= 4));
     estadoApreciacionesNuevas = {};
-    const columnasNuevas = await calcularColumnasApreciacionesNuevas(materia, trimestre);
+    const columnasNuevas = await calcularColumnasApreciacionesNuevas(materia, salon, trimestre);
     columnasNuevas.forEach(({ numero, estado: estadoCol, modo }) => {
         estadoApreciacionesNuevas[numero] = { estado: estadoCol, modo: modo || null };
         casillasTabla.push({ tipo: "apreciacion", numero, esNueva: true });
