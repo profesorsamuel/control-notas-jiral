@@ -126,3 +126,66 @@ body.tema-consejero {
     --jiral-azul: #0d6efd;
     --jiral-azul-oscuro: #0a4fb5;
 }
+
+/* =====================================================
+   Segunda tanda (Etapa 1, punto 2): páginas que no tenían
+   :root propio, pero repetían los mismos colores sueltos
+   en hexadecimal dentro de su <style>. Se les dio nombre
+   y se centralizaron aquí también.
+   ===================================================== */
+
+/* -------- Planificación / horarios (morado-azul) --------
+   alerta_horario, horario_profesores, horario_salon,
+   horario_semanal, mi_horario, mis_tareas,
+   planificacion_generar, planificacion_semana,
+   planificacion_subir, excepciones_horario,
+   monitor_estudiantes, tareas */
+body.tema-planificacion {
+    --morado-oscuro: #4b3fb3;
+    --morado: #5a4fcf;
+    --azul-medio: #2f7bd1;
+    --azul-claro: #3a6fd8;
+    --indigo: #2f3ea3;
+    --verde-ok: #28a745;
+}
+
+/* -------- Datos / cuentas (azul-slate) --------
+   consulta, datos, informacion_estudiantes, login,
+   registro, reset-password */
+body.tema-datos {
+    --azul: #2563eb;
+    --azul-oscuro: #1e3a8a;
+    --fondo: #f1f5f9;
+    --borde: #cbd5e1;
+    --texto-suave: #64748b;
+    --texto-mas-suave: #94a3b8;
+    --texto-oscuro: #334155;
+}
+
+/* -------- Panel del estudiante -------- */
+body.tema-estudiante {
+    --azul: #1f4e79;
+    --borde: #cbd5e1;
+    --fondo: #f1f5f9;
+    --texto-suave: #475569;
+    --texto-oscuro: #1e293b;
+}
+
+/* -------- Portal de clase (ladrillo/terracota) --------
+   portal-admin, portal-entregas */
+body.tema-portal {
+    --rojo: #b3402a;
+    --rojo-fondo: #fbeceb;
+    --rojo-fondo2: #fdf1ed;
+    --borde-calido: #d9c9c3;
+    --verde-fondo: #eaf2e6;
+}
+
+/* -------- Riesgo académico (rojo de alerta) -------- */
+body.tema-riesgo {
+    --rojo-alerta: #991b1b;
+    --rojo-alerta-oscuro: #7f1d1d;
+    --borde: #cbd5e1;
+    --texto-oscuro: #334155;
+    --texto-suave: #64748b;
+}
