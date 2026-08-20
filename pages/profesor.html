@@ -79,19 +79,7 @@
            como color principal (más actual, tipo apps de escritorio/SaaS),
            ámbar como color de acción/acento, sobre un fondo gris frío
            suave en vez del crema tipo cuaderno. */
-        :root {
-            --color-fondo: #f1f5f9;
-            --color-panel: #ffffff;
-            --color-primario: #4f46e5;
-            --color-primario-oscuro: #3730a3;
-            --color-primario-claro: #eef2ff;
-            --color-acento: #f59e0b;
-            --color-acento-oscuro: #b45309;
-            --color-texto: #1e293b;
-            --color-borde: #e2e8f0;
-        }
-
-        body {
+body {
             font-family: 'Inter', Arial, sans-serif;
             padding: 20px;
             background: var(--color-fondo);
@@ -494,9 +482,10 @@
             .apr-tab-btn { flex: 1 1 auto; justify-content: center; }
         }
     </style>
+    <link rel="stylesheet" href="../css/temas.css">
 </head>
 
-<body>
+<body class="tema-docente">
 
     <header class="docente-header">
         <div class="docente-header-identidad">
