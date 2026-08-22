@@ -212,6 +212,11 @@ function abrirDetalle(sesionId) {
 document.getElementById("admin-modal-cerrar").addEventListener("click", () => { document.getElementById("admin-modal").hidden = true; });
 document.getElementById("admin-modal").addEventListener("click", (e) => { if (e.target.id === "admin-modal") e.currentTarget.hidden = true; });
 
+// ---------- Vista previa como estudiante ----------
+document.getElementById("btn-vista-previa").addEventListener("click", () => {
+  window.open("prueba_ciencias_9.html?preview=1", "_blank");
+});
+
 // ---------- Exportación ----------
 function filasResultadosCompletos() {
   return cacheSesiones.filter((s) => s.estado === "finalizado").map((s) => ({
