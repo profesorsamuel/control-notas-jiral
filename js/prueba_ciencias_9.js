@@ -182,8 +182,10 @@ function cargarSalones() {
 document.getElementById("reg-salon").addEventListener("change", async (e) => {
   const salon = e.target.value;
   const selNombre = document.getElementById("reg-nombre");
+  const inputCedula = document.getElementById("reg-cedula");
   selNombre.innerHTML = `<option value="">Cargando…</option>`;
   selNombre.disabled = true;
+  inputCedula.value = "";
   if (!salon) {
     selNombre.innerHTML = `<option value="">Selecciona primero tu salón…</option>`;
     return;
@@ -203,6 +205,27 @@ document.getElementById("reg-salon").addEventListener("change", async (e) => {
     data.map((e2) => `<option value="${e2.id}" data-cedula="${e2.cedula || ""}">${e2.nombre}</option>`).join("");
 });
 
+// Al elegir el nombre, la cédula se autocompleta sola (ya vive en la base de
+// datos) — el estudiante solo la confirma visualmente, no la escribe.
+document.getElementById("reg-nombre").addEventListener("change", (e) => {
+  const opt = e.target.selectedOptions[0];
+  const inputCedula = document.getElementById("reg-cedula");
+  const errorBox = document.getElementById("reg-error");
+  errorBox.hidden = true;
+  if (!opt || !opt.value) {
+    inputCedula.value = "";
+    return;
+  }
+  const cedula = opt.dataset.cedula || "";
+  if (!cedula) {
+    inputCedula.value = "";
+    errorBox.textContent = "Este estudiante no tiene cédula registrada en el sistema. Contacta a tu profesor para que la agregue antes de continuar.";
+    errorBox.hidden = false;
+    return;
+  }
+  inputCedula.value = cedula;
+});
+
 document.getElementById("btn-registrar").addEventListener("click", async () => {
   const errorBox = document.getElementById("reg-error");
   errorBox.hidden = true;
@@ -210,22 +233,15 @@ document.getElementById("btn-registrar").addEventListener("click", async () => {
   const salon = document.getElementById("reg-salon").value;
   const selNombre = document.getElementById("reg-nombre");
   const nombreOpt = selNombre.selectedOptions[0];
-  const cedulaEscrita = document.getElementById("reg-cedula").value;
+  const cedulaRegistrada = document.getElementById("reg-cedula").value;
 
   if (!salon || !nombreOpt || !nombreOpt.value) {
     errorBox.textContent = "Selecciona tu salón y tu nombre.";
     errorBox.hidden = false;
     return;
   }
-  if (!cedulaEscrita.trim()) {
-    errorBox.textContent = "Escribe tu cédula para confirmar tu identidad.";
-    errorBox.hidden = false;
-    return;
-  }
-
-  const cedulaReal = nombreOpt.dataset.cedula || "";
-  if (!cedulaReal || normalizarCedula(cedulaReal) !== normalizarCedula(cedulaEscrita)) {
-    errorBox.textContent = "La cédula no coincide con el nombre seleccionado. Verifícala e intenta de nuevo.";
+  if (!cedulaRegistrada) {
+    errorBox.textContent = "Este estudiante no tiene cédula registrada en el sistema. Contacta a tu profesor.";
     errorBox.hidden = false;
     return;
   }
@@ -233,7 +249,7 @@ document.getElementById("btn-registrar").addEventListener("click", async () => {
   estudiante = {
     salon,
     nombre: nombreOpt.textContent,
-    cedula: normalizarCedula(cedulaEscrita),
+    cedula: normalizarCedula(cedulaRegistrada),
     estudianteId: nombreOpt.value,
   };
 
