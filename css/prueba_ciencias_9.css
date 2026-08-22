@@ -25,6 +25,18 @@ button, select, input { font: inherit; }
 
 .wrap { width: min(760px, 100%); margin: auto; padding: 28px 18px 60px; }
 
+.banner-vista-previa {
+  background: var(--amber-bg);
+  color: var(--amber);
+  text-align: center;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 10px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
 /* ---------- Header institucional ---------- */
 .ph-header {
   display: flex;
