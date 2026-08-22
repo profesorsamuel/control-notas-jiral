@@ -31,7 +31,7 @@
       <div><b id="cr-seg">00</b><span>seg</span></div>
     </div>
 
-    <p class="lead">Todos los estudiantes deberán realizar el examen dentro del horario autorizado. El acceso al examen oficial se cierra automáticamente 10 minutos después de la hora de inicio.</p>
+    <p class="lead">Puedes inscribirte y practicar desde ahora. El <b>examen oficial</b> solo se puede presentar el sábado 29 de agosto entre 9:00 y 9:10 a.m. La inscripción por primera vez se cierra el viernes 28 de agosto.</p>
 
     <button id="btn-continuar-inicio" class="wide" disabled>Cargando…</button>
   </section>
@@ -40,7 +40,7 @@
   <section id="vista-registro" class="card" hidden>
     <p class="tag">REGISTRO</p>
     <h2>Antes de empezar, identifícate</h2>
-    <p class="lead">Selecciona tu salón, busca tu nombre y confirma tu cédula. Esto se usa para registrar tu intento oficial y evitar suplantaciones.</p>
+    <p class="lead">Selecciona tu salón y busca tu nombre. Tu cédula se completa sola (ya está en el sistema) — solo confírmala con un vistazo antes de continuar.</p>
 
     <label for="reg-salon">Salón
       <select id="reg-salon">
@@ -54,8 +54,8 @@
       </select>
     </label>
 
-    <label for="reg-cedula">Cédula
-      <input id="reg-cedula" type="text" placeholder="Ej: 8-123-456" autocomplete="off">
+    <label for="reg-cedula">Cédula registrada
+      <input id="reg-cedula" type="text" placeholder="Se completa automáticamente al elegir tu nombre" readonly>
     </label>
 
     <p id="reg-error" class="error" hidden></p>
