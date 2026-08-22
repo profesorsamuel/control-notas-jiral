@@ -10,6 +10,20 @@ const T = CONFIG.tablas;
 
 const LS_KEY = `examen_${CONFIG.codigoExamen}`;
 
+// ---------- Modo vista previa de administrador ----------
+// Se activa abriendo la página con ?preview=1 (el panel admin tiene un botón
+// para esto). En este modo: no hay fecha límite, no se pide cédula real, y
+// NADA se guarda en Supabase — es solo para que el docente vea/pruebe el
+// examen exactamente como lo vive un estudiante, sin gastar el intento único.
+const MODO_VISTA_PREVIA = new URLSearchParams(location.search).get("preview") === "1";
+
+if (MODO_VISTA_PREVIA) {
+  const banner = document.createElement("div");
+  banner.className = "banner-vista-previa";
+  banner.textContent = "🔍 MODO VISTA PREVIA (administrador) — nada de lo que hagas aquí se guarda ni cuenta como intento real";
+  document.body.prepend(banner);
+}
+
 // ---------- Referencias DOM ----------
 const vistaInicio = document.getElementById("vista-inicio");
 const vistaRegistro = document.getElementById("vista-registro");
@@ -102,6 +116,7 @@ async function obtenerIP() {
 // =========================================================
 const fInicio = new Date(CONFIG.fechaInicio);
 const fLimite = new Date(CONFIG.fechaLimiteAcceso);
+const fLimiteInscripcion = new Date(CONFIG.fechaLimiteInscripcion);
 
 function actualizarCuentaRegresiva() {
   const ahora = new Date();
@@ -111,11 +126,17 @@ function actualizarCuentaRegresiva() {
   const btn = document.getElementById("btn-continuar-inicio");
 
   const opcionesFecha = { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" };
-  fechaTxt.textContent = `Fecha y hora oficial: ${fInicio.toLocaleString("es-PA", opcionesFecha)}`;
+  fechaTxt.textContent = `El examen oficial se presenta el: ${fInicio.toLocaleString("es-PA", opcionesFecha)}`;
+
+  // La inscripción (registrarse por primera vez) SÍ está abierta desde ya,
+  // solo se cierra para estudiantes nuevos después de fechaLimiteInscripcion.
+  // El botón de "Continuar" nunca se bloquea: solo cambia el mensaje.
+  btn.disabled = false;
+  btn.textContent = "Continuar →";
 
   if (ahora < fInicio) {
-    titulo.textContent = "El examen aún no ha comenzado";
     cont.hidden = false;
+    titulo.textContent = "Ya puedes inscribirte. El examen oficial comienza en:";
     const diff = fInicio - ahora;
     const dias = Math.floor(diff / 86400000);
     const horas = Math.floor((diff % 86400000) / 3600000);
@@ -125,13 +146,12 @@ function actualizarCuentaRegresiva() {
     document.getElementById("cr-horas").textContent = String(horas).padStart(2, "0");
     document.getElementById("cr-min").textContent = String(min).padStart(2, "0");
     document.getElementById("cr-seg").textContent = String(seg).padStart(2, "0");
-    btn.disabled = true;
-    btn.textContent = "Disponible cuando inicie el examen";
+  } else if (ahora <= fLimite) {
+    cont.hidden = true;
+    titulo.textContent = "El examen oficial ya está habilitado";
   } else {
     cont.hidden = true;
-    titulo.textContent = "El examen ya está habilitado";
-    btn.disabled = false;
-    btn.textContent = "Continuar →";
+    titulo.textContent = "El horario del examen oficial ya cerró";
   }
 }
 actualizarCuentaRegresiva();
@@ -217,9 +237,10 @@ document.getElementById("btn-registrar").addEventListener("click", async () => {
     estudianteId: nombreOpt.value,
   };
 
-  // Bloqueo de nuevos accesos después de la hora límite, salvo que ya tenga una sesión previa
+  // Bloqueo de NUEVAS inscripciones después del plazo, salvo que el estudiante
+  // ya se hubiera registrado antes (entonces se le deja continuar sin problema).
   const ahora = new Date();
-  if (ahora > fLimite) {
+  if (ahora > fLimiteInscripcion) {
     const { data: previas } = await sb
       .from(T.sesiones)
       .select("id")
@@ -227,8 +248,10 @@ document.getElementById("btn-registrar").addEventListener("click", async () => {
       .eq("cedula", estudiante.cedula)
       .limit(1);
     if (!previas || previas.length === 0) {
-      errorBox.textContent = "El acceso a nuevos registros para el examen oficial cerró a las 9:10 a.m. Contacta a tu profesor. (Aún puedes usar el modo práctica si lo permite tu profesor.)";
+      const opcionesFecha = { day: "numeric", month: "long" };
+      errorBox.textContent = `El plazo para inscribirse por primera vez cerró el ${fLimiteInscripcion.toLocaleDateString("es-PA", opcionesFecha)}. Contacta a tu profesor.`;
       errorBox.hidden = false;
+      return;
     }
   }
 
@@ -248,14 +271,25 @@ document.getElementById("btn-cambiar-usuario").addEventListener("click", () => {
 // =========================================================
 async function cargarMenu() {
   mostrarVista(vistaMenu);
-  document.getElementById("menu-saludo").textContent = `Hola, ${estudiante.nombre.split(" ")[0]} 👋`;
-  document.getElementById("menu-info").textContent = `${estudiante.salon.replace(/(\d+)([A-Z])/, "$1°$2")} · Confirma que la información sea correcta antes de presentar tu examen oficial.`;
+  document.getElementById("menu-saludo").textContent = MODO_VISTA_PREVIA
+    ? "Vista previa de administrador 🔍"
+    : `Hola, ${estudiante.nombre.split(" ")[0]} 👋`;
+  document.getElementById("menu-info").textContent = MODO_VISTA_PREVIA
+    ? "Puedes probar la práctica y el examen oficial tal como los ve un estudiante. Nada de esto se guarda."
+    : `${estudiante.salon.replace(/(\d+)([A-Z])/, "$1°$2")} · Confirma que la información sea correcta antes de presentar tu examen oficial.`;
 
   const btnOficial = document.getElementById("btn-oficial");
   const aviso = document.getElementById("menu-aviso");
   aviso.hidden = true;
   btnOficial.disabled = false;
   btnOficial.innerHTML = `📝 Presentar examen oficial<br><small>25 preguntas · un solo intento · cuenta para tu nota</small>`;
+
+  if (MODO_VISTA_PREVIA) {
+    // Sin fechas, sin sesión previa: el admin siempre puede probar ambos modos.
+    document.getElementById("btn-practica").onclick = () => iniciarQuiz("practica");
+    document.getElementById("btn-oficial").onclick = () => iniciarQuiz("oficial", null);
+    return;
+  }
 
   const { data: sesiones } = await sb
     .from(T.sesiones)
@@ -295,7 +329,12 @@ async function cargarMenu() {
 async function iniciarQuiz(modo, sesionExistente) {
   let preguntasIds, respuestasPrevias = [], pregActual = 0, sesionId = null;
 
-  if (modo === "oficial") {
+  if (modo === "oficial" && MODO_VISTA_PREVIA) {
+    // Simulación completa (25 preguntas, mismo flujo estricto) pero sin
+    // tocar Supabase para nada — es solo para que el admin la pruebe.
+    const rng = crearRng(`admin-preview-oficial-${Date.now()}-${Math.random()}`);
+    preguntasIds = pickNSeeded(BANCO.map((q) => q.id), CONFIG.preguntasExamenOficial, rng);
+  } else if (modo === "oficial") {
     if (sesionExistente && sesionExistente.estado === "en_progreso") {
       preguntasIds = sesionExistente.preguntas_ids;
       respuestasPrevias = sesionExistente.respuestas || [];
@@ -415,7 +454,7 @@ async function avanzarPregunta(q, porTiempo) {
   });
   quizState.indice += 1;
 
-  if (quizState.modo === "oficial") {
+  if (quizState.modo === "oficial" && !MODO_VISTA_PREVIA) {
     await sb.from(T.sesiones).update({
       respuestas: quizState.respuestas,
       pregunta_actual: quizState.indice,
@@ -440,7 +479,7 @@ async function finalizarQuiz() {
   const nota = window.calcularNotaMeduca(porcentaje);
   const tiempoTotal = Math.round((Date.now() - quizState.tInicio) / 1000);
 
-  if (quizState.modo === "oficial") {
+  if (quizState.modo === "oficial" && !MODO_VISTA_PREVIA) {
     await sb.from(T.sesiones).update({
       estado: "finalizado",
       correctas, incorrectas, porcentaje, nota_meduca: nota,
@@ -480,6 +519,9 @@ function mostrarResultado({ modo, correctas, incorrectas, porcentaje, nota, tiem
   } else {
     revCont.innerHTML = `<p class="lead" style="text-align:center">Por seguridad, las respuestas correctas del examen oficial no se muestran aquí. Tu profesor revisará los resultados.</p>`;
   }
+  if (MODO_VISTA_PREVIA) {
+    revCont.innerHTML += `<p class="warning" style="text-align:center">Esto fue una vista previa de administrador: no se guardó en Supabase ni cuenta como intento de ningún estudiante.</p>`;
+  }
 
   document.getElementById("btn-volver-menu").onclick = () => cargarMenu();
 }
@@ -491,7 +533,7 @@ document.addEventListener("visibilitychange", async () => {
   if (!quizState || vistaQuiz.hidden) return;
   if (document.hidden) {
     quizState.cambiosPestana += 1;
-    if (quizState.modo === "oficial") {
+    if (quizState.modo === "oficial" && !MODO_VISTA_PREVIA) {
       await sb.from(T.eventos).insert({
         sesion_id: quizState.sesionId,
         codigo_examen: CONFIG.codigoExamen,
@@ -524,7 +566,7 @@ setInterval(async () => {
     const v = document.getElementById("quiz-violation");
     v.hidden = false;
     v.textContent = `⚠ Inactividad detectada (${Math.round(idleSeg)}s sin interacción).`;
-    if (quizState.modo === "oficial") {
+    if (quizState.modo === "oficial" && !MODO_VISTA_PREVIA) {
       await sb.from(T.eventos).insert({
         sesion_id: quizState.sesionId,
         codigo_examen: CONFIG.codigoExamen,
@@ -545,4 +587,9 @@ window.addEventListener("beforeunload", (e) => {
 // =========================================================
 // ARRANQUE
 // =========================================================
-mostrarVista(vistaInicio);
+if (MODO_VISTA_PREVIA) {
+  estudiante = { salon: "ADMIN", nombre: "Vista previa (admin)", cedula: `preview-${Date.now()}`, estudianteId: null };
+  cargarMenu();
+} else {
+  mostrarVista(vistaInicio);
+}
