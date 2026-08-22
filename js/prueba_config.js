@@ -26,6 +26,12 @@ window.PRUEBA_CONFIG = {
 
   // ---- Fecha y hora oficiales ----
   // Formato ISO con zona horaria de Panamá (UTC-5, sin horario de verano)
+  // "fechaLimiteInscripcion": hasta cuándo un estudiante puede REGISTRARSE
+  // por primera vez (elegir salón/nombre/cédula). Los estudiantes ya
+  // registrados antes de esa fecha pueden seguir entrando después sin problema.
+  fechaLimiteInscripcion: "2026-08-27T23:59:59-05:00",
+  // "fechaInicio"/"fechaLimiteAcceso": la ventana real para PRESENTAR el
+  // examen oficial (el modo práctica no depende de estas fechas).
   fechaInicio: "2026-08-29T09:00:00-05:00",
   fechaLimiteAcceso: "2026-08-29T09:10:00-05:00",
   // Si quieres, puedes poner una hora de cierre total del examen (nadie más entrega después de esto).
