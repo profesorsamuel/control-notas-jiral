@@ -94,6 +94,7 @@ select, input {
   border-radius: 11px;
   background: #fbfdff;
 }
+input[readonly] { background: #eef2f7; color: var(--navy); font-weight: 800; cursor: default; }
 button {
   border: 0;
   border-radius: 11px;
