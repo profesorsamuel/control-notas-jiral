@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel del Docente — Examen Ciencias Naturales 8A | C.E.B.G. El Jiral</title>
+<link rel="stylesheet" href="../css/prueba_ciencias_9.css">
+<link rel="stylesheet" href="../css/prueba_ciencias_9_admin.css">
+</head>
+<body>
+
+<div class="admin-wrap">
+
+  <!-- ===================== ACCESO ===================== -->
+  <section id="admin-login" class="card" style="max-width:420px;margin:12vh auto">
+    <p class="tag">PANEL DOCENTE</p>
+    <h2>Acceso restringido</h2>
+    <p class="lead">Ingresa la clave del panel para ver el monitoreo en vivo del examen.</p>
+    <label for="admin-clave">Clave del panel
+      <input id="admin-clave" type="password" autocomplete="off">
+    </label>
+    <p id="admin-login-error" class="error" hidden>Clave incorrecta.</p>
+    <button id="btn-admin-entrar" class="wide">Entrar</button>
+  </section>
+
+  <!-- ===================== PANEL ===================== -->
+  <div id="admin-panel" hidden>
+
+    <header class="admin-header">
+      <div>
+        <p class="ph-escuela">C.E.B.G. EL JIRAL</p>
+        <h1>Panel del Docente — <span id="admin-titulo-examen"></span></h1>
+      </div>
+      <div class="admin-header-botones">
+        <span id="admin-actualizado" class="admin-actualizado"></span>
+        <button id="btn-vista-previa" class="secundario">🎮 Practicar como estudiante</button>
+        <button id="btn-exportar-excel" class="secundario">⬇ Excel</button>
+        <button id="btn-exportar-pdf" class="secundario">⬇ PDF</button>
+      </div>
+    </header>
+
+    <!-- Resumen -->
+    <section class="admin-resumen">
+      <div class="admin-stat"><b id="st-total">0</b><span>Total estudiantes</span></div>
+      <div class="admin-stat conectado"><b id="st-conectados">0</b><span>🟢 Conectados</span></div>
+      <div class="admin-stat"><b id="st-finalizados">0</b><span>🔵 Finalizados</span></div>
+      <div class="admin-stat ausente"><b id="st-ausentes">0</b><span>🔴 Ausentes</span></div>
+    </section>
+
+    <!-- Alertas -->
+    <section id="admin-alertas-wrap" class="card admin-alertas" hidden>
+      <h3>⚠ Alertas</h3>
+      <div id="admin-alertas-lista"></div>
+    </section>
+
+    <!-- Ranking por salón -->
+    <section class="card">
+      <h3>🏆 Promedio por salón</h3>
+      <div id="admin-ranking" class="admin-ranking"></div>
+    </section>
+
+    <!-- Tabs -->
+    <div class="admin-tabs">
+      <button class="admin-tab-btn activo" data-tab="conectados">Conectados</button>
+      <button class="admin-tab-btn" data-tab="finalizados">Finalizados</button>
+      <button class="admin-tab-btn" data-tab="ausentes">Ausentes</button>
+    </div>
+
+    <section class="card admin-tabla-wrap">
+      <table class="admin-tabla" id="admin-tabla">
+        <thead><tr id="admin-tabla-head"></tr></thead>
+        <tbody id="admin-tabla-body"></tbody>
+      </table>
+      <p id="admin-tabla-vacio" class="lead" hidden>No hay estudiantes en esta lista todavía.</p>
+    </section>
+
+  </div>
+
+  <!-- ===================== MODAL SEGUIMIENTO INDIVIDUAL ===================== -->
+  <div id="admin-modal" class="admin-modal" hidden>
+    <div class="admin-modal-card">
+      <button id="admin-modal-cerrar" class="admin-modal-cerrar">✕</button>
+      <div id="admin-modal-contenido"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="../js/portal-config.js"></script>
+<script src="../js/prueba_config_8a.js"></script>
+<script src="../js/prueba_banco_8a.js"></script>
+<script src="../js/prueba_ciencias_8a_admin.js"></script>
+</body>
+</html>
