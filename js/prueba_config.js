@@ -32,11 +32,11 @@ window.PRUEBA_CONFIG = {
   fechaLimiteInscripcion: "2026-08-27T23:59:59-05:00",
   // "fechaInicio"/"fechaLimiteAcceso": la ventana real para PRESENTAR el
   // examen oficial (el modo práctica no depende de estas fechas).
-  fechaInicio: "2026-08-29T09:00:00-05:00",
-  fechaLimiteAcceso: "2026-08-29T09:10:00-05:00",
+  fechaInicio: "2026-09-03T10:00:00-05:00",
+  fechaLimiteAcceso: "2026-09-03T10:10:00-05:00",
   // Si quieres, puedes poner una hora de cierre total del examen (nadie más entrega después de esto).
   // Si el estudiante ya empezó antes de esta hora, se le deja terminar su intento.
-  fechaCierreTotal: "2026-08-29T11:00:00-05:00",
+  fechaCierreTotal: "2026-09-03T12:00:00-05:00",
 
   // ---- Examen oficial ----
   preguntasExamenOficial: 25,
