@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Examen de Recuperación — Ciencias Naturales 8A | C.E.B.G. El Jiral</title>
+<link rel="stylesheet" href="../css/prueba_ciencias_9.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="ph-header">
+    <img class="ph-escudo" src="../img/escudo-jiral.png" alt="Escudo C.E.B.G. El Jiral">
+    <div>
+      <p class="ph-escuela">C.E.B.G. EL JIRAL</p>
+      <h1 id="ph-titulo">Examen de Recuperación<br>Ciencias Naturales 8A</h1>
+    </div>
+  </header>
+
+  <!-- ===================== VISTA: PANTALLA INICIAL / CUENTA REGRESIVA ===================== -->
+  <section id="vista-inicio" class="card">
+    <p class="tag">C.E.B.G. EL JIRAL</p>
+    <h2 id="inicio-estado-titulo">Cargando información del examen…</h2>
+    <p id="inicio-fecha" class="lead"></p>
+
+    <div id="cuenta-regresiva" class="count" hidden>
+      <div><b id="cr-dias">00</b><span>días</span></div>
+      <div><b id="cr-horas">00</b><span>horas</span></div>
+      <div><b id="cr-min">00</b><span>min</span></div>
+      <div><b id="cr-seg">00</b><span>seg</span></div>
+    </div>
+
+    <p class="lead">Puedes inscribirte y practicar desde ahora. El <b>examen oficial</b> solo se puede presentar el jueves 3 de septiembre entre 10:00 y 10:10 a.m. La inscripción por primera vez se cierra el jueves 27 de agosto.</p>
+
+    <button id="btn-continuar-inicio" class="wide" disabled>Cargando…</button>
+  </section>
+
+  <!-- ===================== VISTA: REGISTRO DEL ESTUDIANTE ===================== -->
+  <section id="vista-registro" class="card" hidden>
+    <p class="tag">REGISTRO</p>
+    <h2>Antes de empezar, identifícate</h2>
+    <p class="lead">Selecciona tu salón y busca tu nombre. Tu cédula se completa sola (ya está en el sistema) — solo confírmala con un vistazo antes de continuar.</p>
+
+    <label for="reg-salon">Salón
+      <select id="reg-salon">
+        <option value="">Selecciona tu salón…</option>
+      </select>
+    </label>
+
+    <label for="reg-nombre">Nombre
+      <select id="reg-nombre" disabled>
+        <option value="">Selecciona primero tu salón…</option>
+      </select>
+    </label>
+
+    <label for="reg-cedula">Cédula registrada
+      <input id="reg-cedula" type="text" placeholder="Se completa automáticamente al elegir tu nombre" readonly>
+    </label>
+
+    <p id="reg-error" class="error" hidden></p>
+
+    <button id="btn-registrar" class="wide">Continuar</button>
+  </section>
+
+  <!-- ===================== VISTA: MENÚ (PRÁCTICA / OFICIAL) ===================== -->
+  <section id="vista-menu" class="card" hidden>
+    <p class="tag" id="menu-tag">BIENVENIDO/A</p>
+    <h2 id="menu-saludo">Hola</h2>
+    <p class="lead" id="menu-info"></p>
+
+    <div class="menu-botones">
+      <button id="btn-practica" class="secundario wide">🧪 Realizar práctica<br><small>20 preguntas · intentos ilimitados · no cuenta para la nota</small></button>
+      <button id="btn-oficial" class="wide">📝 Presentar examen oficial<br><small>25 preguntas · un solo intento · cuenta para tu nota</small></button>
+    </div>
+
+    <p id="menu-aviso" class="warning" hidden></p>
+    <button id="btn-cambiar-usuario" class="link">No soy yo / cambiar estudiante</button>
+  </section>
+
+  <!-- ===================== VISTA: QUIZ (usada por práctica y oficial) ===================== -->
+  <section id="vista-quiz" class="quiz" hidden>
+    <div class="top">
+      <div>
+        <span id="quiz-modo-label" class="modo-label"></span>
+        <b id="quiz-progreso">Pregunta 1 / 25</b>
+      </div>
+      <div class="timer" id="quiz-timer">00:30</div>
+    </div>
+
+    <p id="quiz-violation" class="violation" hidden></p>
+
+    <div class="question">
+      <p class="q-tema" id="quiz-tema"></p>
+      <h3 id="quiz-enunciado"></h3>
+      <div class="choices" id="quiz-opciones"></div>
+    </div>
+
+    <div class="nav">
+      <span id="quiz-aviso-navegacion" class="lead" style="margin:0">No puedes regresar a preguntas anteriores.</span>
+      <button id="btn-siguiente" disabled>Siguiente →</button>
+    </div>
+  </section>
+
+  <!-- ===================== VISTA: RESULTADO ===================== -->
+  <section id="vista-resultado" class="result" hidden>
+    <p class="tag" id="res-tag">RESULTADO</p>
+    <div class="grade" id="res-nota">5.0</div>
+    <h2 id="res-titulo">¡Examen finalizado!</h2>
+    <p class="lead" id="res-observacion"></p>
+
+    <div class="count">
+      <div><b id="res-correctas">0</b><span>correctas</span></div>
+      <div><b id="res-incorrectas">0</b><span>incorrectas</span></div>
+      <div><b id="res-porcentaje">0%</b><span>porcentaje</span></div>
+      <div><b id="res-tiempo">0:00</b><span>tiempo</span></div>
+    </div>
+
+    <div id="res-revision" class="revision"></div>
+
+    <button id="btn-volver-menu" class="wide">Volver al menú</button>
+  </section>
+
+  <footer class="ph-footer">
+    <a href="../index.html">← Volver al inicio</a>
+  </footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/portal-config.js"></script>
+<script src="../js/prueba_config_8a.js"></script>
+<script src="../js/prueba_banco_8a.js"></script>
+<script src="../js/prueba_ciencias_8a.js"></script>
+</body>
+</html>
