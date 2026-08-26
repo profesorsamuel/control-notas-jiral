@@ -79,8 +79,10 @@
   .cat-note{font-size:12.5px;color:var(--muted);margin:0 0 14px;font-weight:600;}
   .item-grid{display:grid;grid-template-columns:1fr;gap:10px;}
   @media(min-width:560px){.item-grid{grid-template-columns:1fr 1fr;}}
-  .item-card{background:#fff;border:1px solid #EDE1D0;border-radius:14px;padding:13px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
-  .item-name{font-weight:800;font-size:14.5px;line-height:1.25;}
+  .item-card{background:#fff;border:1px solid #EDE1D0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;}
+  .item-photo{background:linear-gradient(160deg,var(--paper),#FFE8C2);font-size:34px;height:76px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #EDE1D0;}
+  .item-body{padding:11px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .item-name{font-weight:800;font-size:14px;line-height:1.25;}
   .item-price{font-family:'DM Mono',monospace;color:var(--red-dark);font-weight:500;font-size:13.5px;margin-top:2px;}
   .stepper{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
   .stepper button{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--brown);background:var(--cream);color:var(--brown);font-size:17px;font-weight:800;cursor:pointer;line-height:1;}
@@ -490,11 +492,63 @@ function setupNameField(){
 
 /* ========================= MENÚ ========================= */
 const MENU = [
-  { cat:"Cajita Feliz", note:"Incluye juguete • sin colorantes ni sabor. artificiales", items:[
+  { cat:"Promociones", icon:"🎬", items:[
+    {n:"Huntrix Menú + Saja Boys Menú", p:14.99},
+    {n:"Huntrix Menú", p:7.99},
+    {n:"Saja Boys Menú", p:7.99},
+    {n:"Saja Boys Menú + Derpy Sundae", p:9.99},
+    {n:"McCombo del Día — McNífica", p:5.25},
+    {n:"McCombo del Día — McNífica (grande)", p:6.50},
+  ]},
+  { cat:"Caja Grande", icon:"📦", note:"Para compartir entre varios", items:[
+    {n:"Caja Grande con soda y postres", p:24.99},
+    {n:"Caja Grande con sodas", p:22.99},
+    {n:"Caja Grande", p:19.99},
+  ]},
+  { cat:"Cajita Feliz", icon:"🎉", note:"Incluye juguete • sin colorantes ni sabor. artificiales", items:[
     {n:"Cajita Feliz (Hamburguesa, con Queso, Pollo McCrispy 1pz, McFiesta Jr o McNuggets 4pz)", p:5.40},
     {n:"Cajita Feliz McNuggets 6 piezas", p:6.40},
   ]},
-  { cat:"Hamburguesas", items:[
+  { cat:"McCombos", icon:"🍟", note:"Incluyen papas y bebida", items:[
+    {n:"McCombo mediano Pollo McCrispy 2 piezas", p:6.10},
+    {n:"McCombo grande Pollo McCrispy 2 piezas", p:7.60},
+    {n:"McCombo mediano Pollo McCrispy 3 pz", p:7.10},
+    {n:"McCombo grande Pollo McCrispy 3 piezas", p:8.60},
+    {n:"McCombo mediano Chicken McNuggets 10 piezas", p:6.95},
+    {n:"McCombo grande Chicken McNuggets 10 piezas", p:8.45},
+    {n:"McCombo mediano Chicken McNuggets 20 piezas", p:9.99},
+    {n:"McCombo grande Chicken McNuggets 20 piezas", p:11.49},
+    {n:"McCombo mediano Big Mac ™", p:6.99},
+    {n:"McCombo grande Big Mac ™", p:8.49},
+    {n:"McCombo mediano Cuarto de Libra con Queso", p:7.50},
+    {n:"McCombo grande Cuarto de Libra con Queso", p:9.00},
+    {n:"McCombo mediano Doble Cuarto de Libra con Queso", p:8.25},
+    {n:"McCombo grande Doble Cuarto de Libra con Queso", p:9.75},
+    {n:"McCombo mediano CBO", p:8.95},
+    {n:"McCombo grande CBO", p:10.45},
+    {n:"McCombo mediano 2 Hamburguesas con Queso", p:7.25},
+    {n:"McCombo grande 2 Hamburguesas con Queso", p:8.75},
+    {n:"McCombo mediano McNífica", p:7.75},
+    {n:"McCombo grande McNífica", p:9.25},
+    {n:"McCombo mediano McNífica Doble", p:8.25},
+    {n:"McCombo grande McNífica Doble", p:9.75},
+    {n:"McCombo mediano McCrispy Chicken Sandwich Deluxe", p:7.50},
+    {n:"McCombo grande McCrispy Chicken Sandwich Deluxe", p:9.00},
+  ]},
+  { cat:"McMenú", icon:"🍔", note:"¡Cuando quieras!", items:[
+    {n:"McMenú x 5", p:6.99},
+    {n:"CM McDoble Gourmet + Sundae", p:5.25},
+    {n:"Combo mediano de McMenú + 6 McNuggets", p:5.99},
+    {n:"Mcmenú McDoble Gourmet + McCombo Big Mac", p:9.99},
+    {n:"McCombo Chico McDoble Gourmet", p:3.75},
+    {n:"McCombo mediano McDoble Honey BBQ", p:4.25},
+    {n:"McCombo mediano McDoble Gourmet", p:4.25},
+    {n:"McCombo mediano Pollo Ranch", p:4.25},
+    {n:"McCombo grande McDoble Honey BBQ", p:5.75},
+    {n:"McCombo grande McDoble Gourmet", p:5.75},
+    {n:"McCombo grande Pollo Ranch", p:5.75},
+  ]},
+  { cat:"Hamburguesas", icon:"🍔", items:[
     {n:"Hamburguesa", p:2.00},
     {n:"Hamburguesa con Queso", p:2.25},
     {n:"Doble Queso Hamburguesa", p:4.25},
@@ -507,47 +561,68 @@ const MENU = [
     {n:"Premium CBO", p:7.75},
     {n:"McCrispy Chicken", p:5.50},
   ]},
-  { cat:"Pollo McCrispy", items:[
+  { cat:"Pollo McCrispy", icon:"🍗", items:[
     {n:"Pollo McCrispy 1 pieza", p:2.25},
     {n:"Pollo McCrispy 2 piezas", p:4.25},
     {n:"Pollo McCrispy 3 piezas", p:5.25},
   ]},
-  { cat:"McNuggets", items:[
+  { cat:"McNuggets", icon:"🍗", items:[
     {n:"Chicken McNuggets 6 piezas", p:3.50},
     {n:"Chicken McNuggets 10 piezas", p:5.50},
     {n:"Chicken McNuggets 20 piezas", p:8.50},
   ]},
-  { cat:"Acompañamientos", items:[
+  { cat:"Acompañamientos", icon:"🍟", items:[
     {n:"Papas pequeñas", p:1.50},
     {n:"Papas medianas", p:2.10},
     {n:"Papas grandes", p:2.95},
     {n:"Papas Bacon Cheddar", p:3.75},
   ]},
-  { cat:"Bebidas", items:[
-    {n:"Soda 16 onzas", p:1.60},
-    {n:"Soda 21 onzas", p:2.10},
-    {n:"Soda 30 onzas", p:2.35},
-    {n:"Batido (Chocolate, Fresa, Vainilla u Oreo) 16oz", p:3.10},
-    {n:"Té Frío 16 onzas", p:1.60},
-    {n:"Té Frío 21 onzas", p:2.10},
-    {n:"Agua en botella", p:1.25},
-    {n:"Jugo de Naranja 12 onzas", p:1.99},
+  { cat:"Bebidas", icon:"🥤", items:[
+    {n:"Iced Coffee", p:2.10},
+    {n:"Iced Latte", p:2.25},
+    {n:"Batido café", p:1.99},
+    {n:"Batido Vainilla", p:1.99},
+    {n:"Batido de Fresa", p:3.10},
+    {n:"Batido de Chocolate", p:3.10},
+    {n:"Batido de Oreo", p:3.10},
+    {n:"Batido de Fresa Oreo", p:3.10},
+    {n:"Coca-Cola 21 oz", p:2.10},
+    {n:"Coca-Cola Zero azúcar 21 oz", p:2.10},
+    {n:"Coca-Cola 30 oz", p:2.35},
+    {n:"Coca-Cola Zero azúcar 30 oz", p:2.35},
+    {n:"Té frío - Fuze Tea 21 oz", p:2.10},
+    {n:"Té frío - Fuze Tea 30 oz", p:2.35},
+    {n:"Fresca 21 oz", p:2.10},
+    {n:"Fresca 30 oz", p:2.35},
+    {n:"Fanta 21 oz", p:2.10},
+    {n:"Fanta Fresa 21 oz", p:2.10},
+    {n:"Fanta 30 oz", p:2.35},
+    {n:"Fanta Fresa 30 oz", p:2.35},
+    {n:"Agua Dasani", p:1.25},
+    {n:"Jugo de naranja 12 oz", p:1.99},
+    {n:"Jugo de naranja 16 oz", p:2.25},
   ]},
-  { cat:"Postres y Helados", items:[
+  { cat:"Postres y Helados", icon:"🍦", items:[
+    {n:"Derpy Sundae", p:2.50},
+    {n:"McFlurry Mini Kisses", p:3.25},
     {n:"McFlurry Oreo", p:3.25},
-    {n:"McFlurry M&M", p:3.25},
     {n:"McFlurry Fresa Oreo", p:3.25},
+    {n:"McFlurry M&M", p:3.25},
+    {n:"Pastel de Manzana", p:2.10},
+    {n:"Pastel de Queso", p:2.10},
+    {n:"Sundae de Fresa", p:2.10},
+    {n:"Sundae de Caramelo", p:2.10},
     {n:"Sundae de Chocolate", p:2.10},
     {n:"Cono", p:2.10},
-    {n:"Pastel de Manzana", p:2.10},
   ]},
-  { cat:"Desayunos", items:[
+  { cat:"Desayunos", icon:"🥞", items:[
     {n:"McMuffin Salchicha y Huevo", p:3.10},
     {n:"McMuffin Salchicha y Queso", p:3.10},
     {n:"Pancake", p:4.60},
     {n:"Pancake con Salchicha", p:4.10},
   ]},
 ];
+
 
 let cart = {};
 let selectedBus = null;
@@ -628,12 +703,15 @@ function renderMenu(){
       const card = document.createElement('div');
       card.className='item-card';
       card.innerHTML = `
-        <div class="item-info">
-          <div class="item-name">${item.n}</div>
-          <div class="item-price">$${item.p.toFixed(2)}</div>
-        </div>
-        <div class="stepper" data-key="${key}">
-          <button class="add-main" onclick="addItem('${key.replace(/'/g,"\\'")}','${item.n.replace(/'/g,"\\'")}',${item.p})">Agregar</button>
+        <div class="item-photo">${block.icon || '🍽️'}</div>
+        <div class="item-body">
+          <div class="item-info">
+            <div class="item-name">${item.n}</div>
+            <div class="item-price">$${item.p.toFixed(2)}</div>
+          </div>
+          <div class="stepper" data-key="${key}">
+            <button class="add-main" onclick="addItem('${key.replace(/'/g,"\\'")}','${item.n.replace(/'/g,"\\'")}',${item.p})">Agregar</button>
+          </div>
         </div>`;
       grid.appendChild(card);
     });
