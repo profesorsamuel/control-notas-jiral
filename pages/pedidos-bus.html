@@ -123,6 +123,13 @@
   .ticket-meta{font-size:12.5px;color:var(--muted);font-weight:700;margin-top:10px;line-height:1.6;}
   .check-icon{width:46px;height:46px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:900;margin:0 auto 10px;}
   .err-icon{width:46px;height:46px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:900;margin:0 auto 10px;}
+
+  .order-log-item{background:#fff;border:1px solid #EDE1D0;border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+  .order-log-item.done{opacity:.55;}
+  .order-log-item .top{display:flex;justify-content:space-between;font-weight:800;font-size:14px;}
+  .order-log-item .sub{font-size:12px;color:var(--muted);font-weight:700;margin-top:3px;}
+  .order-log-item .items{font-size:12.5px;margin-top:6px;color:var(--ink);}
+  .order-log-item label{display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:800;font-size:13px;text-transform:none;letter-spacing:0;color:var(--brown);}
 </style>
 </head>
 <body>
@@ -136,6 +143,7 @@
   <div class="busName" id="busNamePreview"></div>
   <div class="gateErr" id="gateErr"></div>
   <button id="gateBtn" onclick="confirmBus()" disabled>Continuar</button>
+  <button onclick="openSheet('adminOverlay')" style="margin-top:22px;background:none;border:none;color:#D9CBBB;font-weight:700;font-size:12.5px;text-decoration:underline;cursor:pointer;">¿Eres profesor/a? Ver panel de pedidos</button>
 </div>
 
 <!-- ============ APP DE PEDIDOS ============ -->
@@ -227,6 +235,32 @@
     <button class="btn-secondary" style="border-color:var(--green);color:var(--green);" onclick="shareTicketWhatsApp()">📲 Enviar por WhatsApp</button>
     <button class="btn-secondary" onclick="downloadTicketImage()">🖼️ Descargar como imagen</button>
     <button class="btn-primary" onclick="finishAndReset()">Listo</button>
+  </div>
+</div>
+
+<!-- ADMIN / PANEL DE PEDIDOS -->
+<div class="overlay" id="adminOverlay">
+  <div class="sheet">
+    <button class="closeX" onclick="closeSheet('adminOverlay')">✕</button>
+    <h2>Panel de pedidos</h2>
+
+    <div id="adminPinBox">
+      <p style="font-size:13px;color:var(--muted);font-weight:700;margin:-8px 0 10px;">Escribe el código para ver los pedidos.</p>
+      <input id="adminPin" type="password" placeholder="Código" autocomplete="off"
+        style="width:100%;padding:11px 12px;border-radius:10px;border:1.5px solid #D9C6A8;font-weight:700;font-size:14.5px;">
+      <button class="btn-primary" onclick="checkAdminPin()">Entrar</button>
+    </div>
+
+    <div id="adminPanel" style="display:none;">
+      <div id="adminBusTabs" style="display:flex;gap:6px;overflow-x:auto;margin:4px 0 12px;"></div>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;margin-bottom:12px;">
+        <input type="checkbox" id="onlyPending" checked onchange="renderAdminList()">
+        Mostrar solo pendientes
+      </label>
+      <div id="adminLoading" style="text-align:center;color:var(--muted);font-weight:700;padding:14px 0;">Cargando...</div>
+      <div id="adminList"></div>
+      <button class="btn-secondary" onclick="loadAdminOrders()">🔄 Actualizar lista</button>
+    </div>
   </div>
 </div>
 
@@ -869,6 +903,96 @@ function finishAndReset(){
   document.getElementById('capturePreview').style.display = 'none';
   document.getElementById('changeDisplay').textContent = '';
   closeSheet('confirmOverlay');
+}
+
+/* ===================== PANEL DE PEDIDOS (ADMIN) =====================
+   Cambia este código por el que quieras usar con tu equipo.
+======================================================================= */
+const ADMIN_PIN = "1234";
+
+let adminOrders = [];
+let adminBusFilter = "Todos";
+
+function checkAdminPin(){
+  const val = document.getElementById('adminPin').value.trim();
+  if(val !== ADMIN_PIN){
+    alert('Código incorrecto.');
+    return;
+  }
+  document.getElementById('adminPinBox').style.display = 'none';
+  document.getElementById('adminPanel').style.display = 'block';
+  loadAdminOrders();
+}
+
+async function loadAdminOrders(){
+  document.getElementById('adminLoading').style.display = 'block';
+  document.getElementById('adminList').innerHTML = '';
+  const { data, error } = await sb
+    .from('pedidos_bus')
+    .select('id,bus,nombre,grado,telefono,forma_pago,items,total,entregado,created_at')
+    .order('created_at', { ascending: false });
+  document.getElementById('adminLoading').style.display = 'none';
+  if(error){
+    console.error(error);
+    document.getElementById('adminList').innerHTML = '<div class="cart-empty">No se pudieron cargar los pedidos.</div>';
+    return;
+  }
+  adminOrders = data || [];
+  renderAdminBusTabs();
+  renderAdminList();
+}
+
+function renderAdminBusTabs(){
+  const buses = ["Todos", ...new Set(Object.values(BUS_CODES))];
+  const wrap = document.getElementById('adminBusTabs');
+  wrap.innerHTML = buses.map(b=>{
+    const active = b === adminBusFilter;
+    return `<button onclick="setAdminBusFilter('${b.replace(/'/g,"\\'")}')"
+      style="flex:0 0 auto;border:1.5px solid var(--brown);border-radius:999px;padding:6px 12px;font-weight:800;font-size:12.5px;cursor:pointer;
+      background:${active ? 'var(--brown)' : 'transparent'};color:${active ? '#fff' : 'var(--brown)'};">${b}</button>`;
+  }).join('');
+}
+function setAdminBusFilter(b){
+  adminBusFilter = b;
+  renderAdminBusTabs();
+  renderAdminList();
+}
+
+function renderAdminList(){
+  const onlyPending = document.getElementById('onlyPending').checked;
+  let list = adminOrders;
+  if(adminBusFilter !== "Todos") list = list.filter(o=>o.bus === adminBusFilter);
+  if(onlyPending) list = list.filter(o=>!o.entregado);
+
+  const box = document.getElementById('adminList');
+  if(list.length === 0){
+    box.innerHTML = '<div class="cart-empty">No hay pedidos que coincidan.</div>';
+    return;
+  }
+  box.innerHTML = list.map(o=>{
+    const itemsStr = (o.items || []).map(i=>`${i.qty}× ${i.name}`).join(', ');
+    return `<div class="order-log-item ${o.entregado ? 'done' : ''}">
+      <div class="top"><span>${o.bus} · ${o.nombre}</span><span>$${Number(o.total).toFixed(2)}</span></div>
+      <div class="sub">${o.grado} · ${o.forma_pago} · ${o.telefono}</div>
+      <div class="items">${itemsStr}</div>
+      <label>
+        <input type="checkbox" ${o.entregado ? 'checked' : ''} onchange="toggleEntregado('${o.id}', this.checked)">
+        Entregado
+      </label>
+    </div>`;
+  }).join('');
+}
+
+async function toggleEntregado(id, value){
+  const order = adminOrders.find(o=>o.id===id);
+  if(order) order.entregado = value;
+  const { error } = await sb.from('pedidos_bus').update({ entregado: value }).eq('id', id);
+  if(error){
+    console.error(error);
+    alert('No se pudo actualizar. Intenta de nuevo.');
+    if(order) order.entregado = !value;
+  }
+  renderAdminList();
 }
 </script>
 </body>
