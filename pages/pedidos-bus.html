@@ -492,134 +492,10 @@ function setupNameField(){
 
 /* ========================= MENÚ ========================= */
 const MENU = [
-  { cat:"Promociones", icon:"🎬", items:[
-    {n:"Huntrix Menú + Saja Boys Menú", p:14.99},
-    {n:"Huntrix Menú", p:7.99},
-    {n:"Saja Boys Menú", p:7.99},
-    {n:"Saja Boys Menú + Derpy Sundae", p:9.99},
-    {n:"McCombo del Día — McNífica", p:5.25},
-    {n:"McCombo del Día — McNífica (grande)", p:6.50},
-  ]},
-  { cat:"Caja Grande", icon:"📦", note:"Para compartir entre varios", items:[
+  { cat:"Caja Grande", icon:"📦", note:"Para compartir entre varios · te preguntamos qué quieres que lleve", items:[
     {n:"Caja Grande con soda y postres", p:24.99},
     {n:"Caja Grande con sodas", p:22.99},
     {n:"Caja Grande", p:19.99},
-  ]},
-  { cat:"Cajita Feliz", icon:"🎉", note:"Incluye juguete • sin colorantes ni sabor. artificiales", items:[
-    {n:"Cajita Feliz (Hamburguesa, con Queso, Pollo McCrispy 1pz, McFiesta Jr o McNuggets 4pz)", p:5.40},
-    {n:"Cajita Feliz McNuggets 6 piezas", p:6.40},
-  ]},
-  { cat:"McCombos", icon:"🍟", note:"Incluyen papas y bebida", items:[
-    {n:"McCombo mediano Pollo McCrispy 2 piezas", p:6.10},
-    {n:"McCombo grande Pollo McCrispy 2 piezas", p:7.60},
-    {n:"McCombo mediano Pollo McCrispy 3 pz", p:7.10},
-    {n:"McCombo grande Pollo McCrispy 3 piezas", p:8.60},
-    {n:"McCombo mediano Chicken McNuggets 10 piezas", p:6.95},
-    {n:"McCombo grande Chicken McNuggets 10 piezas", p:8.45},
-    {n:"McCombo mediano Chicken McNuggets 20 piezas", p:9.99},
-    {n:"McCombo grande Chicken McNuggets 20 piezas", p:11.49},
-    {n:"McCombo mediano Big Mac ™", p:6.99},
-    {n:"McCombo grande Big Mac ™", p:8.49},
-    {n:"McCombo mediano Cuarto de Libra con Queso", p:7.50},
-    {n:"McCombo grande Cuarto de Libra con Queso", p:9.00},
-    {n:"McCombo mediano Doble Cuarto de Libra con Queso", p:8.25},
-    {n:"McCombo grande Doble Cuarto de Libra con Queso", p:9.75},
-    {n:"McCombo mediano CBO", p:8.95},
-    {n:"McCombo grande CBO", p:10.45},
-    {n:"McCombo mediano 2 Hamburguesas con Queso", p:7.25},
-    {n:"McCombo grande 2 Hamburguesas con Queso", p:8.75},
-    {n:"McCombo mediano McNífica", p:7.75},
-    {n:"McCombo grande McNífica", p:9.25},
-    {n:"McCombo mediano McNífica Doble", p:8.25},
-    {n:"McCombo grande McNífica Doble", p:9.75},
-    {n:"McCombo mediano McCrispy Chicken Sandwich Deluxe", p:7.50},
-    {n:"McCombo grande McCrispy Chicken Sandwich Deluxe", p:9.00},
-  ]},
-  { cat:"McMenú", icon:"🍔", note:"¡Cuando quieras!", items:[
-    {n:"McMenú x 5", p:6.99},
-    {n:"CM McDoble Gourmet + Sundae", p:5.25},
-    {n:"Combo mediano de McMenú + 6 McNuggets", p:5.99},
-    {n:"Mcmenú McDoble Gourmet + McCombo Big Mac", p:9.99},
-    {n:"McCombo Chico McDoble Gourmet", p:3.75},
-    {n:"McCombo mediano McDoble Honey BBQ", p:4.25},
-    {n:"McCombo mediano McDoble Gourmet", p:4.25},
-    {n:"McCombo mediano Pollo Ranch", p:4.25},
-    {n:"McCombo grande McDoble Honey BBQ", p:5.75},
-    {n:"McCombo grande McDoble Gourmet", p:5.75},
-    {n:"McCombo grande Pollo Ranch", p:5.75},
-  ]},
-  { cat:"Hamburguesas", icon:"🍔", items:[
-    {n:"Hamburguesa", p:2.00},
-    {n:"Hamburguesa con Queso", p:2.25},
-    {n:"Doble Queso Hamburguesa", p:4.25},
-    {n:"Cuarto de Libra con Queso", p:5.50},
-    {n:"McPollo", p:5.25},
-    {n:"McNífica", p:6.00},
-    {n:"Big Mac", p:5.25},
-    {n:"McMelt", p:6.99},
-    {n:"Doble McMelt", p:8.99},
-    {n:"Premium CBO", p:7.75},
-    {n:"McCrispy Chicken", p:5.50},
-  ]},
-  { cat:"Pollo McCrispy", icon:"🍗", items:[
-    {n:"Pollo McCrispy 1 pieza", p:2.25},
-    {n:"Pollo McCrispy 2 piezas", p:4.25},
-    {n:"Pollo McCrispy 3 piezas", p:5.25},
-  ]},
-  { cat:"McNuggets", icon:"🍗", items:[
-    {n:"Chicken McNuggets 6 piezas", p:3.50},
-    {n:"Chicken McNuggets 10 piezas", p:5.50},
-    {n:"Chicken McNuggets 20 piezas", p:8.50},
-  ]},
-  { cat:"Acompañamientos", icon:"🍟", items:[
-    {n:"Papas pequeñas", p:1.50},
-    {n:"Papas medianas", p:2.10},
-    {n:"Papas grandes", p:2.95},
-    {n:"Papas Bacon Cheddar", p:3.75},
-  ]},
-  { cat:"Bebidas", icon:"🥤", items:[
-    {n:"Iced Coffee", p:2.10},
-    {n:"Iced Latte", p:2.25},
-    {n:"Batido café", p:1.99},
-    {n:"Batido Vainilla", p:1.99},
-    {n:"Batido de Fresa", p:3.10},
-    {n:"Batido de Chocolate", p:3.10},
-    {n:"Batido de Oreo", p:3.10},
-    {n:"Batido de Fresa Oreo", p:3.10},
-    {n:"Coca-Cola 21 oz", p:2.10},
-    {n:"Coca-Cola Zero azúcar 21 oz", p:2.10},
-    {n:"Coca-Cola 30 oz", p:2.35},
-    {n:"Coca-Cola Zero azúcar 30 oz", p:2.35},
-    {n:"Té frío - Fuze Tea 21 oz", p:2.10},
-    {n:"Té frío - Fuze Tea 30 oz", p:2.35},
-    {n:"Fresca 21 oz", p:2.10},
-    {n:"Fresca 30 oz", p:2.35},
-    {n:"Fanta 21 oz", p:2.10},
-    {n:"Fanta Fresa 21 oz", p:2.10},
-    {n:"Fanta 30 oz", p:2.35},
-    {n:"Fanta Fresa 30 oz", p:2.35},
-    {n:"Agua Dasani", p:1.25},
-    {n:"Jugo de naranja 12 oz", p:1.99},
-    {n:"Jugo de naranja 16 oz", p:2.25},
-  ]},
-  { cat:"Postres y Helados", icon:"🍦", items:[
-    {n:"Derpy Sundae", p:2.50},
-    {n:"McFlurry Mini Kisses", p:3.25},
-    {n:"McFlurry Oreo", p:3.25},
-    {n:"McFlurry Fresa Oreo", p:3.25},
-    {n:"McFlurry M&M", p:3.25},
-    {n:"Pastel de Manzana", p:2.10},
-    {n:"Pastel de Queso", p:2.10},
-    {n:"Sundae de Fresa", p:2.10},
-    {n:"Sundae de Caramelo", p:2.10},
-    {n:"Sundae de Chocolate", p:2.10},
-    {n:"Cono", p:2.10},
-  ]},
-  { cat:"Desayunos", icon:"🥞", items:[
-    {n:"McMuffin Salchicha y Huevo", p:3.10},
-    {n:"McMuffin Salchicha y Queso", p:3.10},
-    {n:"Pancake", p:4.60},
-    {n:"Pancake con Salchicha", p:4.10},
   ]},
 ];
 
@@ -721,7 +597,13 @@ function renderMenu(){
 }
 
 function addItem(key,name,price){
-  if(!cart[key]) cart[key]={name,price,qty:0};
+  if(!cart[key]){
+    let note = '';
+    if(key.startsWith('Caja Grande|')){
+      note = prompt('¿Qué quieres que lleve la Caja Grande? (ej. 2 Big Mac, 1 McPollo, papas y bebidas)', '') || '';
+    }
+    cart[key] = {name, price, qty:0, note};
+  }
   cart[key].qty++;
   renderStepper(key); renderTray();
 }
@@ -768,7 +650,7 @@ function renderTray(){
     lines.innerHTML = items.map(i=>{
       const key = Object.keys(cart).find(k=>cart[k]===i);
       return `<div class="cart-line">
-        <div><div class="nm">${i.qty} × ${i.name}</div><div class="px">$${(i.price*i.qty).toFixed(2)}</div></div>
+        <div><div class="nm">${i.qty} × ${i.name}</div>${i.note ? `<div class="px" style="font-style:italic;">📝 ${i.note}</div>` : ''}<div class="px">$${(i.price*i.qty).toFixed(2)}</div></div>
         <button class="rm" onclick="removeLine('${key.replace(/'/g,"\\'")}')">Quitar</button>
       </div>`;
     }).join('');
@@ -869,7 +751,7 @@ async function submitOrder(){
     grado: data.grade,
     telefono: data.phone,
     forma_pago: data.pay,
-    items: items.map(i=>({name:i.name, qty:i.qty, price:i.price})),
+    items: items.map(i=>({name:i.name, qty:i.qty, price:i.price, note:i.note || ''})),
     total: Number(total.toFixed(2)),
   };
   if(data.pay === 'Efectivo'){
@@ -918,7 +800,7 @@ let lastOrder = null; // {inserted, row}
 function renderTicket(inserted, row){
   lastOrder = { inserted, row };
   const shortId = (inserted.id || '').slice(-6).toUpperCase();
-  const itemsHtml = row.items.map(i=>`<div class="ticket-row"><span>${i.qty} × ${i.name}</span><span>$${(i.qty*i.price).toFixed(2)}</span></div>`).join('');
+  const itemsHtml = row.items.map(i=>`<div class="ticket-row"><span>${i.qty} × ${i.name}${i.note ? ` — 📝 ${i.note}` : ''}</span><span>$${(i.qty*i.price).toFixed(2)}</span></div>`).join('');
   let payExtra = '';
   if(row.forma_pago === 'Efectivo' && row.monto_recibido != null){
     payExtra = `
@@ -948,7 +830,7 @@ function buildOrderText(){
   lines.push(`Grado: ${row.grado}`);
   lines.push(`Teléfono: ${row.telefono}`);
   lines.push('');
-  row.items.forEach(i=> lines.push(`- ${i.qty} x ${i.name} — $${(i.qty*i.price).toFixed(2)}`));
+  row.items.forEach(i=> lines.push(`- ${i.qty} x ${i.name}${i.note ? ` (${i.note})` : ''} — $${(i.qty*i.price).toFixed(2)}`));
   lines.push('');
   lines.push(`Total: $${row.total.toFixed(2)}`);
   lines.push(`Forma de pago: ${row.forma_pago}`);
@@ -1060,7 +942,7 @@ function renderAdminList(){
     return;
   }
   box.innerHTML = list.map(o=>{
-    const itemsStr = (o.items || []).map(i=>`${i.qty}× ${i.name}`).join(', ');
+    const itemsStr = (o.items || []).map(i=>`${i.qty}× ${i.name}${i.note ? ` (${i.note})` : ''}`).join(', ');
     return `<div class="order-log-item ${o.entregado ? 'done' : ''}">
       <div class="top"><span>${o.bus} · ${o.nombre}</span><span>$${Number(o.total).toFixed(2)}</span></div>
       <div class="sub">${o.grado} · ${o.forma_pago} · ${o.telefono}</div>
@@ -1150,7 +1032,7 @@ async function showSingleOrderView(id){
 
 function renderSingleOrder(o){
   const shortId = (o.id || '').slice(-6).toUpperCase();
-  const itemsHtml = (o.items || []).map(i=>`<div class="ticket-row"><span>${i.qty} × ${i.name}</span><span>$${(i.qty*i.price).toFixed(2)}</span></div>`).join('');
+  const itemsHtml = (o.items || []).map(i=>`<div class="ticket-row"><span>${i.qty} × ${i.name}${i.note ? ` — 📝 ${i.note}` : ''}</span><span>$${(i.qty*i.price).toFixed(2)}</span></div>`).join('');
   let payExtra = '';
   if(o.forma_pago === 'Efectivo' && o.monto_recibido != null){
     payExtra = `
