@@ -590,7 +590,7 @@ async function submitOrder(){
     }
   }
 
-  const { data: inserted, error } = await sb.from('pedidos_bus').insert(row).select().single();
+  const { error } = await sb.from('pedidos_bus').insert(row);
 
   btn.textContent = 'Confirmar pedido'; btn.disabled = false;
 
@@ -600,7 +600,7 @@ async function submitOrder(){
     return;
   }
 
-  renderTicket(inserted, row);
+  renderTicket({ id: orderId }, row);
   closeSheet('checkoutOverlay');
   openSheet('confirmOverlay');
 }
