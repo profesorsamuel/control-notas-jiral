@@ -992,6 +992,7 @@ function renderAdminList(){
         Entregado
       </label>
       <button onclick="copyOrderLink('${o.id}')" style="margin-top:8px;background:none;border:1.5px solid var(--brown);color:var(--brown);border-radius:8px;padding:6px 10px;font-weight:800;font-size:12px;cursor:pointer;">🔗 Copiar link de este pedido</button>
+      <button onclick="deleteOrder('${o.id}')" style="margin-top:8px;margin-left:6px;background:none;border:1.5px solid var(--red);color:var(--red);border-radius:8px;padding:6px 10px;font-weight:800;font-size:12px;cursor:pointer;">🗑️ Eliminar</button>
     </div>`;
   }).join('');
 }
@@ -1005,6 +1006,22 @@ async function toggleEntregado(id, value){
     alert('No se pudo actualizar. Intenta de nuevo.');
     if(order) order.entregado = !value;
   }
+  renderAdminList();
+}
+
+async function deleteOrder(id){
+  const order = adminOrders.find(o=>o.id===id);
+  const label = order ? `${order.bus} · ${order.nombre}` : 'este pedido';
+  const ok = confirm(`¿Eliminar el pedido de ${label}?\n\nEsto no se puede deshacer.`);
+  if(!ok) return;
+
+  const { error } = await sb.from('pedidos_bus').delete().eq('id', id);
+  if(error){
+    console.error(error);
+    alert('No se pudo eliminar el pedido:\n' + (error.message || 'Error desconocido'));
+    return;
+  }
+  adminOrders = adminOrders.filter(o=>o.id !== id);
   renderAdminList();
 }
 
