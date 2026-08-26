@@ -253,6 +253,7 @@
     </div>
 
     <div id="adminPanel" style="display:none;">
+      <button class="btn-secondary" onclick="copyPanelLink()" style="margin-top:0;margin-bottom:12px;">🔗 Copiar link de esta lista</button>
       <div id="adminBusTabs" style="display:flex;gap:6px;overflow-x:auto;margin:4px 0 12px;"></div>
       <label style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;margin-bottom:12px;">
         <input type="checkbox" id="onlyPending" checked onchange="renderAdminList()">
@@ -1020,6 +1021,18 @@ function copyOrderLink(id){
   }
 }
 
+/* ===================== LINK DEL PANEL COMPLETO ===================== */
+function copyPanelLink(){
+  const url = `${location.origin}${location.pathname}?panel=1&bus=${encodeURIComponent(adminBusFilter)}`;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url)
+      .then(()=> alert('Link copiado. Quien lo abra igual va a necesitar el código para entrar:\n' + url))
+      .catch(()=> prompt('Copia este link:', url));
+  } else {
+    prompt('Copia este link:', url);
+  }
+}
+
 async function showSingleOrderView(id){
   document.getElementById('gate').style.display = 'none';
   document.getElementById('app').style.display = 'none';
@@ -1066,8 +1079,13 @@ function renderSingleOrder(o){
 
 // Si el link trae ?pedido=ID, mostrar solo ese pedido y nada más
 const _pedidoParam = new URLSearchParams(location.search).get('pedido');
+const _panelParam = new URLSearchParams(location.search).get('panel');
+const _busParam = new URLSearchParams(location.search).get('bus');
 if(_pedidoParam){
   showSingleOrderView(_pedidoParam);
+} else if(_panelParam){
+  if(_busParam) adminBusFilter = _busParam;
+  openSheet('adminOverlay');
 }
 </script>
 </body>
