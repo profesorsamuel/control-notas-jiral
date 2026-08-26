@@ -234,6 +234,7 @@
     <div class="ticket" id="ticketBox"></div>
     <button class="btn-secondary" style="border-color:var(--green);color:var(--green);" onclick="shareTicketWhatsApp()">📲 Enviar por WhatsApp</button>
     <button class="btn-secondary" onclick="downloadTicketImage()">🖼️ Descargar como imagen</button>
+    <button class="btn-secondary" onclick="copyOrderLink(lastOrder.inserted.id)">🔗 Copiar link de solo este pedido</button>
     <button class="btn-primary" onclick="finishAndReset()">Listo</button>
   </div>
 </div>
@@ -261,6 +262,14 @@
       <div id="adminList"></div>
       <button class="btn-secondary" onclick="loadAdminOrders()">🔄 Actualizar lista</button>
     </div>
+  </div>
+</div>
+
+<!-- VISTA DE UN SOLO PEDIDO (para links compartidos) -->
+<div id="singleOrderView" style="display:none;min-height:100vh;background:var(--brown);align-items:center;justify-content:center;padding:24px;">
+  <div class="sheet" style="border-radius:20px;max-width:420px;width:100%;max-height:none;">
+    <h2>Detalle del pedido</h2>
+    <div id="singleOrderBox">Cargando...</div>
   </div>
 </div>
 
@@ -979,6 +988,7 @@ function renderAdminList(){
         <input type="checkbox" ${o.entregado ? 'checked' : ''} onchange="toggleEntregado('${o.id}', this.checked)">
         Entregado
       </label>
+      <button onclick="copyOrderLink('${o.id}')" style="margin-top:8px;background:none;border:1.5px solid var(--brown);color:var(--brown);border-radius:8px;padding:6px 10px;font-weight:800;font-size:12px;cursor:pointer;">🔗 Copiar link de este pedido</button>
     </div>`;
   }).join('');
 }
@@ -993,6 +1003,71 @@ async function toggleEntregado(id, value){
     if(order) order.entregado = !value;
   }
   renderAdminList();
+}
+
+/* ===================== LINK DE UN SOLO PEDIDO ===================== */
+function orderLinkFor(id){
+  return `${location.origin}${location.pathname}?pedido=${id}`;
+}
+function copyOrderLink(id){
+  const url = orderLinkFor(id);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url)
+      .then(()=> alert('Link copiado. Ya lo puedes pegar y enviar:\n' + url))
+      .catch(()=> prompt('Copia este link:', url));
+  } else {
+    prompt('Copia este link:', url);
+  }
+}
+
+async function showSingleOrderView(id){
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('singleOrderView').style.display = 'flex';
+
+  const { data, error } = await sb
+    .from('pedidos_bus')
+    .select('id,bus,nombre,grado,telefono,forma_pago,items,total,monto_recibido,vuelto,captura_url,entregado,created_at')
+    .eq('id', id)
+    .single();
+
+  if(error || !data){
+    document.getElementById('singleOrderBox').innerHTML = '<p style="font-weight:700;color:var(--red);">No se encontró ese pedido. Verifica el link.</p>';
+    return;
+  }
+  renderSingleOrder(data);
+}
+
+function renderSingleOrder(o){
+  const shortId = (o.id || '').slice(-6).toUpperCase();
+  const itemsHtml = (o.items || []).map(i=>`<div class="ticket-row"><span>${i.qty} × ${i.name}</span><span>$${(i.qty*i.price).toFixed(2)}</span></div>`).join('');
+  let payExtra = '';
+  if(o.forma_pago === 'Efectivo' && o.monto_recibido != null){
+    payExtra = `
+      <div class="ticket-row"><span>Paga con</span><span>$${Number(o.monto_recibido).toFixed(2)}</span></div>
+      <div class="ticket-row" style="border-bottom:none;"><span>Vuelto</span><span>$${Number(o.vuelto).toFixed(2)}</span></div>`;
+  }
+  if(o.forma_pago === 'Transferencia / Yappy' && o.captura_url){
+    payExtra = `<div class="ticket-row" style="border-bottom:none;"><span>Comprobante</span><span><a href="${o.captura_url}" target="_blank" rel="noopener">Ver imagen</a></span></div>`;
+  }
+  const estado = o.entregado
+    ? '<span style="color:var(--green);">✅ Entregado</span>'
+    : '<span style="color:var(--red-dark);">⏳ Pendiente de entrega</span>';
+  document.getElementById('singleOrderBox').innerHTML = `
+    <div class="ticket">
+      <h3>Pedido #${shortId}</h3>
+      <div class="num">${o.bus} · ${o.nombre} · ${o.grado}</div>
+      ${itemsHtml}
+      <div class="ticket-row" style="font-weight:800;padding-top:8px;"><span>Total</span><span>$${Number(o.total).toFixed(2)}</span></div>
+      ${payExtra}
+      <div class="ticket-meta">Teléfono: ${o.telefono}<br>Forma de pago: ${o.forma_pago}<br><strong>${estado}</strong></div>
+    </div>`;
+}
+
+// Si el link trae ?pedido=ID, mostrar solo ese pedido y nada más
+const _pedidoParam = new URLSearchParams(location.search).get('pedido');
+if(_pedidoParam){
+  showSingleOrderView(_pedidoParam);
 }
 </script>
 </body>
