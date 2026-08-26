@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pide tu Almuerzo · Buses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Nunito:wght@400;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --red:#DA291C; --red-dark:#A31E14; --yellow:#FFC72C;
+    --brown:#27140A; --brown-soft:#3E2415; --cream:#FFFBF2;
+    --paper:#FFF3DC; --ink:#2B1B10; --muted:#8A7568; --green:#2E7D32;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--cream);font-family:'Nunito',sans-serif;color:var(--ink);padding-bottom:110px;}
+
+  /* ===== GATE (pantalla de clave de bus) ===== */
+  #gate{
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:var(--brown);
+    padding:24px;
+    text-align:center;
+  }
+  #gate .eyebrow{font-family:'DM Mono',monospace;color:var(--yellow);font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 6px;}
+  #gate h1{font-family:'Archivo Black',sans-serif;color:#fff;font-size:clamp(26px,7vw,36px);margin:0 0 10px;}
+  #gate p{color:#E9DFD2;font-weight:600;font-size:14px;max-width:340px;margin:0 0 26px;}
+  #gate input{
+    width:100%; max-width:220px;
+    text-align:center;
+    letter-spacing:.15em;
+    font-family:'DM Mono',monospace;
+    font-size:22px; font-weight:700;
+    padding:14px; border-radius:12px; border:none;
+    background:#fff; color:var(--brown);
+  }
+  #gate input:focus{outline:3px solid var(--yellow);}
+  #gate .busName{
+    margin-top:14px; min-height:24px;
+    font-family:'Archivo Black',sans-serif;
+    color:var(--yellow); font-size:18px;
+  }
+  #gate .gateErr{color:#FFB3A7; font-weight:700; font-size:13px; margin-top:8px; min-height:18px;}
+  #gate button{
+    margin-top:18px;
+    background:var(--red); color:#fff; border:none;
+    padding:13px 30px; border-radius:12px;
+    font-weight:800; font-size:15px; cursor:pointer;
+  }
+  #gate button:disabled{opacity:.5; cursor:not-allowed;}
+
+  /* ===== APP (oculto hasta validar bus) ===== */
+  #app{display:none;}
+  header{background:var(--brown);color:var(--cream);padding:18px 18px 22px;position:relative;overflow:hidden;border-bottom:6px solid var(--yellow);}
+  header::before{content:"";position:absolute;top:-60px;right:-60px;width:180px;height:180px;background:var(--red);border-radius:50%;opacity:.35;}
+  .busBadge{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--yellow); color:var(--brown);
+    font-family:'Archivo Black',sans-serif; font-size:13px;
+    padding:5px 12px; border-radius:999px; margin-bottom:10px;
+    position:relative;
+  }
+  .busBadge button{background:none;border:none;color:var(--brown);font-weight:900;cursor:pointer;font-size:13px;text-decoration:underline;padding:0;margin-left:4px;}
+  h1{font-family:'Archivo Black',sans-serif;font-size:clamp(24px,6vw,34px);line-height:1.02;margin:0 0 8px;position:relative;}
+  header p.sub{margin:0;max-width:520px;color:#E9DFD2;font-weight:600;font-size:14px;position:relative;}
+
+  nav#catnav{display:flex;gap:8px;overflow-x:auto;padding:14px 16px;background:var(--brown-soft);position:sticky;top:0;z-index:20;scrollbar-width:none;}
+  nav#catnav::-webkit-scrollbar{display:none;}
+  nav#catnav button{flex:0 0 auto;border:none;padding:8px 16px;border-radius:999px;font-weight:800;font-size:13px;background:transparent;color:#D9CBBB;cursor:pointer;white-space:nowrap;}
+  nav#catnav button.active{background:var(--yellow);color:var(--brown);}
+
+  main{padding:20px 16px 10px;max-width:760px;margin:0 auto;}
+  .cat-block{margin-bottom:34px;scroll-margin-top:70px;}
+  .cat-title{font-family:'Archivo Black',sans-serif;font-size:20px;color:var(--red);margin:0 0 4px;display:flex;align-items:baseline;gap:10px;}
+  .cat-title .line{flex:1;height:2px;background:repeating-linear-gradient(90deg,var(--red) 0 6px, transparent 6px 12px);}
+  .cat-note{font-size:12.5px;color:var(--muted);margin:0 0 14px;font-weight:600;}
+  .item-grid{display:grid;grid-template-columns:1fr;gap:10px;}
+  @media(min-width:560px){.item-grid{grid-template-columns:1fr 1fr;}}
+  .item-card{background:#fff;border:1px solid #EDE1D0;border-radius:14px;padding:13px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .item-name{font-weight:800;font-size:14.5px;line-height:1.25;}
+  .item-price{font-family:'DM Mono',monospace;color:var(--red-dark);font-weight:500;font-size:13.5px;margin-top:2px;}
+  .stepper{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+  .stepper button{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--brown);background:var(--cream);color:var(--brown);font-size:17px;font-weight:800;cursor:pointer;line-height:1;}
+  .stepper button.add-main{background:var(--red);border-color:var(--red);color:#fff;width:auto;padding:0 12px;font-size:12.5px;}
+  .stepper .qty{min-width:16px;text-align:center;font-weight:800;font-family:'DM Mono',monospace;}
+
+  #trayBtn{position:fixed;left:16px;right:16px;bottom:16px;max-width:728px;margin:0 auto;background:var(--brown);color:#fff;border:none;border-radius:16px;padding:15px 18px;display:none;align-items:center;justify-content:space-between;cursor:pointer;box-shadow:0 10px 28px rgba(39,20,10,.35);z-index:30;}
+  #trayBtn.show{display:flex;}
+  #trayBtn .left{display:flex;align-items:center;gap:10px;font-weight:800;}
+  #trayCount{background:var(--yellow);color:var(--brown);border-radius:999px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:13px;}
+  #trayTotal{font-family:'DM Mono',monospace;font-size:16px;color:var(--yellow);}
+
+  .overlay{position:fixed;inset:0;background:rgba(20,10,5,.55);display:none;align-items:flex-end;justify-content:center;z-index:50;}
+  .overlay.show{display:flex;}
+  .sheet{background:var(--paper);width:100%;max-width:520px;max-height:88vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:20px 18px 26px;animation:up .22s ease-out;position:relative;}
+  @keyframes up{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .sheet h2{font-family:'Archivo Black',sans-serif;color:var(--brown);font-size:22px;margin:0 0 14px;}
+  .closeX{position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;color:var(--brown);cursor:pointer;}
+
+  .cart-line{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px dashed #D9C6A8;}
+  .cart-line .nm{font-weight:800;font-size:14px;}
+  .cart-line .px{font-family:'DM Mono',monospace;font-size:12.5px;color:var(--muted);}
+  .cart-line .rm{background:none;border:none;color:var(--red);font-weight:800;cursor:pointer;font-size:13px;}
+  .cart-empty{color:var(--muted);font-weight:700;padding:20px 0;text-align:center;}
+  .total-row{display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-weight:500;padding:14px 0 4px;font-size:18px;color:var(--brown);}
+
+  .btn-primary{width:100%;background:var(--red);color:#fff;border:none;padding:14px;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;margin-top:14px;}
+  .btn-primary:disabled{background:#D9B7AE;cursor:not-allowed;}
+  .btn-secondary{width:100%;background:none;border:1.5px solid var(--brown);color:var(--brown);padding:12px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;margin-top:8px;}
+
+  form label{display:block;font-weight:800;font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--brown-soft);margin:14px 0 5px;}
+  form input, form select{width:100%;padding:11px 12px;border-radius:10px;border:1.5px solid #D9C6A8;background:#fff;font-family:'Nunito',sans-serif;font-size:14.5px;font-weight:700;color:var(--ink);}
+  form input:focus, form select:focus{outline:2.5px solid var(--yellow);outline-offset:1px;}
+  .field-error{color:var(--red);font-size:11.5px;font-weight:700;margin-top:3px;display:none;}
+
+  .ticket{background:#fff;border:1.5px dashed var(--brown);border-radius:12px;padding:18px 16px;margin-top:10px;}
+  .ticket h3{font-family:'Archivo Black',sans-serif;font-size:17px;margin:0 0 2px;color:var(--brown);}
+  .ticket .num{font-family:'DM Mono',monospace;color:var(--red);font-size:13px;margin-bottom:10px;}
+  .ticket-row{display:flex;justify-content:space-between;font-size:13.5px;padding:5px 0;border-bottom:1px dotted #E3D5BC;}
+  .ticket-meta{font-size:12.5px;color:var(--muted);font-weight:700;margin-top:10px;line-height:1.6;}
+  .check-icon{width:46px;height:46px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:900;margin:0 auto 10px;}
+  .err-icon{width:46px;height:46px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:900;margin:0 auto 10px;}
+</style>
+</head>
+<body>
+
+<!-- ============ PANTALLA DE ENTRADA: CLAVE DE BUS ============ -->
+<div id="gate">
+  <p class="eyebrow">Antes de pedir</p>
+  <h1>¿En qué bus vas?</h1>
+  <p>Escribe la clave de tu bus para empezar tu pedido.</p>
+  <input id="busCode" type="text" inputmode="numeric" placeholder="Clave" maxlength="6" autocomplete="off">
+  <div class="busName" id="busNamePreview"></div>
+  <div class="gateErr" id="gateErr"></div>
+  <button id="gateBtn" onclick="confirmBus()" disabled>Continuar</button>
+</div>
+
+<!-- ============ APP DE PEDIDOS ============ -->
+<div id="app">
+  <header>
+    <div class="busBadge" id="busBadge">Bus <button onclick="changeBus()">cambiar</button></div>
+    <h1>PIDE TU<br>ALMUERZO</h1>
+    <p class="sub">Elige lo que más te gusta, completa tus datos y listo.</p>
+  </header>
+
+  <nav id="catnav"></nav>
+  <main id="menu"></main>
+
+  <button id="trayBtn">
+    <span class="left"><span id="trayCount">0</span> Ver mi bandeja</span>
+    <span id="trayTotal">$0.00</span>
+  </button>
+</div>
+
+<!-- CART SHEET -->
+<div class="overlay" id="cartOverlay">
+  <div class="sheet">
+    <button class="closeX" onclick="closeSheet('cartOverlay')">✕</button>
+    <h2>Tu bandeja</h2>
+    <div id="cartLines"></div>
+    <div class="total-row"><span>Total</span><span id="cartTotal">$0.00</span></div>
+    <button class="btn-primary" id="toCheckoutBtn" onclick="openCheckout()" disabled>Continuar con mis datos</button>
+  </div>
+</div>
+
+<!-- CHECKOUT SHEET -->
+<div class="overlay" id="checkoutOverlay">
+  <div class="sheet">
+    <button class="closeX" onclick="closeSheet('checkoutOverlay')">✕</button>
+    <h2>Tus datos</h2>
+    <p style="margin:-8px 0 0;font-size:13px;color:var(--muted);font-weight:700;">Bus registrado: <strong id="checkoutBusLabel"></strong></p>
+    <form id="checkoutForm" onsubmit="return false;">
+      <label for="fName">Nombre del estudiante</label>
+      <input id="fName" type="text" placeholder="Ej. Sofía Herrera" autocomplete="off">
+      <div class="field-error" id="errName">Escribe un nombre.</div>
+
+      <label for="fGrade">Grado / salón</label>
+      <input id="fGrade" type="text" placeholder="Ej. 3ro B" autocomplete="off">
+      <div class="field-error" id="errGrade">Escribe el grado.</div>
+
+      <label for="fPhone">Teléfono de contacto</label>
+      <input id="fPhone" type="tel" placeholder="Ej. 6123-4567" autocomplete="off">
+      <div class="field-error" id="errPhone">Escribe un teléfono válido.</div>
+
+      <label for="fPay">Forma de pago</label>
+      <select id="fPay">
+        <option value="">Selecciona una opción</option>
+        <option>Efectivo</option>
+        <option>Transferencia / Yappy</option>
+        <option>Tarjeta</option>
+      </select>
+      <div class="field-error" id="errPay">Selecciona una forma de pago.</div>
+
+      <button type="button" class="btn-primary" onclick="submitOrder()">Confirmar pedido</button>
+      <button type="button" class="btn-secondary" onclick="closeSheet('checkoutOverlay');openSheet('cartOverlay')">Volver a la bandeja</button>
+    </form>
+  </div>
+</div>
+
+<!-- CONFIRMATION SHEET -->
+<div class="overlay" id="confirmOverlay">
+  <div class="sheet">
+    <button class="closeX" onclick="closeSheet('confirmOverlay')">✕</button>
+    <div class="check-icon">✓</div>
+    <h2 style="text-align:center;">¡Pedido registrado!</h2>
+    <div class="ticket" id="ticketBox"></div>
+    <button class="btn-primary" onclick="finishAndReset()">Listo</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   1) CONFIGURA AQUÍ TU SUPABASE
+   Dashboard de tu proyecto -> Project Settings -> API
+   -> copia "Project URL" y "anon public" key
+========================================================= */
+const SUPABASE_URL = "PEGA_AQUI_TU_PROJECT_URL";       // ej: https://luewrpzgetqslxqmdcxv.supabase.co
+const SUPABASE_ANON_KEY = "PEGA_AQUI_TU_ANON_KEY";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* =========================================================
+   2) CLAVES DE CADA BUS
+   Cámbialas aquí si alguna está mal.
+========================================================= */
+const BUS_CODES = {
+  "001": "Bus 1",
+  "002": "Bus 2",
+  "004": "Bus 3",
+  "005": "Bus 5",
+};
+
+/* ========================= MENÚ ========================= */
+const MENU = [
+  { cat:"Cajita Feliz", note:"Incluye juguete • sin colorantes ni sabor. artificiales", items:[
+    {n:"Cajita Feliz (Hamburguesa, con Queso, Pollo McCrispy 1pz, McFiesta Jr o McNuggets 4pz)", p:5.40},
+    {n:"Cajita Feliz McNuggets 6 piezas", p:6.40},
+  ]},
+  { cat:"Hamburguesas", items:[
+    {n:"Hamburguesa", p:2.00},
+    {n:"Hamburguesa con Queso", p:2.25},
+    {n:"Doble Queso Hamburguesa", p:4.25},
+    {n:"Cuarto de Libra con Queso", p:5.50},
+    {n:"McPollo", p:5.25},
+    {n:"McNífica", p:6.00},
+    {n:"Big Mac", p:5.25},
+    {n:"McMelt", p:6.99},
+    {n:"Doble McMelt", p:8.99},
+    {n:"Premium CBO", p:7.75},
+    {n:"McCrispy Chicken", p:5.50},
+  ]},
+  { cat:"Pollo McCrispy", items:[
+    {n:"Pollo McCrispy 1 pieza", p:2.25},
+    {n:"Pollo McCrispy 2 piezas", p:4.25},
+    {n:"Pollo McCrispy 3 piezas", p:5.25},
+  ]},
+  { cat:"McNuggets", items:[
+    {n:"Chicken McNuggets 6 piezas", p:3.50},
+    {n:"Chicken McNuggets 10 piezas", p:5.50},
+    {n:"Chicken McNuggets 20 piezas", p:8.50},
+  ]},
+  { cat:"Acompañamientos", items:[
+    {n:"Papas pequeñas", p:1.50},
+    {n:"Papas medianas", p:2.10},
+    {n:"Papas grandes", p:2.95},
+    {n:"Papas Bacon Cheddar", p:3.75},
+  ]},
+  { cat:"Bebidas", items:[
+    {n:"Soda 16 onzas", p:1.60},
+    {n:"Soda 21 onzas", p:2.10},
+    {n:"Soda 30 onzas", p:2.35},
+    {n:"Batido (Chocolate, Fresa, Vainilla u Oreo) 16oz", p:3.10},
+    {n:"Té Frío 16 onzas", p:1.60},
+    {n:"Té Frío 21 onzas", p:2.10},
+    {n:"Agua en botella", p:1.25},
+    {n:"Jugo de Naranja 12 onzas", p:1.99},
+  ]},
+  { cat:"Postres y Helados", items:[
+    {n:"McFlurry Oreo", p:3.25},
+    {n:"McFlurry M&M", p:3.25},
+    {n:"McFlurry Fresa Oreo", p:3.25},
+    {n:"Sundae de Chocolate", p:2.10},
+    {n:"Cono", p:2.10},
+    {n:"Pastel de Manzana", p:2.10},
+  ]},
+  { cat:"Desayunos", items:[
+    {n:"McMuffin Salchicha y Huevo", p:3.10},
+    {n:"McMuffin Salchicha y Queso", p:3.10},
+    {n:"Pancake", p:4.60},
+    {n:"Pancake con Salchicha", p:4.10},
+  ]},
+];
+
+let cart = {};
+let selectedBus = null;
+let selectedCode = null;
+
+/* ===================== GATE (bus) ===================== */
+const busInput = document.getElementById('busCode');
+busInput.addEventListener('input', ()=>{
+  const val = busInput.value.trim();
+  const preview = document.getElementById('busNamePreview');
+  const err = document.getElementById('gateErr');
+  const btn = document.getElementById('gateBtn');
+  err.textContent = '';
+  if(BUS_CODES[val]){
+    preview.textContent = '✓ ' + BUS_CODES[val];
+    btn.disabled = false;
+  } else {
+    preview.textContent = '';
+    btn.disabled = true;
+  }
+});
+busInput.addEventListener('keydown', e=>{ if(e.key==='Enter' && !document.getElementById('gateBtn').disabled) confirmBus(); });
+
+function confirmBus(){
+  const val = busInput.value.trim();
+  if(!BUS_CODES[val]){
+    document.getElementById('gateErr').textContent = 'Clave no válida. Verifica con tu maestro/a.';
+    return;
+  }
+  selectedCode = val;
+  selectedBus = BUS_CODES[val];
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('busBadge').innerHTML = `${selectedBus} <button onclick="changeBus()">cambiar</button>`;
+  document.getElementById('checkoutBusLabel').textContent = selectedBus;
+  renderMenu();
+  renderTray();
+}
+function changeBus(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('gate').style.display='flex';
+  busInput.value='';
+  document.getElementById('busNamePreview').textContent='';
+  document.getElementById('gateErr').textContent='';
+  document.getElementById('gateBtn').disabled=true;
+  busInput.focus();
+}
+
+/* ===================== MENÚ / CARRITO ===================== */
+function slug(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-');}
+
+function renderMenu(){
+  const nav = document.getElementById('catnav');
+  const menu = document.getElementById('menu');
+  nav.innerHTML=''; menu.innerHTML='';
+  MENU.forEach((block,bi)=>{
+    const id = 'cat-'+slug(block.cat);
+    const navBtn = document.createElement('button');
+    navBtn.textContent = block.cat;
+    navBtn.className = bi===0 ? 'active' : '';
+    navBtn.onclick = ()=>{
+      document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});
+      [...nav.children].forEach(c=>c.classList.remove('active'));
+      navBtn.classList.add('active');
+    };
+    nav.appendChild(navBtn);
+
+    const section = document.createElement('div');
+    section.className='cat-block'; section.id=id;
+    section.innerHTML = `<div class="cat-title">${block.cat}<span class="line"></span></div>` +
+      (block.note ? `<p class="cat-note">${block.note}</p>` : '');
+    const grid = document.createElement('div');
+    grid.className='item-grid';
+    block.items.forEach(item=>{
+      const key = block.cat+'|'+item.n;
+      const card = document.createElement('div');
+      card.className='item-card';
+      card.innerHTML = `
+        <div class="item-info">
+          <div class="item-name">${item.n}</div>
+          <div class="item-price">$${item.p.toFixed(2)}</div>
+        </div>
+        <div class="stepper" data-key="${key}">
+          <button class="add-main" onclick="addItem('${key.replace(/'/g,"\\'")}','${item.n.replace(/'/g,"\\'")}',${item.p})">Agregar</button>
+        </div>`;
+      grid.appendChild(card);
+    });
+    section.appendChild(grid);
+    menu.appendChild(section);
+  });
+}
+
+function addItem(key,name,price){
+  if(!cart[key]) cart[key]={name,price,qty:0};
+  cart[key].qty++;
+  renderStepper(key); renderTray();
+}
+function decItem(key){
+  if(!cart[key]) return;
+  cart[key].qty--;
+  if(cart[key].qty<=0) delete cart[key];
+  renderStepper(key); renderTray();
+}
+function renderStepper(key){
+  const wrap = document.querySelector(`.stepper[data-key="${CSS.escape(key)}"]`);
+  if(!wrap) return;
+  const qty = cart[key] ? cart[key].qty : 0;
+  if(qty>0){
+    wrap.innerHTML = `
+      <button onclick="decItem('${key.replace(/'/g,"\\'")}')">−</button>
+      <span class="qty">${qty}</span>
+      <button onclick="addItem('${key.replace(/'/g,"\\'")}','${cart[key].name.replace(/'/g,"\\'")}',${cart[key].price})">+</button>`;
+  } else {
+    const item = findItemByKey(key);
+    wrap.innerHTML = `<button class="add-main" onclick="addItem('${key.replace(/'/g,"\\'")}','${item.n.replace(/'/g,"\\'")}',${item.p})">Agregar</button>`;
+  }
+}
+function findItemByKey(key){
+  for(const b of MENU){ for(const it of b.items){ if(b.cat+'|'+it.n===key) return it; } }
+  return {n:'',p:0};
+}
+function cartArray(){ return Object.values(cart); }
+function cartTotal(){ return cartArray().reduce((s,i)=>s+i.price*i.qty,0); }
+function cartCount(){ return cartArray().reduce((s,i)=>s+i.qty,0); }
+
+function renderTray(){
+  const count = cartCount(); const total = cartTotal();
+  const btn = document.getElementById('trayBtn');
+  document.getElementById('trayCount').textContent = count;
+  document.getElementById('trayTotal').textContent = '$'+total.toFixed(2);
+  btn.classList.toggle('show', count>0);
+
+  const lines = document.getElementById('cartLines');
+  const items = cartArray();
+  if(items.length===0){
+    lines.innerHTML = '<div class="cart-empty">Tu bandeja está vacía. Agrega algo del menú 🍟</div>';
+  } else {
+    lines.innerHTML = items.map(i=>{
+      const key = Object.keys(cart).find(k=>cart[k]===i);
+      return `<div class="cart-line">
+        <div><div class="nm">${i.qty} × ${i.name}</div><div class="px">$${(i.price*i.qty).toFixed(2)}</div></div>
+        <button class="rm" onclick="removeLine('${key.replace(/'/g,"\\'")}')">Quitar</button>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('cartTotal').textContent = '$'+total.toFixed(2);
+  document.getElementById('toCheckoutBtn').disabled = items.length===0;
+}
+function removeLine(key){ delete cart[key]; renderStepper(key); renderTray(); }
+
+document.getElementById('trayBtn').addEventListener('click', ()=>openSheet('cartOverlay'));
+function openSheet(id){ document.getElementById(id).classList.add('show'); }
+function closeSheet(id){ document.getElementById(id).classList.remove('show'); }
+function openCheckout(){ closeSheet('cartOverlay'); openSheet('checkoutOverlay'); }
+
+function validate(){
+  let ok = true;
+  const name = document.getElementById('fName').value.trim();
+  const grade = document.getElementById('fGrade').value.trim();
+  const phone = document.getElementById('fPhone').value.trim();
+  const pay = document.getElementById('fPay').value;
+
+  document.getElementById('errName').style.display = name.length<2 ? 'block' : 'none';
+  document.getElementById('errGrade').style.display = grade.length<1 ? 'block' : 'none';
+  document.getElementById('errPhone').style.display = phone.replace(/\D/g,'').length<6 ? 'block' : 'none';
+  document.getElementById('errPay').style.display = pay==='' ? 'block' : 'none';
+
+  if(name.length<2 || grade.length<1 || phone.replace(/\D/g,'').length<6 || pay==='') ok=false;
+  return ok ? {name,grade,phone,pay} : null;
+}
+
+/* ===================== ENVIAR A SUPABASE ===================== */
+async function submitOrder(){
+  const data = validate();
+  if(!data) return;
+  const items = cartArray();
+  const total = cartTotal();
+
+  const row = {
+    bus: selectedBus,
+    clave: selectedCode,
+    nombre: data.name,
+    grado: data.grade,
+    telefono: data.phone,
+    forma_pago: data.pay,
+    items: items.map(i=>({name:i.name, qty:i.qty, price:i.price})),
+    total: Number(total.toFixed(2)),
+  };
+
+  const btn = document.querySelector('#checkoutForm .btn-primary');
+  btn.textContent = 'Guardando...'; btn.disabled = true;
+
+  const { data: inserted, error } = await sb.from('pedidos_bus').insert(row).select().single();
+
+  btn.textContent = 'Confirmar pedido'; btn.disabled = false;
+
+  if(error){
+    console.error(error);
+    alert('No se pudo guardar el pedido. Revisa tu conexión e intenta de nuevo.');
+    return;
+  }
+
+  renderTicket(inserted, row);
+  closeSheet('checkoutOverlay');
+  openSheet('confirmOverlay');
+}
+
+function renderTicket(inserted, row){
+  const shortId = (inserted.id || '').slice(-6).toUpperCase();
+  const itemsHtml = row.items.map(i=>`<div class="ticket-row"><span>${i.qty} × ${i.name}</span><span>$${(i.qty*i.price).toFixed(2)}</span></div>`).join('');
+  document.getElementById('ticketBox').innerHTML = `
+    <h3>Pedido #${shortId}</h3>
+    <div class="num">${row.bus} · ${row.nombre} · ${row.grado}</div>
+    ${itemsHtml}
+    <div class="ticket-row" style="border-bottom:none;font-weight:800;padding-top:8px;"><span>Total</span><span>$${row.total.toFixed(2)}</span></div>
+    <div class="ticket-meta">Teléfono: ${row.telefono}<br>Forma de pago: ${row.forma_pago}</div>`;
+}
+
+function finishAndReset(){
+  cart = {};
+  renderMenu(); renderTray();
+  document.getElementById('checkoutForm').reset();
+  closeSheet('confirmOverlay');
+}
+</script>
+</body>
+</html>
