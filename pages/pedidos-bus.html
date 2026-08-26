@@ -175,6 +175,9 @@
     <form id="checkoutForm" onsubmit="return false;">
       <label for="fName">Nombre del estudiante</label>
       <input id="fName" type="text" placeholder="Ej. Sofía Herrera" autocomplete="off">
+      <select id="fNameSelect" style="display:none;">
+        <option value="">Selecciona tu nombre</option>
+      </select>
       <div class="field-error" id="errName">Escribe un nombre.</div>
 
       <label for="fGrade">Grado / salón</label>
@@ -260,6 +263,183 @@ function lookupBus(raw){
     if(aliases.includes(clean)) return {code, name};
   }
   return null;
+}
+
+/* =========================================================
+   3) LISTA DE ESTUDIANTES POR BUS (opcional)
+   Si un bus tiene lista aquí, el campo de nombre se vuelve
+   un menú desplegable con SOLO esos nombres.
+   Los buses que no tengan lista siguen con texto libre.
+========================================================= */
+const STUDENT_LISTS = {
+  "Bus 1": [
+    "Yeihilin Zuñiga",
+    "Rafael Zuñiga (Acomp)",
+    "Samanta Newball",
+    "Aldair Newball (Acomp)",
+    "Yadir Arguelles",
+    "Magjeiry Arguelles",
+    "Magzuli Francis (Acomp)",
+    "Gael Guerra",
+    "Alina Guerra (Acomp)",
+    "Heyder Rodriguez",
+    "Anthony Rodriguez",
+    "Kaury Pinzon (Acomp)",
+    "Itzayani Pineda",
+    "Doris Quiroz (Acomp)",
+    "Kennedy Bustos",
+    "Keneth Bustos",
+    "Michel Bosquez (Acomp)",
+    "Miaa Sanchez",
+    "Dionelys Andrion (Acomp)",
+    "Yorquianys Bell Cerrud",
+    "Yessenia Cerrud (Acomp)",
+    "Estefania Cherigo",
+    "Ethan Cherigo",
+    "Cristal Hinestroza (Acomp)",
+    "Iline Charris",
+    "Alma Bonilla (Acomp)",
+    "Mia Camargo",
+    "Tatiana Gonzalez",
+    "Yohan Rodríguez",
+    "Stefany Martinez (Acomp)",
+    "Ameth Jordan",
+    "Cesar Jordan (Acomp)",
+    "Joel Guerra",
+    "Delian Guerra (Acomp)",
+    "Nahomi Rodriguez",
+    "Dylan Martinez",
+    "Eythan Martinez",
+    "Cristina Potayo (Acomp)",
+    "Emma Rangel",
+    "Adriana González (Acomp)",
+    "Giselle Vazquez",
+    "Elizabeth Vasquez",
+    "Secilia Alabarca (Acomp)",
+    "Marietti Sofia Fernandez",
+    "Marietli Trejos (Acomp)",
+    "Ivan Robles",
+    "Kevin De León",
+    "Mayra Aldarete",
+    "Mtra. Tilsa",
+    "Mtra. Heidi",
+  ],
+  "Bus 2": [
+    "Kailany Murillo",
+    "Leida Hernandez",
+    "Aruna Cano",
+    "José Quintero",
+    "Evans Campbel",
+    "Itayebzy Reimiller (Acomp)",
+    "Mia Jiménez",
+    "Alexia González",
+    "Alanis Leguizamo",
+    "Briana Leguizamo",
+    "Katherine Fuentes (Acomp)",
+    "Itan Diaz",
+    "Nabid Gondola (Acomp)",
+    "David Rodriguez",
+    "Ian Pineda",
+    "Norelis Martinez (Acomp)",
+    "Kathlyn Victoria",
+    "Miguel Santamaria",
+    "Hazel Otero",
+    "Mía Cedeño",
+    "Mileynis Muñoz (Acomp)",
+    "Milagros Ricketts",
+    "Luz Santos (Acomp)",
+    "Zair Urieta",
+    "Nehemias Cisneros",
+    "Yabdielis Guevara",
+    "Roquelina Leones (Acomp)",
+    "Adriana Batista",
+    "Ariadnys Gomez (Acomp)",
+    "Daneth Acevedo",
+    "Danna Dominguez",
+    "Keisy Dominguez (Acomp)",
+    "Eliecer Bonaga",
+    "Maylin Gonzalez (Acomp)",
+    "Janio Nuñez",
+    "Maria Alvarez (Acomp)",
+    "Yenevith Labrador",
+    "Eric Labrador (Acomp)",
+    "Brandon Ortillo",
+    "Hanani Serrano",
+    "Isaac Serrano (Acomp)",
+    "Saymon Bonaga",
+    "Mailin González (Acomp)",
+    "Amber Diaz",
+    "Marcia Diaz (Acomp)",
+    "Mtra. Ana",
+    "Mtra. Jenifer",
+    "Patricia",
+  ],
+  "Bus 3": [
+    "Ian Rodriguez",
+    "Yarisbeth Vega (Acomp)",
+    "Mathias Alvarado",
+    "Marissa Stephens (Acomp)",
+    "Mathias Hernández",
+    "Yanelis Castro (Acomp)",
+    "Nohemí Icaza",
+    "Aslan Mansilla",
+    "Eam Mansilla",
+    "Sara Rodriguez (Acomp)",
+    "Alanis Aguirrre",
+    "Maria Quiroz (Acomp)",
+    "Anyori Valdez",
+    "Mayori Guevara (Acomp)",
+    "Dana Rodriguez",
+    "Danna Guerra",
+    "Eliezer Herrera",
+    "Heidell Urieta",
+    "Japhet Alborno",
+    "Marietly Fernanzez",
+    "Meylin Vega",
+    "Estefania Rodriguez (Acomp)",
+    "Nahun Vásquez",
+    "George Rodriguez",
+    "Liel Lorenzo",
+    "Luci Hernandez (Acomp)",
+    "Sherianys Lasso",
+    "Ildaura Cisneros (Acomp)",
+    "Hanna Muñoz",
+    "Hellen Muñoz",
+    "Danna Muñoz",
+    "Anthonela Muñoz",
+    "Kristel Barria (Acomp)",
+    "Amareilis Martinez",
+    "Anghy Hernandez",
+    "Arjen Aizprua",
+    "Carlos Ayala",
+    "Darianys Amaya",
+    "Dereck Martinez",
+    "Tania Quiroz (Acomp)",
+    "Guadalupe Gómez",
+    "Ingrid Agraje",
+    "Jay Cuesta",
+    "Jose Gonzalez",
+    "Liam Beitia",
+    "Orlando Toribio",
+    "Yomar Aya",
+    "Mtr. Elaiza",
+    "Mtra. Geraldine",
+  ],
+};
+
+function setupNameField(){
+  const input = document.getElementById('fName');
+  const select = document.getElementById('fNameSelect');
+  const list = STUDENT_LISTS[selectedBus];
+  if(list && list.length){
+    select.innerHTML = '<option value="">Selecciona tu nombre</option>' +
+      list.map(n=>`<option>${n}</option>`).join('');
+    select.style.display = 'block';
+    input.style.display = 'none';
+  } else {
+    select.style.display = 'none';
+    input.style.display = 'block';
+  }
 }
 
 /* ========================= MENÚ ========================= */
@@ -358,6 +538,7 @@ function confirmBus(){
   document.getElementById('app').style.display = 'block';
   document.getElementById('busBadge').innerHTML = `${selectedBus} <button onclick="changeBus()">cambiar</button>`;
   document.getElementById('checkoutBusLabel').textContent = selectedBus;
+  setupNameField();
   renderMenu();
   renderTray();
 }
@@ -513,7 +694,10 @@ function previewCapture(){
 
 function validate(){
   let ok = true;
-  const name = document.getElementById('fName').value.trim();
+  const hasList = STUDENT_LISTS[selectedBus] && STUDENT_LISTS[selectedBus].length;
+  const name = hasList
+    ? document.getElementById('fNameSelect').value.trim()
+    : document.getElementById('fName').value.trim();
   const grade = document.getElementById('fGrade').value.trim();
   const phone = document.getElementById('fPhone').value.trim();
   const pay = document.getElementById('fPay').value;
