@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Nunito:wght@400;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{
     --red:#DA291C; --red-dark:#A31E14; --yellow:#FFC72C;
@@ -185,13 +186,27 @@
       <div class="field-error" id="errPhone">Escribe un teléfono válido.</div>
 
       <label for="fPay">Forma de pago</label>
-      <select id="fPay">
+      <select id="fPay" onchange="onPayChange()">
         <option value="">Selecciona una opción</option>
         <option>Efectivo</option>
         <option>Transferencia / Yappy</option>
         <option>Tarjeta</option>
       </select>
       <div class="field-error" id="errPay">Selecciona una forma de pago.</div>
+
+      <div id="cashFields" style="display:none;">
+        <label for="fCashGiven">¿Con cuánto vas a pagar?</label>
+        <input id="fCashGiven" type="number" step="0.01" min="0" placeholder="Ej. 10.00" inputmode="decimal" oninput="updateChange()">
+        <div class="field-error" id="errCash">El monto debe ser igual o mayor al total del pedido.</div>
+        <p id="changeDisplay" style="font-family:'DM Mono',monospace;font-weight:800;margin:8px 0 0;font-size:14px;"></p>
+      </div>
+
+      <div id="yappyFields" style="display:none;">
+        <label for="fCaptureFile">Sube la captura del pago (Yappy)</label>
+        <input id="fCaptureFile" type="file" accept="image/*" onchange="previewCapture()">
+        <div class="field-error" id="errCapture">Sube una imagen del comprobante de pago.</div>
+        <img id="capturePreview" style="display:none;max-width:100%;border-radius:10px;margin-top:8px;border:1.5px solid #D9C6A8;">
+      </div>
 
       <button type="button" class="btn-primary" onclick="submitOrder()">Confirmar pedido</button>
       <button type="button" class="btn-secondary" onclick="closeSheet('checkoutOverlay');openSheet('cartOverlay')">Volver a la bandeja</button>
@@ -206,6 +221,8 @@
     <div class="check-icon">✓</div>
     <h2 style="text-align:center;">¡Pedido registrado!</h2>
     <div class="ticket" id="ticketBox"></div>
+    <button class="btn-secondary" style="border-color:var(--green);color:var(--green);" onclick="shareTicketWhatsApp()">📲 Enviar por WhatsApp</button>
+    <button class="btn-secondary" onclick="downloadTicketImage()">🖼️ Descargar como imagen</button>
     <button class="btn-primary" onclick="finishAndReset()">Listo</button>
   </div>
 </div>
@@ -461,6 +478,39 @@ function openSheet(id){ document.getElementById(id).classList.add('show'); }
 function closeSheet(id){ document.getElementById(id).classList.remove('show'); }
 function openCheckout(){ closeSheet('cartOverlay'); openSheet('checkoutOverlay'); }
 
+function onPayChange(){
+  const pay = document.getElementById('fPay').value;
+  document.getElementById('cashFields').style.display = pay==='Efectivo' ? 'block' : 'none';
+  document.getElementById('yappyFields').style.display = pay==='Transferencia / Yappy' ? 'block' : 'none';
+  document.getElementById('errPay').style.display = 'none';
+  updateChange();
+}
+function updateChange(){
+  const disp = document.getElementById('changeDisplay');
+  const given = parseFloat(document.getElementById('fCashGiven').value);
+  const total = cartTotal();
+  if(isNaN(given)){ disp.textContent=''; return; }
+  const diff = given - total;
+  if(diff >= 0){
+    disp.textContent = `Vuelto a entregar: $${diff.toFixed(2)}`;
+    disp.style.color = 'var(--green)';
+  } else {
+    disp.textContent = `Todavía falta: $${Math.abs(diff).toFixed(2)}`;
+    disp.style.color = 'var(--red)';
+  }
+}
+function previewCapture(){
+  const file = document.getElementById('fCaptureFile').files[0];
+  const img = document.getElementById('capturePreview');
+  document.getElementById('errCapture').style.display = 'none';
+  if(file){
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+  } else {
+    img.style.display = 'none';
+  }
+}
+
 function validate(){
   let ok = true;
   const name = document.getElementById('fName').value.trim();
@@ -474,7 +524,25 @@ function validate(){
   document.getElementById('errPay').style.display = pay==='' ? 'block' : 'none';
 
   if(name.length<2 || grade.length<1 || phone.replace(/\D/g,'').length<6 || pay==='') ok=false;
-  return ok ? {name,grade,phone,pay} : null;
+
+  let cashGiven = null, change = null, captureFile = null;
+
+  if(pay === 'Efectivo'){
+    const total = cartTotal();
+    cashGiven = parseFloat(document.getElementById('fCashGiven').value);
+    const invalid = isNaN(cashGiven) || cashGiven < total;
+    document.getElementById('errCash').style.display = invalid ? 'block' : 'none';
+    if(invalid) ok = false;
+    else change = Number((cashGiven - total).toFixed(2));
+  }
+
+  if(pay === 'Transferencia / Yappy'){
+    captureFile = document.getElementById('fCaptureFile').files[0] || null;
+    document.getElementById('errCapture').style.display = captureFile ? 'none' : 'block';
+    if(!captureFile) ok = false;
+  }
+
+  return ok ? {name,grade,phone,pay,cashGiven,change,captureFile} : null;
 }
 
 /* ===================== ENVIAR A SUPABASE ===================== */
@@ -483,8 +551,10 @@ async function submitOrder(){
   if(!data) return;
   const items = cartArray();
   const total = cartTotal();
+  const orderId = crypto.randomUUID();
 
   const row = {
+    id: orderId,
     bus: selectedBus,
     clave: selectedCode,
     nombre: data.name,
@@ -494,9 +564,31 @@ async function submitOrder(){
     items: items.map(i=>({name:i.name, qty:i.qty, price:i.price})),
     total: Number(total.toFixed(2)),
   };
+  if(data.pay === 'Efectivo'){
+    row.monto_recibido = Number(data.cashGiven.toFixed(2));
+    row.vuelto = data.change;
+  }
 
   const btn = document.querySelector('#checkoutForm .btn-primary');
   btn.textContent = 'Guardando...'; btn.disabled = true;
+
+  if(data.pay === 'Transferencia / Yappy' && data.captureFile){
+    try{
+      const ext = (data.captureFile.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${orderId}.${ext}`;
+      const { error: upErr } = await sb.storage
+        .from('capturas-pago')
+        .upload(path, data.captureFile, { upsert: true, contentType: data.captureFile.type });
+      if(upErr) throw upErr;
+      const { data: pub } = sb.storage.from('capturas-pago').getPublicUrl(path);
+      row.captura_url = pub.publicUrl;
+    }catch(e){
+      console.error(e);
+      alert('No se pudo subir la captura del pago. Intenta de nuevo.');
+      btn.textContent = 'Confirmar pedido'; btn.disabled = false;
+      return;
+    }
+  }
 
   const { data: inserted, error } = await sb.from('pedidos_bus').insert(row).select().single();
 
@@ -504,7 +596,7 @@ async function submitOrder(){
 
   if(error){
     console.error(error);
-    alert('No se pudo guardar el pedido. Revisa tu conexión e intenta de nuevo.');
+    alert('No se pudo guardar el pedido:\n' + (error.message || 'Error desconocido') + '\n\nRevisa que hayas corrido todas las migraciones SQL en Supabase.');
     return;
   }
 
@@ -513,21 +605,85 @@ async function submitOrder(){
   openSheet('confirmOverlay');
 }
 
+let lastOrder = null; // {inserted, row}
+
 function renderTicket(inserted, row){
+  lastOrder = { inserted, row };
   const shortId = (inserted.id || '').slice(-6).toUpperCase();
   const itemsHtml = row.items.map(i=>`<div class="ticket-row"><span>${i.qty} × ${i.name}</span><span>$${(i.qty*i.price).toFixed(2)}</span></div>`).join('');
+  let payExtra = '';
+  if(row.forma_pago === 'Efectivo' && row.monto_recibido != null){
+    payExtra = `
+      <div class="ticket-row"><span>Paga con</span><span>$${row.monto_recibido.toFixed(2)}</span></div>
+      <div class="ticket-row" style="border-bottom:none;"><span>Vuelto</span><span>$${row.vuelto.toFixed(2)}</span></div>`;
+  }
+  if(row.forma_pago === 'Transferencia / Yappy' && row.captura_url){
+    payExtra = `<div class="ticket-row" style="border-bottom:none;"><span>Comprobante</span><span><a href="${row.captura_url}" target="_blank" rel="noopener">Ver imagen</a></span></div>`;
+  }
   document.getElementById('ticketBox').innerHTML = `
     <h3>Pedido #${shortId}</h3>
     <div class="num">${row.bus} · ${row.nombre} · ${row.grado}</div>
     ${itemsHtml}
-    <div class="ticket-row" style="border-bottom:none;font-weight:800;padding-top:8px;"><span>Total</span><span>$${row.total.toFixed(2)}</span></div>
+    <div class="ticket-row" style="font-weight:800;padding-top:8px;"><span>Total</span><span>$${row.total.toFixed(2)}</span></div>
+    ${payExtra}
     <div class="ticket-meta">Teléfono: ${row.telefono}<br>Forma de pago: ${row.forma_pago}</div>`;
+}
+
+function buildOrderText(){
+  if(!lastOrder) return '';
+  const { inserted, row } = lastOrder;
+  const shortId = (inserted.id || '').slice(-6).toUpperCase();
+  const lines = [];
+  lines.push(`*Pedido #${shortId}*`);
+  lines.push(`Bus: ${row.bus}`);
+  lines.push(`Nombre: ${row.nombre}`);
+  lines.push(`Grado: ${row.grado}`);
+  lines.push(`Teléfono: ${row.telefono}`);
+  lines.push('');
+  row.items.forEach(i=> lines.push(`- ${i.qty} x ${i.name} — $${(i.qty*i.price).toFixed(2)}`));
+  lines.push('');
+  lines.push(`Total: $${row.total.toFixed(2)}`);
+  lines.push(`Forma de pago: ${row.forma_pago}`);
+  if(row.forma_pago === 'Efectivo' && row.monto_recibido != null){
+    lines.push(`Paga con: $${row.monto_recibido.toFixed(2)}`);
+    lines.push(`Vuelto: $${row.vuelto.toFixed(2)}`);
+  }
+  if(row.forma_pago === 'Transferencia / Yappy' && row.captura_url){
+    lines.push(`Comprobante: ${row.captura_url}`);
+  }
+  return lines.join('\n');
+}
+
+function shareTicketWhatsApp(){
+  const text = buildOrderText();
+  if(!text) return;
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+
+async function downloadTicketImage(){
+  const node = document.getElementById('ticketBox');
+  try{
+    const canvas = await html2canvas(node, { backgroundColor: '#FFFFFF', scale: 2 });
+    const shortId = lastOrder ? (lastOrder.inserted.id || '').slice(-6).toUpperCase() : 'pedido';
+    const link = document.createElement('a');
+    link.download = `pedido-${shortId}.jpg`;
+    link.href = canvas.toDataURL('image/jpeg', 0.92);
+    link.click();
+  }catch(e){
+    console.error(e);
+    alert('No se pudo generar la imagen. Intenta de nuevo.');
+  }
 }
 
 function finishAndReset(){
   cart = {};
+  lastOrder = null;
   renderMenu(); renderTray();
   document.getElementById('checkoutForm').reset();
+  document.getElementById('cashFields').style.display = 'none';
+  document.getElementById('yappyFields').style.display = 'none';
+  document.getElementById('capturePreview').style.display = 'none';
+  document.getElementById('changeDisplay').textContent = '';
   closeSheet('confirmOverlay');
 }
 </script>
