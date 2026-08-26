@@ -130,8 +130,8 @@
 <div id="gate">
   <p class="eyebrow">Antes de pedir</p>
   <h1>¿En qué bus vas?</h1>
-  <p>Escribe la clave de tu bus para empezar tu pedido.</p>
-  <input id="busCode" type="text" inputmode="numeric" placeholder="Clave" maxlength="6" autocomplete="off">
+  <p>Escribe la clave de tu bus para empezar tu pedido.<br><span style="opacity:.8;">Ejemplo: <strong>001</strong> (solo el número, no la palabra "Bus")</span></p>
+  <input id="busCode" type="text" inputmode="numeric" placeholder="Ej. 001" maxlength="10" autocomplete="off">
   <div class="busName" id="busNamePreview"></div>
   <div class="gateErr" id="gateErr"></div>
   <button id="gateBtn" onclick="confirmBus()" disabled>Continuar</button>
@@ -231,6 +231,20 @@ const BUS_CODES = {
   "005": "Bus 5",
 };
 
+// Acepta variantes naturales que la gente suele escribir
+// (el número exacto de clave "001" sigue funcionando igual)
+function lookupBus(raw){
+  const clean = raw.trim().toLowerCase().replace(/\s+/g,'');
+  if(BUS_CODES[raw.trim()]) return {code: raw.trim(), name: BUS_CODES[raw.trim()]};
+  for(const [code, name] of Object.entries(BUS_CODES)){
+    const codeNum = String(parseInt(code, 10));           // "004" -> "4"
+    const nameNum = (name.match(/\d+/) || [''])[0];       // "Bus 3" -> "3"
+    const aliases = [code, codeNum, "bus"+codeNum, "bus"+code, "bus"+nameNum, nameNum];
+    if(aliases.includes(clean)) return {code, name};
+  }
+  return null;
+}
+
 /* ========================= MENÚ ========================= */
 const MENU = [
   { cat:"Cajita Feliz", note:"Incluye juguete • sin colorantes ni sabor. artificiales", items:[
@@ -299,13 +313,14 @@ let selectedCode = null;
 /* ===================== GATE (bus) ===================== */
 const busInput = document.getElementById('busCode');
 busInput.addEventListener('input', ()=>{
-  const val = busInput.value.trim();
+  const val = busInput.value;
   const preview = document.getElementById('busNamePreview');
   const err = document.getElementById('gateErr');
   const btn = document.getElementById('gateBtn');
   err.textContent = '';
-  if(BUS_CODES[val]){
-    preview.textContent = '✓ ' + BUS_CODES[val];
+  const match = lookupBus(val);
+  if(match){
+    preview.textContent = '✓ ' + match.name;
     btn.disabled = false;
   } else {
     preview.textContent = '';
@@ -315,13 +330,13 @@ busInput.addEventListener('input', ()=>{
 busInput.addEventListener('keydown', e=>{ if(e.key==='Enter' && !document.getElementById('gateBtn').disabled) confirmBus(); });
 
 function confirmBus(){
-  const val = busInput.value.trim();
-  if(!BUS_CODES[val]){
+  const match = lookupBus(busInput.value);
+  if(!match){
     document.getElementById('gateErr').textContent = 'Clave no válida. Verifica con tu maestro/a.';
     return;
   }
-  selectedCode = val;
-  selectedBus = BUS_CODES[val];
+  selectedCode = match.code;
+  selectedBus = match.name;
   document.getElementById('gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('busBadge').innerHTML = `${selectedBus} <button onclick="changeBus()">cambiar</button>`;
