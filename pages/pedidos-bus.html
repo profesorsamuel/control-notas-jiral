@@ -77,16 +77,7 @@
   .cat-title{font-family:'Archivo Black',sans-serif;font-size:20px;color:var(--red);margin:0 0 4px;display:flex;align-items:baseline;gap:10px;}
   .cat-title .line{flex:1;height:2px;background:repeating-linear-gradient(90deg,var(--red) 0 6px, transparent 6px 12px);}
   .cat-note{font-size:12.5px;color:var(--muted);margin:0 0 14px;font-weight:600;}
-  .item-grid{display:grid;grid-template-columns:1fr;gap:10px;}
-  @media(min-width:560px){.item-grid{grid-template-columns:1fr 1fr;}}
-  .item-card{background:#fff;border:1px solid #EDE1D0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;}
-  .item-photo{background:linear-gradient(160deg,var(--paper),#FFE8C2);font-size:34px;height:76px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #EDE1D0;}
-  .item-body{padding:11px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
-  .item-name{font-weight:800;font-size:14px;line-height:1.25;}
-  .item-price{font-family:'DM Mono',monospace;color:var(--red-dark);font-weight:500;font-size:13.5px;margin-top:2px;}
-
-  .view-toggle{border:1.5px solid var(--brown-soft);background:transparent;color:var(--brown-soft);padding:7px 14px;border-radius:999px;font-weight:800;font-size:12.5px;cursor:pointer;}
-  .view-toggle.active{background:var(--brown-soft);color:#fff;}
+  .view-toggle{display:none;}
 
   .cat-accordion{background:#fff;border:1px solid #EDE1D0;border-radius:14px;margin-bottom:10px;overflow:hidden;}
   .cat-accordion summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
@@ -174,13 +165,7 @@
     <p class="sub">Elige lo que más te gusta, completa tus datos y listo.</p>
   </header>
 
-  <div style="display:flex;gap:8px;padding:12px 16px 0;">
-    <button id="viewCardsBtn" onclick="setViewMode('cards')" class="view-toggle active">🖼️ Tarjetas</button>
-    <button id="viewListBtn" onclick="setViewMode('list')" class="view-toggle">📋 Lista por categoría</button>
-  </div>
-  <nav id="catnav"></nav>
-  <main id="menu"></main>
-  <main id="menuList" style="display:none;max-width:760px;margin:0 auto;padding:16px 16px 10px;"></main>
+  <main id="menuList" style="max-width:760px;margin:0 auto;padding:16px 16px 10px;"></main>
 
   <button id="trayBtn">
     <span class="left"><span id="trayCount">0</span> Ver mi bandeja</span>
@@ -727,7 +712,6 @@ function confirmBus(){
   document.getElementById('busBadge').innerHTML = `${selectedBus} <button onclick="changeBus()">cambiar</button>`;
   document.getElementById('checkoutBusLabel').textContent = selectedBus;
   setupNameField();
-  renderMenu();
   renderMenuList();
   renderTray();
 }
@@ -743,50 +727,6 @@ function changeBus(){
 
 /* ===================== MENÚ / CARRITO ===================== */
 function slug(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-');}
-
-function renderMenu(){
-  const nav = document.getElementById('catnav');
-  const menu = document.getElementById('menu');
-  nav.innerHTML=''; menu.innerHTML='';
-  MENU.forEach((block,bi)=>{
-    const id = 'cat-'+slug(block.cat);
-    const navBtn = document.createElement('button');
-    navBtn.textContent = block.cat;
-    navBtn.className = bi===0 ? 'active' : '';
-    navBtn.onclick = ()=>{
-      document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});
-      [...nav.children].forEach(c=>c.classList.remove('active'));
-      navBtn.classList.add('active');
-    };
-    nav.appendChild(navBtn);
-
-    const section = document.createElement('div');
-    section.className='cat-block'; section.id=id;
-    section.innerHTML = `<div class="cat-title">${block.cat}<span class="line"></span></div>` +
-      (block.note ? `<p class="cat-note">${block.note}</p>` : '');
-    const grid = document.createElement('div');
-    grid.className='item-grid';
-    block.items.forEach(item=>{
-      const key = block.cat+'|'+item.n;
-      const card = document.createElement('div');
-      card.className='item-card';
-      card.innerHTML = `
-        <div class="item-photo">${block.icon || '🍽️'}</div>
-        <div class="item-body">
-          <div class="item-info">
-            <div class="item-name">${item.n}</div>
-            <div class="item-price">$${item.p.toFixed(2)}</div>
-          </div>
-          <div class="stepper" data-key="${key}">
-            <button class="add-main" onclick="addItem('${key.replace(/'/g,"\\'")}','${item.n.replace(/'/g,"\\'")}',${item.p})">Agregar</button>
-          </div>
-        </div>`;
-      grid.appendChild(card);
-    });
-    section.appendChild(grid);
-    menu.appendChild(section);
-  });
-}
 
 function addItem(key,name,price){
   if(!cart[key]){
@@ -820,14 +760,6 @@ function renderStepper(key){
       wrap.innerHTML = `<button class="add-main" onclick="addItem('${key.replace(/'/g,"\\'")}','${item.n.replace(/'/g,"\\'")}',${item.p})">Agregar</button>`;
     }
   });
-}
-
-function setViewMode(mode){
-  document.getElementById('menu').style.display = mode==='cards' ? 'block' : 'none';
-  document.getElementById('catnav').style.display = mode==='cards' ? 'flex' : 'none';
-  document.getElementById('menuList').style.display = mode==='list' ? 'block' : 'none';
-  document.getElementById('viewCardsBtn').classList.toggle('active', mode==='cards');
-  document.getElementById('viewListBtn').classList.toggle('active', mode==='list');
 }
 
 function renderMenuList(){
@@ -1108,7 +1040,7 @@ async function downloadTicketImage(){
 function finishAndReset(){
   cart = {};
   lastOrder = null;
-  renderMenu(); renderMenuList(); renderTray();
+  renderMenuList(); renderTray();
   document.getElementById('checkoutForm').reset();
   document.getElementById('cashFields').style.display = 'none';
   document.getElementById('yappyFields').style.display = 'none';
