@@ -84,6 +84,21 @@
   .item-body{padding:11px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .item-name{font-weight:800;font-size:14px;line-height:1.25;}
   .item-price{font-family:'DM Mono',monospace;color:var(--red-dark);font-weight:500;font-size:13.5px;margin-top:2px;}
+
+  .view-toggle{border:1.5px solid var(--brown-soft);background:transparent;color:var(--brown-soft);padding:7px 14px;border-radius:999px;font-weight:800;font-size:12.5px;cursor:pointer;}
+  .view-toggle.active{background:var(--brown-soft);color:#fff;}
+
+  .cat-accordion{background:#fff;border:1px solid #EDE1D0;border-radius:14px;margin-bottom:10px;overflow:hidden;}
+  .cat-accordion summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .cat-accordion summary::-webkit-details-marker{display:none;}
+  .cat-accordion summary .accordion-title{font-family:'Archivo Black',sans-serif;font-size:15px;color:var(--red);display:flex;align-items:center;gap:8px;}
+  .cat-accordion summary .accordion-count{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);font-weight:500;white-space:nowrap;}
+  .accordion-items{padding:0 16px 12px;border-top:1px solid #F2E9DA;}
+  .accordion-note{font-size:12px;color:var(--muted);font-weight:700;margin:10px 0 2px;}
+  .list-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #F2E9DA;gap:10px;}
+  .list-row:last-child{border-bottom:none;}
+  .list-row-name{font-weight:700;font-size:13.5px;}
+  .list-row-price{font-family:'DM Mono',monospace;color:var(--red-dark);font-size:12.5px;margin-top:2px;}
   .stepper{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
   .stepper button{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--brown);background:var(--cream);color:var(--brown);font-size:17px;font-weight:800;cursor:pointer;line-height:1;}
   .stepper button.add-main{background:var(--red);border-color:var(--red);color:#fff;width:auto;padding:0 12px;font-size:12.5px;}
@@ -159,8 +174,13 @@
     <p class="sub">Elige lo que más te gusta, completa tus datos y listo.</p>
   </header>
 
+  <div style="display:flex;gap:8px;padding:12px 16px 0;">
+    <button id="viewCardsBtn" onclick="setViewMode('cards')" class="view-toggle active">🖼️ Tarjetas</button>
+    <button id="viewListBtn" onclick="setViewMode('list')" class="view-toggle">📋 Lista por categoría</button>
+  </div>
   <nav id="catnav"></nav>
   <main id="menu"></main>
+  <main id="menuList" style="display:none;max-width:760px;margin:0 auto;padding:16px 16px 10px;"></main>
 
   <button id="trayBtn">
     <span class="left"><span id="trayCount">0</span> Ver mi bandeja</span>
@@ -493,71 +513,180 @@ function setupNameField(){
 
 /* ========================= MENÚ ========================= */
 const MENU = [
+  { cat:"Hamburguesas", icon:"🍔", items:[
+    {n:"Big Mac", p:5.25},
+    {n:"McMelt", p:6.99},
+    {n:"Doble McMelt", p:10.99},
+    {n:"Premium CBO", p:7.75},
+    {n:"McCrispy Chicken", p:5.50},
+    {n:"McCrispy Chicken Deluxe", p:6.75},
+    {n:"McCrispy Chicken Bacon Ranch", p:6.75},
+    {n:"McCrispy Chicken Bacon Ranch Deluxe", p:6.75},
+    {n:"McDoble Honey BBQ", p:3.60},
+    {n:"McDoble Gourmet", p:3.60},
+    {n:"Pollo Ranch", p:3.60},
+    {n:"Hamburguesa", p:2.00},
+    {n:"Hamburguesa con Queso", p:2.25},
+    {n:"Doble Queso Hamburguesa", p:4.25},
+    {n:"Triple Queso Hamburguesa", p:5.25},
+    {n:"McPollo", p:3.25},
+    {n:"Cuarto de Libra con Queso", p:5.60},
+    {n:"McNífica", p:6.00},
+    {n:"Doble McNífica", p:7.25},
+    {n:"Doble Cuarto de Libra con Queso", p:7.25},
+    {n:"Doble McPollo", p:6.60},
+  ]},
+  { cat:"Pollo McCrispy", icon:"🍗", items:[
+    {n:"Pollo McCrispy 1 pieza", p:2.25},
+    {n:"Pollo McCrispy 2 piezas", p:4.25},
+    {n:"Pollo McCrispy 3 piezas", p:5.25},
+  ]},
+  { cat:"McNuggets", icon:"🍗", items:[
+    {n:"Chicken McNuggets 6 piezas", p:3.50},
+    {n:"Chicken McNuggets 10 piezas", p:5.50},
+    {n:"Chicken McNuggets 20 piezas", p:8.50},
+  ]},
+  { cat:"McCombos Medianos", icon:"🍟", note:"Incluyen papas y bebida", items:[
+    {n:"McCombo Big Mac", p:6.99},
+    {n:"McCombo Huntrix Menu", p:8.99},
+    {n:"McCombo Saja Boys Menu", p:8.99},
+    {n:"McCombo McMelt", p:9.95},
+    {n:"McCombo Doble McMelt", p:10.95},
+    {n:"McCombo Premium CBO", p:8.95},
+    {n:"McCombo McCrispy Chicken", p:7.25},
+    {n:"McCombo McCrispy Chicken Deluxe", p:7.50},
+    {n:"McCombo McCrispy Chicken Bacon Ranch", p:7.50},
+    {n:"McCombo McCrispy Chicken Bacon Ranch Deluxe", p:8.20},
+    {n:"McCombo McDoble Honey BBQ", p:4.25},
+    {n:"McCombo McDoble Gourmet", p:4.25},
+    {n:"McCombo Pollo Ranch", p:4.25},
+    {n:"McCombo 2 Hamburguesas con Queso", p:7.25},
+    {n:"McCombo McPollo", p:6.75},
+    {n:"McCombo McPollo Doble", p:8.75},
+    {n:"McCombo Cuarto de Libra con Queso", p:7.50},
+    {n:"McCombo Doble Queso Hamburguesa", p:6.70},
+    {n:"McCombo Triple Queso Hamburguesa", p:7.15},
+    {n:"McCombo McNífica", p:7.75},
+    {n:"McCombo McNífica Doble", p:8.25},
+    {n:"McCombo Doble Cuarto de Libra con Queso", p:8.25},
+    {n:"McCombo Pollo McCrispy 2 piezas", p:6.10},
+    {n:"McCombo Pollo McCrispy 3 piezas", p:7.10},
+    {n:"McCombo Chicken McNuggets 10 piezas", p:6.95},
+    {n:"McCombo Chicken McNuggets 20 piezas", p:9.99},
+  ]},
+  { cat:"Extras", icon:"➕", items:[
+    {n:"Extra topping de postre", p:0.50},
+    {n:"Salsa adicional para Nuggets", p:0.50},
+    {n:"Carne Big Mac", p:1.10},
+    {n:"Carne Cuarto de Libra", p:2.10},
+    {n:"Torta McPollo", p:1.70},
+    {n:"Torta Pechuga de Pollo", p:2.60},
+    {n:"Extra pepinillos", p:0.40},
+    {n:"Cebolla caramelizada", p:0.45},
+    {n:"Queso", p:0.45},
+    {n:"Bacon", p:0.95},
+    {n:"Tomate", p:0.40},
+    {n:"Extra Sirope de Pancake's", p:0.60},
+    {n:"Extra lechuga", p:0.40},
+  ]},
   { cat:"Caja Grande", icon:"📦", note:"Para compartir entre varios · te preguntamos qué quieres que lleve", items:[
-    {n:"Caja Grande con soda y postres", p:24.99},
-    {n:"Caja Grande con sodas", p:22.99},
-    {n:"Caja Grande", p:19.99},
+    {n:"Caja Grande sin bebidas", p:19.99},
+    {n:"Caja Grande con soda", p:22.99},
+    {n:"Caja Grande con soda y 4 postres", p:24.99},
+  ]},
+  { cat:"Acompañamientos", icon:"🍟", items:[
+    {n:"McPapas pequeñas", p:1.60},
+    {n:"McPapas medianas", p:2.30},
+    {n:"McPapas grandes", p:2.95},
+    {n:"Papas Bacon Cheddar", p:3.75},
+    {n:"Piscina de queso Cheddar 3onz", p:1.75},
+    {n:"McPatatas", p:2.95},
+  ]},
+  { cat:"Bebidas", icon:"🥤", items:[
+    {n:"Soda 16 onzas", p:1.60},
+    {n:"Soda 21 onzas", p:2.10},
+    {n:"Soda 30 onzas", p:2.35},
+    {n:"Batido de Chocolate 16oz", p:3.10},
+    {n:"Batido de Fresa Oreo 16oz", p:3.10},
+    {n:"Batido de Fresa 16oz", p:3.10},
+    {n:"Batido de Vainilla 16oz", p:3.10},
+    {n:"Batido de Oreo 16oz", p:3.10},
+    {n:"Batido de Café 16oz", p:3.10},
+    {n:"Té Frío 15 onzas", p:1.60},
+    {n:"Té Frío 21 onzas", p:2.10},
+    {n:"Té Frío 30 onzas", p:2.35},
+    {n:"Jugo de Naranja 12 onzas", p:1.99},
+    {n:"Jugo de Naranja 16 onzas", p:2.25},
+    {n:"Agua en botella", p:1.25},
+    {n:"Té 8 onzas", p:0.99},
+    {n:"Espresso americano 8 onzas", p:1.10},
+    {n:"Café con Leche 8 onzas", p:1.35},
+    {n:"Latte 8 onzas", p:1.75},
+    {n:"Cappuccino 8 onzas", p:1.75},
+    {n:"Espresso", p:1.75},
+    {n:"Espresso doble", p:1.95},
+    {n:"Macchiato", p:1.75},
+    {n:"Iced Coffe", p:2.10},
+    {n:"Iced Latte", p:2.25},
+    {n:"Affogato", p:2.10},
   ]},
   { cat:"Cajita Feliz", icon:"🎉", note:"Incluye juguete", items:[
-    {n:"Happy Meal 6 Piezas Chicken McNuggets", p:6.50},
-    {n:"Cajita Feliz con McNuggets", p:5.50},
-    {n:"Cajita Feliz Pollo 1 pz", p:5.50},
+    {n:"Cajita Feliz Pancake con Huevos revuelto", p:5.50},
+    {n:"Cajita Feliz Muffin con Huevo", p:5.50},
     {n:"Cajita Feliz Hamburguesa", p:5.40},
-    {n:"Cajita Feliz McFiesta Jr", p:5.40},
     {n:"Cajita Feliz Hamburguesa con Queso", p:5.40},
+    {n:"Cajita Feliz McFiesta Jr.", p:5.40},
+    {n:"Cajita Feliz Pollo McCrispy 1 pieza", p:5.50},
+    {n:"Cajita Feliz McNuggets 4 piezas", p:5.50},
+    {n:"Cajita Feliz McNuggets 6 piezas", p:6.50},
   ]},
-  { cat:"Postres", icon:"🍦", items:[
-    {n:"Derpy Sundae", p:2.50},
-    {n:"McFlurry Mini Kisses", p:3.25},
+  { cat:"Postres y McFlurry", icon:"🍦", items:[
     {n:"McFlurry Oreo", p:3.25},
+    {n:"McFlurry M&M", p:3.25},
     {n:"McFlurry Fresa Oreo", p:3.25},
-    {n:"McFlurry M&M's", p:3.25},
-    {n:"Pastel de Manzana", p:2.10},
-    {n:"Pastel de Queso", p:2.10},
+    {n:"McFlurry Mini Kisses", p:3.25},
+    {n:"Sundae con perlas de blueberry", p:2.50},
     {n:"Sundae de Fresa", p:2.10},
     {n:"Sundae de Caramelo", p:2.10},
     {n:"Sundae de Chocolate", p:2.10},
-    {n:"Cono de Vainilla", p:0.99},
+    {n:"Pastel de Manzana", p:2.10},
+    {n:"Pastel de Queso", p:2.10},
+    {n:"Cono", p:0.99},
+    {n:"Extra Topping", p:0.60},
   ]},
-  { cat:"McCombos", icon:"🍟", note:"Todos vienen con papas y bebida", items:[
-    {n:"McCombo mediano Pollo McCrispy 2 piezas", p:6.10},
-    {n:"McCombo grande Pollo McCrispy 2 piezas", p:7.60},
-    {n:"McCombo mediano Pollo McCrispy 3 pz", p:7.10},
-    {n:"McCombo grande Pollo McCrispy 3 piezas", p:8.60},
-    {n:"McCombo mediano Chicken McNuggets 10 piezas", p:6.95},
-    {n:"McCombo grande Chicken McNuggets 10 piezas", p:8.45},
-    {n:"McCombo mediano Chicken McNuggets 20 piezas", p:9.99},
-    {n:"McCombo grande Chicken McNuggets 20 piezas", p:11.49},
-    {n:"McCombo mediano Big Mac ™", p:6.99},
-    {n:"McCombo grande Big Mac ™", p:8.49},
-    {n:"McCombo mediano Cuarto de Libra con Queso", p:7.50},
-    {n:"McCombo grande Cuarto de Libra con Queso", p:9.00},
-    {n:"McCombo mediano Doble Cuarto de Libra con Queso", p:8.25},
-    {n:"McCombo grande Doble Cuarto de Libra con Queso", p:9.75},
-    {n:"McCombo mediano CBO", p:8.95},
-    {n:"McCombo grande CBO", p:10.45},
-    {n:"McCombo mediano 2 Hamburguesas con Queso", p:7.25},
-    {n:"McCombo grande 2 Hamburguesas con Queso", p:8.75},
-    {n:"McCombo mediano McNífica", p:7.75},
-    {n:"McCombo grande McNífica", p:9.25},
-    {n:"McCombo mediano McNífica Doble", p:8.25},
-    {n:"McCombo grande McNífica Doble", p:9.75},
-    {n:"McCombo mediano McCrispy Chicken Sandwich Deluxe", p:7.50},
-    {n:"McCombo grande McCrispy Chicken Sandwich Deluxe", p:9.00},
-    {n:"McCombo mediano McCrispy Chicken Sandwich", p:7.25},
-    {n:"McCombo grande McCrispy Chicken Sandwich", p:8.75},
-    {n:"McCombo mediano McPollo", p:6.75},
-    {n:"McCombo grande McPollo", p:8.25},
-    {n:"McCombo mediano Doble McPollo", p:8.75},
-    {n:"McCombo grande Doble McPollo", p:10.25},
-    {n:"McCombo mediano Doble Hamburguesa con Queso", p:6.70},
-    {n:"McCombo grande Doble Hamburguesa con Queso", p:8.20},
-    {n:"McCombo mediano Triple Hamburguesa con Queso", p:7.15},
-    {n:"McCombo grande Triple Hamburguesa con Queso", p:8.65},
-    {n:"McCombo mediano McCrispy Bacon Ranch", p:7.50},
-    {n:"McCombo grande McCrispy Bacon Ranch", p:9.00},
-    {n:"McCombo mediano McCrispy Bacon Ranch Deluxe", p:8.20},
-    {n:"McCombo grande McCrispy Bacon Ranch Deluxe", p:9.70},
+  { cat:"McDesayunos", icon:"🥞", items:[
+    {n:"McMuffin Salchicha y Huevo", p:3.10},
+    {n:"McMuffin Salchicha y Queso", p:3.10},
+    {n:"McMuffin Doble Salchicha y Huevo", p:4.10},
+    {n:"Desayuno Típico Tortillas (2 tortillas)", p:4.85},
+    {n:"Desayuno Típico Carimañolas (2 carimañolas)", p:5.50},
+    {n:"Desayuno Típico Combinado (1 carimañola y 1 tortilla)", p:4.99},
+    {n:"Desayuno Completo", p:3.10},
+    {n:"Pancake", p:3.10},
+    {n:"Pancake con Salchicha", p:4.10},
+    {n:"Dos Tortillas", p:1.25},
+    {n:"Dos Carimañolas", p:2.50},
+    {n:"Papa Rallada", p:1.50},
+    {n:"Huevo revuelto", p:1.75},
+    {n:"Queso Típico", p:1.25},
+    {n:"Pan Muffin", p:1.50},
+    {n:"Salchicha", p:1.25},
+    {n:"Egg McQueso", p:2.85},
+    {n:"Egg McQueso con Salchicha", p:2.95},
+  ]},
+  { cat:"McCombos Desayunos", icon:"🥞", note:"Incluyen bebida", items:[
+    {n:"McCombo McMuffin Salchicha y Huevo", p:5.35},
+    {n:"McCombo McMuffin Salchicha y Queso", p:4.85},
+    {n:"McCombo McMuffin Doble Salchicha y Huevo", p:5.85},
+    {n:"McCombo Pancake con Salchicha", p:5.35},
+    {n:"Desayuno Deluxe", p:6.25},
+    {n:"McCombo Desayuno Típico Tortillas (2 tortillas)", p:6.25},
+    {n:"McCombo Desayuno Típico Carimañolas (2 carimañolas)", p:6.25},
+    {n:"McCombo Desayuno Típico Combinado (1 carimañola y 1 tortilla)", p:6.25},
+    {n:"McCombo Desayuno Completo", p:3.10},
+    {n:"McCombo Egg McQueso", p:3.10},
+    {n:"McCombo Egg McQueso con Salchicha", p:4.85},
+    {n:"McCombo Pancake con Café", p:3.10},
   ]},
 ];
 
@@ -599,6 +728,7 @@ function confirmBus(){
   document.getElementById('checkoutBusLabel').textContent = selectedBus;
   setupNameField();
   renderMenu();
+  renderMenuList();
   renderTray();
 }
 function changeBus(){
@@ -676,18 +806,66 @@ function decItem(key){
   renderStepper(key); renderTray();
 }
 function renderStepper(key){
-  const wrap = document.querySelector(`.stepper[data-key="${CSS.escape(key)}"]`);
-  if(!wrap) return;
+  const wraps = document.querySelectorAll(`.stepper[data-key="${CSS.escape(key)}"]`);
+  if(!wraps.length) return;
   const qty = cart[key] ? cart[key].qty : 0;
-  if(qty>0){
-    wrap.innerHTML = `
-      <button onclick="decItem('${key.replace(/'/g,"\\'")}')">−</button>
-      <span class="qty">${qty}</span>
-      <button onclick="addItem('${key.replace(/'/g,"\\'")}','${cart[key].name.replace(/'/g,"\\'")}',${cart[key].price})">+</button>`;
-  } else {
-    const item = findItemByKey(key);
-    wrap.innerHTML = `<button class="add-main" onclick="addItem('${key.replace(/'/g,"\\'")}','${item.n.replace(/'/g,"\\'")}',${item.p})">Agregar</button>`;
-  }
+  wraps.forEach(wrap=>{
+    if(qty>0){
+      wrap.innerHTML = `
+        <button onclick="decItem('${key.replace(/'/g,"\\'")}')">−</button>
+        <span class="qty">${qty}</span>
+        <button onclick="addItem('${key.replace(/'/g,"\\'")}','${cart[key].name.replace(/'/g,"\\'")}',${cart[key].price})">+</button>`;
+    } else {
+      const item = findItemByKey(key);
+      wrap.innerHTML = `<button class="add-main" onclick="addItem('${key.replace(/'/g,"\\'")}','${item.n.replace(/'/g,"\\'")}',${item.p})">Agregar</button>`;
+    }
+  });
+}
+
+function setViewMode(mode){
+  document.getElementById('menu').style.display = mode==='cards' ? 'block' : 'none';
+  document.getElementById('catnav').style.display = mode==='cards' ? 'flex' : 'none';
+  document.getElementById('menuList').style.display = mode==='list' ? 'block' : 'none';
+  document.getElementById('viewCardsBtn').classList.toggle('active', mode==='cards');
+  document.getElementById('viewListBtn').classList.toggle('active', mode==='list');
+}
+
+function renderMenuList(){
+  const wrap = document.getElementById('menuList');
+  wrap.innerHTML = '';
+  MENU.forEach(block=>{
+    const details = document.createElement('details');
+    details.className = 'cat-accordion';
+
+    const summary = document.createElement('summary');
+    summary.innerHTML = `<span class="accordion-title">${block.icon || '🍽️'} ${block.cat}</span><span class="accordion-count">${block.items.length} productos ▾</span>`;
+    details.appendChild(summary);
+
+    const itemsWrap = document.createElement('div');
+    itemsWrap.className = 'accordion-items';
+    if(block.note){
+      const note = document.createElement('div');
+      note.className = 'accordion-note';
+      note.textContent = block.note;
+      itemsWrap.appendChild(note);
+    }
+    block.items.forEach(item=>{
+      const key = block.cat+'|'+item.n;
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `
+        <div>
+          <div class="list-row-name">${item.n}</div>
+          <div class="list-row-price">$${item.p.toFixed(2)}</div>
+        </div>
+        <div class="stepper" data-key="${key}">
+          <button class="add-main" onclick="addItem('${key.replace(/'/g,"\\'")}','${item.n.replace(/'/g,"\\'")}',${item.p})">Agregar</button>
+        </div>`;
+      itemsWrap.appendChild(row);
+    });
+    details.appendChild(itemsWrap);
+    wrap.appendChild(details);
+  });
 }
 function findItemByKey(key){
   for(const b of MENU){ for(const it of b.items){ if(b.cat+'|'+it.n===key) return it; } }
@@ -930,7 +1108,7 @@ async function downloadTicketImage(){
 function finishAndReset(){
   cart = {};
   lastOrder = null;
-  renderMenu(); renderTray();
+  renderMenu(); renderMenuList(); renderTray();
   document.getElementById('checkoutForm').reset();
   document.getElementById('cashFields').style.display = 'none';
   document.getElementById('yappyFields').style.display = 'none';
