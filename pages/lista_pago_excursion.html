@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lista de Pago — Excursión Primaria</title>
+<style>
+  :root {
+    --ink: #1c2b2d;
+    --paper: #f6f3ec;
+    --line: #d8d2c2;
+    --paid: #2f6f5e;
+    --paid-bg: #e3efe9;
+    --unpaid: #b5482f;
+    --unpaid-bg: #f7e9e4;
+    --accent: #c98a3e;
+    --adult: #4a5a9e;
+    --adult-bg: #e6e8f5;
+    --stud: #1c8a72;
+    --stud-bg: #dff2ec;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Georgia', 'Iowan Old Style', serif;
+    padding: 0 0 60px 0;
+  }
+  header {
+    padding: 28px 20px 20px;
+    border-bottom: 3px solid var(--ink);
+    text-align: center;
+  }
+  header h1 {
+    margin: 0 0 4px;
+    font-size: 1.6rem;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+  }
+  header p {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #5c6660;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .card {
+    max-width: 720px;
+    margin: 16px auto 0;
+    padding: 12px 16px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .price-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .price-field { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; }
+  .price-field input {
+    width: 80px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 0.85rem;
+  }
+
+  .summary-bar {
+    max-width: 720px;
+    margin: 14px auto 0;
+    padding: 0 16px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .stat {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 10px;
+    text-align: center;
+  }
+  .stat .num { font-size: 1.25rem; font-weight: 800; display:block; }
+  .stat .lbl { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b756f; }
+  .stat.paid .num { color: var(--paid); }
+  .stat.unpaid .num { color: var(--unpaid); }
+  .stat.total .num { color: var(--ink); }
+  .stat.money .num { color: var(--accent); font-size: 1.05rem; }
+  .stat.stud-paid .num { color: var(--stud); }
+  .stat.adult-paid .num { color: var(--adult); }
+
+  .controls {
+    max-width: 720px;
+    margin: 16px auto 0;
+    padding: 0 16px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  #search {
+    flex: 1;
+    min-width: 160px;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: #fff;
+  }
+  .filter-btn {
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .filter-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  .add-form {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .add-form input[type=text] {
+    flex: 1;
+    min-width: 140px;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 0.88rem;
+  }
+  .add-form select {
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    background: #fff;
+  }
+  .add-form button {
+    padding: 9px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .add-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+  }
+
+  .bus-tabs {
+    max-width: 720px;
+    margin: 18px auto 0;
+    padding: 0 16px;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .tab {
+    flex: 0 0 auto;
+    padding: 9px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tab .count { opacity: 0.7; font-weight: 400; margin-left: 4px; }
+
+  main {
+    max-width: 720px;
+    margin: 20px auto 0;
+    padding: 0 16px;
+  }
+
+  .bus-section { display: none; }
+  .bus-section.active { display: block; }
+
+  .bus-heading {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 22px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .bus-heading:first-child { margin-top: 0; }
+
+  ul.roster { list-style: none; margin: 0 0 8px; padding: 0; }
+  li.person {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: #fff;
+    flex-wrap: wrap;
+  }
+  li.person.paid { background: var(--paid-bg); border-color: #bcdccd; }
+  li.person.unpaid { background: var(--unpaid-bg); border-color: #eccabf; }
+
+  .who { display: flex; flex-direction: column; min-width: 0; flex: 1 1 140px; }
+  .who .n {
+    font-weight: 700;
+    font-size: 0.94rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .who .g {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.7rem;
+    color: #6b756f;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .actions { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
+
+  .role-badge {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 5px 9px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+  }
+  .role-badge.estudiante { background: var(--stud-bg); color: var(--stud); border-color: #b8e2d3; }
+  .role-badge.adulto { background: var(--adult-bg); color: var(--adult); border-color: #c3c8ec; }
+
+  .badge {
+    flex: 0 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .badge.paid { background: var(--paid); color: #fff; }
+  .badge.unpaid { background: var(--unpaid); color: #fff; }
+
+  .del-btn {
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    color: #b5482f;
+    font-size: 1rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+  }
+
+  .empty-msg {
+    text-align: center;
+    padding: 30px;
+    color: #8a938d;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.85rem;
+  }
+
+  footer {
+    max-width: 720px;
+    margin: 30px auto 0;
+    padding: 14px 16px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.72rem;
+    color: #8a938d;
+    text-align: center;
+    border-top: 1px solid var(--line);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Excursión — Primaria</h1>
+  <p>Control de pago por bus</p>
+</header>
+
+<div class="card price-bar">
+  <div class="price-field">
+    Estudiante $ <input type="number" id="priceStudent" value="5" min="0" step="0.5">
+  </div>
+  <div class="price-field">
+    Adulto $ <input type="number" id="priceAdult" value="8" min="0" step="0.5">
+  </div>
+</div>
+
+<div class="summary-bar">
+  <div class="stat total"><span class="num" id="statTotal">0</span><span class="lbl">Total</span></div>
+  <div class="stat paid"><span class="num" id="statPaid">0</span><span class="lbl">Pagaron</span></div>
+  <div class="stat unpaid"><span class="num" id="statUnpaid">0</span><span class="lbl">No pagaron</span></div>
+  <div class="stat stud-paid"><span class="num" id="statStudPaid">0</span><span class="lbl">Niños que pagaron</span></div>
+  <div class="stat adult-paid"><span class="num" id="statAdultPaid">0</span><span class="lbl">Adultos que pagaron</span></div>
+  <div class="stat money"><span class="num" id="statMoney">$0</span><span class="lbl">Recaudado</span></div>
+</div>
+
+<div class="card">
+  <div class="add-title">Agregar persona</div>
+  <div class="add-form">
+    <input type="text" id="newName" placeholder="Nombre">
+    <select id="newRole">
+      <option value="estudiante">Niño</option>
+      <option value="adulto">Adulto</option>
+    </select>
+    <select id="newBus"></select>
+    <select id="newPaid">
+      <option value="false">No pagó</option>
+      <option value="true">Pagó</option>
+    </select>
+    <button id="addBtn">Agregar</button>
+  </div>
+</div>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="Buscar nombre...">
+  <button class="filter-btn active" data-filter="all">Todos</button>
+  <button class="filter-btn" data-filter="paid">Pagaron</button>
+  <button class="filter-btn" data-filter="unpaid">No pagaron</button>
+</div>
+
+<div class="bus-tabs" id="busTabs"></div>
+
+<main id="main"></main>
+
+<footer>Toca "Pagó/No pagó" para cambiar el estado de pago, y toca "Niño/Adulto" para cambiar la categoría. Los cambios no se guardan al recargar la página.</footer>
+
+<script>
+const ROSTER = {"Bus 1": [{"name": "Yeihilin zuñiga", "grade": "PK", "paid": true, "role": "estudiante"}, {"name": "RAFAEL ZUÑIGA (Acomp", "grade": "", "paid": false, "role": "adulto"}, {"name": "Samanta newball", "grade": "PK", "paid": true, "role": "estudiante"}, {"name": "Aldair newball (ACOMP)", "grade": "", "paid": false, "role": "adulto"}, {"name": "YADIR ARGUELLES", "grade": "PK", "paid": false, "role": "estudiante"}, {"name": "MAGJEIRY ARGUELLES", "grade": "1B", "paid": false, "role": "estudiante"}, {"name": "MAGZULI FRANCIS (ACOMP)", "grade": "", "paid": false, "role": "adulto"}, {"name": "Gael Guerra", "grade": "K", "paid": false, "role": "estudiante"}, {"name": "ALINA GUERRA (ACOMP)", "grade": "", "paid": false, "role": "adulto"}, {"name": "HEYDER RODRIGUEZ", "grade": "K", "paid": false, "role": "estudiante"}, {"name": "ANTHONY RODRIGUEZ", "grade": "3A", "paid": false, "role": "estudiante"}, {"name": "KAURY PINZON (ACOMP)", "grade": "", "paid": false, "role": "adulto"}, {"name": "Itzayani Pineda", "grade": "K", "paid": false, "role": "estudiante"}, {"name": "DORIS QUIROZ (ACOMP)", "grade": "", "paid": false, "role": "adulto"}, {"name": "kennedy bustos", "grade": "K", "paid": false, "role": "estudiante"}, {"name": "KENETH BUSTOS", "grade": "4 B", "paid": false, "role": "estudiante"}, {"name": "MICHEL BOSQUEZ (ACOMP )", "grade": "", "paid": false, "role": "adulto"}, {"name": "MIAA SANCHEZ", "grade": "K", "paid": false, "role": "estudiante"}, {"name": "DIONELYS ANDRION (ACOMP)", "grade": "", "paid": false, "role": "adulto"}, {"name": "YORQUIANYS BELL CERRUD", "grade": "PK", "paid": true, "role": "estudiante"}, {"name": "YESSENIA CERRUD (AcOMP)", "grade": "", "paid": true, "role": "adulto"}, {"name": "Estefania Cherigo", "grade": "1A", "paid": true, "role": "estudiante"}, {"name": "Ethan cherigo", "grade": "5", "paid": true, "role": "estudiante"}, {"name": "Cristal Hinestroza ACOMP", "grade": "", "paid": true, "role": "adulto"}, {"name": "ILINE CHARRIS", "grade": "1A", "paid": true, "role": "estudiante"}, {"name": "ALMA BONILLA (ACOMP)", "grade": "", "paid": false, "role": "adulto"}, {"name": "MIA CAMARGO", "grade": "", "paid": false, "role": "estudiante"}, {"name": "TATIANA GONZALEZ", "grade": "1A", "paid": false, "role": "estudiante"}, {"name": "YOHAN RODRÍGUEZ", "grade": "1 B", "paid": true, "role": "estudiante"}, {"name": "STEFANY MARTINEZ (Acomp)", "grade": "", "paid": false, "role": "adulto"}, {"name": "AMETH JORDAN", "grade": "1C", "paid": true, "role": "estudiante"}, {"name": "CESAR JORDAN (Acomp)", "grade": "", "paid": false, "role": "adulto"}, {"name": "JOEL GUERRA", "grade": "1C", "paid": false, "role": "estudiante"}, {"name": "DELIAN GUERRA (Acomp", "grade": "", "paid": false, "role": "adulto"}, {"name": "Nahomi Rodriguez", "grade": "1 C", "paid": true, "role": "estudiante"}, {"name": "DYLAN MARTINEZ", "grade": "2A", "paid": true, "role": "estudiante"}, {"name": "EYTHAN MARTINEZ", "grade": "4A", "paid": true, "role": "estudiante"}, {"name": "Cristina Potayo (Acomp", "grade": "", "paid": true, "role": "adulto"}, {"name": "EMMA RANGEL", "grade": "2A", "paid": true, "role": "estudiante"}, {"name": "ADRIANA GONZÁLEZ (Acomp", "grade": "", "paid": false, "role": "adulto"}, {"name": "GISELLE VAZQUEZ", "grade": "2A", "paid": false, "role": "estudiante"}, {"name": "ELIZABETH VASQUEZ", "grade": "5B", "paid": false, "role": "estudiante"}, {"name": "SECILIA ALABARCA (Acomp)", "grade": "", "paid": false, "role": "adulto"}, {"name": "MARIETTI SOFIA FERNANDEZ", "grade": "2A", "paid": false, "role": "estudiante"}, {"name": "MARIETLI TREJOS (Acomp)", "grade": "", "paid": false, "role": "adulto"}, {"name": "IVAN ROBLES", "grade": "5A", "paid": true, "role": "estudiante"}, {"name": "KEVIN DE LEÓN", "grade": "5A", "paid": true, "role": "estudiante"}, {"name": "MAYRA ALDARETE", "grade": "", "paid": false, "role": "estudiante"}, {"name": "Mtra tilsa", "grade": "", "paid": false, "role": "adulto"}, {"name": "Mtra Heidi", "grade": "", "paid": false, "role": "adulto"}], "Bus 2": [{"name": "KAILANY MURILLO", "grade": "1°A", "paid": false, "role": "estudiante"}, {"name": "LEIDA HERNANDEZ", "grade": "2B", "paid": false, "role": "estudiante"}, {"name": "Aruna Cano", "grade": "2B", "paid": false, "role": "estudiante"}, {"name": "José Quintero", "grade": "2B", "paid": false, "role": "estudiante"}, {"name": "EVANS CAMPBEL", "grade": "2B", "paid": true, "role": "estudiante"}, {"name": "ITAYEBZY REIMILLER ACOMP", "grade": "", "paid": true, "role": "adulto"}, {"name": "Mia Jiménez", "grade": "2C", "paid": true, "role": "estudiante"}, {"name": "Alexia González", "grade": "3a", "paid": true, "role": "estudiante"}, {"name": "Alanis Leguizamo", "grade": "3c", "paid": true, "role": "estudiante"}, {"name": "Briana Leguizamo", "grade": "5A", "paid": true, "role": "estudiante"}, {"name": "Katherine Fuentes (Acomp", "grade": "", "paid": true, "role": "adulto"}, {"name": "ITAN DIAZ", "grade": "3a", "paid": true, "role": "estudiante"}, {"name": "NABID GONDOLA ( AcomP", "grade": "", "paid": false, "role": "adulto"}, {"name": "DAVID RODRIGUEZ", "grade": "3B", "paid": false, "role": "estudiante"}, {"name": "Ian Pineda", "grade": "3B", "paid": true, "role": "estudiante"}, {"name": "Norelis Martinez (Acomp)", "grade": "", "paid": false, "role": "adulto"}, {"name": "kathlyn Victoria", "grade": "3B", "paid": true, "role": "estudiante"}, {"name": "Miguel Santamaria", "grade": "3B", "paid": false, "role": "estudiante"}, {"name": "Hazel Otero", "grade": "5C", "paid": false, "role": "estudiante"}, {"name": "Mía Cedeño", "grade": "pk", "paid": false, "role": "estudiante"}, {"name": "MIleynis Muñoz (Acomp", "grade": "", "paid": false, "role": "adulto"}, {"name": "Milagros Ricketts", "grade": "3B", "paid": true, "role": "estudiante"}, {"name": "Luz Santos (Acomp)", "grade": "", "paid": true, "role": "adulto"}, {"name": "ZAIR URIETA", "grade": "3B", "paid": false, "role": "estudiante"}, {"name": "NEHEMIAS CISNEROS", "grade": "3 C", "paid": true, "role": "estudiante"}, {"name": "Yabdielis Guevara", "grade": "3C", "paid": true, "role": "estudiante"}, {"name": "Roquelina Leones (Acomp", "grade": "", "paid": true, "role": "adulto"}, {"name": "ADRIANA BATISTA", "grade": "4A", "paid": true, "role": "estudiante"}, {"name": "ARIADNYS GOMEZ (Acomp", "grade": "", "paid": false, "role": "adulto"}, {"name": "DANETH ACEVEDO", "grade": "4A", "paid": true, "role": "estudiante"}, {"name": "DANNA DOMINGUEZ", "grade": "4A", "paid": false, "role": "estudiante"}, {"name": "KEISY DOMINGUEZ (Acomp", "grade": "", "paid": false, "role": "adulto"}, {"name": "ELIECER BONAGA", "grade": "4A", "paid": true, "role": "estudiante"}, {"name": "MAYLIN GONZALEZ (Acomp)", "grade": "", "paid": false, "role": "adulto"}, {"name": "Janio Nuñez", "grade": "4A", "paid": true, "role": "estudiante"}, {"name": "Maria Alvarez (Acomp", "grade": "", "paid": false, "role": "adulto"}, {"name": "YENEVITH LABRADOR", "grade": "4A", "paid": false, "role": "estudiante"}, {"name": "ERIC LABRADOR (Acomp)", "grade": "", "paid": false, "role": "adulto"}, {"name": "BRANDON ORTILLO", "grade": "4B", "paid": false, "role": "estudiante"}, {"name": "HANANI SERRANO", "grade": "4B", "paid": true, "role": "estudiante"}, {"name": "ISAAC SERRANO (ACOMP)", "grade": "4B", "paid": true, "role": "adulto"}, {"name": "SAYMON BONAGA", "grade": "4C", "paid": false, "role": "estudiante"}, {"name": "Mailin González (ACOMP)", "grade": "", "paid": false, "role": "adulto"}, {"name": "AMBER DIAZ", "grade": "4C", "paid": true, "role": "estudiante"}, {"name": "MARCIA DIAZ (ACOMP)", "grade": "", "paid": false, "role": "adulto"}, {"name": "MtraAna", "grade": "", "paid": false, "role": "estudiante"}, {"name": "Mtra Jenifer", "grade": "", "paid": false, "role": "adulto"}, {"name": "PATRICIA", "grade": "", "paid": false, "role": "estudiante"}], "Bus 3": [{"name": "IAN RODRIGUEZ", "grade": "4C", "paid": true, "role": "estudiante"}, {"name": "YARISBETH VEGA (ACOMP", "grade": "", "paid": true, "role": "adulto"}, {"name": "Mathias Alvarado", "grade": "4C", "paid": true, "role": "estudiante"}, {"name": "Marissa Stephens (Acomp)", "grade": "", "paid": true, "role": "adulto"}, {"name": "MATHIAS HERNÁNDEZ", "grade": "4C", "paid": false, "role": "estudiante"}, {"name": "YANELIS CASTRO (Acomp)", "grade": "1B", "paid": false, "role": "adulto"}, {"name": "NOHEMÍ ICAZA", "grade": "2A", "paid": true, "role": "estudiante"}, {"name": "Aslan Mansilla", "grade": "", "paid": true, "role": "estudiante"}, {"name": "EAM MANSILLA", "grade": "5A", "paid": false, "role": "estudiante"}, {"name": "SARA RODRIGUEZ (Acomp)", "grade": "", "paid": false, "role": "adulto"}, {"name": "ALANIS AGUIRRRE", "grade": "5A", "paid": false, "role": "estudiante"}, {"name": "MARIA QUIROZ (Acomp)", "grade": "", "paid": false, "role": "adulto"}, {"name": "ANYORI VALDEZ", "grade": "5A", "paid": true, "role": "estudiante"}, {"name": "MAYORI GUEVARA (Acomp)", "grade": "5A", "paid": true, "role": "adulto"}, {"name": "DANA RODRIGUEZ", "grade": "5A", "paid": true, "role": "estudiante"}, {"name": "DANNA GUERRA", "grade": "5A", "paid": false, "role": "estudiante"}, {"name": "ELIEZER HERRERA", "grade": "5A", "paid": false, "role": "estudiante"}, {"name": "HEIDELL URIETA", "grade": "5A", "paid": false, "role": "estudiante"}, {"name": "JAPHET ALBORNO", "grade": "5A", "paid": true, "role": "estudiante"}, {"name": "MARIETLY FERNANZEZ", "grade": "5A", "paid": true, "role": "estudiante"}, {"name": "MEYLIN VEGA", "grade": "5A", "paid": true, "role": "estudiante"}, {"name": "ESTEFANIA RODRIGUEZ (Acomp)", "grade": "5B", "paid": false, "role": "adulto"}, {"name": "NAHUN VÁSQUEZ", "grade": "5B", "paid": true, "role": "estudiante"}, {"name": "GEORGE RODRIGUEZ", "grade": "5B", "paid": true, "role": "estudiante"}, {"name": "LIEL LORENZO", "grade": "5B", "paid": true, "role": "estudiante"}, {"name": "LUCI HERNANDEZ (Acomp)", "grade": "5B", "paid": true, "role": "adulto"}, {"name": "SHERIANYS LASSO", "grade": "5B", "paid": true, "role": "estudiante"}, {"name": "ILDAURA CISNEROS (Acomp)", "grade": "", "paid": true, "role": "adulto"}, {"name": "HANNA MUÑOZ", "grade": "5B", "paid": true, "role": "estudiante"}, {"name": "HELLEN MUÑOZ", "grade": "5C", "paid": true, "role": "estudiante"}, {"name": "DANNA MUÑOZ", "grade": "6", "paid": true, "role": "estudiante"}, {"name": "ANTHONELA MUÑOZ", "grade": "K", "paid": true, "role": "estudiante"}, {"name": "KRISTEL BARRIA (ACOMP)", "grade": "", "paid": false, "role": "adulto"}, {"name": "AMAREILIS MARTINEZ", "grade": "5C", "paid": false, "role": "estudiante"}, {"name": "ANGHY HERNANDEZ", "grade": "5C", "paid": false, "role": "estudiante"}, {"name": "ARJEN AIZPRUA", "grade": "5C", "paid": false, "role": "estudiante"}, {"name": "CARLOS AYALA", "grade": "5C", "paid": false, "role": "estudiante"}, {"name": "DARIANYS AMAYA", "grade": "", "paid": false, "role": "estudiante"}, {"name": "DERECK MARTINEZ", "grade": "5C", "paid": false, "role": "estudiante"}, {"name": "TANIA QUIROZ (Acomp)", "grade": "", "paid": false, "role": "adulto"}, {"name": "GUADALUPE GÓMEZ", "grade": "5C", "paid": false, "role": "estudiante"}, {"name": "INGRID AGRAJE", "grade": "5C", "paid": true, "role": "estudiante"}, {"name": "JAY CUESTA", "grade": "5C", "paid": false, "role": "estudiante"}, {"name": "JOSE GONZALEZ", "grade": "5C", "paid": true, "role": "estudiante"}, {"name": "LIAM BEITIA", "grade": "5C", "paid": true, "role": "estudiante"}, {"name": "ORLANDO TORIBIO", "grade": "5C", "paid": true, "role": "estudiante"}, {"name": "YOMAR AYA", "grade": "5C", "paid": false, "role": "estudiante"}, {"name": "Mtr ELAIZA", "grade": "", "paid": false, "role": "adulto"}, {"name": "Mtra Geraldine", "grade": "", "paid": false, "role": "adulto"}], "Bus 4": [{"name": "EVELIN SANTAMARIA", "grade": "3C", "paid": true, "role": "estudiante"}, {"name": "KATHLEN MUÑOZ", "grade": "4C", "paid": true, "role": "estudiante"}, {"name": "NITZIA DE NUÑEZ", "grade": "", "paid": true, "role": "estudiante"}, {"name": "David guevara", "grade": "6A", "paid": false, "role": "estudiante"}, {"name": "ELIASAR PRESTAN", "grade": "6A", "paid": true, "role": "estudiante"}, {"name": "SAYELI PRETEL", "grade": "6A", "paid": false, "role": "estudiante"}, {"name": "Javier Chacon", "grade": "6A", "paid": false, "role": "estudiante"}, {"name": "JHAMALI GONZALEZ", "grade": "6A", "paid": false, "role": "estudiante"}, {"name": "JOSÉ SANGUILLEN", "grade": "6A", "paid": true, "role": "estudiante"}, {"name": "Joseline Catro", "grade": "6A", "paid": true, "role": "estudiante"}, {"name": "JULINETT ALBORNO", "grade": "6A", "paid": true, "role": "estudiante"}, {"name": "Kenneth Barria", "grade": "6A", "paid": true, "role": "estudiante"}, {"name": "Quiriath herrera", "grade": "6A", "paid": false, "role": "estudiante"}, {"name": "RAAUL JIMENEZ", "grade": "6A", "paid": true, "role": "estudiante"}, {"name": "KEILYN ABREGO", "grade": "6A", "paid": false, "role": "estudiante"}, {"name": "Yonieth Vargas", "grade": "6A", "paid": true, "role": "estudiante"}, {"name": "ABDIEL HERNANDEZ", "grade": "6B", "paid": true, "role": "estudiante"}, {"name": "AXEL CHAVEZ", "grade": "6B", "paid": false, "role": "estudiante"}, {"name": "Diego De León", "grade": "6B", "paid": true, "role": "estudiante"}, {"name": "EZEQUIEL GRENALD", "grade": "6B", "paid": false, "role": "estudiante"}, {"name": "IKER QUIROZ", "grade": "6B", "paid": true, "role": "estudiante"}, {"name": "ISABELLA ALVARADO", "grade": "6B", "paid": true, "role": "estudiante"}, {"name": "ISAID BONILLA", "grade": "6B", "paid": true, "role": "estudiante"}, {"name": "KELLY MUÑOZ", "grade": "6B", "paid": true, "role": "estudiante"}, {"name": "MAIKELIS SORIANO", "grade": "6B", "paid": true, "role": "estudiante"}, {"name": "ANGEL CEDEÑO", "grade": "3 B", "paid": false, "role": "estudiante"}, {"name": "MELVIS MORERIRA", "grade": "", "paid": false, "role": "estudiante"}, {"name": "AGLEEN NEREIRA", "grade": "6A", "paid": false, "role": "estudiante"}, {"name": "JHOAN DELIZ", "grade": "6B", "paid": false, "role": "estudiante"}, {"name": "NOEMI VALDES", "grade": "6A", "paid": false, "role": "estudiante"}, {"name": "RICHARD GONEL", "grade": "5A", "paid": false, "role": "estudiante"}, {"name": "BRITANY GUEVARA", "grade": "5C", "paid": false, "role": "estudiante"}, {"name": "IRAM GUTIERREZ", "grade": "6B", "paid": false, "role": "estudiante"}, {"name": "Isaac Samaniego", "grade": "2A", "paid": false, "role": "estudiante"}, {"name": "Lorena Guevara", "grade": "2A", "paid": false, "role": "estudiante"}, {"name": "Aldair Lopez", "grade": "4A", "paid": false, "role": "estudiante"}, {"name": "Jorge Sanchez", "grade": "kc", "paid": false, "role": "estudiante"}, {"name": "Neila Santos", "grade": "", "paid": false, "role": "estudiante"}, {"name": "Yaibelis De La Espada", "grade": "4B", "paid": false, "role": "estudiante"}, {"name": "Lilibeth Pacheco", "grade": "", "paid": false, "role": "estudiante"}, {"name": "Madeline koo", "grade": "", "paid": false, "role": "estudiante"}, {"name": "Angelica Koo", "grade": "4B", "paid": false, "role": "estudiante"}, {"name": "GLORIELIS RUIZ", "grade": "", "paid": false, "role": "estudiante"}, {"name": "ZURIALIX", "grade": "", "paid": false, "role": "estudiante"}, {"name": "ELIANAY", "grade": "", "paid": false, "role": "estudiante"}, {"name": "ALANA LOBO", "grade": "", "paid": false, "role": "estudiante"}, {"name": "JOSEPH JARAMILLO", "grade": "", "paid": false, "role": "estudiante"}, {"name": "ZAID GUEVARA", "grade": "2 B", "paid": false, "role": "estudiante"}, {"name": "LAURA", "grade": "", "paid": false, "role": "estudiante"}, {"name": "THELMA GRENALD", "grade": "", "paid": false, "role": "estudiante"}, {"name": "Mtra YAZURI", "grade": "", "paid": false, "role": "adulto"}, {"name": "Mtra ALEJANDRINA", "grade": "", "paid": false, "role": "adulto"}, {"name": "Mtra VIODELKA", "grade": "", "paid": false, "role": "adulto"}], "Bus 5": [{"name": "Magdiel Guerra", "grade": "1A", "paid": false, "role": "estudiante"}, {"name": "ISI SERRANO", "grade": "", "paid": false, "role": "estudiante"}, {"name": "LIA CONCEPCIÓN", "grade": "4C", "paid": false, "role": "estudiante"}, {"name": "MIA CONCEPCION", "grade": "", "paid": false, "role": "estudiante"}, {"name": "BETZY VEGA", "grade": "", "paid": false, "role": "estudiante"}, {"name": "JESUANY SOLIS", "grade": "4A", "paid": false, "role": "estudiante"}, {"name": "THALIA RUTERFORD", "grade": "", "paid": false, "role": "estudiante"}, {"name": "CRISTIANY MARTINES", "grade": "2A", "paid": false, "role": "estudiante"}, {"name": "KATHERINE SERRANO", "grade": "", "paid": false, "role": "estudiante"}, {"name": "JOSE VALVERDE", "grade": "K", "paid": false, "role": "estudiante"}, {"name": "INDIRA SANCHEZ", "grade": "", "paid": false, "role": "estudiante"}, {"name": "EVELIN QUINTERO", "grade": "4C", "paid": false, "role": "estudiante"}, {"name": "QUIRINA", "grade": "", "paid": false, "role": "estudiante"}, {"name": "JOSUE DE GRACIA", "grade": "3C", "paid": false, "role": "estudiante"}, {"name": "ADRIAN HUMPHREYS", "grade": "2", "paid": false, "role": "estudiante"}, {"name": "MERLIA RODRIGUEZ", "grade": "1", "paid": false, "role": "estudiante"}, {"name": "EDIAM MURGAS", "grade": "3", "paid": false, "role": "estudiante"}, {"name": "ANTHONY ABAD", "grade": "4B", "paid": false, "role": "estudiante"}, {"name": "GENESIS", "grade": "", "paid": false, "role": "estudiante"}, {"name": "MARIANIS DE LA CRUZ", "grade": "3B", "paid": false, "role": "estudiante"}, {"name": "ALANA GONZALEZ", "grade": "3B", "paid": false, "role": "estudiante"}, {"name": "LEIDI ALVARADO", "grade": "", "paid": false, "role": "estudiante"}, {"name": "AARON PEREZ", "grade": "K", "paid": false, "role": "estudiante"}, {"name": "ILZA LOPEZ", "grade": "", "paid": false, "role": "estudiante"}, {"name": "YOHELIS MUÑOZ", "grade": "4B", "paid": false, "role": "estudiante"}, {"name": "MAYBELINE TREJOS", "grade": "2C", "paid": false, "role": "estudiante"}, {"name": "MANUEL TREJOS", "grade": "", "paid": false, "role": "estudiante"}, {"name": "VICKY BERNAL", "grade": "", "paid": false, "role": "estudiante"}, {"name": "MILVIA", "grade": "", "paid": false, "role": "estudiante"}, {"name": "LESBIA", "grade": "", "paid": false, "role": "estudiante"}, {"name": "Mtra Magali", "grade": "", "paid": false, "role": "adulto"}, {"name": "ZULMA MURGAS", "grade": "", "paid": false, "role": "estudiante"}]};
+
+let currentBus = Object.keys(ROSTER)[0];
+let currentFilter = 'all';
+let searchTerm = '';
+
+function normalize(s) {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function getPrices() {
+  const ps = parseFloat(document.getElementById('priceStudent').value) || 0;
+  const pa = parseFloat(document.getElementById('priceAdult').value) || 0;
+  return { estudiante: ps, adulto: pa };
+}
+
+function populateBusSelect() {
+  const sel = document.getElementById('newBus');
+  const prevVal = sel.value;
+  sel.innerHTML = '';
+  Object.keys(ROSTER).forEach(bus => {
+    const opt = document.createElement('option');
+    opt.value = bus;
+    opt.textContent = bus;
+    sel.appendChild(opt);
+  });
+  if (prevVal && ROSTER[prevVal]) sel.value = prevVal;
+  else sel.value = currentBus;
+}
+
+function updateStats() {
+  let total = 0, paid = 0, money = 0, studPaid = 0, adultPaid = 0;
+  const prices = getPrices();
+  Object.values(ROSTER).forEach(list => {
+    list.forEach(p => {
+      total++;
+      if (p.paid) {
+        paid++;
+        money += prices[p.role] || 0;
+        if (p.role === 'estudiante') studPaid++;
+        else adultPaid++;
+      }
+    });
+  });
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statPaid').textContent = paid;
+  document.getElementById('statUnpaid').textContent = total - paid;
+  document.getElementById('statStudPaid').textContent = studPaid;
+  document.getElementById('statAdultPaid').textContent = adultPaid;
+  document.getElementById('statMoney').textContent = '$' + money.toLocaleString(undefined, {maximumFractionDigits: 2});
+}
+
+function renderTabs() {
+  const tabsEl = document.getElementById('busTabs');
+  tabsEl.innerHTML = '';
+  Object.keys(ROSTER).forEach(bus => {
+    const list = ROSTER[bus];
+    const paidCount = list.filter(p => p.paid).length;
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (bus === currentBus ? ' active' : '');
+    btn.innerHTML = bus + ' <span class="count">' + paidCount + '/' + list.length + '</span>';
+    btn.onclick = () => { currentBus = bus; render(); };
+    tabsEl.appendChild(btn);
+  });
+}
+
+function togglePaid(bus, idx) {
+  ROSTER[bus][idx].paid = !ROSTER[bus][idx].paid;
+  render();
+}
+
+function toggleRole(bus, idx) {
+  ROSTER[bus][idx].role = ROSTER[bus][idx].role === 'estudiante' ? 'adulto' : 'estudiante';
+  render();
+}
+
+function deletePerson(bus, idx) {
+  ROSTER[bus].splice(idx, 1);
+  render();
+}
+
+function addPerson() {
+  const nameEl = document.getElementById('newName');
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+  const role = document.getElementById('newRole').value;
+  const bus = document.getElementById('newBus').value;
+  const paid = document.getElementById('newPaid').value === 'true';
+  ROSTER[bus].push({ name: name, grade: '', paid: paid, role: role });
+  nameEl.value = '';
+  currentBus = bus;
+  render();
+  nameEl.focus();
+}
+
+function renderList() {
+  const mainEl = document.getElementById('main');
+  mainEl.innerHTML = '';
+
+  const section = document.createElement('div');
+  section.className = 'bus-section active';
+
+  const heading = document.createElement('div');
+  heading.className = 'bus-heading';
+  heading.textContent = currentBus;
+  section.appendChild(heading);
+
+  const ul = document.createElement('ul');
+  ul.className = 'roster';
+
+  const list = ROSTER[currentBus];
+  let shown = 0;
+
+  list.forEach((p, idx) => {
+    if (currentFilter === 'paid' && !p.paid) return;
+    if (currentFilter === 'unpaid' && p.paid) return;
+    if (searchTerm && !normalize(p.name).includes(searchTerm)) return;
+
+    shown++;
+    const li = document.createElement('li');
+    li.className = 'person ' + (p.paid ? 'paid' : 'unpaid');
+
+    const who = document.createElement('div');
+    who.className = 'who';
+    const n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = p.name;
+    who.appendChild(n);
+    if (p.grade) {
+      const g = document.createElement('span');
+      g.className = 'g';
+      g.textContent = 'Grado ' + p.grade;
+      who.appendChild(g);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+
+    const roleBadge = document.createElement('span');
+    roleBadge.className = 'role-badge ' + p.role;
+    roleBadge.textContent = p.role === 'estudiante' ? 'Niño' : 'Adulto';
+    roleBadge.onclick = () => toggleRole(currentBus, idx);
+
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + (p.paid ? 'paid' : 'unpaid');
+    badge.textContent = p.paid ? 'Pagó' : 'No pagó';
+    badge.onclick = () => togglePaid(currentBus, idx);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del-btn';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Eliminar';
+    delBtn.onclick = () => deletePerson(currentBus, idx);
+
+    actions.appendChild(roleBadge);
+    actions.appendChild(badge);
+    actions.appendChild(delBtn);
+
+    li.appendChild(who);
+    li.appendChild(actions);
+    ul.appendChild(li);
+  });
+
+  section.appendChild(ul);
+
+  if (shown === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-msg';
+    empty.textContent = 'No hay resultados con este filtro.';
+    section.appendChild(empty);
+  }
+
+  mainEl.appendChild(section);
+}
+
+function render() {
+  populateBusSelect();
+  renderTabs();
+  renderList();
+  updateStats();
+}
+
+document.getElementById('search').addEventListener('input', (e) => {
+  searchTerm = normalize(e.target.value.trim());
+  render();
+});
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    render();
+  });
+});
+
+document.getElementById('priceStudent').addEventListener('input', updateStats);
+document.getElementById('priceAdult').addEventListener('input', updateStats);
+document.getElementById('addBtn').addEventListener('click', addPerson);
+document.getElementById('newName').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') addPerson();
+});
+
+render();
+</script>
+
+</body>
+</html>
