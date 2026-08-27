@@ -452,84 +452,119 @@ function addPerson() {
   nameEl.focus();
 }
 
+function buildPersonLi(bus, idx, p) {
+  const li = document.createElement('li');
+  li.className = 'person ' + (p.paid ? 'paid' : 'unpaid');
+
+  const who = document.createElement('div');
+  who.className = 'who';
+  const n = document.createElement('span');
+  n.className = 'n';
+  n.textContent = p.name;
+  who.appendChild(n);
+  const metaBits = [];
+  if (p.grade) metaBits.push('Grado ' + p.grade);
+  if (currentBus === 'ALL') metaBits.push(bus);
+  if (metaBits.length) {
+    const g = document.createElement('span');
+    g.className = 'g';
+    g.textContent = metaBits.join(' · ');
+    who.appendChild(g);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+
+  const roleBadge = document.createElement('span');
+  roleBadge.className = 'role-badge ' + p.role;
+  roleBadge.textContent = p.role === 'estudiante' ? 'Niño' : 'Adulto';
+  roleBadge.onclick = () => toggleRole(bus, idx);
+
+  const badge = document.createElement('span');
+  badge.className = 'badge ' + (p.paid ? 'paid' : 'unpaid');
+  badge.textContent = p.paid ? 'Pagó' : 'No pagó';
+  badge.onclick = () => togglePaid(bus, idx);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'del-btn';
+  delBtn.textContent = '✕';
+  delBtn.title = 'Eliminar';
+  delBtn.onclick = () => deletePerson(bus, idx);
+
+  actions.appendChild(roleBadge);
+  actions.appendChild(badge);
+  actions.appendChild(delBtn);
+
+  li.appendChild(who);
+  li.appendChild(actions);
+  return li;
+}
+
+function matchesFilters(p) {
+  if (currentFilter === 'paid' && !p.paid) return false;
+  if (currentFilter === 'unpaid' && p.paid) return false;
+  if (searchTerm && !normalize(p.name).includes(searchTerm)) return false;
+  return true;
+}
+
 function renderList() {
   const mainEl = document.getElementById('main');
   mainEl.innerHTML = '';
+  let totalShown = 0;
 
-  const section = document.createElement('div');
-  section.className = 'bus-section active';
+  if (currentBus === 'ALL') {
+    Object.keys(ROSTER).forEach(bus => {
+      const list = ROSTER[bus];
+      const filtered = [];
+      list.forEach((p, idx) => { if (matchesFilters(p)) filtered.push([p, idx]); });
+      if (filtered.length === 0) return;
 
-  const heading = document.createElement('div');
-  heading.className = 'bus-heading';
-  heading.textContent = currentBus;
-  section.appendChild(heading);
+      const section = document.createElement('div');
+      section.className = 'bus-section active';
 
-  const ul = document.createElement('ul');
-  ul.className = 'roster';
+      const heading = document.createElement('div');
+      heading.className = 'bus-heading';
+      heading.textContent = bus;
+      section.appendChild(heading);
 
-  const list = ROSTER[currentBus];
-  let shown = 0;
+      const ul = document.createElement('ul');
+      ul.className = 'roster';
+      filtered.forEach(([p, idx]) => {
+        totalShown++;
+        ul.appendChild(buildPersonLi(bus, idx, p));
+      });
+      section.appendChild(ul);
+      mainEl.appendChild(section);
+    });
+  } else {
+    const section = document.createElement('div');
+    section.className = 'bus-section active';
 
-  list.forEach((p, idx) => {
-    if (currentFilter === 'paid' && !p.paid) return;
-    if (currentFilter === 'unpaid' && p.paid) return;
-    if (searchTerm && !normalize(p.name).includes(searchTerm)) return;
+    const heading = document.createElement('div');
+    heading.className = 'bus-heading';
+    heading.textContent = currentBus;
+    section.appendChild(heading);
 
-    shown++;
-    const li = document.createElement('li');
-    li.className = 'person ' + (p.paid ? 'paid' : 'unpaid');
+    const ul = document.createElement('ul');
+    ul.className = 'roster';
 
-    const who = document.createElement('div');
-    who.className = 'who';
-    const n = document.createElement('span');
-    n.className = 'n';
-    n.textContent = p.name;
-    who.appendChild(n);
-    if (p.grade) {
-      const g = document.createElement('span');
-      g.className = 'g';
-      g.textContent = 'Grado ' + p.grade;
-      who.appendChild(g);
-    }
+    const list = ROSTER[currentBus];
+    list.forEach((p, idx) => {
+      if (!matchesFilters(p)) return;
+      totalShown++;
+      ul.appendChild(buildPersonLi(currentBus, idx, p));
+    });
 
-    const actions = document.createElement('div');
-    actions.className = 'actions';
+    section.appendChild(ul);
+    mainEl.appendChild(section);
+  }
 
-    const roleBadge = document.createElement('span');
-    roleBadge.className = 'role-badge ' + p.role;
-    roleBadge.textContent = p.role === 'estudiante' ? 'Niño' : 'Adulto';
-    roleBadge.onclick = () => toggleRole(currentBus, idx);
-
-    const badge = document.createElement('span');
-    badge.className = 'badge ' + (p.paid ? 'paid' : 'unpaid');
-    badge.textContent = p.paid ? 'Pagó' : 'No pagó';
-    badge.onclick = () => togglePaid(currentBus, idx);
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'del-btn';
-    delBtn.textContent = '✕';
-    delBtn.title = 'Eliminar';
-    delBtn.onclick = () => deletePerson(currentBus, idx);
-
-    actions.appendChild(roleBadge);
-    actions.appendChild(badge);
-    actions.appendChild(delBtn);
-
-    li.appendChild(who);
-    li.appendChild(actions);
-    ul.appendChild(li);
-  });
-
-  section.appendChild(ul);
-
-  if (shown === 0) {
+  if (totalShown === 0) {
     const empty = document.createElement('div');
     empty.className = 'empty-msg';
     empty.textContent = 'No hay resultados con este filtro.';
-    section.appendChild(empty);
+    mainEl.appendChild(empty);
   }
-
-  mainEl.appendChild(section);
 }
 
 function render() {
