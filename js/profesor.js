@@ -311,6 +311,13 @@ let temasCasillasBD = {};
 // deshabilitados (no se pueden editar ni borrar por accidente) y su
 // botón de basura 🗑️ se oculta.
 let casillasBloqueadas = new Set();
+// Casillas que el docente marcó como "ocultas para el estudiante" (👁️‍🗨️):
+// el estudiante NO ve esa nota al hacer su consulta (le sale la casilla en
+// blanco), aunque el docente sí la vea y pueda seguir editándola con
+// normalidad. Útil, por ejemplo, para meter la nota del examen antes de
+// entregar los resultados oficialmente. Se guarda en
+// temas_casillas.oculta_estudiante, igual que el candado.
+let casillasOcultasEstudiante = new Set();
 // Se pone en true justo antes de llamar a renderTabla() SOLO cuando el
 // docente presionó el botón "➕" de agregar columna. renderTabla() la usa
 // una única vez (y la vuelve a poner en false) para decidir si debe crear
@@ -447,6 +454,47 @@ async function alternarBloqueoCasilla(tipo, numero) {
     estadoGuardadoNotas.textContent = nuevoValor
         ? `🔒 ${etiquetaCasilla(tipo, numero)} bloqueada. Ya no se puede editar ni borrar.`
         : `🔓 ${etiquetaCasilla(tipo, numero)} desbloqueada.`;
+    estadoGuardadoNotas.className = "small text-success";
+    renderTabla();
+}
+
+// Oculta o muestra una casilla en la consulta del estudiante (👁️‍🗨️/👁️).
+// El docente sigue viendo y editando la nota con normalidad en este panel;
+// lo único que cambia es que, mientras está oculta, esa casilla le sale en
+// blanco al estudiante cuando consulta sus notas. Se guarda en
+// temas_casillas.oculta_estudiante, igual que el candado y el tema.
+async function alternarOcultarEstudianteCasilla(tipo, numero) {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const clave = claveCasilla(tipo, numero);
+    const nuevoValor = !casillasOcultasEstudiante.has(clave);
+
+    const { error } = await supabase
+        .from("temas_casillas")
+        .upsert(
+            {
+                salon, materia, trimestre, tipo, numero,
+                tema: temasCasillasBD[clave] || null,
+                bloqueada: casillasBloqueadas.has(clave),
+                oculta_estudiante: nuevoValor,
+                updated_at: new Date().toISOString(),
+            },
+            { onConflict: "salon,materia,trimestre,tipo,numero" }
+        );
+
+    if (error) {
+        console.error("❌ Error al cambiar la visibilidad para el estudiante:", error);
+        estadoGuardadoNotas.textContent = `⚠️ No se pudo ${nuevoValor ? "ocultar" : "mostrar"} ${etiquetaCasilla(tipo, numero)} para el estudiante.`;
+        estadoGuardadoNotas.className = "small text-danger";
+        return;
+    }
+
+    if (nuevoValor) casillasOcultasEstudiante.add(clave); else casillasOcultasEstudiante.delete(clave);
+
+    estadoGuardadoNotas.textContent = nuevoValor
+        ? `👁️‍🗨️ ${etiquetaCasilla(tipo, numero)} oculta para el estudiante (le sale en blanco al consultar).`
+        : `👁️ ${etiquetaCasilla(tipo, numero)} visible de nuevo para el estudiante.`;
     estadoGuardadoNotas.className = "small text-success";
     renderTabla();
 }
@@ -1167,10 +1215,12 @@ function renderTabla() {
         }
         const sel = claveCasilla(c.tipo, c.numero) === claveSel;
         const bloqueada = casillasBloqueadas.has(claveCasilla(c.tipo, c.numero));
+        const ocultaEst = casillasOcultasEstudiante.has(claveCasilla(c.tipo, c.numero));
         htmlCabecera += `
             <th class="text-center small ${bloqueada ? "text-muted" : (sel ? "table-primary text-primary" : "text-muted")}" style="width:90px;">
-                <div>${bloqueada ? "🔒 " : ""}${etiquetaCasilla(c.tipo, c.numero)}</div>
+                <div>${bloqueada ? "🔒 " : ""}${ocultaEst ? "👁️‍🗨️ " : ""}${etiquetaCasilla(c.tipo, c.numero)}</div>
                 <button type="button" class="btn btn-link btn-sm p-0 ${bloqueada ? "text-secondary" : "text-muted"} btn-bloquear-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="${bloqueada ? "Quitar candado (permitir editar de nuevo)" : "Poner candado (ya no la voy a modificar)"}">${bloqueada ? "🔓" : "🔒"}</button>
+                <button type="button" class="btn btn-link btn-sm p-0 ${ocultaEst ? "text-warning" : "text-muted"} btn-ocultar-estudiante-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="${ocultaEst ? "Mostrar esta nota al estudiante" : "Ocultar esta nota al estudiante (le sale en blanco al consultar)"}">${ocultaEst ? "👁️‍🗨️" : "👁️"}</button>
                 ${bloqueada ? "" : `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-columna" data-tipo="${c.tipo}" data-numero="${c.numero}" title="Eliminar esta columna">🗑️</button>`}
             </th>`;
     });
@@ -1269,6 +1319,10 @@ function renderTabla() {
 
     cabeceraNotasGrupo.querySelectorAll(".btn-bloquear-columna").forEach((btn) => {
         btn.addEventListener("click", () => alternarBloqueoCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10)));
+    });
+
+    cabeceraNotasGrupo.querySelectorAll(".btn-ocultar-estudiante-columna").forEach((btn) => {
+        btn.addEventListener("click", () => alternarOcultarEstudianteCasilla(btn.dataset.tipo, parseInt(btn.dataset.numero, 10)));
     });
 
     tablaNotasGrupo.querySelectorAll("[data-detalle-categoria]").forEach((td) => {
@@ -1532,7 +1586,8 @@ async function cargarSalon() {
 
     temasCasillasBD = {};
     casillasBloqueadas = new Set();
-    const { data: temas } = await supabase.from("temas_casillas").select("tipo, numero, tema, bloqueada")
+    casillasOcultasEstudiante = new Set();
+    const { data: temas } = await supabase.from("temas_casillas").select("tipo, numero, tema, bloqueada, oculta_estudiante")
         .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre)
         .is("eliminado_en", null);
     (temas || []).forEach((t) => {
@@ -1540,6 +1595,7 @@ async function cargarSalon() {
         temasCasillasBD[clave] = t.tema || "";
         if (t.tema) casillasEncontradas.add(clave);
         if (t.bloqueada) casillasBloqueadas.add(clave);
+        if (t.oculta_estudiante) casillasOcultasEstudiante.add(clave);
     });
 
     // ¿La casilla que estaba seleccionada (numero) ya tenía notas guardadas
