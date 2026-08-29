@@ -218,7 +218,7 @@ async function buscar() {
     }
 
     estudianteActual = estudiante;
-    notasCrudas = notas || [];
+    notasCrudas = await quitarNotasOcultasParaEstudiante(notas || [], estudiante.salon);
     cedulaConsultada = cedula;
 
     nombreEstudianteEl.textContent = estudiante.nombre || "Estudiante";
@@ -266,6 +266,42 @@ async function buscar() {
     resultado.style.display = "block";
     leyendasPorMateria = await obtenerTodasLasLeyendas();
     render();
+}
+
+// =====================================================
+// QUITAR NOTAS QUE EL DOCENTE OCULTÓ PARA EL ESTUDIANTE
+// =====================================================
+
+// El docente puede marcar una casilla (por ejemplo, "Examen 1") como
+// "oculta para el estudiante" (👁️ en su panel) mientras todavía no quiere
+// que se vea en la consulta, aunque ya haya metido la nota. Esa marca
+// vive en temas_casillas.oculta_estudiante. Aquí se consultan las casillas
+// ocultas del salón del estudiante y se descartan esas notas antes de
+// armar la tabla, así esa casilla le sale en blanco al consultar.
+async function quitarNotasOcultasParaEstudiante(notas, salon) {
+    if (!notas.length || !salon) return notas;
+
+    const { data: ocultas, error } = await supabase
+        .from("temas_casillas")
+        .select("materia, trimestre, tipo, numero")
+        .eq("salon", salon)
+        .eq("oculta_estudiante", true)
+        .is("eliminado_en", null);
+
+    if (error) {
+        console.warn("⚠️ No se pudieron consultar las casillas ocultas:", error);
+        return notas;
+    }
+    if (!ocultas || ocultas.length === 0) return notas;
+
+    const clavesOcultas = new Set(
+        ocultas.map((o) => `${o.materia}|${o.trimestre}|${(o.tipo || "").toLowerCase()}|${o.numero}`)
+    );
+
+    return notas.filter((n) => {
+        const clave = `${n.materia}|${n.trimestre}|${(n.tipo || "").toLowerCase()}|${n.numero}`;
+        return !clavesOcultas.has(clave);
+    });
 }
 
 // =====================================================
