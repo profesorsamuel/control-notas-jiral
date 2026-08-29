@@ -226,6 +226,13 @@ async function estudiantesSinExamen(materia, trimestre, salon) {
     const sinExamen = estudiantes.filter((e) => !conExamen.has(e.id));
     if (sinExamen.length === 0) return [];
 
+    // Si NADIE en este salón tiene todavía una nota de Examen, es que el
+    // docente sencillamente no ha empezado a calificarlo aquí (salón que
+    // todavía no le toca, examen no aplicado, etc.) — no marcar a todo
+    // el salón como "sin examen", solo mostrar los que de verdad ya
+    // deberían tenerlo y les falta.
+    if (conExamen.size === 0) return [];
+
     // Teléfono/nombre del acudiente, para el botón de WhatsApp.
     const correosSinExamen = sinExamen.map((e) => e.correo).filter(Boolean);
     if (correosSinExamen.length > 0) {
