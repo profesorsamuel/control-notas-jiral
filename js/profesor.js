@@ -166,6 +166,7 @@ const btnGuardarNotasGrupo = document.getElementById("btnGuardarNotasGrupo");
 const estadoGuardadoNotas = document.getElementById("estadoGuardadoNotas");
 const avisoSinAsignaciones = document.getElementById("avisoSinAsignaciones");
 const listaChecksColumnas = document.getElementById("listaChecksColumnas");
+const bloqueAgregarPrimeraColumna = document.getElementById("bloqueAgregarPrimeraColumna");
 const btnColumnasSeleccionarTodas = document.getElementById("btnColumnasSeleccionarTodas");
 const btnColumnasSeleccionarNinguna = document.getElementById("btnColumnasSeleccionarNinguna");
 const btnOcultarColumnasCompletas = document.getElementById("btnOcultarColumnasCompletas");
@@ -902,6 +903,45 @@ function renderizarListaChecksColumnas() {
             const clave = chk.dataset.clave;
             if (chk.checked) columnasOcultas.delete(clave);
             else columnasOcultas.add(clave);
+            renderTabla();
+        });
+    });
+
+    renderizarBotonesPrimeraColumna();
+}
+
+// Cuando un Tipo (Ejercicio o Examen) todavía no tiene NINGUNA columna en
+// este salón/materia/trimestre, el botón "➕" normal no aparece en ningún
+// lado (ese botón vive pegado a la última columna existente de cada Tipo).
+// Este bloque cubre ese caso: muestra un botón para crear la primera
+// columna de cada Tipo que esté vacío. Apreciación no lo necesita porque
+// su primera columna se crea sola. En cuanto el Tipo ya tiene su primera
+// columna, este botón desaparece y desde ahí se sigue con el "➕" normal.
+function renderizarBotonesPrimeraColumna() {
+    if (!bloqueAgregarPrimeraColumna) return;
+
+    const tiposFaltantes = ["ejercicio", "examen"].filter(
+        (tipo) => !casillasTabla.some((c) => c.tipo === tipo)
+    );
+
+    if (tiposFaltantes.length === 0) {
+        bloqueAgregarPrimeraColumna.style.display = "none";
+        bloqueAgregarPrimeraColumna.innerHTML = "";
+        return;
+    }
+
+    bloqueAgregarPrimeraColumna.style.display = "flex";
+    bloqueAgregarPrimeraColumna.innerHTML = tiposFaltantes.map((tipo) => `
+        <button type="button" class="btn btn-sm btn-outline-success btn-agregar-primera-columna" data-tipo="${tipo}">
+            ➕ Agregar columna de ${escapeHtml(ETIQUETAS_TIPO[tipo] || tipo)}
+        </button>`).join("");
+
+    bloqueAgregarPrimeraColumna.querySelectorAll(".btn-agregar-primera-columna").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const tipo = btn.dataset.tipo;
+            selectTipoNota.value = tipo;
+            inputNumeroNota.value = obtenerUltimoNumeroTipo(tipo) + 1;
+            agregarColumnaVaciaSolicitada = true;
             renderTabla();
         });
     });
