@@ -200,6 +200,130 @@
     .btn-leer{ padding: 9px 12px; }
   }
 
+  /* ===================== BOTÓN "VER EN IMÁGENES" ===================== */
+  .btn-galeria{
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--negro);
+    color: var(--blanco);
+    border: none;
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    padding: 9px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .btn-galeria:hover{ background: #333; }
+  .btn-galeria:active{ transform: scale(.97); }
+
+  /* ===================== VISOR DE IMÁGENES (GALERÍA FULLSCREEN) ===================== */
+  #galeriaOverlay{
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 2000;
+    display: none;
+    flex-direction: column;
+    touch-action: none;
+  }
+  #galeriaOverlay.visible{ display: flex; }
+
+  .galeria-barra{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(0,0,0,.75);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #fff;
+    font-size: 13px;
+    z-index: 2;
+    flex-shrink: 0;
+  }
+  .galeria-barra .contador{
+    font-weight: 700;
+    letter-spacing: .5px;
+  }
+  .galeria-barra .acciones{
+    display: flex;
+    gap: 8px;
+  }
+  .galeria-barra button{
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .galeria-barra button:hover{ background: rgba(255,255,255,.25); }
+  .galeria-barra button.cerrar{ background: var(--rojo); }
+  .galeria-barra button.cerrar:hover{ background: #b8040f; }
+
+  .galeria-lienzo{
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .galeria-lienzo img{
+    max-width: 100%;
+    max-height: 100%;
+    user-select: none;
+    -webkit-user-drag: none;
+    transform-origin: center center;
+    will-change: transform;
+    cursor: grab;
+  }
+  .galeria-lienzo img.arrastrando{ cursor: grabbing; }
+
+  .galeria-nav{
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,.4);
+    color: #fff;
+    border: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    font-size: 22px;
+    cursor: pointer;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .galeria-nav:hover{ background: rgba(0,0,0,.65); }
+  .galeria-nav.prev{ left: 14px; }
+  .galeria-nav.next{ right: 14px; }
+
+  .galeria-ayuda{
+    text-align: center;
+    color: rgba(255,255,255,.55);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 12px;
+    padding: 8px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 600px){
+    .galeria-nav{ width: 40px; height: 40px; font-size: 18px; }
+    .galeria-nav.prev{ left: 6px; }
+    .galeria-nav.next{ right: 6px; }
+  }
+
   /* Cada "parte" dentro de una clase */
   .parte-bloque{
     max-width: 880px;
@@ -4754,6 +4878,9 @@
         <button type="button" class="btn-leer" onclick="leerClase(this)">
           <span class="icono-leer">🔊</span> <span class="texto-leer">Escuchar esta clase</span>
         </button>
+        <button type="button" class="btn-galeria" onclick="abrirGaleria()">
+          <span>🖼️</span> Ver clase en imágenes
+        </button>
       </div>
       
       <section class="parte-bloque">
@@ -6590,6 +6717,23 @@
     </div>
 </div>
 
+<div id="galeriaOverlay">
+  <div class="galeria-barra">
+    <span class="contador" id="galeriaContador">1 / 19</span>
+    <div class="acciones">
+      <button type="button" onclick="galeriaResetZoom()" title="Restablecer zoom">⟲</button>
+      <button type="button" onclick="galeriaPantallaCompleta()" title="Pantalla completa">⛶</button>
+      <button type="button" class="cerrar" onclick="cerrarGaleria()" title="Cerrar">✕</button>
+    </div>
+  </div>
+  <div class="galeria-lienzo" id="galeriaLienzo">
+    <button type="button" class="galeria-nav prev" onclick="galeriaAnterior()">‹</button>
+    <img id="galeriaImg" src="" alt="Diapositiva de la clase">
+    <button type="button" class="galeria-nav next" onclick="galeriaSiguiente()">›</button>
+  </div>
+  <div class="galeria-ayuda">Pellizca para hacer zoom (celular) · rueda del mouse o doble clic para zoom (PC) · flechas del teclado para cambiar de diapositiva</div>
+</div>
+
 <div class="barra-lectura" id="barraLectura">
   <span class="estado-lectura" id="estadoLectura">Leyendo…</span>
   <button type="button" id="btnPausarReanudar" onclick="pausarOReanudar()" title="Pausar / Reanudar">⏸</button>
@@ -6794,6 +6938,196 @@
   if ('speechSynthesis' in window) {
     window.speechSynthesis.getVoices();
   }
+
+  /* ===================== GALERÍA DE IMÁGENES (CLASE 1) ===================== */
+  var GALERIA_TOTAL = 19;
+  var GALERIA_CARPETA = 'img/clase1/';
+  var galeriaIndice = 0;
+  var galeriaEscala = 1;
+  var galeriaTX = 0, galeriaTY = 0;
+  var galeriaArrastrando = false;
+  var galeriaInicioX = 0, galeriaInicioY = 0;
+  var galeriaPinchDist = null;
+  var galeriaEscalaInicial = 1;
+
+  function rutaImagen(i){
+    var num = String(i + 1).padStart(2, '0');
+    return GALERIA_CARPETA + num + '.jpg';
+  }
+
+  function abrirGaleria(){
+    galeriaIndice = 0;
+    document.getElementById('galeriaOverlay').classList.add('visible');
+    document.body.style.overflow = 'hidden';
+    galeriaMostrar();
+  }
+
+  function cerrarGaleria(){
+    document.getElementById('galeriaOverlay').classList.remove('visible');
+    document.body.style.overflow = '';
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(function(){});
+    }
+  }
+
+  function galeriaMostrar(){
+    var img = document.getElementById('galeriaImg');
+    img.src = rutaImagen(galeriaIndice);
+    document.getElementById('galeriaContador').textContent = (galeriaIndice + 1) + ' / ' + GALERIA_TOTAL;
+    galeriaResetZoom();
+  }
+
+  function galeriaSiguiente(){
+    if (galeriaIndice < GALERIA_TOTAL - 1) {
+      galeriaIndice++;
+      galeriaMostrar();
+    }
+  }
+
+  function galeriaAnterior(){
+    if (galeriaIndice > 0) {
+      galeriaIndice--;
+      galeriaMostrar();
+    }
+  }
+
+  function galeriaResetZoom(){
+    galeriaEscala = 1;
+    galeriaTX = 0;
+    galeriaTY = 0;
+    galeriaAplicarTransform();
+  }
+
+  function galeriaAplicarTransform(){
+    var img = document.getElementById('galeriaImg');
+    img.style.transform = 'translate(' + galeriaTX + 'px,' + galeriaTY + 'px) scale(' + galeriaEscala + ')';
+  }
+
+  function galeriaPantallaCompleta(){
+    var overlay = document.getElementById('galeriaOverlay');
+    if (!document.fullscreenElement) {
+      (overlay.requestFullscreen || overlay.webkitRequestFullscreen || function(){}).call(overlay);
+    } else {
+      document.exitFullscreen().catch(function(){});
+    }
+  }
+
+  // ---- Zoom con rueda del mouse (PC) ----
+  document.addEventListener('wheel', function(e){
+    var overlay = document.getElementById('galeriaOverlay');
+    if (!overlay.classList.contains('visible')) return;
+    if (!e.target.closest('.galeria-lienzo')) return;
+    e.preventDefault();
+    var factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    galeriaEscala = Math.min(6, Math.max(1, galeriaEscala * factor));
+    if (galeriaEscala === 1) { galeriaTX = 0; galeriaTY = 0; }
+    galeriaAplicarTransform();
+  }, { passive: false });
+
+  // ---- Doble clic para alternar zoom (PC) ----
+  document.addEventListener('dblclick', function(e){
+    var overlay = document.getElementById('galeriaOverlay');
+    if (!overlay.classList.contains('visible')) return;
+    if (!e.target.closest('.galeria-lienzo')) return;
+    if (galeriaEscala > 1) {
+      galeriaResetZoom();
+    } else {
+      galeriaEscala = 2.5;
+      galeriaAplicarTransform();
+    }
+  });
+
+  // ---- Arrastrar con mouse cuando hay zoom (PC) ----
+  document.addEventListener('mousedown', function(e){
+    if (galeriaEscala <= 1) return;
+    var img = document.getElementById('galeriaImg');
+    if (e.target !== img) return;
+    galeriaArrastrando = true;
+    img.classList.add('arrastrando');
+    galeriaInicioX = e.clientX - galeriaTX;
+    galeriaInicioY = e.clientY - galeriaTY;
+  });
+  document.addEventListener('mousemove', function(e){
+    if (!galeriaArrastrando) return;
+    galeriaTX = e.clientX - galeriaInicioX;
+    galeriaTY = e.clientY - galeriaInicioY;
+    galeriaAplicarTransform();
+  });
+  document.addEventListener('mouseup', function(){
+    galeriaArrastrando = false;
+    document.getElementById('galeriaImg').classList.remove('arrastrando');
+  });
+
+  // ---- Pellizco (pinch) y arrastre táctil (celular/tablet) ----
+  var lienzoEl = document.getElementById('galeriaLienzo');
+
+  function distanciaToques(touches){
+    var dx = touches[0].clientX - touches[1].clientX;
+    var dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  lienzoEl.addEventListener('touchstart', function(e){
+    if (e.touches.length === 2) {
+      galeriaPinchDist = distanciaToques(e.touches);
+      galeriaEscalaInicial = galeriaEscala;
+    } else if (e.touches.length === 1 && galeriaEscala > 1) {
+      galeriaArrastrando = true;
+      galeriaInicioX = e.touches[0].clientX - galeriaTX;
+      galeriaInicioY = e.touches[0].clientY - galeriaTY;
+    }
+  }, { passive: true });
+
+  lienzoEl.addEventListener('touchmove', function(e){
+    if (e.touches.length === 2 && galeriaPinchDist) {
+      e.preventDefault();
+      var nuevaDist = distanciaToques(e.touches);
+      var factor = nuevaDist / galeriaPinchDist;
+      galeriaEscala = Math.min(6, Math.max(1, galeriaEscalaInicial * factor));
+      if (galeriaEscala === 1) { galeriaTX = 0; galeriaTY = 0; }
+      galeriaAplicarTransform();
+    } else if (e.touches.length === 1 && galeriaArrastrando) {
+      e.preventDefault();
+      galeriaTX = e.touches[0].clientX - galeriaInicioX;
+      galeriaTY = e.touches[0].clientY - galeriaInicioY;
+      galeriaAplicarTransform();
+    }
+  }, { passive: false });
+
+  var galeriaToqueInicioX = 0;
+  lienzoEl.addEventListener('touchstart', function(e){
+    if (e.touches.length === 1) galeriaToqueInicioX = e.touches[0].clientX;
+  }, { passive: true });
+
+  lienzoEl.addEventListener('touchend', function(e){
+    galeriaPinchDist = null;
+    galeriaArrastrando = false;
+    // Deslizar para cambiar de diapositiva solo si no hay zoom aplicado
+    if (galeriaEscala <= 1 && e.changedTouches && e.changedTouches.length === 1) {
+      var deltaX = e.changedTouches[0].clientX - galeriaToqueInicioX;
+      if (Math.abs(deltaX) > 60) {
+        if (deltaX < 0) galeriaSiguiente(); else galeriaAnterior();
+      }
+    }
+  });
+
+  // ---- Teclado ----
+  document.addEventListener('keydown', function(e){
+    var overlay = document.getElementById('galeriaOverlay');
+    if (!overlay.classList.contains('visible')) return;
+    if (e.key === 'ArrowRight') galeriaSiguiente();
+    else if (e.key === 'ArrowLeft') galeriaAnterior();
+    else if (e.key === 'Escape') cerrarGaleria();
+    else if (e.key === '+') { galeriaEscala = Math.min(6, galeriaEscala * 1.2); galeriaAplicarTransform(); }
+    else if (e.key === '-') { galeriaEscala = Math.max(1, galeriaEscala / 1.2); galeriaAplicarTransform(); }
+  });
+
+  window.abrirGaleria = abrirGaleria;
+  window.cerrarGaleria = cerrarGaleria;
+  window.galeriaSiguiente = galeriaSiguiente;
+  window.galeriaAnterior = galeriaAnterior;
+  window.galeriaResetZoom = galeriaResetZoom;
+  window.galeriaPantallaCompleta = galeriaPantallaCompleta;
 </script>
 
 </body>
