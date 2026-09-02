@@ -4878,7 +4878,7 @@
         <button type="button" class="btn-leer" onclick="leerClase(this)">
           <span class="icono-leer">🔊</span> <span class="texto-leer">Escuchar esta clase</span>
         </button>
-        <button type="button" class="btn-galeria" onclick="abrirGaleria()">
+        <button type="button" class="btn-galeria" onclick="abrirGaleria('img-clase1/img/clase1/', 19)">
           <span>🖼️</span> Ver clase en imágenes
         </button>
       </div>
@@ -5392,6 +5392,9 @@
         <div class="panel-fecha">28 de septiembre al 8 de octubre</div>
         <button type="button" class="btn-leer" onclick="leerClase(this)">
           <span class="icono-leer">🔊</span> <span class="texto-leer">Escuchar esta clase</span>
+        </button>
+        <button type="button" class="btn-galeria" onclick="abrirGaleria('img-clase2/img/clase2/', 18)">
+          <span>🖼️</span> Ver clase en imágenes
         </button>
       </div>
       
@@ -6939,7 +6942,7 @@
     window.speechSynthesis.getVoices();
   }
 
-  /* ===================== GALERÍA DE IMÁGENES (CLASE 1) ===================== */
+  /* ===================== GALERÍA DE IMÁGENES (por clase) ===================== */
   var GALERIA_TOTAL = 19;
   var GALERIA_CARPETA = 'img-clase1/img/clase1/';
   var galeriaIndice = 0;
@@ -6955,7 +6958,9 @@
     return GALERIA_CARPETA + num + '.jpg';
   }
 
-  function abrirGaleria(){
+  function abrirGaleria(carpeta, total){
+    if (carpeta) { GALERIA_CARPETA = carpeta; }
+    if (total) { GALERIA_TOTAL = total; }
     galeriaIndice = 0;
     document.getElementById('galeriaOverlay').classList.add('visible');
     document.body.style.overflow = 'hidden';
