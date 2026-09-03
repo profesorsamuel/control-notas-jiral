@@ -239,7 +239,10 @@ async function cargarListaClases(materia, grado) {
   ]);
 
   const contarLecciones = (claseId) => (leccionesData || []).filter(l => l.clase_id === claseId).length;
-  const contarTareas = (c) => (tareasData || []).filter(t => (t.clase_id != null ? t.clase_id === c.id : t.clase_numero === c.numero)).length;
+  // Igual que en cargarTareas(): solo por clase_id, sin "plan B" por
+  // número — si no, las tareas huérfanas (de una clase ya borrada)
+  // se cuentan de más en la tarjeta que reutilice ese mismo número.
+  const contarTareas = (c) => (tareasData || []).filter(t => t.clase_id === c.id).length;
 
   const accent = ACCENTOS[materia] || 'var(--ciencias)';
 
@@ -877,3 +880,42 @@ btnVolverClase.addEventListener('click', () => {
 });
 
 cargarConteos();
+
+// ---------- Enlaces directos por URL ----------
+// Para compartir un link que abra directo en un salón (y opcionalmente
+// una clase específica), sin que el estudiante tenga que elegir materia
+// y salón a mano cada vez:
+//   ...portal-clase.html?grado=9A                 -> abre el salón 9A
+//   ...portal-clase.html?grado=9A&clase=2          -> abre directo la Clase 2 de 9A
+//   ...portal-clase.html?materia=Informática&grado=8A&clase=1
+// "materia" es opcional: si el grado solo existe en una materia (como
+// pasa con 9A/9B/9C, que solo son de Ciencias Naturales), se infiere
+// solo con el grado.
+async function abrirDesdeURL() {
+  const params = new URLSearchParams(window.location.search);
+  const gradoParam = params.get('grado');
+  if (!gradoParam) return;
+
+  let materiaParam = params.get('materia');
+  if (!materiaParam) {
+    const tarjetasDelGrado = Array.from(document.querySelectorAll(`.folder-card[data-grado="${gradoParam}"]`));
+    materiaParam = tarjetasDelGrado.length === 1 ? tarjetasDelGrado[0].dataset.materia : 'Ciencias Naturales';
+  }
+
+  await abrirClase(materiaParam, gradoParam);
+
+  const claseParam = params.get('clase');
+  if (!claseParam) return;
+
+  const numero = parseInt(claseParam, 10);
+  if (Number.isNaN(numero)) return;
+
+  const { data: clase, error } = await sb
+    .from('clases').select('*')
+    .eq('materia', materiaParam).eq('grado', gradoParam).eq('numero', numero).eq('es_examen_final', false)
+    .maybeSingle();
+
+  if (!error && clase) await abrirDetalleClase(materiaParam, gradoParam, clase);
+}
+
+abrirDesdeURL();
