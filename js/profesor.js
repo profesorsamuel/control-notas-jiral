@@ -178,6 +178,7 @@ const btnEstudiantesSeleccionarNinguno = document.getElementById("btnEstudiantes
 const btnExportarPdf = document.getElementById("btnExportarPdf");
 const btnExportarJpg = document.getElementById("btnExportarJpg");
 const btnExportarNotaMinima = document.getElementById("btnExportarNotaMinima");
+const btnExportarFinalPdf = document.getElementById("btnExportarFinalPdf");
 
 // ---------------------------------------------------------------
 // "Chips" (botoncitos con gancho) para elegir Salón / Materia en vez
@@ -2670,6 +2671,217 @@ async function generarCanvasReporte() {
         contenedor.remove();
     }
 }
+
+// =========================================================
+// EXPORTAR "SOLO PROM. FINAL" (PDF) — versión resumida pensada
+// para compartir con otros profesores: nada más el nombre del
+// estudiante y su nota final, con membrete de materia, salón/grado,
+// profesor(a) y fecha de descarga (sin el detalle de cada casilla).
+// =========================================================
+
+// Construye una tabla mínima (#, Estudiante, Prom. Final) usando la
+// misma lógica de cálculo que construirTablaReporteCompleta, para que
+// el número mostrado sea siempre idéntico al de la tabla completa.
+function construirTablaSoloPromFinal() {
+    const tabla = document.createElement("table");
+
+    const estiloThCabecera = `background:${REPORTE_COLOR_OSCURO}; color:#fff; padding:10px 8px; font-size:13px; font-weight:600; letter-spacing:.2px;`;
+
+    const thead = document.createElement("thead");
+    const trCabecera = document.createElement("tr");
+    trCabecera.innerHTML = `
+        <th style="${estiloThCabecera} width:44px;">#</th>
+        <th style="${estiloThCabecera} text-align:left; min-width:260px;">Estudiante</th>
+        <th style="${estiloThCabecera} background:#22c55e; width:140px;">Prom. Final</th>`;
+    thead.appendChild(trCabecera);
+    tabla.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    grupoActual.forEach((est, i) => {
+        const sinCuenta = !est.correo;
+        const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
+        const apr = [], eje = [], exa = [];
+
+        casillasTabla.forEach((c) => {
+            const n = historial[claveCasilla(c.tipo, c.numero)];
+            const crudo = (n && n.nota !== null && n.nota !== undefined) ? n.nota : "";
+            if (crudo === "") return;
+            const valorNum = parseFloat(formatearNotaFinal(String(crudo)));
+            if (Number.isNaN(valorNum)) return;
+            if (c.tipo === "apreciacion") apr.push(valorNum);
+            else if (c.tipo === "examen") exa.push(valorNum);
+            else eje.push(valorNum);
+        });
+
+        const promApr = apr.length ? apr.reduce((a, b) => a + b, 0) / apr.length : null;
+        const promEje = eje.length ? eje.reduce((a, b) => a + b, 0) / eje.length : null;
+        const promExa = exa.length ? exa.reduce((a, b) => a + b, 0) / exa.length : null;
+        const presentes = [promApr, promEje, promExa].filter((v) => v !== null);
+        const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
+
+        const fondoFila = sinCuenta ? "#fef9e7" : (i % 2 === 0 ? "#ffffff" : "#fafaff");
+        const tr = document.createElement("tr");
+        tr.style.backgroundColor = fondoFila;
+
+        const tdNum = document.createElement("td");
+        tdNum.style.cssText = "text-align:center; padding:8px 6px; color:#6b7280; font-size:12.5px;";
+        tdNum.textContent = String(i + 1);
+        tr.appendChild(tdNum);
+
+        const tdNombre = document.createElement("td");
+        tdNombre.style.cssText = "text-align:left; padding:8px 12px; font-weight:500; font-size:13.5px; white-space:normal; word-break:break-word;";
+        const spanNombre = document.createElement("span");
+        spanNombre.style.cssText = "display:inline-block;";
+        if (est.nombre && est.nombre.trim()) {
+            spanNombre.textContent = est.nombre;
+        } else {
+            spanNombre.textContent = "(Sin nombre registrado)";
+            spanNombre.style.color = "#b91c1c";
+            spanNombre.style.fontStyle = "italic";
+        }
+        tdNombre.appendChild(spanNombre);
+        tr.appendChild(tdNombre);
+
+        const tdFinal = document.createElement("td");
+        if (promFinal === null) {
+            tdFinal.style.cssText = "text-align:center; padding:8px 6px; background:#f0fdf4;";
+            const span = document.createElement("span");
+            span.style.color = "#b8bcc8";
+            span.textContent = "–";
+            tdFinal.appendChild(span);
+        } else {
+            const bajo = promFinal < PROMEDIO_MINIMO_APROBAR;
+            const color = bajo ? "#b91c1c" : "#15803d";
+            tdFinal.style.cssText = `text-align:center; padding:8px 6px; font-weight:700; font-size:14.5px; color:${color}; background:#f0fdf4;`;
+            tdFinal.textContent = promFinal.toFixed(1);
+        }
+        tr.appendChild(tdFinal);
+
+        tbody.appendChild(tr);
+    });
+
+    tabla.appendChild(tbody);
+
+    tabla.querySelectorAll("th, td").forEach((cell) => {
+        cell.style.border = `1px solid ${REPORTE_COLOR_BORDE}`;
+    });
+
+    return tabla;
+}
+
+// Arma el documento completo (membrete + tabla resumida) que se va a
+// convertir en PDF. Reutiliza el mismo estilo del reporte completo,
+// pero pensado para mandarlo a otros profesores: solo lo esencial.
+function construirReporteSoloFinalHtml() {
+    const salon = selectSalonNota.value;
+    const materia = selectMateriaNota.value;
+    const trimestre = selectTrimestreNota.value;
+    const fechaHoyTexto = new Date().toLocaleDateString("es-PA", { year: "numeric", month: "long", day: "numeric" });
+    const horaHoyTexto = new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+
+    const tablaReporte = construirTablaSoloPromFinal();
+    const resumen = calcularResumenReporte();
+
+    const dato = (etiqueta, valor) => `
+        <div style="flex:1; min-width:150px;">
+            <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:#9691e8; font-weight:600;">${etiqueta}</div>
+            <div style="font-size:14.5px; font-weight:600; color:#1f2937; margin-top:2px;">${valor}</div>
+        </div>`;
+
+    const estadistica = (numero, etiqueta, color) => `
+        <div style="text-align:center; padding:0 18px;">
+            <div style="font-size:22px; font-weight:700; color:${color};">${numero}</div>
+            <div style="font-size:10.5px; color:#6b7280; text-transform:uppercase; letter-spacing:.3px;">${etiqueta}</div>
+        </div>`;
+
+    const contenedor = document.createElement("div");
+    contenedor.style.cssText = `background:#fff; width:650px; font-family:${REPORTE_FUENTE}; color:${REPORTE_COLOR_TEXTO};`;
+    contenedor.innerHTML = `
+        <div style="background:linear-gradient(135deg, ${REPORTE_COLOR_PRIMARIO} 0%, ${REPORTE_COLOR_OSCURO} 100%); padding:26px 32px; display:flex; align-items:center; justify-content:space-between;">
+            <div>
+                <div style="font-size:20px; font-weight:700; color:#fff; letter-spacing:.2px;">🏫 Centro Básico General El Jiral</div>
+                <div style="font-size:13px; color:#d9d7fb; margin-top:4px;">Notas finales — para compartir con otros profesores</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:12px; color:#d9d7fb;">${fechaHoyTexto}</div>
+                <div style="display:inline-block; margin-top:6px; background:rgba(255,255,255,0.18); color:#fff; font-size:12px; font-weight:600; padding:4px 12px; border-radius:14px;">${escapeHtml(trimestre)}</div>
+            </div>
+        </div>
+
+        <div style="padding:18px 32px 4px; display:flex; flex-wrap:wrap; gap:18px; background:${REPORTE_COLOR_CLARO}; border-bottom:1px solid ${REPORTE_COLOR_BORDE};">
+            ${dato("Profesor(a)", escapeHtml(nombreProfesor))}
+            ${dato("Materia", escapeHtml(materia))}
+            ${dato("Grado (salón)", escapeHtml(salon))}
+            ${dato("Estudiantes", resumen.totalEstudiantes)}
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:6px; padding:16px 32px; border-bottom:1px solid ${REPORTE_COLOR_BORDE};">
+            ${estadistica(resumen.promedioGeneral !== null ? resumen.promedioGeneral.toFixed(1) : "–", "Promedio general", REPORTE_COLOR_OSCURO)}
+            ${estadistica(resumen.aprobados, "Aprobados", "#15803d")}
+            ${estadistica(resumen.reprobados, "Por debajo del mínimo", "#b91c1c")}
+        </div>
+
+        <div style="padding:20px 32px 0;">
+            <div id="tablaReporteFinalContenedor" style="box-shadow:0 1px 3px rgba(0,0,0,0.08);"></div>
+        </div>
+
+        <div style="border-top:1px solid ${REPORTE_COLOR_BORDE}; padding:12px 32px; margin-top:20px; display:flex; justify-content:space-between; font-size:10.5px; color:#9ca3af;">
+            <span>Descargado el ${fechaHoyTexto} a las ${horaHoyTexto}</span>
+            <span>Sistema de Control de Notas · Centro Básico General El Jiral</span>
+        </div>
+    `;
+    contenedor.querySelector("#tablaReporteFinalContenedor").appendChild(tablaReporte);
+    tablaReporte.style.width = "100%";
+    tablaReporte.style.borderCollapse = "collapse";
+
+    return contenedor;
+}
+
+async function generarCanvasReporteFinal() {
+    const contenedor = construirReporteSoloFinalHtml();
+    contenedor.style.position = "fixed";
+    contenedor.style.left = "-99999px";
+    contenedor.style.top = "0";
+    document.body.appendChild(contenedor);
+
+    try {
+        if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+        }
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const canvas = await html2canvas(contenedor, { scale: 3, backgroundColor: "#ffffff" });
+        return canvas;
+    } finally {
+        contenedor.remove();
+    }
+}
+
+btnExportarFinalPdf?.addEventListener("click", async () => {
+    if (!selectSalonNota.value || !selectMateriaNota.value) return alert("Primero carga un salón y materia.");
+    btnExportarFinalPdf.disabled = true;
+    btnExportarFinalPdf.innerHTML = `<span class="btn-exportar-icono">⏳</span><span class="btn-exportar-texto">Generando PDF...</span>`;
+    try {
+        const canvas = await generarCanvasReporteFinal();
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+        const w = canvas.width * ratio;
+        const h = canvas.height * ratio;
+        const y = Math.max(16, (pageHeight - h) / 2);
+        pdf.addImage(canvas.toDataURL("image/jpeg", 1.0), "JPEG", (pageWidth - w) / 2, y, w, h);
+        pdf.save(`NotasFinales_${selectMateriaNota.value}_${selectSalonNota.value}_${selectTrimestreNota.value}.pdf`);
+    } catch (err) {
+        console.error(err);
+        alert("No se pudo generar el PDF: " + err.message);
+    } finally {
+        btnExportarFinalPdf.disabled = false;
+        btnExportarFinalPdf.innerHTML = `<span class="btn-exportar-icono">🏁</span><span class="btn-exportar-texto">Solo Prom. Final (PDF)</span>`;
+    }
+});
 
 btnExportarPdf?.addEventListener("click", async () => {
     if (!selectSalonNota.value || !selectMateriaNota.value) return alert("Primero carga un salón y materia.");
