@@ -1832,16 +1832,25 @@ async function guardarNotas(esAutomatico = false) {
             // combinación única en la base de datos. En vez de fallar,
             // buscamos esa fila vieja y la revivimos con la nota nueva.
             if (error && error.code === "23505") {
-                const { data: filaExistente, error: errBuscar } = await supabase
-                    .from("notas")
-                    .select("id")
-                    .eq("estudiante_id", item.estudianteId)
-                    .eq("materia", materia)
-                    .eq("trimestre", trimestre)
-                    .eq("tipo", item.tipo)
-                    .eq("numero", item.numero)
-                    .limit(1)
-                    .maybeSingle();
+                // La nota vieja que está chocando puede haberse guardado
+                // de dos formas distintas según cuándo se creó: unas usan
+                // "estudiante_id" (el sistema actual) y otras, más
+                // antiguas, solo tienen "correo" guardado. Por eso hay que
+                // buscarla por cualquiera de los dos, no solo por id.
+                let busqueda = supabase.from("notas").select("id")
+                    .eq("materia", materia).eq("trimestre", trimestre)
+                    .eq("tipo", item.tipo).eq("numero", item.numero);
+
+                if (item.estudianteId && item.correo) {
+                    busqueda = busqueda.or(`estudiante_id.eq.${item.estudianteId},correo.eq.${item.correo}`);
+                } else if (item.estudianteId) {
+                    busqueda = busqueda.eq("estudiante_id", item.estudianteId);
+                } else if (item.correo) {
+                    busqueda = busqueda.eq("correo", item.correo);
+                }
+
+                const { data: filasExistentes, error: errBuscar } = await busqueda.limit(5);
+                const filaExistente = filasExistentes && filasExistentes[0];
 
                 if (!errBuscar && filaExistente) {
                     const { data: revivida, error: errRevivir } = await supabase.from("notas")
@@ -1852,6 +1861,8 @@ async function guardarNotas(esAutomatico = false) {
                             estado: "Activa",
                             eliminado_en: null,
                             eliminado_por: null,
+                            estudiante_id: item.estudianteId,
+                            correo: item.correo,
                             observacion: `Restaurada y actualizada por el/la docente (${correoProfesor})`,
                         })
                         .eq("id", filaExistente.id)
@@ -1864,6 +1875,14 @@ async function guardarNotas(esAutomatico = false) {
                     }
                 } else if (errBuscar) {
                     error = errBuscar;
+                } else {
+                    // No encontramos ninguna fila con esos filtros aunque
+                    // Supabase dice que hay un choque de llave única. Lo
+                    // más probable es que las reglas de seguridad (RLS)
+                    // de la base de datos no dejan leer esa fila vieja
+                    // desde el navegador del docente. Lo dejamos anotado
+                    // para poder revisarlo del lado de la base de datos.
+                    console.warn("⚠️ Choque de llave única pero no se encontró la fila en conflicto (posible RLS):", item);
                 }
             }
 
