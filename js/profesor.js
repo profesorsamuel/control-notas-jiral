@@ -1807,7 +1807,7 @@ async function guardarNotas(esAutomatico = false) {
                 registrarCambioParaRespaldo(item);
             }
         } else {
-            const { data: insertado, error } = await supabase.from("notas").insert([{
+            const filaNueva = {
                 correo: item.correo,
                 estudiante_id: item.estudianteId,
                 materia,
@@ -1821,7 +1821,51 @@ async function guardarNotas(esAutomatico = false) {
                 trimestre,
                 estado: "Activa",
                 origen: "profesor"
-            }]).select("id");
+            };
+
+            let { data: insertado, error } = await supabase.from("notas").insert([filaNueva]).select("id");
+
+            // Código 23505 = "duplicate key": ya existe una fila para este
+            // mismo estudiante+materia+casilla+trimestre, casi siempre
+            // porque quedó en la papelera (eliminado_en con fecha) y por
+            // eso no aparecía en pantalla, pero sigue "ocupando" esa
+            // combinación única en la base de datos. En vez de fallar,
+            // buscamos esa fila vieja y la revivimos con la nota nueva.
+            if (error && error.code === "23505") {
+                const { data: filaExistente, error: errBuscar } = await supabase
+                    .from("notas")
+                    .select("id")
+                    .eq("estudiante_id", item.estudianteId)
+                    .eq("materia", materia)
+                    .eq("trimestre", trimestre)
+                    .eq("tipo", item.tipo)
+                    .eq("numero", item.numero)
+                    .limit(1)
+                    .maybeSingle();
+
+                if (!errBuscar && filaExistente) {
+                    const { data: revivida, error: errRevivir } = await supabase.from("notas")
+                        .update({
+                            nota: item.nota,
+                            fecha: hoy,
+                            origen: "profesor",
+                            estado: "Activa",
+                            eliminado_en: null,
+                            eliminado_por: null,
+                            observacion: `Restaurada y actualizada por el/la docente (${correoProfesor})`,
+                        })
+                        .eq("id", filaExistente.id)
+                        .select("id");
+                    if (!errRevivir) {
+                        insertado = revivida;
+                        error = null;
+                    } else {
+                        error = errRevivir;
+                    }
+                } else if (errBuscar) {
+                    error = errBuscar;
+                }
+            }
 
             if (error) {
                 fallidas++;
