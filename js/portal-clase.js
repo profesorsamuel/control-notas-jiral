@@ -341,12 +341,16 @@ async function abrirDetalleClase(materia, grado, clase) {
 }
 
 async function cargarConteos() {
-  const { data, error } = await sb.from('tareas').select('materia, grado');
+  const { data, error } = await sb.from('tareas').select('materia, grado, clase_id');
   if (error) { console.error(error); return; }
+  // Solo cuenta tareas vinculadas de verdad a una clase (clase_id no
+  // vacío) — las huérfanas (de una clase ya borrada) no deben sumar
+  // aquí, igual que ya no suman en las tarjetas de "Clase N".
+  const dataValida = data.filter(t => t.clase_id != null);
   document.querySelectorAll('.folder-card').forEach(card => {
     const materia = card.dataset.materia;
     const grado = card.dataset.grado;
-    const total = data.filter(t => t.materia === materia && t.grado === grado).length;
+    const total = dataValida.filter(t => t.materia === materia && t.grado === grado).length;
     const el = card.querySelector('[data-conteo]');
     el.textContent = total === 0 ? 'sin tareas' : (total === 1 ? '1 tarea' : `${total} tareas`);
   });
