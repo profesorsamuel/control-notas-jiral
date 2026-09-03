@@ -519,6 +519,29 @@ function formatearFechaDeDate(d) {
   return `${dd}/${mm}/${d.getFullYear()}`;
 }
 
+// ---------- Orden de las tareas: Tarea 1, Tarea 2, Tarea 3... siempre en ese orden ----------
+// Se saca el número del título ("TAREA 2: PDF SUBIR" -> 2, "Tarea 1 online" -> 1).
+// Si el título no trae número, esa tarea se manda al final, ordenada por
+// fecha de creación (más antigua primero) para que igual quede estable.
+function numeroDeTarea(titulo) {
+  const match = (titulo || '').match(/tarea\s*(\d+)/i);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function ordenarTareas(tareas) {
+  return [...tareas].sort((a, b) => {
+    const na = numeroDeTarea(a.titulo);
+    const nb = numeroDeTarea(b.titulo);
+
+    if (na != null && nb != null && na !== nb) return na - nb;
+    if (na != null && nb == null) return -1;
+    if (na == null && nb != null) return 1;
+
+    // Mismo número (o ninguna tiene número): la más antigua primero.
+    return new Date(a.creado_en) - new Date(b.creado_en);
+  });
+}
+
 // ---------- Cargar y mostrar TODAS las tareas (siempre visibles) ----------
 async function cargarTareas(materia, grado) {
   listaTareas.innerHTML = '<p class="estado-cargando">Cargando tareas…</p>';
@@ -526,7 +549,7 @@ async function cargarTareas(materia, grado) {
   const identidad = identidadUtilizable(await obtenerIdentidadActual(grado));
 
   const promesas = [
-    sb.from('tareas').select('*').eq('materia', materia).eq('grado', grado).order('creado_en', { ascending: false }),
+    sb.from('tareas').select('*').eq('materia', materia).eq('grado', grado).order('creado_en', { ascending: true }),
   ];
   if (identidad) {
     promesas.push(
@@ -546,9 +569,12 @@ async function cargarTareas(materia, grado) {
   }
 
   // Solo las tareas de la clase que se está viendo ahora mismo.
-  const tareas = claseActual
+  const tareasDeLaClase = claseActual
     ? tareasTodas.filter(t => (t.clase_id != null ? t.clase_id === claseActual.id : t.clase_numero === claseActual.numero))
     : tareasTodas;
+
+  // Siempre en orden: Tarea 1, Tarea 2, Tarea 3...
+  const tareas = ordenarTareas(tareasDeLaClase);
 
   if (!tareas.length) {
     listaTareas.innerHTML = '<p class="estado-vacio">Todavía no hay tareas publicadas para esta clase.</p>';
