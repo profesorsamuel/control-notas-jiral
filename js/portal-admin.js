@@ -110,6 +110,12 @@ function extraerRutaClase(url) {
   return i === -1 ? '' : url.slice(i + marcador.length);
 }
 
+function extraerRutaEntrega(url) {
+  const marcador = '/entregas-archivos/';
+  const i = url.indexOf(marcador);
+  return i === -1 ? '' : url.slice(i + marcador.length);
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -190,6 +196,27 @@ function agruparClases(clases) {
     mapa.get(key).filas.push({ id: c.id, grado: c.grado });
   });
   return Array.from(mapa.values());
+}
+
+// ---------- Orden de las tareas en el panel: Tarea 1, Tarea 2, Tarea 3... ----------
+// Se saca el número del título ("Tarea 2: ..." -> 2). Si no trae número,
+// esa tarea queda al final, ordenada por fecha de creación.
+function numeroDeTarea(titulo) {
+  const match = (titulo || '').match(/tarea\s*(\d+)/i);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function ordenarGruposDeTarea(grupos) {
+  return [...grupos].sort((a, b) => {
+    const na = numeroDeTarea(a.muestra.titulo);
+    const nb = numeroDeTarea(b.muestra.titulo);
+
+    if (na != null && nb != null && na !== nb) return na - nb;
+    if (na != null && nb == null) return -1;
+    if (na == null && nb != null) return 1;
+
+    return new Date(a.muestra.creado_en) - new Date(b.muestra.creado_en);
+  });
 }
 
 function obtenerGrupoPorKey(key) {
@@ -478,7 +505,7 @@ async function renderPanelClase(grupoKey) {
   if (grupoSeleccionadoId !== grupoKey) return;
 
   const leccionesAgrupadas = agruparPorGrupoId(leccionesRaw || []);
-  const tareasAgrupadas = agruparPorGrupoId(tareasRaw || []);
+  const tareasAgrupadas = ordenarGruposDeTarea(agruparPorGrupoId(tareasRaw || []));
   leccionesPorGrupo[grupoKey] = leccionesAgrupadas;
   tareasPorGrupo[grupoKey] = tareasAgrupadas;
 
@@ -805,12 +832,27 @@ async function manejarNuevaTareaDeClase(e, grupoKey) {
 }
 
 async function borrarTareaDeClase(tareaKey, grupoKey) {
-  if (!confirm('¿Borrar esta tarea? Se quitará de todos los salones donde aparece.')) return;
+  if (!confirm('¿Borrar esta tarea? Se quitará de todos los salones donde aparece, junto con las entregas que ya hayan hecho los estudiantes.')) return;
 
   const entrada = (tareasPorGrupo[grupoKey] || []).find((g) => g.key === tareaKey);
   if (!entrada) return;
 
   const ids = entrada.filas.map((f) => f.id);
+
+  // Antes de borrar la tarea, hay que borrar (o quedan "huérfanas") las
+  // entregas que los estudiantes ya hicieron para ella: si no, siguen
+  // apareciendo en el Panel de entregas marcadas como "(tarea borrada)".
+  const { data: entregas } = await sb.from('entregas').select('id, tipo, entrega_url').in('tarea_id', ids);
+
+  if (entregas && entregas.length) {
+    await sb.from('entregas').delete().in('tarea_id', ids);
+
+    const rutasEntregas = [...new Set(
+      entregas.filter((en) => en.tipo === 'archivo' && en.entrega_url).map((en) => extraerRutaEntrega(en.entrega_url))
+    )].filter(Boolean);
+    if (rutasEntregas.length) await sb.storage.from('entregas-archivos').remove(rutasEntregas);
+  }
+
   await sb.from('tareas').delete().in('id', ids);
 
   if (entrada.muestra.archivo_url) {
