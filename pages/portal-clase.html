@@ -3,385 +3,129 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Portal de Clase — Administrar</title>
+<title>Portal de Clase</title>
 <link rel="stylesheet" href="../css/portal-clase.css">
-<style>
-  .login-box {
-    max-width: 360px;
-    margin: 80px auto;
-    background: var(--card-bg);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 28px;
-  }
-  .login-box h2 { font-family:'Space Grotesk',sans-serif; margin-top:0; }
-  .login-box label { display:block; font-size:13px; color:var(--ink-soft); margin:14px 0 6px; }
-  .login-box input, .form-tarea input, .form-tarea select, .form-tarea textarea {
-    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius);
-    font-family:'Inter',sans-serif; font-size:14px; background:#fff;
-  }
-  .login-box button, .form-tarea button {
-    margin-top:18px; width:100%; padding:11px; border:none; border-radius:var(--radius);
-    background: var(--coral); color:#fff; font-weight:600; cursor:pointer; font-size:14px;
-  }
-  .login-box button:hover, .form-tarea button:hover { filter:brightness(1.05); }
-  .msg-error { color:var(--rojo); font-size:13px; margin-top:10px; }
-  .msg-ok { color: var(--ciencias-dark); font-size:13px; margin-top:10px; }
-
-  .panel.oculto { display:none; }
-  .login-box.oculto { display:none; }
-  .form-tarea {
-    background: var(--card-bg); border:1px solid var(--line); border-radius: var(--radius);
-    padding: 24px; margin-bottom: 32px; max-width: 480px;
-  }
-  .form-tarea label { display:block; font-size:13px; color:var(--ink-soft); margin:14px 0 6px; }
-  .campo-fila { display:flex; gap:12px; }
-  .campo-fila > div { flex:1; }
-  .grados-check {
-    display:flex; gap:8px; flex-wrap:wrap; padding-top:2px;
-  }
-  .grados-check label {
-    display:flex; align-items:center; gap:6px; margin:0;
-    border:1px solid var(--line); border-radius:var(--radius);
-    padding:8px 12px; font-size:13px; cursor:pointer; background:#fff;
-    user-select:none;
-  }
-  .grados-check label:has(input:checked) {
-    border-color: var(--coral); background: var(--rojo-fondo2); font-weight:600;
-  }
-  .grados-check input { accent-color: var(--coral); }
-
-  .tarea-admin-item {
-    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
-    background: var(--card-bg); border:1px solid var(--line); border-radius: var(--radius);
-    padding: 14px 18px; margin-bottom: 10px;
-  }
-  .tarea-admin-item .info { font-size: 14px; }
-  .tarea-admin-item .info .tag { font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); }
-  .btn-borrar {
-    border:1px solid var(--borde-calido); background:#fff; color:var(--rojo); border-radius: var(--radius);
-    padding: 6px 10px; font-size:12px; cursor:pointer; white-space:nowrap;
-  }
-  .btn-borrar:hover { background:var(--rojo-fondo); }
-  #btn-salir {
-    background:none; border:1px solid var(--line); color:var(--ink-soft);
-    padding:8px 14px; border-radius:var(--radius); font-family:'IBM Plex Mono',monospace;
-    font-size:13px; cursor:pointer;
-  }
-
-  .seccion-admin {
-    background: #fff;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 28px;
-    margin-bottom: 32px;
-  }
-  .seccion-admin-titulo {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    margin-bottom: 20px;
-  }
-  .seccion-admin-numero {
-    flex-shrink: 0;
-    width: 32px; height: 32px;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--ink);
-    color: #fff;
-    border-radius: 50%;
-    font-family: 'IBM Plex Mono', monospace;
-    font-weight: 700;
-    font-size: 14px;
-  }
-  .seccion-admin-titulo h2 {
-    font-family: 'Space Grotesk', sans-serif;
-    margin: 0;
-    font-size: 20px;
-  }
-  .seccion-admin-sub {
-    font-size: 13px;
-    color: var(--muted);
-    margin: 4px 0 0;
-  }
-  .seccion-admin .form-tarea {
-    box-shadow: none;
-    border-color: var(--line);
-    margin-bottom: 20px;
-  }
-
-  /* ---- Botón "+ Nueva clase" y su mini-formulario inline ---- */
-  .clase-tab-nueva {
-    border:2px dashed var(--line); background:transparent; color:var(--ink-soft);
-    border-radius: 999px; padding: 9px 16px; font-size:13px; font-weight:600;
-    cursor:pointer; white-space:nowrap;
-  }
-  .clase-tab-nueva:hover { border-color: var(--coral); color: var(--coral); }
-  .nueva-clase-form {
-    border:1px solid var(--line); border-radius: var(--radius); background:#fff;
-    padding: 16px; margin-top: 14px; max-width: 480px;
-  }
-  .nueva-clase-form label { display:block; font-size:13px; color:var(--ink-soft); margin:12px 0 6px; }
-  .nueva-clase-form label:first-child { margin-top: 0; }
-  .nueva-clase-form input {
-    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius);
-    font-family:'Inter',sans-serif; font-size:14px; background:#fff; box-sizing:border-box;
-  }
-  .nueva-clase-form .campo-fila { display:flex; gap:12px; }
-  .nueva-clase-form .campo-fila > div { flex:1; }
-  .nueva-clase-form .botones-fila { display:flex; gap:8px; margin-top:16px; }
-  .nueva-clase-form button {
-    border:none; border-radius:var(--radius); font-weight:600; font-size:14px;
-    padding:10px 16px; cursor:pointer;
-  }
-  .nueva-clase-form button[type="submit"] { background: var(--coral); color:#fff; }
-  .nueva-clase-form button[type="submit"]:hover { filter:brightness(1.05); }
-  .nueva-clase-form button.btn-cancelar { background:transparent; border:1px solid var(--line); color:var(--ink-soft); }
-
-  /* ---- Paso 1: elegir salón · Paso 2: elegir materia (solo si aplica) ---- */
-  .paso-label {
-    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted);
-    text-transform:uppercase; letter-spacing:.04em; margin:0 0 10px;
-  }
-  .salon-tabs { display:flex; flex-wrap:wrap; gap:10px; }
-  .salon-tab {
-    border:2px solid var(--line); background:#fff; color:var(--ink);
-    border-radius: 999px; padding: 10px 22px; font-size:15px; font-weight:700;
-    cursor:pointer; white-space:nowrap; font-family:'Space Grotesk',sans-serif;
-  }
-  .salon-tab:hover { border-color: var(--ink); }
-  .salon-tab.activa { background: var(--ink); border-color: var(--ink); color:#fff; }
-
-  .materia-tabs { display:flex; flex-wrap:wrap; gap:8px; }
-  .materia-tab {
-    border:1px solid var(--line); background:#fff; color:var(--ink);
-    border-radius: 999px; padding: 8px 16px; font-size:13px; font-weight:600;
-    cursor:pointer; white-space:nowrap;
-  }
-  .materia-tab:hover { border-color: var(--coral); }
-  .materia-tab.activa { background: var(--coral); border-color: var(--coral); color:#fff; }
-
-  /* ---- Grupos de clases por materia/grado, con pestañas "Clase N" ---- */
-  .clase-tabs { display:flex; flex-wrap:wrap; gap:8px; }
-  .clase-tab {
-    border:1px solid var(--line); background:#fff; color:var(--ink);
-    border-radius: 999px; padding: 9px 16px; font-size:13px; font-weight:600;
-    cursor:pointer; white-space:nowrap;
-  }
-  .clase-tab:hover { border-color: var(--ink); }
-  .clase-tab.activa { background: var(--coral); border-color: var(--coral); color:#fff; }
-  .clase-tab-wrap { display:inline-flex; align-items:center; gap:4px; }
-  .clase-tab-borrar {
-    border:1px solid var(--line); background:#fff; color:var(--muted);
-    border-radius:999px; width:24px; height:24px; line-height:1; font-size:12px;
-    cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;
-  }
-  .clase-tab-borrar:hover { border-color:var(--rojo); color:var(--rojo); background:var(--rojo-fondo); }
-
-  /* ---- Panel de la clase seleccionada ---- */
-  .clase-panel {
-    border: 1px solid var(--line); border-radius: var(--radius);
-    background: var(--paper);
-    padding: 22px 20px;
-    margin-top: 4px;
-  }
-  .clase-panel-cabecera {
-    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
-    margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--line);
-  }
-  .clase-panel-cabecera h3 {
-    font-family:'Space Grotesk',sans-serif; margin:0 0 4px; font-size:18px;
-  }
-  .clase-panel-cabecera .tag { font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); }
-  .clase-panel h4 {
-    font-family:'Space Grotesk',sans-serif; font-size:14px; margin: 0 0 10px;
-  }
-  .clase-panel .sub-form {
-    display:flex; flex-wrap:wrap; gap:8px; margin-bottom: 14px;
-  }
-  .clase-panel .sub-form input[type="text"],
-  .clase-panel .sub-form input[type="url"],
-  .clase-panel .sub-form input[type="date"],
-  .clase-panel .sub-form textarea {
-    padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius);
-    font-family:'Inter',sans-serif; font-size:13px; background:#fff;
-  }
-  .clase-panel .sub-form input[type="file"] { font-size:12px; }
-  .clase-panel .sub-form textarea { width:100%; flex-basis:100%; resize:vertical; }
-  .clase-panel .sub-form button {
-    border:none; border-radius:var(--radius); background: var(--coral); color:#fff;
-    font-weight:600; font-size:12px; padding:8px 14px; cursor:pointer;
-  }
-  .clase-panel .sub-form button:hover { filter:brightness(1.05); }
-  .clase-panel .sub-form-msg { flex-basis:100%; font-size:12px; margin:0; }
-  .clase-panel .sub-lista { margin-bottom: 22px; }
-  .clase-panel .sub-lista:last-child { margin-bottom: 0; }
-  .item-mini {
-    display:flex; justify-content:space-between; align-items:center; gap:10px;
-    background:#fff; border:1px solid var(--line); border-radius:var(--radius);
-    padding:8px 12px; margin-bottom:6px; font-size:13px;
-  }
-  .item-mini .item-mini-meta { font-size:11px; color:var(--muted); font-family:'IBM Plex Mono',monospace; }
-  .btn-ver-adjunto {
-    display:inline-flex; align-items:center; gap:4px;
-    border:1px solid var(--line); background:#fff; color:var(--ink);
-    border-radius:999px; padding:3px 10px; font-size:11px; font-weight:600;
-    text-decoration:none; white-space:nowrap;
-  }
-  .btn-ver-adjunto:hover { border-color: var(--coral); color: var(--coral); }
-  .seccion-divisoria { border:none; border-top:1px dashed var(--line); margin: 18px 0; }
-
-  /* ---- Botón "✎ Editar" de una clase + su formulario de corrección ---- */
-  .btn-editar-clase {
-    border:1px solid var(--line); background:#fff; color:var(--ink-soft);
-    border-radius: var(--radius); padding: 6px 10px; font-size:12px; cursor:pointer; white-space:nowrap;
-  }
-  .btn-editar-clase:hover { border-color: var(--ink); color: var(--ink); }
-  .form-editar-clase {
-    background: var(--paper); border:1px dashed var(--rule); border-radius: var(--radius);
-    padding: 16px; margin-bottom: 20px;
-  }
-  .form-editar-clase label { display:block; font-size:12px; color:var(--ink-soft); margin:10px 0 6px; }
-  .form-editar-clase label:first-child { margin-top:0; }
-  .form-editar-clase input {
-    width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:var(--radius);
-    font-family:'Inter',sans-serif; font-size:13px; background:#fff; box-sizing:border-box;
-  }
-  .form-editar-clase .campo-fila { display:flex; gap:12px; }
-  .form-editar-clase .campo-fila > div { flex:1; }
-  .form-editar-clase .botones-fila { display:flex; gap:8px; margin-top:14px; }
-  .form-editar-clase button {
-    border:none; border-radius:var(--radius); font-weight:600; font-size:13px;
-    padding:9px 16px; cursor:pointer;
-  }
-  .form-editar-clase button[type="submit"] { background: var(--ink); color:#fff; }
-  .form-editar-clase button[type="submit"]:hover { filter:brightness(1.15); }
-  .form-editar-clase button.btn-cancelar { background:transparent; border:1px solid var(--line); color:var(--ink-soft); }
-  .form-editar-clase-msg { font-size:12px; margin:10px 0 0; }
-  .form-editar-clase-msg.msg-error { color: var(--rojo); }
-
-  /* ---- Bloque de Tareas: con su propio color, para que se note que es
-     otra cosa distinta de las Lecciones (que llevan el estilo neutro). ---- */
-  .bloque-tareas {
-    background: var(--coral-light, #ffe1e7);
-    border: 1.5px solid var(--coral);
-    border-left-width: 6px;
-    border-radius: var(--radius);
-    padding: 20px 20px 16px;
-    margin-top: 8px;
-  }
-  .bloque-tareas h4 { color: var(--coral); margin:0; }
-  .bloque-tareas .sub-form-msg { color: var(--ink); }
-  .bloque-tareas-titulo {
-    display:flex; align-items:center; gap:12px; margin-bottom: 16px;
-  }
-  .bloque-tareas-badge {
-    flex-shrink:0;
-    background: var(--coral); color:#fff;
-    font-family:'IBM Plex Mono', monospace; font-size:10.5px; font-weight:700;
-    text-transform:uppercase; letter-spacing:.04em;
-    border-radius: 999px; padding: 5px 12px; white-space:nowrap;
-  }
-  .bloque-tareas .explicacion-tareas .item-mini,
-  .bloque-tareas .sub-lista .item-mini { background:#fff; }
-  .bloque-tareas .form-tarea-nueva button[type="submit"] { background: var(--coral); }
-  .item-mini-tarea { border-left: 4px solid var(--coral); }
-  .item-mini-tarea-icono { font-size: 13px; }
-</style>
-    <link rel="stylesheet" href="../css/temas.css">
 </head>
-<body class="tema-portal">
+<body>
 
 <div class="portal-wrap">
 
   <header class="portal-header">
-    <div>
-      <p class="eyebrow">Prof. Samuel Ortega</p>
-      <h1>Administrar tareas</h1>
-      <p style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); margin:6px 0 0;">
-        Ciencias Naturales · Informática
-      </p>
+    <div class="escuela-linea">
+      <img class="escudo" src="../img/escudo-jiral.png" alt="Escudo C.E.B.G. El Jiral">
+      <div>
+        <p class="escuela-nombre">C.E.B.G. El Jiral</p>
+        <p class="eyebrow">Prof. Samuel</p>
+        <h1>Portal de Clase</h1>
+      </div>
     </div>
-    <a class="volver-index" href="portal-clase.html">← Ver portal</a>
-    <a class="volver-index" href="portal-entregas.html" style="margin-left:8px;">Ver entregas →</a>
+    <div class="header-botones">
+      <span id="badge-trimestre" class="badge-trimestre">cargando trimestre…</span>
+      <a class="volver-index" href="../index.html">← Inicio</a>
+    </div>
   </header>
 
-  <!-- ---------- Login ---------- -->
-  <div id="login-box" class="login-box">
-    <h2>Iniciar sesión</h2>
-    <label for="login-email">Correo</label>
-    <input type="email" id="login-email" autocomplete="username">
-    <label for="login-pass">Contraseña</label>
-    <input type="password" id="login-pass" autocomplete="current-password">
-    <button id="btn-login">Entrar</button>
-    <p id="login-msg"></p>
-  </div>
+  <!-- ---------- Días libres del trimestre ---------- -->
+  <section id="dias-libres" class="dias-libres-card">
+    <h3>📅 Días libres de este trimestre</h3>
+    <div id="dias-libres-lista" class="dias-libres-lista"></div>
+  </section>
 
-  <!-- ---------- Panel de administración ---------- -->
-  <div id="panel" class="panel oculto">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-      <p style="font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink-soft); margin:0;">
-        Sesión iniciada como <span id="user-email"></span>
-      </p>
-      <button id="btn-salir">Cerrar sesión</button>
+  <!-- ---------- Accesos rápidos del portal estudiantil ---------- -->
+  <nav class="accesos-rapidos" aria-label="Accesos rápidos">
+    <a href="consulta.html" class="acceso-btn acceso-btn-activo">
+      <span class="acceso-icono">📊</span>
+      <span class="acceso-texto">
+        <span class="acceso-titulo">Ver mis notas</span>
+        <span class="acceso-subtitulo">Escribe tu cédula para ver y descargar tus notas de todas las materias</span>
+      </span>
+    </a>
+    <button type="button" class="acceso-btn" data-proximamente>
+      <span class="acceso-icono">🗓️</span>Calendario escolar
+    </button>
+    <button type="button" class="acceso-btn" data-proximamente>
+      <span class="acceso-icono">🕒</span>Mi horario
+    </button>
+    <button type="button" class="acceso-btn" data-proximamente>
+      <span class="acceso-icono">📚</span>Biblioteca / recursos
+    </button>
+  </nav>
+  <p id="toast-proximamente" class="toast-proximamente oculto"></p>
+
+  <!-- ---------- Vista: lista de clases ---------- -->
+  <main id="vista-clases">
+
+    <section class="materia-group" data-materia="Ciencias Naturales">
+      <h2>Ciencias Naturales</h2>
+      <div class="grid">
+        <button class="folder-card" data-materia="Ciencias Naturales" data-grado="9A">
+          <span class="tab">9A</span>
+          <p class="materia-nombre">Ciencias Naturales</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+        <button class="folder-card" data-materia="Ciencias Naturales" data-grado="9B">
+          <span class="tab">9B</span>
+          <p class="materia-nombre">Ciencias Naturales</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+        <button class="folder-card" data-materia="Ciencias Naturales" data-grado="9C">
+          <span class="tab">9C</span>
+          <p class="materia-nombre">Ciencias Naturales</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+        <button class="folder-card" data-materia="Ciencias Naturales" data-grado="8A">
+          <span class="tab">8A</span>
+          <p class="materia-nombre">Ciencias Naturales</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+      </div>
+    </section>
+
+    <section class="materia-group" data-materia="Informática">
+      <h2>Informática</h2>
+      <div class="grid">
+        <button class="folder-card" data-materia="Informática" data-grado="8A">
+          <span class="tab">8A</span>
+          <p class="materia-nombre">Informática</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+        <button class="folder-card" data-materia="Informática" data-grado="8B">
+          <span class="tab">8B</span>
+          <p class="materia-nombre">Informática</p>
+          <p class="conteo" data-conteo>cargando…</p>
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ---------- Vista: dentro de una materia+grado ---------- -->
+  <section id="vista-tareas" class="vista-tareas oculto">
+    <button id="btn-volver">← Volver a las clases</button>
+    <div id="ficha-clase" class="ficha-clase"></div>
+
+    <!-- Paso 2: lista de "Clase 1", "Clase 2"... (y Examen final) -->
+    <div id="vista-lista-clases">
+      <h3 class="material-titulo">Clases</h3>
+      <div id="lista-clases-grid" class="clases-grid"></div>
     </div>
 
-    <!-- ========== 1. LECCIONES (Material de clase) ========== -->
-    <section class="seccion-admin">
-      <div class="seccion-admin-titulo">
-        <span class="seccion-admin-numero">1</span>
-        <div>
-          <h2>📖 Lecciones</h2>
-          <p class="seccion-admin-sub">Elige la materia, luego el/los salón(es) — puedes marcar varios si reciben la misma clase, como 9A, 9B y 9C — y por último la clase (Clase 1, Clase 2...). Lo que subas se sincroniza automáticamente en todos los salones marcados.</p>
-        </div>
-      </div>
-
-      <div id="lista-clases"><p class="estado-cargando">Cargando…</p></div>
-      <div id="panel-clase-seleccionada"></div>
-    </section>
-
-    <!-- ========== 2. EXAMEN FINAL ========== -->
-    <section class="seccion-admin">
-      <div class="seccion-admin-titulo">
-        <span class="seccion-admin-numero">2</span>
-        <div>
-          <h2>📕 Examen final</h2>
-          <p class="seccion-admin-sub">Un solo documento o enlace por materia/grado, aparte de las lecciones y tareas.</p>
-        </div>
-      </div>
-
-      <form id="form-examen" class="form-tarea">
-        <div class="campo-fila">
-          <div>
-            <label for="fe-materia">Materia</label>
-            <select id="fe-materia" required>
-              <option value="Ciencias Naturales">Ciencias Naturales</option>
-              <option value="Informática">Informática</option>
-            </select>
-          </div>
-          <div>
-            <label>Grado(s)</label>
-            <div id="fe-grados" class="grados-check"></div>
-          </div>
-        </div>
-
-        <label for="fe-archivo">Archivo del examen (opcional)</label>
-        <input type="file" id="fe-archivo">
-
-        <label for="fe-enlace">O pega un enlace en vez de subir archivo</label>
-        <input type="url" id="fe-enlace" placeholder="https://drive.google.com/...">
-
-        <button type="submit">Publicar examen final</button>
-        <p id="form-examen-msg"></p>
-      </form>
-
-      <div id="lista-examenes"><p class="estado-cargando">Cargando…</p></div>
-    </section>
-  </div>
+    <!-- Paso 3: detalle de UNA clase (sus lecciones + sus tareas) -->
+    <div id="vista-detalle-clase" class="oculto">
+      <button id="btn-volver-clase">← Volver a la lista de clases</button>
+      <div id="detalle-clase"></div>
+      <hr class="separador-tareas" id="separador-tareas">
+      <h3 class="material-titulo" id="titulo-tareas">📚 Tareas</h3>
+      <div id="selector-estudiante"></div>
+      <div id="lista-tareas"></div>
+    </div>
+  </section>
 
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/portal-config.js"></script>
-<script src="../js/portal-admin.js"></script>
+<script src="../js/portal-calendario.js"></script>
+<script src="../js/portal-clase.js"></script>
 </body>
 </html>
