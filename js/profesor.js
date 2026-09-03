@@ -1761,13 +1761,31 @@ async function guardarNotas(esAutomatico = false) {
     estadoGuardadoNotas.className = "small text-primary";
 
     let exitosas = 0, fallidas = 0;
+    const erroresDetalle = [];
+
+    // Marca visualmente la celda que falló (borde rojo + el motivo real
+    // en el "title", para pasar el mouse por encima y verlo) y guarda el
+    // mensaje para mostrarlo también en el resumen de abajo. Antes, un
+    // error de Supabase se tragaba en silencio: la nota se veía escrita
+    // en pantalla pero nunca quedaba guardada, y no había forma de saber
+    // por qué sin abrir la consola del navegador.
+    const marcarErrorEnCelda = (input, mensaje) => {
+        input.style.outline = "2px solid #dc2626";
+        input.style.backgroundColor = "#fef2f2";
+        input.title = `⚠️ No se guardó: ${mensaje}`;
+    };
 
     for (let i = 0; i < aGuardar.length; i++) {
         const item = aGuardar[i];
 
         if (item.borrar) {
             const { error } = await supabase.from("notas").delete().eq("id", item.notaId);
-            if (error) { fallidas++; } else {
+            if (error) {
+                fallidas++;
+                console.error("❌ Error al borrar nota:", error, item);
+                marcarErrorEnCelda(item.input, error.message || "error desconocido al borrar");
+                erroresDetalle.push(`${item.input.dataset.correo || item.input.dataset.estudianteId || "?"} (${etiquetaCasilla(item.tipo, item.numero)}): ${error.message || error.code || "error al borrar"}`);
+            } else {
                 exitosas++;
                 item.input.dataset.notaId = "";
                 item.input.dataset.ultimoValorGuardado = "";
@@ -1777,7 +1795,12 @@ async function guardarNotas(esAutomatico = false) {
             }
         } else if (item.notaId) {
             const { error } = await supabase.from("notas").update({ nota: item.nota, fecha: hoy, origen: "profesor" }).eq("id", item.notaId);
-            if (error) { fallidas++; } else {
+            if (error) {
+                fallidas++;
+                console.error("❌ Error al actualizar nota:", error, item);
+                marcarErrorEnCelda(item.input, error.message || "error desconocido al actualizar");
+                erroresDetalle.push(`${nombreEstudiantePorItem(item)} (${etiquetaCasilla(item.tipo, item.numero)}): ${error.message || error.code || "error al actualizar"}`);
+            } else {
                 exitosas++;
                 item.input.dataset.ultimoValorGuardado = String(item.nota);
                 actualizarHistorialEnMemoria(item, temaPorCasilla);
@@ -1800,8 +1823,12 @@ async function guardarNotas(esAutomatico = false) {
                 origen: "profesor"
             }]).select("id");
 
-            if (error) { fallidas++; }
-            else {
+            if (error) {
+                fallidas++;
+                console.error("❌ Error al insertar nota:", error, item);
+                marcarErrorEnCelda(item.input, error.message || "error desconocido al insertar");
+                erroresDetalle.push(`${nombreEstudiantePorItem(item)} (${etiquetaCasilla(item.tipo, item.numero)}): ${error.message || error.code || "error al insertar"}`);
+            } else {
                 exitosas++;
                 item.input.dataset.ultimoValorGuardado = String(item.nota);
                 if (insertado && insertado[0]) item.input.dataset.notaId = insertado[0].id;
@@ -1819,8 +1846,10 @@ async function guardarNotas(esAutomatico = false) {
         estadoGuardadoNotas.textContent = esAutomatico ? `✅ Autoguardado (${exitosas}) a las ${hora}` : `✅ ${exitosas} nota(s) guardada(s).`;
         estadoGuardadoNotas.className = "small text-success";
     } else {
-        estadoGuardadoNotas.textContent = `⚠️ ${exitosas} guardada(s), ${fallidas} con error.`;
+        estadoGuardadoNotas.innerHTML = `⚠️ ${exitosas} guardada(s), ${fallidas} con error — pasa el mouse sobre la casilla en rojo para ver el motivo.`;
         estadoGuardadoNotas.className = "small text-danger";
+        estadoGuardadoNotas.title = erroresDetalle.join("\n");
+        console.error("❌ Detalle de notas que NO se guardaron:", erroresDetalle);
     }
 
     // Si alguna de las notas guardadas era de una Apreciación 4+ en modo
@@ -2225,6 +2254,18 @@ async function construirExcelSnapshot(combinaciones, trimestre) {
 // podría leer "de más rápido" y mostrar la nota como si no se hubiera
 // guardado, aunque en realidad sí se guardó un instante después).
 let guardadoAutomaticoPendiente = null;
+
+// En cuanto el docente vuelve a tocar una celda que había quedado
+// marcada en rojo (por un error de guardado anterior), le quitamos la
+// marca: si el próximo guardado sale bien, no debe quedar pintada de
+// rojo para siempre.
+tablaNotasGrupo?.addEventListener("input", (e) => {
+    if (e.target.classList?.contains("input-nota-grupo") && e.target.style.outline) {
+        e.target.style.outline = "";
+        e.target.style.backgroundColor = "";
+        e.target.title = "";
+    }
+});
 
 tablaNotasGrupo?.addEventListener("blur", (e) => {
     if (e.target.classList?.contains("input-nota-grupo")) {
