@@ -1,113 +1,143 @@
-// Portal de Clase — panel de administración (requiere sesión de profesor)
+// Portal de Clase — lógica pública (lectura + entrega de tareas)
 //
-// Lógica de selección en 3 pasos:
-//   1. Materia (Ciencias Naturales / Informática)
-//   2. Salón(es) — se pueden marcar varios a la vez (ej: 9A, 9B y 9C
-//      reciben la misma clase de Ciencias Naturales; 8A y 8B la misma
-//      de Informática). Los salones marcados son los que reciben,
-//      desde ese momento, las clases/lecciones/tareas que se creen.
-//   3. Clase (Clase 1, Clase 2...) — cada "Clase N" que se crea queda
-//      "agrupada" (grupo_id) entre todos los salones que estaban
-//      marcados al crearla. Agregar/borrar una lección o tarea dentro
-//      de esa clase la agrega/borra en TODOS los salones del grupo a
-//      la vez, sin tener que repetir la carga salón por salón.
-//
-// Requiere estas columnas nuevas (ver migración SQL adjunta):
-//   alter table clases     add column if not exists grupo_id text;
-//   alter table lecciones  add column if not exists grupo_id text;
-//   alter table tareas     add column if not exists grupo_id text;
+// Las tareas y el material de clase se ven SIEMPRE, sin pedir nada.
+// Solo para poder "Entregar" una tarea se necesita saber quién es el
+// estudiante: en vez de escribir su nombre a mano, lo elige de una
+// lista desplegable (la misma lista de estudiantes de ese salón que
+// ya carga el profesor/administrador) y agrega su teléfono. Eso se
+// pide UNA sola vez por dispositivo; el navegador lo recuerda
+// (localStorage) y de ahí en adelante entrega directo.
 const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
-// Materias que se dictan, y qué salón(es) recibe cada una.
-const MATERIAS = ['Ciencias Naturales', 'Informática'];
-const MATERIA_SALONES = {
-  'Ciencias Naturales': ['9A', '9B', '9C', '8A'],
-  'Informática': ['8A', '8B'],
+const vistaClases = document.getElementById('vista-clases');
+const vistaTareas = document.getElementById('vista-tareas');
+const fichaClase = document.getElementById('ficha-clase');
+const selectorEstudiante = document.getElementById('selector-estudiante');
+const listaTareas = document.getElementById('lista-tareas');
+const btnVolver = document.getElementById('btn-volver');
+
+const ACCENTOS = {
+  'Ciencias Naturales': 'var(--ciencias)',
+  'Ciencias': 'var(--ciencias)',
+  'Informática': 'var(--informatica)',
 };
 
-const loginBox = document.getElementById('login-box');
-const panel = document.getElementById('panel');
-const loginMsg = document.getElementById('login-msg');
-const userEmailEl = document.getElementById('user-email');
+// Datos fijos de la ficha (encabezado tipo "hoja de trabajo")
+const ESCUELA_NOMBRE = 'C.E.B.G. El Jiral';
+const PROFESOR_NOMBRE = 'Samuel Ortega';
 
-const listaClases = document.getElementById('lista-clases');
-const panelClaseSeleccionada = document.getElementById('panel-clase-seleccionada');
-
-const feMateria = document.getElementById('fe-materia');
-const feGrados = document.getElementById('fe-grados');
-const formExamen = document.getElementById('form-examen');
-const formExamenMsg = document.getElementById('form-examen-msg');
-const listaExamenes = document.getElementById('lista-examenes');
-
-function pintarGrados(contenedor, materia) {
-  const opciones = MATERIA_SALONES[materia] || [];
-  contenedor.innerHTML = opciones.map((g) => `
-    <label>
-      <input type="checkbox" name="grado" value="${g}" ${opciones.length === 1 ? 'checked' : ''}>
-      ${g}
-    </label>
-  `).join('');
+// ---------- Ficha institucional (escuela · materia · profesor · grado) ----------
+function renderFicha(materia, grado) {
+  if (!fichaClase) return;
+  fichaClase.innerHTML = `
+    <p class="ficha-escuela">${escapeHtml(ESCUELA_NOMBRE)}</p>
+    <div class="ficha-datos">
+      <p><span>Materia</span>${escapeHtml(materia)}</p>
+      <p><span>Profesor</span>${escapeHtml(PROFESOR_NOMBRE)}</p>
+      <p><span>Grado</span>${escapeHtml(grado)}</p>
+    </div>
+  `;
 }
 
-feMateria.addEventListener('change', () => pintarGrados(feGrados, feMateria.value));
-pintarGrados(feGrados, feMateria.value);
+// Convierte una cédula en el correo "interno" que usa Supabase Auth
+// para esa cuenta. Debe ser EXACTAMENTE la misma función que usan
+// registro.js y login.js, para que el estudiante pueda entrar aquí
+// con la misma cédula + contraseña que ya usa para ver sus notas.
+function cedulaAEmail(cedula) {
+  const cedulaLimpia = cedula.trim().toLowerCase().replace(/[\s-]/g, '');
+  return `${cedulaLimpia}@notasjiral.local`;
+}
 
-// ---------- Sesión ----------
-async function revisarSesion() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    mostrarPanel(session.user.email);
-  } else {
-    loginBox.classList.remove('oculto');
-    panel.classList.add('oculto');
+function formatearFecha(fechaISO) {
+  if (!fechaISO) return null;
+  const [y, m, d] = fechaISO.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function formatearFechaHora(fechaISO) {
+  const d = new Date(fechaISO);
+  return d.toLocaleString('es-PA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function esImagen(nombreOUrl) {
+  if (!nombreOUrl) return false;
+  return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(nombreOUrl);
+}
+
+function nombreArchivoDeUrl(url) {
+  try {
+    const limpio = url.split('?')[0];
+    const partes = limpio.split('/');
+    return decodeURIComponent(partes[partes.length - 1] || url);
+  } catch {
+    return url;
   }
 }
 
-function mostrarPanel(email) {
-  loginBox.classList.add('oculto');
-  panel.classList.remove('oculto');
-  userEmailEl.textContent = email;
-  cargarClasesAdmin();
-  cargarExamenesAdmin();
+function extensionDeUrl(url) {
+  const nombre = nombreArchivoDeUrl(url);
+  const match = nombre.match(/\.([a-zA-Z0-9]+)$/);
+  return match ? match[1].toLowerCase() : '';
 }
 
-document.getElementById('btn-login').addEventListener('click', async () => {
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-pass').value;
-  loginMsg.textContent = '';
-  loginMsg.className = '';
-
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) {
-    loginMsg.textContent = 'Correo o contraseña incorrectos.';
-    loginMsg.className = 'msg-error';
-    return;
+function dominioDeUrl(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
   }
-  mostrarPanel(data.user.email);
-});
+}
 
-document.getElementById('btn-salir').addEventListener('click', async () => {
-  await sb.auth.signOut();
-  location.reload();
-});
+const ICONOS_EXTENSION = {
+  doc: '📄', docx: '📄', odt: '📄',
+  ppt: '📊', pptx: '📊',
+  xls: '📈', xlsx: '📈', csv: '📈',
+  pdf: '📕',
+  zip: '🗜️', rar: '🗜️',
+};
 
-// ---------- Utilidades ----------
+// ---------- Cómo se ve cada lección: imagen, archivo (Word/PDF/PPT...) o enlace ----------
+function renderLeccionItem(l) {
+  // Imagen: miniatura recortada, clic para verla en tamaño completo.
+  if (l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url)) {
+    return `
+      <a class="leccion-miniatura" href="${l.archivo_url}" target="_blank" rel="noopener" title="${l.nombre ? escapeHtml(l.nombre) : 'Ver imagen'}">
+        <img src="${l.archivo_url}" alt="${l.nombre ? escapeHtml(l.nombre) : 'Lección'}" loading="lazy">
+        ${l.nombre ? `<span>${escapeHtml(l.nombre)}</span>` : ''}
+      </a>
+    `;
+  }
+
+  // Archivo (Word, PDF, PowerPoint, Excel...): icono según el tipo + nombre,
+  // clic para descargarlo/abrirlo.
+  if (l.tipo === 'archivo') {
+    const ext = extensionDeUrl(l.archivo_nombre || l.archivo_url);
+    return `
+      <a class="leccion-archivo" href="${l.archivo_url}" target="_blank" rel="noopener">
+        <span class="leccion-archivo-icono">${ICONOS_EXTENSION[ext] || '📎'}</span>
+        <span class="leccion-archivo-nombre">${l.nombre ? escapeHtml(l.nombre) : escapeHtml(nombreArchivoDeUrl(l.archivo_url))}</span>
+        <span class="leccion-archivo-descargar">↓</span>
+      </a>
+    `;
+  }
+
+  // Enlace: muestra un adelanto (nombre + dominio), clic para abrir todo.
+  return `
+    <a class="leccion-enlace" href="${l.archivo_url}" target="_blank" rel="noopener">
+      <span class="leccion-enlace-icono">🔗</span>
+      <span class="leccion-enlace-texto">
+        <span class="leccion-enlace-nombre">${l.nombre ? escapeHtml(l.nombre) : 'Ver enlace'}</span>
+        <span class="leccion-enlace-dominio">${escapeHtml(dominioDeUrl(l.archivo_url))}</span>
+      </span>
+      <span class="leccion-enlace-abrir">↗</span>
+    </a>
+  `;
+}
+
 function sanitizarNombre(str) {
   return str
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
-    .replace(/[^a-zA-Z0-9.\-_]/g, '_'); // reemplaza espacios y símbolos raros
-}
-
-function extraerRuta(url) {
-  const marcador = '/tareas-archivos/';
-  const i = url.indexOf(marcador);
-  return i === -1 ? '' : url.slice(i + marcador.length);
-}
-
-function extraerRutaClase(url) {
-  const marcador = '/material-clases/';
-  const i = url.indexOf(marcador);
-  return i === -1 ? '' : url.slice(i + marcador.length);
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9.\-_]/g, '_');
 }
 
 function escapeHtml(str) {
@@ -116,843 +146,730 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-function formatearFechaCorta(fechaISO) {
-  if (!fechaISO) return null;
-  const [y, m, d] = fechaISO.split('-');
-  return `${d}/${m}/${y}`;
+// ---------- Identidad: ahora se basa en una sesión real de Supabase Auth ----------
+// Antes bastaba con elegir el nombre de una lista, así que cualquiera
+// podía hacerse pasar por otro estudiante (y hasta eliminar sus
+// entregas). Ahora hace falta iniciar sesión con la MISMA cédula +
+// contraseña que el estudiante ya usa para ver sus notas
+// (login.html / registro.html), y la identidad se saca de esa cuenta,
+// nunca de algo que la persona pueda escribir a mano.
+//
+// Devuelve:
+//   null                                          -> nadie ha iniciado sesión
+//   { estudianteId, nombre, cedula, salon }        -> sesión válida de estudiante
+//   { salonIncorrecto: true, nombre, salon }       -> sesión válida, pero de OTRO salón
+async function obtenerIdentidadActual(grado) {
+  const { data: { user }, error: errUser } = await sb.auth.getUser();
+  if (errUser || !user || !user.email) return null;
+
+  const { data: estudiante, error: errEst } = await sb
+    .from('estudiantes')
+    .select('id, nombre, cedula, salon')
+    .eq('correo', user.email)
+    .maybeSingle();
+
+  if (errEst || !estudiante) return null;
+
+  if (estudiante.salon !== grado) {
+    return { salonIncorrecto: true, nombre: estudiante.nombre, salon: estudiante.salon };
+  }
+
+  return {
+    estudianteId: estudiante.id,
+    nombre: estudiante.nombre,
+    cedula: estudiante.cedula,
+    telefono: '',
+    salon: estudiante.salon,
+  };
 }
 
-function esImagen(nombreOUrl) {
-  if (!nombreOUrl) return false;
-  return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(nombreOUrl);
+// Identidad "usable" para entregar/editar/eliminar tareas: solo si de
+// verdad corresponde a un estudiante de ESTE salón.
+function identidadUtilizable(identidad) {
+  return identidad && identidad.estudianteId ? identidad : null;
 }
 
-// Detecta el tipo de archivo adjunto (por extensión) para mostrar un
-// botón pequeño con el ícono correspondiente (Word, Excel, PDF, imagen...).
-function detectarTipoArchivo(nombreOUrl, esEnlace) {
-  if (esEnlace) return { icono: '🔗', etiqueta: 'Enlace' };
-  const s = (nombreOUrl || '').toLowerCase();
-  if (/\.pdf(\?|$)/.test(s)) return { icono: '📕', etiqueta: 'PDF' };
-  if (/\.docx?(\?|$)/.test(s)) return { icono: '📄', etiqueta: 'Word' };
-  if (/\.xlsx?(\?|$)/.test(s)) return { icono: '📊', etiqueta: 'Excel' };
-  if (/\.pptx?(\?|$)/.test(s)) return { icono: '📽️', etiqueta: 'PowerPoint' };
-  if (/\.(jpe?g|png|gif|webp)(\?|$)/.test(s)) return { icono: '🖼️', etiqueta: 'Imagen' };
-  return { icono: '📎', etiqueta: 'Archivo' };
+// ---------- Navegación dentro de una materia+grado ----------
+// Paso 2: lista de "Clase 1", "Clase 2"... (y Examen final si existe)
+// Paso 3: detalle de una sola clase, con sus lecciones y sus tareas
+const vistaListaClases = document.getElementById('vista-lista-clases');
+const vistaDetalleClase = document.getElementById('vista-detalle-clase');
+const btnVolverClase = document.getElementById('btn-volver-clase');
+
+let claseActual = null; // la clase abierta ahora mismo en el paso 3 (o null)
+
+function mostrarListaClases() {
+  vistaListaClases.classList.remove('oculto');
+  vistaDetalleClase.classList.add('oculto');
+  claseActual = null;
 }
 
-// Genera el botón pequeño de "ver adjunto" para un ítem de tarea/lección.
-function botonVerAdjunto(url, esEnlace, nombreArchivo) {
-  if (!url) return '';
-  const tipo = detectarTipoArchivo(esEnlace ? url : (nombreArchivo || url), esEnlace);
-  return `<a class="btn-ver-adjunto" href="${url}" target="_blank" rel="noopener" title="${esEnlace ? 'Abrir enlace' : `Ver ${tipo.etiqueta}`}">${tipo.icono} ${tipo.etiqueta}</a>`;
+function mostrarDetalleClase() {
+  vistaListaClases.classList.add('oculto');
+  vistaDetalleClase.classList.remove('oculto');
 }
 
-// Identificador para agrupar filas creadas juntas (una por salón),
-// tanto para "clases" como para lecciones/tareas dentro de ellas.
-function generarId() {
-  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-  return `g-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+// ---------- Paso 2: lista de "Clase 1", "Clase 2"... ----------
+async function cargarListaClases(materia, grado) {
+  const contenedor = document.getElementById('lista-clases-grid');
+  if (!contenedor) return;
+  contenedor.innerHTML = '<p class="estado-cargando">Cargando…</p>';
 
-// Agrupa un arreglo de filas (lecciones o tareas) por su grupo_id.
-// Las filas sin grupo_id (datos antiguos) quedan cada una en su propio grupo.
-function agruparPorGrupoId(filas) {
-  const mapa = new Map();
-  filas.forEach((f) => {
-    const key = f.grupo_id || `solo-${f.id}`;
-    if (!mapa.has(key)) mapa.set(key, { key, muestra: f, filas: [] });
-    mapa.get(key).filas.push(f);
-  });
-  return Array.from(mapa.values());
-}
+  const { data: clases, error: errClases } = await sb
+    .from('clases').select('*').eq('materia', materia).eq('grado', grado).order('numero', { ascending: true });
 
-// Agrupa las filas de "clases" (una fila por salón) en "grupos de clase"
-// (una "Clase N" que puede abarcar varios salones a la vez).
-function agruparClases(clases) {
-  const mapa = new Map();
-  clases.forEach((c) => {
-    const key = c.grupo_id || `solo-${c.id}`;
-    if (!mapa.has(key)) {
-      mapa.set(key, {
-        key,
-        grupoId: c.grupo_id || null,
-        materia: c.materia,
-        numero: c.numero,
-        nombre: c.nombre,
-        fecha_inicio: c.fecha_inicio,
-        fecha_fin: c.fecha_fin,
-        archivo_url: c.archivo_url || null,
-        archivo_nombre: c.archivo_nombre || null,
-        tipo: c.tipo || null,
-        filas: [],
-      });
-    }
-    mapa.get(key).filas.push({ id: c.id, grado: c.grado });
-  });
-  return Array.from(mapa.values());
-}
-
-function obtenerGrupoPorKey(key) {
-  return (window.__gruposAdmin || []).find((g) => g.key === key);
-}
-
-// "Clave" de una combinación de salones (para comparar sin importar el orden).
-function claveDeSalones(grados) {
-  return Array.from(grados).slice().sort().join('|');
-}
-
-// ---------- Estado de selección ----------
-let materiaSeleccionada = MATERIAS[0];
-let salonesSeleccionados = new Set(MATERIA_SALONES[materiaSeleccionada]); // por defecto, todos los salones de la materia
-let grupoSeleccionadoId = null; // "key" del grupo de clase abierto (grupo_id, o "solo-<id>")
-let mostrandoFormNuevaClase = false;
-const leccionesPorGrupo = {};
-const tareasPorGrupo = {};
-
-// ---------- Crear "Clase N" para todos los salones marcados ----------
-async function crearClase(nombreClase, fechaInicio, fechaFin, msgEl) {
-  const materia = materiaSeleccionada;
-  const salones = Array.from(salonesSeleccionados);
-
-  if (!salones.length) {
-    if (msgEl) {
-      msgEl.textContent = 'Elige al menos un salón.';
-      msgEl.className = 'msg-error';
-    }
+  if (errClases) {
+    console.error(errClases);
+    contenedor.innerHTML = '<p class="estado-vacio">No se pudieron cargar las clases.</p>';
     return;
   }
 
-  try {
-    const claveSeleccion = claveDeSalones(salones);
-    const gruposMismaCombinacion = (window.__gruposAdmin || [])
-      .filter((g) => g.materia === materia && claveDeSalones(g.filas.map((f) => f.grado)) === claveSeleccion);
-    const siguienteNumero = gruposMismaCombinacion.length
-      ? Math.max(...gruposMismaCombinacion.map((g) => g.numero || 0)) + 1
-      : 1;
+  const listaClasesData = (clases || []).filter(c => !c.es_examen_final);
+  const examen = (clases || []).find(c => c.es_examen_final);
 
-    const grupoId = generarId();
-    const filas = salones.map((grado) => ({
-      materia, grado, numero: siguienteNumero,
-      es_examen_final: false, nombre: nombreClase,
-      fecha_inicio: fechaInicio, fecha_fin: fechaFin,
-      grupo_id: grupoId,
-    }));
-
-    const { error: errInsert } = await sb.from('clases').insert(filas);
-    if (errInsert) throw errInsert;
-
-    mostrandoFormNuevaClase = false;
-    grupoSeleccionadoId = grupoId;
-    await cargarClasesAdmin();
-  } catch (err) {
-    console.error(err);
-    if (msgEl) {
-      msgEl.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
-      msgEl.className = 'msg-error';
-    }
-  }
-}
-
-async function cargarClasesAdmin() {
-  listaClases.innerHTML = '<p class="estado-cargando">Cargando…</p>';
-  const { data, error } = await sb
-    .from('clases')
-    .select('*')
-    .eq('es_examen_final', false)
-    .order('materia', { ascending: true })
-    .order('numero', { ascending: true })
-    .order('grado', { ascending: true });
-
-  if (error) {
-    listaClases.innerHTML = '<p class="estado-vacio">No se pudo cargar el material de clase.</p>';
-    console.error(error);
+  if (!listaClasesData.length && !examen) {
+    contenedor.innerHTML = '<p class="estado-vacio">Todavía no hay clases publicadas para este salón.</p>';
     return;
   }
 
-  window.__clasesAdmin = data;
-  window.__gruposAdmin = agruparClases(data);
+  const idsClases = listaClasesData.map(c => c.id);
+  const [{ data: leccionesData }, { data: tareasData }] = await Promise.all([
+    idsClases.length ? sb.from('lecciones').select('id, clase_id').in('clase_id', idsClases) : Promise.resolve({ data: [] }),
+    sb.from('tareas').select('id, clase_id, clase_numero').eq('materia', materia).eq('grado', grado),
+  ]);
 
-  // Si el grupo que estaba abierto ya no existe (se borró), se limpia.
-  if (grupoSeleccionadoId && !window.__gruposAdmin.some((g) => g.key === grupoSeleccionadoId)) {
-    grupoSeleccionadoId = null;
-    panelClaseSeleccionada.innerHTML = '';
-  }
+  const contarLecciones = (claseId) => (leccionesData || []).filter(l => l.clase_id === claseId).length;
+  const contarTareas = (c) => (tareasData || []).filter(t => (t.clase_id != null ? t.clase_id === c.id : t.clase_numero === c.numero)).length;
 
-  renderListaClases(data);
-  if (grupoSeleccionadoId) renderPanelClase(grupoSeleccionadoId);
-}
+  const accent = ACCENTOS[materia] || 'var(--ciencias)';
 
-// ---------- Paso 1: materia · Paso 2: salón(es) · Paso 3: clase ----------
-function renderListaClases(clases) {
-  window.__gruposAdmin = agruparClases(clases);
-
-  // Paso 1 — materia
-  const materiaHtml = MATERIAS.map((m) => `
-    <button class="salon-tab ${m === materiaSeleccionada ? 'activa' : ''}" data-materia="${m}">${m}</button>
-  `).join('');
-
-  // Paso 2 — salón(es) de la materia elegida, selección múltiple
-  const salonesDeMateria = MATERIA_SALONES[materiaSeleccionada] || [];
-  const salonesHtml = salonesDeMateria.map((s) => `
-    <label>
-      <input type="checkbox" data-salon-check value="${s}" ${salonesSeleccionados.has(s) ? 'checked' : ''}>
-      ${s}
-    </label>
-  `).join('');
-
-  // Paso 3 — clases (grupos) que pertenecen EXACTAMENTE a la combinación de
-  // salones marcada arriba. Si marcas solo 8A, solo ves las clases de 8A
-  // (que son distintas a las de 9A+9B+9C, aunque sean de la misma materia).
-  const claveSeleccion = claveDeSalones(salonesSeleccionados);
-  const gruposDeLaMateria = (window.__gruposAdmin || [])
-    .filter((g) => g.materia === materiaSeleccionada && claveDeSalones(g.filas.map((f) => f.grado)) === claveSeleccion)
-    .sort((a, b) => (a.numero || 0) - (b.numero || 0));
-
-  const claseTabsHtml = gruposDeLaMateria.map((g) => `
-    <span class="clase-tab-wrap">
-      <button class="clase-tab ${g.key === grupoSeleccionadoId ? 'activa' : ''}" data-key="${g.key}">
-        Clase ${g.numero}
-        <span style="opacity:.65; font-weight:500;">· ${g.filas.map((f) => f.grado).join(', ')}</span>
+  const tarjetasClases = listaClasesData.map(c => {
+    const nLecciones = contarLecciones(c.id);
+    const nTareas = contarTareas(c);
+    return `
+      <button type="button" class="clase-card" style="--accent:${accent}" data-clase-id="${c.id}">
+        <span class="clase-card-num">Clase ${c.numero}</span>
+        <p class="clase-card-nombre">${c.nombre ? escapeHtml(c.nombre) : `Clase ${c.numero}`}</p>
+        ${(c.fecha_inicio || c.fecha_fin) ? `<p class="clase-card-fechas">${formatearFecha(c.fecha_inicio) || '?'} — ${formatearFecha(c.fecha_fin) || '?'}</p>` : ''}
+        <p class="clase-card-conteo">${nLecciones ? `${nLecciones} lección${nLecciones === 1 ? '' : 'es'}` : 'sin lecciones'} · ${nTareas ? `${nTareas} tarea${nTareas === 1 ? '' : 's'}` : 'sin tareas'}</p>
       </button>
-      <button class="clase-tab-borrar" data-key="${g.key}" title="Borrar esta clase">✕</button>
-    </span>
-  `).join('');
+    `;
+  }).join('');
 
-  const nuevaClaseFormHtml = mostrandoFormNuevaClase ? `
-    <form id="form-nueva-clase" class="nueva-clase-form">
-      <p style="font-size:12px; color:var(--muted); margin:0 0 10px;">
-        Se creará a la vez en: <strong>${Array.from(salonesSeleccionados).join(', ') || '— elige un salón arriba —'}</strong>
-      </p>
-      <label for="nc-nombre">Título de la clase</label>
-      <input type="text" id="nc-nombre" required placeholder="Ej: Función de nutrición y sistema circulatorio">
-      <div class="campo-fila">
-        <div>
-          <label for="nc-inicio">Fecha de inicio (opcional)</label>
-          <input type="date" id="nc-inicio">
-        </div>
-        <div>
-          <label for="nc-fin">Fecha de fin (opcional)</label>
-          <input type="date" id="nc-fin">
-        </div>
-      </div>
-      <div class="botones-fila">
-        <button type="submit">Crear clase</button>
-        <button type="button" class="btn-cancelar" id="btn-cancelar-nueva-clase">Cancelar</button>
-      </div>
-      <p id="nueva-clase-msg" style="margin:8px 0 0;"></p>
-    </form>
+  const tarjetaExamen = examen ? `
+    <button type="button" class="clase-card examen" data-clase-id="examen">
+      <span class="clase-card-num">📕 Examen</span>
+      <p class="clase-card-nombre">Examen final</p>
+    </button>
   ` : '';
 
-  listaClases.innerHTML = `
-    <p class="paso-label">1. Elige la materia</p>
-    <div class="salon-tabs">${materiaHtml}</div>
+  contenedor.innerHTML = tarjetasClases + tarjetaExamen;
 
-    <p class="paso-label" style="margin-top:16px;">2. Elige el/los salón(es)</p>
-    <p style="font-size:12px; color:var(--muted); margin:0 0 10px;">
-      Marca todos los que reciben la misma clase (ej: 9A, 9B y 9C juntos). Lo que crees o subas abajo se publicará en todos los salones marcados.
-    </p>
-    <div class="grados-check">${salonesHtml}</div>
-
-    <p class="paso-label" style="margin-top:16px;">3. Elige la clase</p>
-    <div class="clase-tabs">
-      ${claseTabsHtml}
-      ${!mostrandoFormNuevaClase ? '<button class="clase-tab-nueva" id="btn-nueva-clase">+ Nueva clase</button>' : ''}
-    </div>
-    ${nuevaClaseFormHtml}
-  `;
-
-  listaClases.querySelectorAll('[data-materia]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      if (btn.dataset.materia === materiaSeleccionada) return;
-      materiaSeleccionada = btn.dataset.materia;
-      salonesSeleccionados = new Set(MATERIA_SALONES[materiaSeleccionada] || []);
-      grupoSeleccionadoId = null;
-      mostrandoFormNuevaClase = false;
-      panelClaseSeleccionada.innerHTML = '';
-      renderListaClases(window.__clasesAdmin || []);
+  contenedor.querySelectorAll('[data-clase-id]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const id = boton.dataset.claseId;
+      const clase = id === 'examen' ? examen : listaClasesData.find(c => String(c.id) === id);
+      if (clase) abrirDetalleClase(materia, grado, clase);
     });
   });
-
-  listaClases.querySelectorAll('[data-salon-check]').forEach((chk) => {
-    chk.addEventListener('change', () => {
-      if (chk.checked) {
-        salonesSeleccionados.add(chk.value);
-      } else {
-        if (salonesSeleccionados.size === 1) {
-          // Debe quedar al menos un salón marcado.
-          chk.checked = true;
-          return;
-        }
-        salonesSeleccionados.delete(chk.value);
-      }
-      // La combinación de salones cambió: las clases que se muestran en el
-      // paso 3 dependen de esa combinación exacta, así que se refresca y se
-      // cierra cualquier clase que estuviera abierta de la combinación anterior.
-      grupoSeleccionadoId = null;
-      mostrandoFormNuevaClase = false;
-      panelClaseSeleccionada.innerHTML = '';
-      renderListaClases(window.__clasesAdmin || []);
-    });
-  });
-
-  listaClases.querySelectorAll('.clase-tab').forEach((btn) => {
-    btn.addEventListener('click', () => seleccionarGrupoClase(btn.dataset.key));
-  });
-
-  listaClases.querySelectorAll('.clase-tab-borrar').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      borrarGrupoClase(btn.dataset.key);
-    });
-  });
-
-  const btnNueva = document.getElementById('btn-nueva-clase');
-  if (btnNueva) {
-    btnNueva.addEventListener('click', () => {
-      mostrandoFormNuevaClase = true;
-      renderListaClases(window.__clasesAdmin || []);
-      document.getElementById('nc-nombre')?.focus();
-    });
-  }
-
-  const btnCancelar = document.getElementById('btn-cancelar-nueva-clase');
-  if (btnCancelar) {
-    btnCancelar.addEventListener('click', () => {
-      mostrandoFormNuevaClase = false;
-      renderListaClases(window.__clasesAdmin || []);
-    });
-  }
-
-  const formNueva = document.getElementById('form-nueva-clase');
-  if (formNueva) {
-    formNueva.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const msgEl = document.getElementById('nueva-clase-msg');
-      const nombreClase = document.getElementById('nc-nombre').value.trim();
-      const fechaInicio = document.getElementById('nc-inicio').value || null;
-      const fechaFin = document.getElementById('nc-fin').value || null;
-      if (!salonesSeleccionados.size) {
-        msgEl.textContent = 'Elige al menos un salón.';
-        msgEl.className = 'msg-error';
-        return;
-      }
-      if (!nombreClase) {
-        msgEl.textContent = 'Escribe un título para la clase.';
-        msgEl.className = 'msg-error';
-        return;
-      }
-      msgEl.textContent = 'Guardando…';
-      msgEl.className = '';
-      await crearClase(nombreClase, fechaInicio, fechaFin, msgEl);
-    });
-  }
 }
 
-function seleccionarGrupoClase(key) {
-  grupoSeleccionadoId = (grupoSeleccionadoId === key) ? null : key; // volver a pulsarla la cierra
-  mostrandoFormNuevaClase = false;
-  renderListaClases(window.__clasesAdmin || []);
-  if (grupoSeleccionadoId) {
-    renderPanelClase(grupoSeleccionadoId);
-    panelClaseSeleccionada.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  } else {
-    panelClaseSeleccionada.innerHTML = '';
+// ---------- Paso 3: detalle de una clase (lecciones + tareas) ----------
+async function abrirDetalleClase(materia, grado, clase) {
+  claseActual = clase;
+  mostrarDetalleClase();
+
+  const contenedor = document.getElementById('detalle-clase');
+  const separadorTareas = document.getElementById('separador-tareas');
+  const tituloTareas = document.getElementById('titulo-tareas');
+  const accent = ACCENTOS[materia] || 'var(--ciencias)';
+
+  // Examen final: solo el archivo/enlace, sin lecciones ni tareas.
+  if (clase.es_examen_final) {
+    contenedor.innerHTML = `
+      <article class="tarea-item" style="--accent:var(--coral); border-color:var(--coral);">
+        <h3>📕 Examen final</h3>
+        ${clase.archivo_url ? `<a class="btn-descargar" href="${clase.archivo_url}" target="_blank" rel="noopener">${clase.tipo === 'archivo' ? '↓ Descargar examen' : '↗ Abrir enlace'}</a>` : ''}
+      </article>
+    `;
+    if (separadorTareas) separadorTareas.style.display = 'none';
+    if (tituloTareas) tituloTareas.style.display = 'none';
+    document.getElementById('selector-estudiante').innerHTML = '';
+    listaTareas.innerHTML = '';
+    return;
   }
-}
 
-async function renderPanelClase(grupoKey) {
-  const grupo = obtenerGrupoPorKey(grupoKey);
-  if (!grupo) return;
+  contenedor.innerHTML = '<p class="estado-cargando">Cargando…</p>';
+  if (separadorTareas) separadorTareas.style.display = '';
+  if (tituloTareas) tituloTareas.style.display = '';
 
-  panelClaseSeleccionada.innerHTML = '<div class="clase-panel"><p class="estado-cargando">Cargando lecciones y tareas…</p></div>';
-
-  const claseIds = grupo.filas.map((f) => f.id);
-  const [{ data: leccionesRaw, error: errLecciones }, { data: tareasRaw, error: errTareas }] = await Promise.all([
-    sb.from('lecciones').select('*').in('clase_id', claseIds).order('creado_en', { ascending: true }),
-    sb.from('tareas').select('*').in('clase_id', claseIds).order('creado_en', { ascending: true }),
-  ]);
+  const { data: lecciones, error: errLecciones } = await sb
+    .from('lecciones').select('*').eq('clase_id', clase.id).order('creado_en', { ascending: true });
   if (errLecciones) console.error(errLecciones);
-  if (errTareas) console.error(errTareas);
 
-  // Si mientras cargaba se cambió de clase, no pisar el panel nuevo.
-  if (grupoSeleccionadoId !== grupoKey) return;
-
-  const leccionesAgrupadas = agruparPorGrupoId(leccionesRaw || []);
-  const tareasAgrupadas = agruparPorGrupoId(tareasRaw || []);
-  leccionesPorGrupo[grupoKey] = leccionesAgrupadas;
-  tareasPorGrupo[grupoKey] = tareasAgrupadas;
-
-  const gradosTexto = grupo.filas.map((f) => f.grado).join(', ');
-
-  panelClaseSeleccionada.innerHTML = `
-    <div class="clase-panel" data-panel="${grupoKey}">
-      <div class="clase-panel-cabecera">
-        <div>
-          <h3>Clase ${grupo.numero}: ${escapeHtml(grupo.nombre || '')}</h3>
-          <span class="tag">${grupo.materia} · ${gradosTexto}${(grupo.fecha_inicio || grupo.fecha_fin) ? ` · ${formatearFechaCorta(grupo.fecha_inicio) || '?'} — ${formatearFechaCorta(grupo.fecha_fin) || '?'}` : ''}</span>
+  contenedor.innerHTML = `
+    <article class="tarea-item" style="--accent:${accent}">
+      <h3>Clase ${clase.numero}${clase.nombre ? `: ${escapeHtml(clase.nombre)}` : ''}</h3>
+      ${(clase.fecha_inicio || clase.fecha_fin) ? `
+        <div class="tarea-meta">
+          <span>${formatearFecha(clase.fecha_inicio) || '?'} — ${formatearFecha(clase.fecha_fin) || '?'}</span>
         </div>
-        <button class="btn-borrar btn-borrar-clase" data-key="${grupoKey}">Borrar clase</button>
+      ` : ''}
+      ${(lecciones && lecciones.length) ? `
+        <p style="font-size:12px; color:var(--muted); margin:10px 0 4px;">Lecciones:</p>
+        <div class="leccion-miniaturas">
+          ${lecciones.map(l => renderLeccionItem(l)).join('')}
+        </div>
+      ` : `<p class="estado-vacio" style="padding:6px 0 0;">Todavía no hay lecciones en esta clase.</p>`}
+    </article>
+    ${clase.archivo_url ? `
+      <article class="tarea-item explicacion-tareas-card">
+        <h4>📎 Explicación de las tareas</h4>
+        <p>Este archivo/enlace explica todas las tareas de esta clase.</p>
+        <div class="leccion-miniaturas">
+          ${renderLeccionItem({ tipo: clase.tipo, archivo_url: clase.archivo_url, archivo_nombre: clase.archivo_nombre, nombre: 'Ver explicación' })}
+        </div>
+      </article>
+    ` : ''}
+  `;
+
+  await renderIdentidadWidget(materia, grado);
+  await cargarTareas(materia, grado);
+}
+
+async function cargarConteos() {
+  const { data, error } = await sb.from('tareas').select('materia, grado');
+  if (error) { console.error(error); return; }
+  document.querySelectorAll('.folder-card').forEach(card => {
+    const materia = card.dataset.materia;
+    const grado = card.dataset.grado;
+    const total = data.filter(t => t.materia === materia && t.grado === grado).length;
+    const el = card.querySelector('[data-conteo]');
+    el.textContent = total === 0 ? 'sin tareas' : (total === 1 ? '1 tarea' : `${total} tareas`);
+  });
+}
+
+// ---------- Abrir una materia+grado (paso 1 → paso 2) ----------
+async function abrirClase(materia, grado) {
+  renderFicha(materia, grado);
+  vistaClases.style.display = 'none';
+  vistaTareas.classList.remove('oculto');
+  mostrarListaClases();
+
+  await cargarListaClases(materia, grado);
+}
+
+// ---------- Widget de identidad (arriba de la lista de tareas) ----------
+// Si ya hay una sesión real iniciada (misma cédula + contraseña que
+// usa para ver sus notas), se muestra un banner con su nombre y un
+// botón para cerrar sesión. Si no, se pide iniciar sesión. Esto NO
+// bloquea ver las tareas ni el material de clase, solo hace falta
+// para poder entregar, editar o eliminar una entrega.
+async function renderIdentidadWidget(materia, grado) {
+  selectorEstudiante.innerHTML = '<p class="estado-cargando">Cargando…</p>';
+  const identidad = await obtenerIdentidadActual(grado);
+
+  // Caso 1: sesión válida de un estudiante de ESTE salón.
+  if (identidad && identidad.estudianteId) {
+    selectorEstudiante.innerHTML = `
+      <div class="banner-estudiante">
+        <span>👤 ${escapeHtml(identidad.nombre)}</span>
+        <button class="cambiar" id="btn-cambiar-identidad">Cerrar sesión</button>
       </div>
+    `;
+    document.getElementById('btn-cambiar-identidad').addEventListener('click', async () => {
+      await sb.auth.signOut();
+      await renderIdentidadWidget(materia, grado);
+      await cargarTareas(materia, grado);
+    });
+    return;
+  }
 
-      <h4>📖 Lecciones de esta clase</h4>
-      <p style="font-size:11px; color:var(--muted); margin:-6px 0 12px;">Se agregan a la vez en: ${gradosTexto}</p>
-      <form class="sub-form" data-form-leccion="${grupoKey}">
-        <input type="text" name="nombre" placeholder="Nombre de la lección (opcional)">
-        <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp" multiple>
-        <input type="url" name="enlace" placeholder="O pega un enlace">
-        <button type="submit">Agregar lección</button>
-        <p class="sub-form-msg"></p>
-        <p style="font-size:11px; color:var(--muted); flex-basis:100%; margin:0;">Puedes seleccionar varios archivos/imágenes a la vez — se agregan como lecciones separadas.</p>
-      </form>
-      <div class="sub-lista">
-        ${leccionesAgrupadas.length ? leccionesAgrupadas.map((g) => {
-          const l = g.muestra;
-          return `
-          <div class="item-mini" data-key="${g.key}">
-            <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              ${l.tipo === 'archivo' && esImagen(l.archivo_nombre || l.archivo_url) ? `<img src="${l.archivo_url}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--line);">` : ''}
-              ${l.nombre ? escapeHtml(l.nombre) : (l.tipo === 'archivo' ? 'Archivo' : 'Enlace')}
-              ${botonVerAdjunto(l.archivo_url, l.tipo === 'enlace', l.archivo_nombre)}
-            </span>
-            <button class="btn-borrar btn-borrar-leccion" data-key="${g.key}" data-grupo="${grupoKey}">Borrar</button>
-          </div>
-        `;
-        }).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay lecciones en esta clase.</p>'}
+  // Caso 2: hay sesión, pero es de un estudiante de OTRO salón (por
+  // ejemplo un hermano, o alguien que dejó su sesión abierta en un
+  // dispositivo compartido). No se le deja entregar tareas de un
+  // salón que no es el suyo.
+  if (identidad && identidad.salonIncorrecto) {
+    selectorEstudiante.innerHTML = `
+      <div class="aviso-bloqueo">
+        ⚠️ Estás equivocado de salón: la sesión iniciada es de <strong>${escapeHtml(identidad.nombre)}</strong>, del salón ${escapeHtml(identidad.salon)}, no de este.
+        <button class="cambiar" id="btn-cambiar-identidad" style="margin-left:6px;">Cerrar sesión</button>
       </div>
+    `;
+    document.getElementById('btn-cambiar-identidad').addEventListener('click', async () => {
+      await sb.auth.signOut();
+      await renderIdentidadWidget(materia, grado);
+      await cargarTareas(materia, grado);
+    });
+    return;
+  }
 
-      <hr class="seccion-divisoria">
-
-      <h4>📚 Tareas de esta clase</h4>
-      <p style="font-size:11px; color:var(--muted); margin:-6px 0 12px;">Se publican a la vez en: ${gradosTexto}</p>
-
-      <p style="font-size:12px; color:var(--ink); font-weight:600; margin:0 0 6px;">📎 Explicación general de las tareas (opcional)</p>
-      <p style="font-size:11px; color:var(--muted); margin:-2px 0 10px;">Un solo archivo o enlace con las instrucciones de todas las tareas de esta clase.</p>
-      <div class="explicacion-tareas" data-explicacion="${grupoKey}">
-        ${grupo.archivo_url ? `
-          <div class="item-mini">
-            <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              ${grupo.archivo_nombre ? escapeHtml(grupo.archivo_nombre) : (grupo.tipo === 'enlace' ? 'Enlace' : 'Archivo')}
-              ${botonVerAdjunto(grupo.archivo_url, grupo.tipo === 'enlace', grupo.archivo_nombre)}
-            </span>
-            <button type="button" class="btn-borrar btn-quitar-explicacion" data-grupo="${grupoKey}">Quitar</button>
-          </div>
-        ` : `
-          <form class="sub-form" data-form-explicacion="${grupoKey}">
-            <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp">
-            <input type="url" name="enlace" placeholder="O pega un enlace">
-            <button type="submit">Adjuntar explicación</button>
-            <p class="sub-form-msg"></p>
-          </form>
-        `}
-      </div>
-
-      <hr class="seccion-divisoria">
-
-      <p style="font-size:12px; color:var(--ink); font-weight:600; margin:0 0 8px;">Tareas individuales (Tarea 1, Tarea 2...)</p>
-      <form class="sub-form" data-form-tarea-clase="${grupoKey}">
-        <input type="text" name="titulo" placeholder="Título de la tarea" required style="flex-basis:100%;">
-        <textarea name="descripcion" rows="2" placeholder="Descripción / instrucciones (opcional)"></textarea>
-        <input type="date" name="entrega" title="Fecha de entrega (opcional)">
-        <input type="file" name="archivo">
-        <input type="url" name="enlace" placeholder="O pega un enlace">
-        <button type="submit">Agregar tarea</button>
-        <p class="sub-form-msg"></p>
-      </form>
-      <div class="sub-lista">
-        ${tareasAgrupadas.length ? tareasAgrupadas.map((g) => {
-          const t = g.muestra;
-          return `
-          <div class="item-mini" data-key="${g.key}">
-            <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              ${escapeHtml(t.titulo)} ${t.fecha_entrega ? `<span class="item-mini-meta">· entrega ${formatearFechaCorta(t.fecha_entrega)}</span>` : ''}
-              ${botonVerAdjunto(t.archivo_url, !t.archivo_nombre && !!t.archivo_url, t.archivo_nombre)}
-            </span>
-            <button class="btn-borrar btn-borrar-tarea-clase" data-key="${g.key}" data-grupo="${grupoKey}">Borrar</button>
-          </div>
-        `;
-        }).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay tareas en esta clase.</p>'}
-      </div>
+  // Caso 3: nadie ha iniciado sesión. Se pide la misma cédula +
+  // contraseña que ya usa para "Ver mis notas" / el portal del
+  // estudiante, en vez de dejarlo elegir su nombre de una lista.
+  selectorEstudiante.innerHTML = `
+    <div class="selector-estudiante" id="identidad-widget">
+      <label for="idCedula">Tu cédula</label>
+      <input type="text" id="idCedula" placeholder="0-000-0000" autocomplete="off">
+      <label for="idPassword">Tu contraseña</label>
+      <input type="password" id="idPassword" placeholder="Contraseña" autocomplete="current-password">
+      <button id="btn-iniciar-sesion-identidad">Iniciar sesión y poder entregar tareas</button>
+      <p class="msg" id="msgIdentidad"></p>
+      <p class="identidad-ayuda">
+        ¿No tienes cuenta todavía? <a href="registro.html?tipo=estudiante">Regístrate aquí</a> ·
+        ¿Olvidaste tu contraseña? <a href="login.html">Recupérala aquí</a>
+      </p>
     </div>
   `;
 
-  panelClaseSeleccionada.querySelector(`[data-form-leccion="${grupoKey}"]`).addEventListener('submit', (e) => manejarNuevaLeccion(e, grupoKey));
-  panelClaseSeleccionada.querySelector(`[data-form-tarea-clase="${grupoKey}"]`).addEventListener('submit', (e) => manejarNuevaTareaDeClase(e, grupoKey));
-  const formExplicacion = panelClaseSeleccionada.querySelector(`[data-form-explicacion="${grupoKey}"]`);
-  if (formExplicacion) formExplicacion.addEventListener('submit', (e) => manejarNuevaExplicacion(e, grupoKey));
-  const btnQuitarExplicacion = panelClaseSeleccionada.querySelector('.btn-quitar-explicacion');
-  if (btnQuitarExplicacion) btnQuitarExplicacion.addEventListener('click', () => quitarExplicacion(btnQuitarExplicacion.dataset.grupo));
-  panelClaseSeleccionada.querySelectorAll('.btn-borrar-leccion').forEach((btn) => {
-    btn.addEventListener('click', () => borrarLeccion(btn.dataset.key, btn.dataset.grupo));
+  const inputCedula = document.getElementById('idCedula');
+  const inputPassword = document.getElementById('idPassword');
+  const btnIniciar = document.getElementById('btn-iniciar-sesion-identidad');
+  const msg = document.getElementById('msgIdentidad');
+
+  const intentarIniciarSesion = async () => {
+    const cedula = inputCedula.value.trim();
+    const password = inputPassword.value;
+
+    if (!cedula) {
+      msg.textContent = 'Escribe tu cédula.';
+      msg.className = 'msg error';
+      return;
+    }
+    if (!password) {
+      msg.textContent = 'Escribe tu contraseña.';
+      msg.className = 'msg error';
+      return;
+    }
+
+    btnIniciar.disabled = true;
+    msg.textContent = 'Verificando…';
+    msg.className = 'msg';
+
+    const { error } = await sb.auth.signInWithPassword({
+      email: cedulaAEmail(cedula),
+      password,
+    });
+
+    if (error) {
+      btnIniciar.disabled = false;
+      msg.textContent = 'Cédula o contraseña incorrecta.';
+      msg.className = 'msg error';
+      return;
+    }
+
+    // La cédula y contraseña son correctas, pero hay que confirmar
+    // que esa cuenta SÍ es de este salón antes de dejarlo entrar.
+    // Si no lo es, se cierra la sesión de inmediato: no se le deja
+    // "quedar iniciado" en el salón equivocado.
+    const identidad = await obtenerIdentidadActual(grado);
+
+    if (!identidad || identidad.salonIncorrecto) {
+      const salonReal = identidad?.salon ? ` (tu salón es ${escapeHtml(identidad.salon)})` : '';
+      await sb.auth.signOut();
+      btnIniciar.disabled = false;
+      msg.textContent = `⚠️ Estás equivocado de salón${salonReal}. Entra al portal de tu salón para poder entregar.`;
+      msg.className = 'msg error';
+      return;
+    }
+
+    await renderIdentidadWidget(materia, grado);
+    await cargarTareas(materia, grado);
+  };
+
+  btnIniciar.addEventListener('click', intentarIniciarSesion);
+  inputPassword.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') intentarIniciarSesion();
   });
-  panelClaseSeleccionada.querySelectorAll('.btn-borrar-tarea-clase').forEach((btn) => {
-    btn.addEventListener('click', () => borrarTareaDeClase(btn.dataset.key, btn.dataset.grupo));
-  });
-  panelClaseSeleccionada.querySelector('.btn-borrar-clase').addEventListener('click', () => borrarGrupoClase(grupoKey));
 }
 
-// ---------- Archivo/enlace explicativo general de las tareas de la clase ----------
-async function manejarNuevaExplicacion(e, grupoKey) {
-  e.preventDefault();
-  const grupo = obtenerGrupoPorKey(grupoKey);
-  if (!grupo) return;
+function determinarEstado(fechaEntrega) {
+  if (!fechaEntrega) return 'a_tiempo';
+  const limite = new Date(`${fechaEntrega}T23:59:59`);
+  return new Date() <= limite ? 'a_tiempo' : 'tarde';
+}
 
+// ---------- Días de gracia después de la fecha de entrega ----------
+// Pasada la fecha, el estudiante todavía tiene DIAS_GRACIA días para
+// entregar tarde. Después de eso la tarea se cierra: ya no se puede
+// entregar ni modificar, y si nunca se entregó queda marcada como tal.
+const DIAS_GRACIA_ENTREGA = 12;
+
+function fechaLimiteConGracia(fechaEntrega) {
+  if (!fechaEntrega) return null;
+  const limite = new Date(`${fechaEntrega}T23:59:59`);
+  limite.setDate(limite.getDate() + DIAS_GRACIA_ENTREGA);
+  return limite;
+}
+
+function tareaCerrada(fechaEntrega) {
+  const limite = fechaLimiteConGracia(fechaEntrega);
+  if (!limite) return false;
+  return new Date() > limite;
+}
+
+function tareaFueraDePlazo(fechaEntrega) {
+  if (!fechaEntrega) return false;
+  return new Date() > new Date(`${fechaEntrega}T23:59:59`);
+}
+
+function formatearFechaDeDate(d) {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+// ---------- Orden de las tareas: Tarea 1, Tarea 2, Tarea 3... siempre en ese orden ----------
+// Se saca el número del título ("TAREA 2: PDF SUBIR" -> 2, "Tarea 1 online" -> 1).
+// Si el título no trae número, esa tarea se manda al final, ordenada por
+// fecha de creación (más antigua primero) para que igual quede estable.
+function numeroDeTarea(titulo) {
+  const match = (titulo || '').match(/tarea\s*(\d+)/i);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function ordenarTareas(tareas) {
+  return [...tareas].sort((a, b) => {
+    const na = numeroDeTarea(a.titulo);
+    const nb = numeroDeTarea(b.titulo);
+
+    if (na != null && nb != null && na !== nb) return na - nb;
+    if (na != null && nb == null) return -1;
+    if (na == null && nb != null) return 1;
+
+    // Mismo número (o ninguna tiene número): la más antigua primero.
+    return new Date(a.creado_en) - new Date(b.creado_en);
+  });
+}
+
+// ---------- Cargar y mostrar TODAS las tareas (siempre visibles) ----------
+async function cargarTareas(materia, grado) {
+  listaTareas.innerHTML = '<p class="estado-cargando">Cargando tareas…</p>';
+
+  const identidad = identidadUtilizable(await obtenerIdentidadActual(grado));
+
+  const promesas = [
+    sb.from('tareas').select('*').eq('materia', materia).eq('grado', grado).order('creado_en', { ascending: true }),
+  ];
+  if (identidad) {
+    promesas.push(
+      sb.from('entregas').select('*').eq('materia', materia).eq('grado', grado).eq('estudiante_id', identidad.estudianteId)
+    );
+  }
+
+  const resultados = await Promise.all(promesas);
+  const { data: tareasTodas, error: errTareas } = resultados[0];
+  const entregas = identidad ? (resultados[1].data || []) : [];
+  if (identidad && resultados[1].error) console.error(resultados[1].error);
+
+  if (errTareas) {
+    listaTareas.innerHTML = '<p class="estado-vacio">No se pudieron cargar las tareas. Intenta de nuevo más tarde.</p>';
+    console.error(errTareas);
+    return;
+  }
+
+  // Solo las tareas de la clase que se está viendo ahora mismo.
+  const tareasDeLaClase = claseActual
+    ? tareasTodas.filter(t => (t.clase_id != null ? t.clase_id === claseActual.id : t.clase_numero === claseActual.numero))
+    : tareasTodas;
+
+  // Siempre en orden: Tarea 1, Tarea 2, Tarea 3...
+  const tareas = ordenarTareas(tareasDeLaClase);
+
+  if (!tareas.length) {
+    listaTareas.innerHTML = '<p class="estado-vacio">Todavía no hay tareas publicadas para esta clase.</p>';
+    return;
+  }
+
+  const entregasPorTarea = {};
+  entregas.forEach(en => { entregasPorTarea[en.tarea_id] = en; });
+
+  const accent = ACCENTOS[materia] || 'var(--ciencias)';
+
+  listaTareas.innerHTML = tareas.map(t => {
+    const entrega = entregasPorTarea[t.id];
+    return `
+      <article class="tarea-item" style="--accent:${accent}" data-tarea-id="${t.id}">
+        <h3>${escapeHtml(t.titulo)}</h3>
+        ${t.descripcion ? `<p>${escapeHtml(t.descripcion)}</p>` : ''}
+        <div class="tarea-meta">
+          <span>Publicado: ${formatearFecha(t.creado_en.split('T')[0])}</span>
+          ${t.fecha_entrega ? `<span class="entrega">Entrega: ${formatearFecha(t.fecha_entrega)}</span>` : ''}
+        </div>
+        ${t.archivo_url ? `<a class="btn-descargar" href="${t.archivo_url}" target="_blank" rel="noopener">${t.archivo_nombre ? '↓ Descargar archivo' : '↗ Abrir enlace'}</a>` : ''}
+
+        <div class="estado-entrega">
+          ${renderEstadoEntrega(t, entrega, identidad)}
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  // Conectar los formularios de entrega que se hayan renderizado (tanto
+  // el de "Entregar tarea" por primera vez como el de "Reemplazar entrega")
+  if (identidad) {
+    tareas.forEach(t => {
+      const form = document.querySelector(`[data-form-entrega="${t.id}"]`);
+      if (!form) return;
+      form.addEventListener('submit', (e) => manejarEnvioEntrega(e, t, materia, grado, identidad, entregasPorTarea[t.id]));
+    });
+  }
+
+  // Botón "✎ Editar entrega" / "+ Entregar tarea": muestra el formulario
+  // para subir un archivo nuevo o pegar un enlace.
+  document.querySelectorAll('[data-editar-entrega]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const form = document.querySelector(`[data-form-entrega="${boton.dataset.editarEntrega}"]`);
+      if (form) form.classList.toggle('oculto');
+    });
+  });
+
+  // Botón "🗑 Eliminar entrega": borra la entrega ya enviada (por si se
+  // subió por equivocación) y vuelve a dejar la tarea como "Pendiente".
+  document.querySelectorAll('[data-eliminar-entrega]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const tareaId = boton.dataset.eliminarEntrega;
+      const tarea = tareas.find(t => String(t.id) === tareaId);
+      const entrega = entregasPorTarea[tareaId];
+      if (tarea && entrega) eliminarEntrega(tarea, entrega, materia, grado);
+    });
+  });
+
+  // Botón "Cancelar" dentro del formulario de reemplazo: lo oculta de nuevo.
+  document.querySelectorAll('[data-cancelar-entrega]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const form = document.querySelector(`[data-form-entrega="${boton.dataset.cancelarEntrega}"]`);
+      if (form) {
+        form.reset();
+        form.querySelector('.msg').textContent = '';
+        form.classList.add('oculto');
+      }
+    });
+  });
+
+  // Botón "Selecciona tu nombre" cuando todavía no hay identidad
+  document.querySelectorAll('[data-ir-a-identidad]').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const widget = document.getElementById('identidad-widget');
+      if (widget) widget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+}
+
+// ---------- Vista previa del archivo/enlace ya entregado ----------
+function renderVistaPreviaEntrega(entrega) {
+  if (entrega.tipo === 'enlace') {
+    return `
+      <a class="entrega-preview" href="${entrega.entrega_url}" target="_blank" rel="noopener">
+        <span class="entrega-preview-icono">🔗</span>
+        <span class="entrega-preview-nombre">Enlace entregado</span>
+      </a>
+    `;
+  }
+
+  if (esImagen(entrega.entrega_url)) {
+    return `
+      <a class="entrega-preview entrega-preview-imagen" href="${entrega.entrega_url}" target="_blank" rel="noopener">
+        <img src="${entrega.entrega_url}" alt="Archivo entregado" loading="lazy">
+      </a>
+    `;
+  }
+
+  const ext = extensionDeUrl(entrega.entrega_url);
+  return `
+    <a class="entrega-preview" href="${entrega.entrega_url}" target="_blank" rel="noopener">
+      <span class="entrega-preview-icono">${ICONOS_EXTENSION[ext] || '📎'}</span>
+      <span class="entrega-preview-nombre">${escapeHtml(nombreArchivoDeUrl(entrega.entrega_url))}</span>
+    </a>
+  `;
+}
+
+function extraerRutaEntrega(url) {
+  const marcador = '/entregas-archivos/';
+  const i = url.indexOf(marcador);
+  return i === -1 ? '' : url.slice(i + marcador.length);
+}
+
+async function eliminarEntrega(tarea, entrega, materia, grado) {
+  const confirmado = window.confirm('¿Seguro que deseas eliminar esta entrega? Esta acción no se puede deshacer y la tarea quedará como pendiente.');
+  if (!confirmado) return;
+
+  try {
+    const { error: errDelete } = await sb.from('entregas').delete().eq('id', entrega.id);
+    if (errDelete) throw errDelete;
+
+    if (entrega.tipo === 'archivo' && entrega.entrega_url) {
+      const ruta = extraerRutaEntrega(entrega.entrega_url);
+      if (ruta) await sb.storage.from('entregas-archivos').remove([ruta]);
+    }
+
+    await cargarTareas(materia, grado);
+  } catch (err) {
+    console.error(err);
+    alert('Ocurrió un error al eliminar la entrega. Intenta de nuevo.');
+  }
+}
+
+function renderEstadoEntrega(tarea, entrega, identidad) {
+  const cerrada = tareaCerrada(tarea.fecha_entrega);
+
+  if (entrega) {
+    const esATiempo = entrega.estado === 'a_tiempo';
+    return `
+      <span class="badge-estado ${esATiempo ? 'a-tiempo' : 'tarde'}">
+        ${esATiempo ? '✓ Entregada a tiempo' : '✓ Entregada después de la fecha'}
+      </span>
+      <p style="font-size:12px; color:var(--muted); margin:4px 0 8px;">
+        Enviada el ${formatearFechaHora(entrega.entregado_en)}
+      </p>
+      ${renderVistaPreviaEntrega(entrega)}
+      ${cerrada ? `
+        <p class="aviso-cerrada">🔒 El plazo para modificar esta entrega ya cerró.</p>
+      ` : `
+        <div class="entrega-acciones">
+          <button type="button" class="btn-editar-entrega" data-editar-entrega="${tarea.id}">✎ Editar entrega</button>
+          <button type="button" class="btn-eliminar-entrega" data-eliminar-entrega="${tarea.id}">🗑 Eliminar entrega</button>
+        </div>
+        <form class="form-entrega oculto" data-form-entrega="${tarea.id}">
+          <input type="file" name="archivo">
+          <input type="url" name="enlace" placeholder="O pega un enlace en vez de subir archivo">
+          <div class="form-entrega-botones">
+            <button type="submit">Guardar cambios</button>
+            <button type="button" class="btn-cancelar-entrega" data-cancelar-entrega="${tarea.id}">Cancelar</button>
+          </div>
+          <p class="msg"></p>
+        </form>
+      `}
+    `;
+  }
+
+  // Nunca se entregó y ya pasaron los días de gracia: se cierra la tarea.
+  if (cerrada) {
+    return `
+      <span class="badge-estado cerrada">🔒 Tarea cerrada</span>
+      <p class="aviso-parpadea">⚠ No entregaste esta tarea</p>
+    `;
+  }
+
+  const avisoTarde = tareaFueraDePlazo(tarea.fecha_entrega)
+    ? `<p class="aviso-tarde">⏳ Ya pasó la fecha de entrega. Puedes entregarla con retraso hasta el ${formatearFechaDeDate(fechaLimiteConGracia(tarea.fecha_entrega))}, después la tarea se cierra.</p>`
+    : '';
+
+  if (!identidad) {
+    return `
+      <span class="badge-estado pendiente">Pendiente</span>
+      ${avisoTarde}
+      <p style="font-size:12px; color:var(--muted); margin:6px 0 0;">
+        <a href="#" data-ir-a-identidad style="color:var(--muted);">Inicia sesión arriba para poder entregarla ↑</a>
+      </p>
+    `;
+  }
+
+  return `
+    <span class="badge-estado pendiente">Pendiente</span>
+    ${avisoTarde}
+    <button type="button" class="btn-editar-entrega" data-editar-entrega="${tarea.id}">+ Entregar tarea</button>
+    <form class="form-entrega oculto" data-form-entrega="${tarea.id}">
+      <input type="file" name="archivo">
+      <input type="url" name="enlace" placeholder="O pega un enlace en vez de subir archivo">
+      <div class="form-entrega-botones">
+        <button type="submit">Entregar tarea</button>
+        <button type="button" class="btn-cancelar-entrega" data-cancelar-entrega="${tarea.id}">Cancelar</button>
+      </div>
+      <p class="msg"></p>
+    </form>
+  `;
+}
+
+
+async function manejarEnvioEntrega(e, tarea, materia, grado, identidad, entregaExistente) {
+  e.preventDefault();
   const form = e.target;
-  const msgEl = form.querySelector('.sub-form-msg');
+  const msg = form.querySelector('.msg');
+  const boton = form.querySelector('button[type="submit"]');
   const archivo = form.querySelector('input[name="archivo"]').files[0];
   const enlace = form.querySelector('input[name="enlace"]').value.trim();
 
-  if (!archivo && !enlace) {
-    msgEl.textContent = 'Sube un archivo o pega un enlace.';
-    msgEl.className = 'sub-form-msg msg-error';
+  if (tareaCerrada(tarea.fecha_entrega)) {
+    msg.textContent = 'El plazo para entregar esta tarea ya cerró.';
+    msg.className = 'msg error';
     return;
   }
 
-  msgEl.textContent = 'Guardando…';
-  msgEl.className = 'sub-form-msg';
+  if (!archivo && !enlace) {
+    msg.textContent = 'Selecciona un archivo o pega un enlace.';
+    msg.className = 'msg error';
+    return;
+  }
+
+  // Si ya había una entrega, se confirma antes de reemplazarla para
+  // evitar que se borre por accidente lo que ya se había enviado.
+  if (entregaExistente) {
+    const confirmado = window.confirm('¿Seguro que deseas modificar la tarea que ya entregaste? Se reemplazará lo que enviaste antes.');
+    if (!confirmado) return;
+  }
+
+  boton.disabled = true;
+  msg.textContent = entregaExistente ? 'Reemplazando…' : 'Enviando…';
+  msg.className = 'msg';
 
   try {
-    let tipo, archivo_url, archivo_nombre = null;
+    let tipo, entrega_url;
 
     if (enlace) {
       tipo = 'enlace';
-      archivo_url = enlace;
+      entrega_url = enlace;
     } else {
       tipo = 'archivo';
-      const ruta = `${sanitizarNombre(grupo.materia)}/explicacion-${Date.now()}-${sanitizarNombre(archivo.name)}`;
-      const { error: errSubida } = await sb.storage.from('material-clases').upload(ruta, archivo);
+      const ruta = `${sanitizarNombre(materia)}/${sanitizarNombre(grado)}/${Date.now()}-${sanitizarNombre(identidad.nombre)}-${sanitizarNombre(archivo.name)}`;
+      const { error: errSubida } = await sb.storage.from('entregas-archivos').upload(ruta, archivo);
       if (errSubida) throw errSubida;
-      const { data: pub } = sb.storage.from('material-clases').getPublicUrl(ruta);
-      archivo_url = pub.publicUrl;
-      archivo_nombre = archivo.name;
+      const { data: pub } = sb.storage.from('entregas-archivos').getPublicUrl(ruta);
+      entrega_url = pub.publicUrl;
     }
 
-    const claseIds = grupo.filas.map((f) => f.id);
-    const { error: errUpdate } = await sb.from('clases')
-      .update({ tipo, archivo_url, archivo_nombre })
-      .in('id', claseIds);
-    if (errUpdate) throw errUpdate;
+    const estado = determinarEstado(tarea.fecha_entrega);
 
-    await cargarClasesAdmin();
-    renderPanelClase(grupoKey);
-  } catch (err) {
-    console.error(err);
-    msgEl.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
-    msgEl.className = 'sub-form-msg msg-error';
-  }
-}
-
-async function quitarExplicacion(grupoKey) {
-  const grupo = obtenerGrupoPorKey(grupoKey);
-  if (!grupo) return;
-  if (!confirm('¿Quitar el archivo/enlace explicativo de las tareas de esta clase?')) return;
-
-  try {
-    const claseIds = grupo.filas.map((f) => f.id);
-    if (grupo.tipo === 'archivo' && grupo.archivo_url) {
-      const ruta = extraerRutaClase(grupo.archivo_url);
-      if (ruta) await sb.storage.from('material-clases').remove([ruta]);
-    }
-    const { error: errUpdate } = await sb.from('clases')
-      .update({ tipo: null, archivo_url: null, archivo_nombre: null })
-      .in('id', claseIds);
-    if (errUpdate) throw errUpdate;
-
-    await cargarClasesAdmin();
-    renderPanelClase(grupoKey);
-  } catch (err) {
-    console.error(err);
-    alert('Ocurrió un error al quitar el archivo. Intenta de nuevo.');
-  }
-}
-
-// ---------- Agregar una o varias lecciones, sincronizadas en todos los salones de la clase ----------
-async function manejarNuevaLeccion(e, grupoKey) {
-  e.preventDefault();
-  const form = e.target;
-  const msg = form.querySelector('.sub-form-msg');
-  const nombre = form.nombre.value.trim() || null;
-  const archivos = Array.from(form.archivo.files);
-  const enlace = form.enlace.value.trim();
-
-  if (!archivos.length && !enlace) {
-    msg.textContent = 'Sube uno o varios archivos, o pega un enlace.';
-    msg.className = 'sub-form-msg msg-error';
-    return;
-  }
-
-  const grupo = obtenerGrupoPorKey(grupoKey);
-  if (!grupo) return;
-
-  msg.textContent = 'Guardando…';
-  msg.className = 'sub-form-msg';
-
-  try {
-    const materia = grupo.materia;
-    const filas = [];
-
-    if (enlace) {
-      const leccionGrupoId = generarId();
-      grupo.filas.forEach((f) => {
-        filas.push({ clase_id: f.id, nombre, tipo: 'enlace', archivo_url: enlace, archivo_nombre: null, grupo_id: leccionGrupoId });
+    if (entregaExistente) {
+      // El estudiante ya había entregado esta tarea: se reemplaza la
+      // entrega anterior (mismo registro) en vez de crear una nueva.
+      const { error: errUpdate } = await sb.from('entregas')
+        .update({ tipo, entrega_url, estado, entregado_en: new Date().toISOString() })
+        .eq('id', entregaExistente.id);
+      if (errUpdate) throw errUpdate;
+    } else {
+      const { error: errInsert } = await sb.from('entregas').insert({
+        tarea_id: tarea.id,
+        estudiante_id: identidad.estudianteId,
+        estudiante_nombre: identidad.nombre,
+        cedula: identidad.cedula,
+        telefono: identidad.telefono,
+        materia, grado, tipo, entrega_url, estado,
       });
-    } else {
-      for (const [i, archivo] of archivos.entries()) {
-        // El archivo se sube UNA sola vez y se comparte entre todos los salones del grupo.
-        const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${i}-${sanitizarNombre(archivo.name)}`;
-        const { error: errSubida } = await sb.storage.from('material-clases').upload(ruta, archivo);
-        if (errSubida) throw errSubida;
-        const { data: pub } = sb.storage.from('material-clases').getPublicUrl(ruta);
-        const nombreLeccion = nombre
-          ? (archivos.length > 1 ? `${nombre} (${i + 1})` : nombre)
-          : archivo.name.replace(/\.[^/.]+$/, '');
-
-        const leccionGrupoId = generarId();
-        grupo.filas.forEach((f) => {
-          filas.push({
-            clase_id: f.id, nombre: nombreLeccion, tipo: 'archivo',
-            archivo_url: pub.publicUrl, archivo_nombre: archivo.name,
-            grupo_id: leccionGrupoId,
-          });
-        });
-      }
+      if (errInsert) throw errInsert;
     }
 
-    const { error: errInsert } = await sb.from('lecciones').insert(filas);
-    if (errInsert) throw errInsert;
-
-    form.reset();
-    renderPanelClase(grupoKey);
+    // Recargar la vista para mostrar el estado "Entregada"
+    await cargarTareas(materia, grado);
   } catch (err) {
     console.error(err);
-    msg.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
-    msg.className = 'sub-form-msg msg-error';
+    msg.textContent = 'Ocurrió un error al entregar. Intenta de nuevo.';
+    msg.className = 'msg error';
+    boton.disabled = false;
   }
 }
 
-async function borrarLeccion(leccionKey, grupoKey) {
-  if (!confirm('¿Borrar esta lección? Se quitará de todos los salones donde aparece.')) return;
-
-  const entrada = (leccionesPorGrupo[grupoKey] || []).find((g) => g.key === leccionKey);
-  if (!entrada) return;
-
-  const ids = entrada.filas.map((f) => f.id);
-  await sb.from('lecciones').delete().in('id', ids);
-
-  if (entrada.muestra.tipo === 'archivo') {
-    const ruta = extraerRutaClase(entrada.muestra.archivo_url);
-    if (ruta) await sb.storage.from('material-clases').remove([ruta]);
-  }
-
-  renderPanelClase(grupoKey);
-}
-
-// ---------- Agregar una tarea, sincronizada en todos los salones de la clase ----------
-async function manejarNuevaTareaDeClase(e, grupoKey) {
-  e.preventDefault();
-  const form = e.target;
-  const msg = form.querySelector('.sub-form-msg');
-  const titulo = form.titulo.value.trim();
-  const descripcion = form.descripcion.value.trim();
-  const fechaEntrega = form.entrega.value || null;
-  const archivo = form.archivo.files[0];
-  const enlace = form.enlace.value.trim();
-
-  if (!titulo) {
-    msg.textContent = 'Escribe un título para la tarea.';
-    msg.className = 'sub-form-msg msg-error';
-    return;
-  }
-
-  const grupo = obtenerGrupoPorKey(grupoKey);
-  if (!grupo) return;
-
-  msg.textContent = 'Guardando…';
-  msg.className = 'sub-form-msg';
-
-  try {
-    const materia = grupo.materia;
-    let archivo_url = null, archivo_nombre = null;
-
-    if (enlace) {
-      archivo_url = enlace;
-    } else if (archivo) {
-      // Un solo archivo subido, reutilizado en la tarea de cada salón.
-      const ruta = `${sanitizarNombre(materia)}/${Date.now()}-${sanitizarNombre(archivo.name)}`;
-      const { error: errSubida } = await sb.storage.from('tareas-archivos').upload(ruta, archivo);
-      if (errSubida) throw errSubida;
-      const { data: pub } = sb.storage.from('tareas-archivos').getPublicUrl(ruta);
-      archivo_url = pub.publicUrl;
-      archivo_nombre = archivo.name;
-    }
-
-    const tareaGrupoId = generarId();
-    const filas = grupo.filas.map((f) => ({
-      materia, grado: f.grado, titulo, descripcion, fecha_entrega: fechaEntrega,
-      archivo_url, archivo_nombre, clase_id: f.id, clase_numero: grupo.numero,
-      grupo_id: tareaGrupoId,
-    }));
-
-    const { error: errInsert } = await sb.from('tareas').insert(filas);
-    if (errInsert) throw errInsert;
-
-    form.reset();
-    renderPanelClase(grupoKey);
-  } catch (err) {
-    console.error(err);
-    msg.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
-    msg.className = 'sub-form-msg msg-error';
-  }
-}
-
-async function borrarTareaDeClase(tareaKey, grupoKey) {
-  if (!confirm('¿Borrar esta tarea? Se quitará de todos los salones donde aparece.')) return;
-
-  const entrada = (tareasPorGrupo[grupoKey] || []).find((g) => g.key === tareaKey);
-  if (!entrada) return;
-
-  const ids = entrada.filas.map((f) => f.id);
-  await sb.from('tareas').delete().in('id', ids);
-
-  if (entrada.muestra.archivo_url) {
-    const ruta = extraerRuta(entrada.muestra.archivo_url);
-    if (ruta) await sb.storage.from('tareas-archivos').remove([ruta]);
-  }
-
-  renderPanelClase(grupoKey);
-}
-
-async function borrarGrupoClase(grupoKey) {
-  const grupo = obtenerGrupoPorKey(grupoKey);
-  if (!grupo) return;
-
-  const gradosTexto = grupo.filas.map((f) => f.grado).join(', ');
-  if (!confirm(`¿Borrar "Clase ${grupo.numero}" en ${gradosTexto} junto con TODAS sus lecciones y tareas?`)) return;
-
-  const claseIds = grupo.filas.map((f) => f.id);
-  const [{ data: lecciones }, { data: tareas }] = await Promise.all([
-    sb.from('lecciones').select('*').in('clase_id', claseIds),
-    sb.from('tareas').select('*').in('clase_id', claseIds),
-  ]);
-
-  // Varias filas (una por salón) apuntan al mismo archivo: se borra una sola vez.
-  const rutasLecciones = [...new Set((lecciones || []).filter((l) => l.tipo === 'archivo').map((l) => extraerRutaClase(l.archivo_url)))];
-  const rutasTareas = [...new Set((tareas || []).filter((t) => t.archivo_url).map((t) => extraerRuta(t.archivo_url)))];
-
-  await sb.from('clases').delete().in('id', claseIds); // ON DELETE CASCADE borra lecciones y desvincula tareas
-  if (rutasLecciones.length) await sb.storage.from('material-clases').remove(rutasLecciones);
-  if (rutasTareas.length) await sb.storage.from('tareas-archivos').remove(rutasTareas);
-
-  if (grupoSeleccionadoId === grupoKey) {
-    grupoSeleccionadoId = null;
-    panelClaseSeleccionada.innerHTML = '';
-  }
-  cargarClasesAdmin();
-}
-
-// ---------- Examen final ----------
-formExamen.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  formExamenMsg.textContent = 'Guardando…';
-  formExamenMsg.className = '';
-
-  const materia = feMateria.value;
-  const gradosSeleccionados = Array.from(
-    feGrados.querySelectorAll('input[name="grado"]:checked')
-  ).map((cb) => cb.value);
-  const archivoInput = document.getElementById('fe-archivo');
-  const archivo = archivoInput.files[0];
-  const enlace = document.getElementById('fe-enlace').value.trim();
-
-  if (!gradosSeleccionados.length) {
-    formExamenMsg.textContent = 'Selecciona al menos un grado.';
-    formExamenMsg.className = 'msg-error';
-    return;
-  }
-
-  if (!archivo && !enlace) {
-    formExamenMsg.textContent = 'Sube un archivo o pega un enlace.';
-    formExamenMsg.className = 'msg-error';
-    return;
-  }
-
-  try {
-    let tipo, archivo_url, archivo_nombre = null;
-
-    if (enlace) {
-      tipo = 'enlace';
-      archivo_url = enlace;
-    } else {
-      tipo = 'archivo';
-      const ruta = `${sanitizarNombre(materia)}/examen-${Date.now()}-${sanitizarNombre(archivo.name)}`;
-      const { error: errSubida } = await sb.storage.from('material-clases').upload(ruta, archivo);
-      if (errSubida) throw errSubida;
-      const { data: pub } = sb.storage.from('material-clases').getPublicUrl(ruta);
-      archivo_url = pub.publicUrl;
-      archivo_nombre = archivo.name;
-    }
-
-    const grupoId = generarId();
-    const filas = gradosSeleccionados.map((grado) => ({
-      materia, grado, numero: null, es_examen_final: true,
-      tipo, archivo_url, archivo_nombre, grupo_id: grupoId,
-    }));
-
-    const { error: errInsert } = await sb.from('clases').insert(filas);
-    if (errInsert) throw errInsert;
-
-    formExamenMsg.textContent = '✅ Examen final publicado';
-    formExamenMsg.className = 'msg-ok';
-    formExamen.reset();
-    pintarGrados(feGrados, feMateria.value);
-    cargarExamenesAdmin();
-  } catch (err) {
-    console.error(err);
-    formExamenMsg.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
-    formExamenMsg.className = 'msg-error';
-  }
+document.querySelectorAll('.folder-card').forEach(card => {
+  card.addEventListener('click', () => abrirClase(card.dataset.materia, card.dataset.grado));
 });
 
-async function cargarExamenesAdmin() {
-  listaExamenes.innerHTML = '<p class="estado-cargando">Cargando…</p>';
-  const { data, error } = await sb
-    .from('clases')
-    .select('*')
-    .eq('es_examen_final', true)
-    .order('materia', { ascending: true })
-    .order('grado', { ascending: true });
+btnVolver.addEventListener('click', () => {
+  vistaTareas.classList.add('oculto');
+  vistaClases.style.display = '';
+});
 
-  if (error) {
-    listaExamenes.innerHTML = '<p class="estado-vacio">No se pudo cargar los exámenes.</p>';
-    console.error(error);
-    return;
-  }
-  if (!data.length) {
-    listaExamenes.innerHTML = '<p class="estado-vacio">Aún no has publicado ningún examen final.</p>';
-    return;
-  }
+btnVolverClase.addEventListener('click', () => {
+  mostrarListaClases();
+});
 
-  listaExamenes.innerHTML = data.map((c) => `
-    <div class="tarea-admin-item" data-id="${c.id}">
-      <div class="info">
-        <div class="tag">${c.materia} · ${c.grado}</div>
-        <strong>Examen final</strong>
-      </div>
-      <button class="btn-borrar" data-id="${c.id}" data-archivo="${c.tipo === 'archivo' ? extraerRutaClase(c.archivo_url) : ''}">Borrar</button>
-    </div>
-  `).join('');
-
-  listaExamenes.querySelectorAll('.btn-borrar').forEach((btn) => {
-    btn.addEventListener('click', () => borrarExamen(btn.dataset.id, btn.dataset.archivo));
-  });
-}
-
-async function borrarExamen(id, rutaArchivo) {
-  if (!confirm('¿Borrar este examen final?')) return;
-  await sb.from('clases').delete().eq('id', id);
-  if (rutaArchivo) {
-    await sb.storage.from('material-clases').remove([rutaArchivo]);
-  }
-  cargarExamenesAdmin();
-}
-
-revisarSesion();
+cargarConteos();
