@@ -280,6 +280,46 @@ async function crearClase(nombreClase, fechaInicio, fechaFin, msgEl) {
   }
 }
 
+// ---------- Corregir número/nombre/fechas de una clase ya creada ----------
+// Por si se equivocaron al crearla (ej: quedó como "Clase 5" pero en
+// realidad es la Clase 1). Actualiza todas las filas del grupo (una por
+// salón) para que sigan sincronizadas entre sí.
+async function manejarEditarClase(e, grupoKey) {
+  e.preventDefault();
+  const grupo = obtenerGrupoPorKey(grupoKey);
+  if (!grupo) return;
+
+  const form = e.target;
+  const msgEl = form.querySelector('.form-editar-clase-msg');
+  const numero = parseInt(form.numero.value, 10);
+  const nombre = form.nombre.value.trim();
+  const fechaInicio = form.fecha_inicio.value || null;
+  const fechaFin = form.fecha_fin.value || null;
+
+  if (!numero || numero < 1) {
+    msgEl.textContent = 'El número de clase debe ser 1 o mayor.';
+    msgEl.className = 'form-editar-clase-msg msg-error';
+    return;
+  }
+
+  msgEl.textContent = 'Guardando…';
+  msgEl.className = 'form-editar-clase-msg';
+
+  try {
+    const ids = grupo.filas.map((f) => f.id);
+    const { error } = await sb.from('clases')
+      .update({ numero, nombre, fecha_inicio: fechaInicio, fecha_fin: fechaFin })
+      .in('id', ids);
+    if (error) throw error;
+
+    await cargarClasesAdmin();
+  } catch (err) {
+    console.error(err);
+    msgEl.textContent = 'Ocurrió un error al guardar. Intenta de nuevo.';
+    msgEl.className = 'form-editar-clase-msg msg-error';
+  }
+}
+
 async function cargarClasesAdmin() {
   listaClases.innerHTML = '<p class="estado-cargando">Cargando…</p>';
   const { data, error } = await sb
@@ -518,8 +558,42 @@ async function renderPanelClase(grupoKey) {
           <h3>Clase ${grupo.numero}: ${escapeHtml(grupo.nombre || '')}</h3>
           <span class="tag">${grupo.materia} · ${gradosTexto}${(grupo.fecha_inicio || grupo.fecha_fin) ? ` · ${formatearFechaCorta(grupo.fecha_inicio) || '?'} — ${formatearFechaCorta(grupo.fecha_fin) || '?'}` : ''}</span>
         </div>
-        <button class="btn-borrar btn-borrar-clase" data-key="${grupoKey}">Borrar clase</button>
+        <div style="display:flex; gap:8px; flex-shrink:0;">
+          <button class="btn-editar-clase" data-key="${grupoKey}">✎ Editar</button>
+          <button class="btn-borrar btn-borrar-clase" data-key="${grupoKey}">Borrar clase</button>
+        </div>
       </div>
+
+      <!-- Se equivocaron de número o nombre al crearla: esto la corrige sin
+           tener que borrarla y perder sus lecciones/tareas. -->
+      <form class="form-editar-clase oculto" data-form-editar-clase="${grupoKey}">
+        <p style="font-size:12px; color:var(--muted); margin:0 0 12px;">Corrige el número o el nombre de esta clase (por ejemplo, si dice "Clase 5" pero en realidad es la Clase 1).</p>
+        <div class="campo-fila">
+          <div>
+            <label>Número (Clase N°)</label>
+            <input type="number" name="numero" min="1" step="1" value="${grupo.numero || ''}" required>
+          </div>
+          <div>
+            <label>Nombre de la clase</label>
+            <input type="text" name="nombre" value="${escapeHtml(grupo.nombre || '')}" placeholder="Ej: Sistema circulatorio">
+          </div>
+        </div>
+        <div class="campo-fila">
+          <div>
+            <label>Fecha de inicio</label>
+            <input type="date" name="fecha_inicio" value="${grupo.fecha_inicio || ''}">
+          </div>
+          <div>
+            <label>Fecha de fin</label>
+            <input type="date" name="fecha_fin" value="${grupo.fecha_fin || ''}">
+          </div>
+        </div>
+        <div class="botones-fila">
+          <button type="submit">Guardar cambios</button>
+          <button type="button" class="btn-cancelar" data-cancelar-editar-clase="${grupoKey}">Cancelar</button>
+        </div>
+        <p class="form-editar-clase-msg"></p>
+      </form>
 
       <h4>📖 Lecciones de esta clase</h4>
       <p style="font-size:11px; color:var(--muted); margin:-6px 0 12px;">Se agregan a la vez en: ${gradosTexto}</p>
@@ -549,61 +623,87 @@ async function renderPanelClase(grupoKey) {
 
       <hr class="seccion-divisoria">
 
-      <h4>📚 Tareas de esta clase</h4>
-      <p style="font-size:11px; color:var(--muted); margin:-6px 0 12px;">Se publican a la vez en: ${gradosTexto}</p>
-
-      <p style="font-size:12px; color:var(--ink); font-weight:600; margin:0 0 6px;">📎 Explicación general de las tareas (opcional)</p>
-      <p style="font-size:11px; color:var(--muted); margin:-2px 0 10px;">Un solo archivo o enlace con las instrucciones de todas las tareas de esta clase.</p>
-      <div class="explicacion-tareas" data-explicacion="${grupoKey}">
-        ${grupo.archivo_url ? `
-          <div class="item-mini">
-            <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              ${grupo.archivo_nombre ? escapeHtml(grupo.archivo_nombre) : (grupo.tipo === 'enlace' ? 'Enlace' : 'Archivo')}
-              ${botonVerAdjunto(grupo.archivo_url, grupo.tipo === 'enlace', grupo.archivo_nombre)}
-            </span>
-            <button type="button" class="btn-borrar btn-quitar-explicacion" data-grupo="${grupoKey}">Quitar</button>
+      <div class="bloque-tareas">
+        <div class="bloque-tareas-titulo">
+          <span class="bloque-tareas-badge">🛠️ Administrador</span>
+          <div>
+            <h4>📚 Tareas de esta clase</h4>
+            <p style="font-size:11px; color:var(--muted); margin:2px 0 0;">Se publican a la vez en: ${gradosTexto}</p>
           </div>
-        ` : `
-          <form class="sub-form" data-form-explicacion="${grupoKey}">
-            <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp">
-            <input type="url" name="enlace" placeholder="O pega un enlace">
-            <button type="submit">Adjuntar explicación</button>
-            <p class="sub-form-msg"></p>
-          </form>
-        `}
-      </div>
+        </div>
 
-      <hr class="seccion-divisoria">
+        <p style="font-size:12px; color:var(--ink); font-weight:600; margin:0 0 6px;">📎 Explicación general de las tareas (opcional)</p>
+        <p style="font-size:11px; color:var(--muted); margin:-2px 0 10px;">Un solo archivo o enlace con las instrucciones de todas las tareas de esta clase.</p>
+        <div class="explicacion-tareas" data-explicacion="${grupoKey}">
+          ${grupo.archivo_url ? `
+            <div class="item-mini">
+              <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                ${grupo.archivo_nombre ? escapeHtml(grupo.archivo_nombre) : (grupo.tipo === 'enlace' ? 'Enlace' : 'Archivo')}
+                ${botonVerAdjunto(grupo.archivo_url, grupo.tipo === 'enlace', grupo.archivo_nombre)}
+              </span>
+              <button type="button" class="btn-borrar btn-quitar-explicacion" data-grupo="${grupoKey}">Quitar</button>
+            </div>
+          ` : `
+            <form class="sub-form" data-form-explicacion="${grupoKey}">
+              <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp">
+              <input type="url" name="enlace" placeholder="O pega un enlace">
+              <button type="submit">Adjuntar explicación</button>
+              <p class="sub-form-msg"></p>
+            </form>
+          `}
+        </div>
 
-      <p style="font-size:12px; color:var(--ink); font-weight:600; margin:0 0 8px;">Tareas individuales (Tarea 1, Tarea 2...)</p>
-      <form class="sub-form" data-form-tarea-clase="${grupoKey}">
-        <input type="text" name="titulo" placeholder="Título de la tarea" required style="flex-basis:100%;">
-        <textarea name="descripcion" rows="2" placeholder="Descripción / instrucciones (opcional)"></textarea>
-        <input type="date" name="entrega" title="Fecha de entrega (opcional)">
-        <input type="file" name="archivo">
-        <input type="url" name="enlace" placeholder="O pega un enlace">
-        <button type="submit">Agregar tarea</button>
-        <p class="sub-form-msg"></p>
-      </form>
-      <div class="sub-lista">
-        ${tareasAgrupadas.length ? tareasAgrupadas.map((g) => {
-          const t = g.muestra;
-          return `
-          <div class="item-mini" data-key="${g.key}">
-            <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              ${escapeHtml(t.titulo)} ${t.fecha_entrega ? `<span class="item-mini-meta">· entrega ${formatearFechaCorta(t.fecha_entrega)}</span>` : ''}
-              ${botonVerAdjunto(t.archivo_url, !t.archivo_nombre && !!t.archivo_url, t.archivo_nombre)}
-            </span>
-            <button class="btn-borrar btn-borrar-tarea-clase" data-key="${g.key}" data-grupo="${grupoKey}">Borrar</button>
-          </div>
-        `;
-        }).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay tareas en esta clase.</p>'}
+        <hr class="seccion-divisoria">
+
+        <p style="font-size:12px; color:var(--ink); font-weight:600; margin:0 0 8px;">✏️ Agregar tarea individual (Tarea 1, Tarea 2...)</p>
+        <form class="sub-form form-tarea-nueva" data-form-tarea-clase="${grupoKey}">
+          <input type="text" name="titulo" placeholder="Título de la tarea" required style="flex-basis:100%;">
+          <textarea name="descripcion" rows="2" placeholder="Descripción / instrucciones (opcional)"></textarea>
+          <input type="date" name="entrega" title="Fecha de entrega (opcional)">
+          <input type="file" name="archivo">
+          <input type="url" name="enlace" placeholder="O pega un enlace">
+          <button type="submit">+ Agregar tarea</button>
+          <p class="sub-form-msg"></p>
+        </form>
+        <div class="sub-lista">
+          ${tareasAgrupadas.length ? tareasAgrupadas.map((g) => {
+            const t = g.muestra;
+            return `
+            <div class="item-mini item-mini-tarea" data-key="${g.key}">
+              <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span class="item-mini-tarea-icono">📌</span>
+                ${escapeHtml(t.titulo)} ${t.fecha_entrega ? `<span class="item-mini-meta">· entrega ${formatearFechaCorta(t.fecha_entrega)}</span>` : ''}
+                ${botonVerAdjunto(t.archivo_url, !t.archivo_nombre && !!t.archivo_url, t.archivo_nombre)}
+              </span>
+              <button class="btn-borrar btn-borrar-tarea-clase" data-key="${g.key}" data-grupo="${grupoKey}">Borrar</button>
+            </div>
+          `;
+          }).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay tareas en esta clase.</p>'}
+        </div>
       </div>
     </div>
   `;
 
   panelClaseSeleccionada.querySelector(`[data-form-leccion="${grupoKey}"]`).addEventListener('submit', (e) => manejarNuevaLeccion(e, grupoKey));
   panelClaseSeleccionada.querySelector(`[data-form-tarea-clase="${grupoKey}"]`).addEventListener('submit', (e) => manejarNuevaTareaDeClase(e, grupoKey));
+
+  // Botón "✎ Editar" de la clase: muestra/oculta el formulario para
+  // corregir número, nombre y fechas.
+  const btnEditarClase = panelClaseSeleccionada.querySelector('.btn-editar-clase');
+  if (btnEditarClase) {
+    btnEditarClase.addEventListener('click', () => {
+      const form = panelClaseSeleccionada.querySelector(`[data-form-editar-clase="${grupoKey}"]`);
+      if (form) form.classList.toggle('oculto');
+    });
+  }
+  const formEditarClase = panelClaseSeleccionada.querySelector(`[data-form-editar-clase="${grupoKey}"]`);
+  if (formEditarClase) {
+    formEditarClase.addEventListener('submit', (e) => manejarEditarClase(e, grupoKey));
+    const btnCancelarEditar = formEditarClase.querySelector('[data-cancelar-editar-clase]');
+    if (btnCancelarEditar) {
+      btnCancelarEditar.addEventListener('click', () => formEditarClase.classList.add('oculto'));
+    }
+  }
   const formExplicacion = panelClaseSeleccionada.querySelector(`[data-form-explicacion="${grupoKey}"]`);
   if (formExplicacion) formExplicacion.addEventListener('submit', (e) => manejarNuevaExplicacion(e, grupoKey));
   const btnQuitarExplicacion = panelClaseSeleccionada.querySelector('.btn-quitar-explicacion');
