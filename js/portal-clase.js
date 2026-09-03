@@ -569,8 +569,12 @@ async function cargarTareas(materia, grado) {
   }
 
   // Solo las tareas de la clase que se está viendo ahora mismo.
+  // OJO: se compara únicamente por clase_id (nunca por clase_numero). Si
+  // una clase se borra, sus tareas pueden quedar con clase_id vacío — no
+  // deben "reengancharse" solo porque otra clase distinta reutilice ese
+  // mismo número más adelante (eso causaba tareas fantasma).
   const tareasDeLaClase = claseActual
-    ? tareasTodas.filter(t => (t.clase_id != null ? t.clase_id === claseActual.id : t.clase_numero === claseActual.numero))
+    ? tareasTodas.filter(t => t.clase_id === claseActual.id)
     : tareasTodas;
 
   // Siempre en orden: Tarea 1, Tarea 2, Tarea 3...
