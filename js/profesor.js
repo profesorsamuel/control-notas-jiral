@@ -1823,74 +1823,27 @@ async function guardarNotas(esAutomatico = false) {
                 origen: "profesor"
             };
 
-            let { data: insertado, error } = await supabase.from("notas").insert([filaNueva]).select("id");
+            const { data: insertado, error } = await supabase.from("notas").insert([filaNueva]).select("id");
 
             // Código 23505 = "duplicate key": ya existe una fila para este
-            // mismo estudiante+materia+casilla+trimestre, casi siempre
-            // porque quedó en la papelera (eliminado_en con fecha) y por
-            // eso no aparecía en pantalla, pero sigue "ocupando" esa
-            // combinación única en la base de datos. En vez de fallar,
-            // buscamos esa fila vieja y la revivimos con la nota nueva.
-            if (error && error.code === "23505") {
-                // La nota vieja que está chocando puede haberse guardado
-                // de dos formas distintas según cuándo se creó: unas usan
-                // "estudiante_id" (el sistema actual) y otras, más
-                // antiguas, solo tienen "correo" guardado. Por eso hay que
-                // buscarla por cualquiera de los dos, no solo por id.
-                let busqueda = supabase.from("notas").select("id")
-                    .eq("materia", materia).eq("trimestre", trimestre)
-                    .eq("tipo", item.tipo).eq("numero", item.numero);
-
-                if (item.estudianteId && item.correo) {
-                    busqueda = busqueda.or(`estudiante_id.eq.${item.estudianteId},correo.eq.${item.correo}`);
-                } else if (item.estudianteId) {
-                    busqueda = busqueda.eq("estudiante_id", item.estudianteId);
-                } else if (item.correo) {
-                    busqueda = busqueda.eq("correo", item.correo);
-                }
-
-                const { data: filasExistentes, error: errBuscar } = await busqueda.limit(5);
-                const filaExistente = filasExistentes && filasExistentes[0];
-
-                if (!errBuscar && filaExistente) {
-                    const { data: revivida, error: errRevivir } = await supabase.from("notas")
-                        .update({
-                            nota: item.nota,
-                            fecha: hoy,
-                            origen: "profesor",
-                            estado: "Activa",
-                            eliminado_en: null,
-                            eliminado_por: null,
-                            estudiante_id: item.estudianteId,
-                            correo: item.correo,
-                            observacion: `Restaurada y actualizada por el/la docente (${correoProfesor})`,
-                        })
-                        .eq("id", filaExistente.id)
-                        .select("id");
-                    if (!errRevivir) {
-                        insertado = revivida;
-                        error = null;
-                    } else {
-                        error = errRevivir;
-                    }
-                } else if (errBuscar) {
-                    error = errBuscar;
-                } else {
-                    // No encontramos ninguna fila con esos filtros aunque
-                    // Supabase dice que hay un choque de llave única. Lo
-                    // más probable es que las reglas de seguridad (RLS)
-                    // de la base de datos no dejan leer esa fila vieja
-                    // desde el navegador del docente. Lo dejamos anotado
-                    // para poder revisarlo del lado de la base de datos.
-                    console.warn("⚠️ Choque de llave única pero no se encontró la fila en conflicto (posible RLS):", item);
-                }
-            }
-
+            // mismo estudiante+materia+casilla+trimestre (probablemente
+            // quedó en la papelera). NO la tocamos automáticamente — un
+            // intento anterior de "revivirla" con una búsqueda amplia
+            // terminó modificando por error la fila de OTRO estudiante,
+            // así que ahora solo se avisa del choque y hay que resolverlo
+            // a mano en Supabase (tabla "notas"), revisando esa fila
+            // puntual antes de tocar nada.
             if (error) {
                 fallidas++;
-                console.error("❌ Error al insertar nota:", error, item);
-                marcarErrorEnCelda(item.input, error.message || "error desconocido al insertar");
-                erroresDetalle.push(`${nombreEstudiantePorItem(item)} (${etiquetaCasilla(item.tipo, item.numero)}): ${error.message || error.code || "error al insertar"}`);
+                if (error.code === "23505") {
+                    console.error("❌ Choque de nota duplicada (requiere revisión manual en Supabase, tabla 'notas'):", { item, error });
+                    marcarErrorEnCelda(item.input, "ya existe una nota vieja para esta casilla en la base de datos (revisar tabla 'notas' en Supabase)");
+                    erroresDetalle.push(`${nombreEstudiantePorItem(item)} (${etiquetaCasilla(item.tipo, item.numero)}): ya existe una nota vieja para esta casilla (revisar manualmente en Supabase)`);
+                } else {
+                    console.error("❌ Error al insertar nota:", error, item);
+                    marcarErrorEnCelda(item.input, error.message || "error desconocido al insertar");
+                    erroresDetalle.push(`${nombreEstudiantePorItem(item)} (${etiquetaCasilla(item.tipo, item.numero)}): ${error.message || error.code || "error al insertar"}`);
+                }
             } else {
                 exitosas++;
                 item.input.dataset.ultimoValorGuardado = String(item.nota);
