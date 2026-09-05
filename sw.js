@@ -4,7 +4,7 @@
 // Las llamadas a Supabase (datos del horario) NUNCA se cachean: siempre van
 // directo a la red para que el horario mostrado sea siempre el real.
 
-const CACHE_NOMBRE = "timbre-jiral-v4";
+const CACHE_NOMBRE = "timbre-jiral-v5";
 
 const ARCHIVOS_SHELL = [
   "./pages/timbre.html",
@@ -19,7 +19,9 @@ const ARCHIVOS_SHELL = [
 
 self.addEventListener("install", (evento) => {
   evento.waitUntil(
-    caches.open(CACHE_NOMBRE).then((cache) => cache.addAll(ARCHIVOS_SHELL))
+    caches.open(CACHE_NOMBRE).then((cache) =>
+      Promise.allSettled(ARCHIVOS_SHELL.map((archivo) => cache.add(archivo)))
+    )
   );
   self.skipWaiting();
 });
@@ -83,6 +85,11 @@ self.addEventListener("fetch", (evento) => {
         }
         return respuestaRed;
       })
-      .catch(() => caches.match(evento.request))
+      .catch(async () => {
+        const guardada = await caches.match(evento.request);
+        if (guardada) return guardada;
+        if (evento.request.mode === "navigate") return caches.match("./pages/inicio.html");
+        return new Response("Sin conexión", { status: 503, statusText: "Sin conexión" });
+      })
   );
 });
