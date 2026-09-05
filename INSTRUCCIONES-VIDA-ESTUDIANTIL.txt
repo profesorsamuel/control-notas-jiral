@@ -1,0 +1,25 @@
+VIDA ESTUDIANTIL — GRADUANDOS 2026 — C.E.B.G. EL JIRAL
+
+1. Suba las carpetas pages, js y css a su proyecto, conservando sus nombres.
+   Acepte reemplazar pages/estudiante.html y pages/admin.html.
+
+2. En Supabase abra SQL Editor, cree una consulta nueva, copie todo el contenido
+   de supabase/vida_estudiantil.sql y pulse Run. Esto crea la tabla, el espacio
+   privado para fotos y videos y los permisos de seguridad.
+
+3. Publique normalmente el proyecto en Netlify.
+
+4. Pruebe con una cuenta de estudiante:
+   Panel del estudiante > Mi vida estudiantil.
+
+5. Pruebe con una cuenta administradora:
+   Panel de administrador > Vida estudiantil.
+
+IMPORTANTE
+- Solamente se aceptan estudiantes de 9A, 9B y 9C.
+- Las fotos se reducen automáticamente a un máximo de 1920 píxeles.
+- El video debe ser horizontal, durar 1 minuto o menos y pesar máximo 25 MB.
+- Los archivos son privados. Solo usuarios autenticados pueden ver la galería.
+- Una foto o video no aparece en la galería hasta que un administrador lo aprueba.
+- El collage horizontal se actualiza mientras se entregan las fotos; los espacios
+  faltantes muestran una X grande. Puede descargarse como JPG.

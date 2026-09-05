@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Panel de administrador | Control de Notas</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="../img/login-favicon.ico">
+
+    <!-- Bootstrap -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <!-- Font Awesome -->
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        rel="stylesheet"
+    >
+
+    <!-- CSS del proyecto -->
+    <link rel="stylesheet" href="../css/style.css">
+
+    <style>
+        .input-nota-grupo {
+            padding: 2px 2px !important;
+            font-size: 12px !important;
+            text-align: center;
+            -moz-appearance: textfield;
+        }
+        .input-nota-grupo::-webkit-outer-spin-button,
+        .input-nota-grupo::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+
+</head>
+
+<body class="bg-light">
+
+    <!-- BARRA SUPERIOR -->
+    <nav class="navbar navbar-dark bg-primary shadow-sm">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fa-solid fa-user-shield me-2" aria-hidden="true"></i>
+                Panel de administrador
+            </span>
+            <div class="d-flex align-items-center text-white">
+                <a href="asignaciones.html" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fa-solid fa-people-roof me-1"></i>Asignaciones
+                </a>
+                <a href="salones.html" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fa-solid fa-school me-1"></i>Salones
+                </a>
+                <button type="button" class="btn btn-outline-light btn-sm me-2" data-bs-toggle="modal" data-bs-target="#modalElegirHorario">
+                    <i class="fa-solid fa-calendar-days me-1"></i>Horario
+                </button>
+                <button id="btnDescargarRespaldo" type="button" class="btn btn-outline-light btn-sm me-2">
+                    <i class="fa-solid fa-file-excel me-1"></i>Descargar respaldo
+                </button>
+                <span id="navCambiarPanel" class="me-2"></span>
+                <span id="nombreAdmin" class="me-3 small"></span>
+                <button id="btnCerrarSesion" class="btn btn-outline-light btn-sm">
+                    <i class="fa-solid fa-right-from-bracket me-1" aria-hidden="true"></i>
+                    Salir
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container py-4">
+
+        <div id="mensajeAdmin" class="alert d-none" role="alert"></div>
+
+        <!-- ===================== MENÚ PRINCIPAL (BOTONES) ===================== -->
+        <div id="menuAdminPrincipal" class="mb-4">
+            <h1 class="h4 mb-3 text-secondary">¿Qué querés hacer?</h1>
+
+            <!-- ---- Académico ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2 mt-3">
+                <i class="fa-solid fa-graduation-cap me-1"></i> Académico
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 mb-4">
+                <div class="col">
+                    <button type="button" class="btn btn-outline-success w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-estudiantes">
+                        <i class="fa-solid fa-user-pen fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Gestionar estudiantes</span>
+                        <span class="small text-muted d-none d-md-block">Nombre y cédula</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-notas-seccion">
+                        <i class="fa-solid fa-clipboard-list fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Agregar notas</span>
+                        <span class="small text-muted d-none d-md-block">Por sección</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-success w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-notas-seccion-envio">
+                        <i class="fa-solid fa-envelope fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Enviar cuadro</span>
+                        <span class="small text-muted d-none d-md-block">Por correo</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-info w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-vista-general">
+                        <i class="fa-solid fa-table-list fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Vista general</span>
+                        <span class="small text-muted d-none d-md-block">Todas las materias</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-notas-todos">
+                        <i class="fa-solid fa-file-lines fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Notas de todos</span>
+                        <span class="small text-muted d-none d-md-block">Todos los estudiantes</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-warning w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-trimestres">
+                        <i class="fa-solid fa-calendar-days fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Trimestres</span>
+                        <span class="small text-muted d-none d-md-block">Fechas y trimestre activo</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <a href="datos.html" target="_blank" class="btn btn-outline-info w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-address-card fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Datos de estudiantes</span>
+                        <span class="small text-muted d-none d-md-block">Acudientes y contacto</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ---- Asistencia ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2">
+                <i class="fa-solid fa-clipboard-check me-1"></i> Asistencia
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 mb-4">
+                <div class="col">
+                    <a href="tomar-asistencia.html" target="_blank" class="btn btn-outline-success w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-square-check fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Tomar asistencia</span>
+                        <span class="small text-muted d-none d-md-block">Registro del día</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="historial-asistencia.html" target="_blank" class="btn btn-outline-secondary w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-clock-rotate-left fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Historial de asistencia</span>
+                        <span class="small text-muted d-none d-md-block">Por estudiante o salón</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="estadisticas_asistencias.html" target="_blank" class="btn btn-outline-info w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-chart-pie fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Estadísticas de asistencia</span>
+                        <span class="small text-muted d-none d-md-block">Resumen general</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="excepciones_horario.html" target="_blank" class="btn btn-outline-warning w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-calendar-xmark fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Excepciones de horario</span>
+                        <span class="small text-muted d-none d-md-block">Días y horas especiales</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ---- Personas ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2">
+                <i class="fa-solid fa-people-group me-1"></i> Personas
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 mb-4">
+                <div class="col">
+                    <button type="button" class="btn btn-outline-success w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-profesores">
+                        <i class="fa-solid fa-chalkboard-user fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Gestionar profesores</span>
+                        <span class="small text-muted d-none d-md-block">Salón y permisos</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-primary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-usuarios">
+                        <i class="fa-solid fa-users fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Usuarios registrados</span>
+                        <span class="small text-muted d-none d-md-block">Ver todos</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <a href="consejero.html" target="_blank" class="btn btn-outline-secondary w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-comments fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Consejería</span>
+                        <span class="small text-muted d-none d-md-block">Panel del consejero</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-secondary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-consejeros">
+                        <i class="fa-solid fa-user-check fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Gestionar consejeros</span>
+                        <span class="small text-muted d-none d-md-block">Autorizar edición de horario por salón</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <a href="mi_horario.html" target="_blank" class="btn btn-outline-primary w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-calendar-week fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Mi horario</span>
+                        <span class="small text-muted d-none d-md-block">Horario personal</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="monitor_estudiantes.html" target="_blank" class="btn btn-outline-danger w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-eye fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Monitor de estudiantes</span>
+                        <span class="small text-muted d-none d-md-block">Horario y tareas por salón, en vivo</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="informacion_estudiantes.html" target="_blank" class="btn btn-outline-success w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-address-card fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Información de estudiantes</span>
+                        <span class="small text-muted d-none d-md-block">Cédula, teléfonos y acudiente, por salón</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="timbre.html" target="_blank" class="btn btn-outline-dark w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-bell fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Horario de Dirección</span>
+                        <span class="small text-muted d-none d-md-block">Solo marca las horas (Timbre)</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="horario_profesores.html" target="_blank" class="btn btn-outline-dark w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-chalkboard-user fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Horario de profesores</span>
+                        <span class="small text-muted d-none d-md-block">Ver o editar el horario de cualquier profesor(a)</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="horario_salon.html" target="_blank" class="btn btn-outline-dark w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-school fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Horario por salón</span>
+                        <span class="small text-muted d-none d-md-block">Cargar el horario completo de cada salón</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ---- Sistema ---- -->
+            <h2 class="h6 text-uppercase text-muted mb-2">
+                <i class="fa-solid fa-gear me-1"></i> Sistema
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+                <div class="col">
+                    <button type="button" class="btn btn-outline-warning w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-preguntas">
+                        <i class="fa-solid fa-key fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Preguntas de seguridad</span>
+                        <span class="small text-muted d-none d-md-block">De un estudiante</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-secondary w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-actividad">
+                        <i class="fa-solid fa-chart-line fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Actividad</span>
+                        <span class="small text-muted d-none d-md-block">Visitas a la plataforma</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <button type="button" class="btn btn-outline-danger w-100 h-100 py-4 px-2 panel-menu-btn" data-panel="panel-consultas">
+                        <i class="fa-solid fa-magnifying-glass-chart fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Control de consultas</span>
+                        <span class="small text-muted d-none d-md-block">Quién revisó sus notas</span>
+                    </button>
+                </div>
+                <div class="col">
+                    <a href="consulta.html" target="_blank" class="btn btn-outline-info w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-magnifying-glass fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Consulta</span>
+                        <span class="small text-muted d-none d-md-block">Búsqueda rápida</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="estadisticas.html" target="_blank" class="btn btn-outline-secondary w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-right-to-bracket fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Estadísticas de accesos</span>
+                        <span class="small text-muted d-none d-md-block">Entradas y salidas de todos los roles</span>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="vida_estudiantil_admin.html" class="btn btn-outline-danger w-100 h-100 py-4 px-2">
+                        <i class="fa-solid fa-photo-film fa-2x d-block mb-2" aria-hidden="true"></i>
+                        <span class="fw-semibold d-block">Vida estudiantil</span>
+                        <span class="small text-muted d-none d-md-block">Aprobar fotos y videos</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra "Volver al menú", visible solo dentro de una sección -->
+        <div id="volverMenuBar" class="d-none mb-3">
+            <button type="button" id="btnVolverMenu" class="btn btn-outline-secondary">
+                <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i> Volver al menú
+            </button>
+        </div>
+
+        <!-- ===================== GESTIONAR ESTUDIANTES ===================== -->
+        <div id="panel-estudiantes" class="panel-seccion d-none">
+        <section class="card shadow border-success border-2 mb-4">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-user-pen me-2" aria-hidden="true"></i>
+                    Gestionar estudiantes (nombre y cédula)
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Revisa y corrige el nombre o la cédula de cualquier estudiante, o agrega
+                    estudiantes nuevos. Los cambios se guardan solos al salir de cada casilla.
+                </p>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-12 col-md-4">
+                        <label for="estFiltroSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-success me-1"></i> Salón
+                        </label>
+                        <select id="estFiltroSalon" class="form-select">
+                            <option value="">Todos los salones</option>
+                            <option value="8A">8°A</option>
+                            <option value="8B">8°B</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-8 text-md-end">
+                        <span id="estadoGuardadoEstudiantes" class="small text-muted"></span>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width:220px;">Nombre</th>
+                                <th style="min-width:150px;">Cédula</th>
+                                <th style="min-width:110px;">Salón</th>
+                                <th style="min-width:120px;">Estado</th>
+                                <th style="min-width:130px;" title="Permite que este estudiante publique tareas para todo su salón">
+                                    Publicar tareas
+                                </th>
+                                <th style="width:60px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaEstudiantesAdmin">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">
+                                    Cargando estudiantes...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <hr>
+
+                <h3 class="h6 mb-3">
+                    <i class="fa-solid fa-user-plus text-success me-1"></i>
+                    Agregar estudiante nuevo
+                </h3>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label for="nuevoEstNombre" class="form-label fw-semibold">Nombre completo</label>
+                        <input type="text" id="nuevoEstNombre" class="form-control" placeholder="Ej: Pérez, Juan">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label for="nuevoEstCedula" class="form-label fw-semibold">Cédula</label>
+                        <input type="text" id="nuevoEstCedula" class="form-control" placeholder="8-123-4567">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label for="nuevoEstSalon" class="form-label fw-semibold">Salón</label>
+                        <select id="nuevoEstSalon" class="form-select">
+                            <option value="8A">8°A</option>
+                            <option value="8B">8°B</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                            <option value="__otro__">Otro salón...</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-2" id="bloqueOtroSalon" style="display:none;">
+                        <label for="nuevoEstSalonOtro" class="form-label fw-semibold">¿Cuál salón?</label>
+                        <input type="text" id="nuevoEstSalonOtro" class="form-control" placeholder="Ej: 7A">
+                    </div>
+                    <div class="col-12 col-md-1">
+                        <button type="button" id="btnAgregarEstudiante" class="btn btn-success w-100">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="mensajeEstudiantesAdmin" class="alert d-none mt-3 mb-0" role="alert"></div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== AGREGAR NOTAS POR SECCIÓN ===================== -->
+        <div id="panel-notas-seccion" class="panel-seccion d-none">
+        <section class="card shadow border-primary border-2 mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-clipboard-list me-2" aria-hidden="true"></i>
+                    Agregar notas por sección
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Elige el salón y la materia: la tabla carga sola con las
+                    <strong>10 casillas de Apreciación</strong> y las <strong>10 de Ejercicio</strong>
+                    del trimestre activo, para que completes las notas de todo el grupo en una sola vista.
+                </p>
+
+                <div class="row g-3 align-items-end">
+
+                    <div class="col-6 col-md-4">
+                        <label for="notasSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-primary me-1"></i> Salón
+                        </label>
+                        <select id="notasSalon" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="8A">8°A</option>
+                            <option value="8B">8°B</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-4">
+                        <label for="notasMateria" class="form-label fw-semibold">
+                            <i class="fa-solid fa-book text-primary me-1"></i> Materia
+                        </label>
+                        <select id="notasMateria" class="form-select" disabled>
+                            <option value="">Seleccione primero un salón</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <label for="notasTrimestre" class="form-label fw-semibold">
+                            <i class="fa-solid fa-calendar text-primary me-1"></i> Trimestre activo
+                        </label>
+                        <input type="text" id="notasTrimestre" class="form-control fw-bold text-primary" readonly value="—">
+                    </div>
+
+                </div>
+
+                <!-- TABLA DEL GRUPO (se llena automáticamente al elegir salón y materia) -->
+                <div id="bloqueTablaNotas" class="mt-4" style="display:none;">
+
+                    <hr>
+
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+                        <button type="button" id="btnGuardarNotasGrupo" class="btn btn-success">
+                            <i class="fa-solid fa-floppy-disk me-1"></i>
+                            Guardar todas las notas
+                        </button>
+                        <button type="button" id="btnImprimirPDF" class="btn btn-outline-danger">
+                            <i class="fa-solid fa-file-pdf me-1"></i>
+                            Imprimir PDF
+                        </button>
+                        <span id="estadoGuardadoNotas" class="small"></span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle border">
+                            <thead class="table-light">
+                                <tr id="cabeceraNotasGrupo">
+                                    <th style="width:45px;">#</th>
+                                    <th>Estudiante</th>
+                                </tr>
+                                <tr id="cabeceraTemasGrupo"></tr>
+                            </thead>
+                            <tbody id="tablaNotasGrupo"></tbody>
+                        </table>
+                    </div>
+
+                    <p class="text-muted small mt-2 mb-0">
+                        <i class="fa-solid fa-circle-info me-1"></i>
+                        Haz clic sobre el nombre azul de cualquier estudiante para abrir y revisar su boletín personal. 
+                        Presiona <kbd>Enter</kbd> para bajar a la siguiente fila dentro de la misma columna. 
+                        El sistema <strong>autoguarda cada 30 segundos</strong> lo que hayas cambiado.
+                    </p>
+
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== ENVIAR CUADRO DE NOTAS POR CORREO ===================== -->
+        <div id="panel-notas-seccion-envio" class="panel-seccion d-none">
+        <section class="card shadow border-success border-2 mb-4">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-envelope me-2" aria-hidden="true"></i>
+                    Enviar cuadro de notas por correo
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Arma un cuadro con las notas de <strong>Apreciación</strong> y
+                    <strong>Ejercicio</strong> de todos los salones y lo envía a
+                    <strong>profesorsamuelortega@gmail.com</strong>. También se envía
+                    solo, automáticamente, 10 minutos después de la última vez que
+                    alguien edite una nota.
+                </p>
+                <button type="button" id="btnEnviarCuadroNotas" class="btn btn-success">
+                    <i class="fa-solid fa-paper-plane me-1"></i>
+                    Enviar cuadro ahora
+                </button>
+                <span id="estadoEnvioCuadroNotas" class="small ms-2"></span>
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== VISTA GENERAL POR SALÓN ===================== -->
+        <div id="panel-vista-general" class="panel-seccion d-none">
+        <section class="card shadow border-info border-2 mb-4">
+            <div class="card-header bg-info text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-table-list me-2" aria-hidden="true"></i>
+                    Vista general de calificaciones (todas las materias)
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Elige un salón y un trimestre para ver, una tabla por materia, a todos los
+                    estudiantes de ese salón con sus notas. Haz clic sobre el nombre del estudiante para abrir su boletín individual.
+                </p>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-6 col-md-3">
+                        <label for="vistaGeneralSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-info me-1"></i> Salón
+                        </label>
+                        <select id="vistaGeneralSalon" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="8A">8°A</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label for="vistaGeneralTrimestre" class="form-label fw-semibold">
+                            <i class="fa-solid fa-calendar text-info me-1"></i> Trimestre
+                        </label>
+                        <select id="vistaGeneralTrimestre" class="form-select">
+                            <option value="Trimestre 1">Trimestre 1</option>
+                            <option value="Trimestre 2">Trimestre 2</option>
+                            <option value="Trimestre 3">Trimestre 3</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <button type="button" id="btnCargarVistaGeneral" class="btn btn-info text-white w-100">
+                            <i class="fa-solid fa-magnifying-glass me-1"></i>
+                            Cargar vista general
+                        </button>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label for="vistaGeneralFiltroMateria" class="form-label fw-semibold">
+                            <i class="fa-solid fa-filter text-info me-1"></i> Filtrar por materia
+                        </label>
+                        <select id="vistaGeneralFiltroMateria" class="form-select" disabled>
+                            <option value="">Todas las materias</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="vistaGeneralContenedor" class="mt-4"></div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== ACTIVIDAD DE ESTUDIANTES ===================== -->
+        <div id="panel-actividad" class="panel-seccion d-none">
+        <section class="card shadow border-secondary border-2 mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-chart-line me-2" aria-hidden="true"></i>
+                    Actividad de estudiantes (visitas a la plataforma)
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Cuántas veces entró cada estudiante desde que se activó este
+                    seguimiento, en cuántos días distintos, y aproximadamente cuánto
+                    tiempo estuvo conectado en total.
+                </p>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-6 col-md-3">
+                        <label for="visitasSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-secondary me-1"></i> Salón
+                        </label>
+                        <select id="visitasSalon" class="form-select">
+                            <option value="">Todos los salones</option>
+                            <option value="8A">8°A</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <button type="button" id="btnCargarVisitas" class="btn btn-secondary w-100">
+                            <i class="fa-solid fa-magnifying-glass me-1"></i> Ver actividad
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Estudiante</th>
+                                <th id="thSalonVisitas" class="text-center" style="display:none;">Salón</th>
+                                <th class="text-center">Visitas</th>
+                                <th class="text-center">Días distintos</th>
+                                <th class="text-center">Tiempo total</th>
+                                <th class="text-center">Primera visita</th>
+                                <th class="text-center">Última visita</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaVisitas">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">
+                                    Elegí un salón (o "Todos los salones") y tocá "Ver actividad".
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== CONTROL DE CONSULTAS DE NOTAS ===================== -->
+        <div id="panel-consultas" class="panel-seccion d-none">
+        <section class="card shadow border-danger border-2 mb-4">
+            <div class="card-header bg-danger text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-magnifying-glass-chart me-2" aria-hidden="true"></i>
+                    Control de consultas de notas
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Cada vez que alguien busca notas desde "Ver mis notas" con una cédula (tenga o no
+                    cuenta creada) queda registrado aquí, junto con si descargó el PDF y cuándo fue.
+                </p>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-6 col-md-3">
+                        <label for="consultasSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-secondary me-1"></i> Salón
+                        </label>
+                        <select id="consultasSalon" class="form-select">
+                            <option value="">Todos los salones</option>
+                            <option value="8A">8°A</option>
+                            <option value="8B">8°B</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label for="consultasOrden" class="form-label fw-semibold">
+                            <i class="fa-solid fa-arrow-down-wide-short text-secondary me-1"></i> Ordenar por
+                        </label>
+                        <select id="consultasOrden" class="form-select">
+                            <option value="fecha_desc">Visita más reciente primero</option>
+                            <option value="fecha_asc">Visita más antigua primero</option>
+                            <option value="nombre">Nombre (A-Z)</option>
+                            <option value="cantidad">Quién más consulta primero</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="consultasBuscar" class="form-label fw-semibold">
+                            <i class="fa-solid fa-magnifying-glass text-secondary me-1"></i> Buscar
+                        </label>
+                        <input type="text" id="consultasBuscar" class="form-control" placeholder="Nombre o cédula...">
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <button type="button" id="btnCargarConsultas" class="btn btn-danger w-100">
+                            <i class="fa-solid fa-rotate me-1"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-6 col-md-3">
+                        <label for="consultasFechaDesde" class="form-label fw-semibold">
+                            <i class="fa-solid fa-calendar-day text-secondary me-1"></i> Desde
+                        </label>
+                        <input type="date" id="consultasFechaDesde" class="form-control">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label for="consultasFechaHasta" class="form-label fw-semibold">
+                            <i class="fa-solid fa-calendar-day text-secondary me-1"></i> Hasta
+                        </label>
+                        <input type="date" id="consultasFechaHasta" class="form-control">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <button type="button" id="btnLimpiarFechaConsultas" class="btn btn-outline-secondary w-100">
+                            <i class="fa-solid fa-xmark me-1"></i> Quitar fecha
+                        </button>
+                    </div>
+                    <div class="col-6 col-md-4 text-muted small" id="consultasFechaResumen"></div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasTotal">0</div>
+                            <div class="small text-muted">Consultas totales</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasDistintos">0</div>
+                            <div class="small text-muted">Estudiantes distintos</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasPdf">0</div>
+                            <div class="small text-muted">Descargaron PDF</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="border rounded p-2 text-center bg-light">
+                            <div class="fw-bold fs-5" id="statConsultasSin">0</div>
+                            <div class="small text-muted">Nunca han revisado</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="h6 mb-3">
+                    <i class="fa-solid fa-trophy text-warning me-1"></i>
+                    Quiénes más revisan sus notas (top 5)
+                </h3>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Estudiante</th>
+                                <th id="thSalonTopConsultas" class="text-center" style="display:none;">Salón</th>
+                                <th class="text-center">Veces que revisó</th>
+                                <th class="text-center">Descargó PDF</th>
+                                <th class="text-center">Última visita</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaTopConsultas">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="h6 mb-3">
+                    <i class="fa-solid fa-list me-1"></i>
+                    Historial completo de consultas
+                </h3>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Estudiante</th>
+                                <th id="thSalonConsultas" class="text-center" style="display:none;">Salón</th>
+                                <th class="text-center">Cédula</th>
+                                <th class="text-center">Encontrado</th>
+                                <th class="text-center">Descargó PDF</th>
+                                <th>Fecha de la visita</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaConsultasAdmin">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">
+                                    Elegí un salón (o "Todos los salones") y tocá "Actualizar".
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== PREGUNTAS DE SEGURIDAD ===================== -->
+        <div id="panel-preguntas" class="panel-seccion d-none">
+        <section class="card shadow border-warning border-2 mb-4">
+            <div class="card-header bg-warning">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-key me-2" aria-hidden="true"></i>
+                    Preguntas de seguridad de un estudiante
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Elegí el salón y el estudiante para generar un enlace de recuperación
+                    de contraseña y enviárselo por WhatsApp o correo. Al abrirlo, el
+                    estudiante responde ahí mismo sus 3 preguntas de seguridad y pone
+                    una contraseña nueva (solo funciona si ya tiene las preguntas
+                    configuradas — las configura él mismo la primera vez que entra al sistema).
+                </p>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-6 col-md-3">
+                        <label for="pregSalon" class="form-label fw-semibold">
+                            <i class="fa-solid fa-chalkboard text-warning me-1"></i> Salón
+                        </label>
+                        <select id="pregSalon" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="8A">8°A</option>
+                            <option value="9A">9°A</option>
+                            <option value="9B">9°B</option>
+                            <option value="9C">9°C</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="pregEstudiante" class="form-label fw-semibold">
+                            <i class="fa-solid fa-user-graduate text-warning me-1"></i> Estudiante
+                        </label>
+                        <select id="pregEstudiante" class="form-select" disabled>
+                            <option value="">Seleccione primero un salón</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- ENLACE PARA QUE EL ESTUDIANTE RECUPERE SU CONTRASEÑA ÉL MISMO -->
+                <div id="bloqueEnlaceRecuperacion" class="alert alert-light border mb-0" style="display:none;">
+                    <label class="form-label fw-semibold mb-1">
+                        <i class="fa-solid fa-link text-warning me-1"></i>
+                        Enlace para que el estudiante recupere su contraseña
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" id="enlaceRecuperacion" class="form-control" readonly>
+                        <button type="button" id="btnCopiarEnlace" class="btn btn-outline-secondary">
+                            <i class="fa-solid fa-copy"></i> Copiar
+                        </button>
+                        <a id="btnEnviarWhatsapp" href="#" target="_blank" class="btn btn-success">
+                            <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                        </a>
+                    </div>
+                    <p class="text-muted small mt-2 mb-0">
+                        Enviaselo por WhatsApp o pegalo en un correo. Al abrirlo, el estudiante
+                        va directo a responder sus 3 preguntas de seguridad y poner una
+                        contraseña nueva.
+                    </p>
+                    <div id="mensajePregSeguridad" class="alert d-none mt-2 mb-0" role="alert"></div>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== USUARIOS ===================== -->
+        <div id="panel-usuarios" class="panel-seccion d-none">
+        <section class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-users me-2 text-primary" aria-hidden="true"></i>
+                    Usuarios registrados
+                </h2>
+                <button id="btnRecargarUsuarios" class="btn btn-sm btn-outline-secondary">
+                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Correo</th>
+                                <th>Rol</th>
+                                <th>Activo</th>
+                                <th>Registrado</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaUsuarios">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    Cargando usuarios...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== NOTAS ===================== -->
+        <div id="panel-notas-todos" class="panel-seccion d-none">
+        <section class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-file-lines me-2 text-primary" aria-hidden="true"></i>
+                    Notas de todos los estudiantes
+                </h2>
+                <button id="btnRecargarNotas" class="btn btn-sm btn-outline-secondary">
+                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0 align-middle">
+                        <thead id="cabeceraNotas" class="table-light"></thead>
+                        <tbody id="tablaNotas">
+                            <tr>
+                                <td class="text-center text-muted py-4">
+                                    Cargando notas...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== GESTIONAR PROFESORES ===================== -->
+        <div id="panel-profesores" class="panel-seccion d-none">
+        <section class="card shadow border-success border-2 mb-4">
+            <div class="card-header bg-success text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-chalkboard-user me-2" aria-hidden="true"></i>
+                    Gestionar profesores
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-3">
+                    Asigna el salón de cada profesor y activa el permiso para que pueda
+                    agregar estudiantes nuevos (con cédula) desde su propio panel.
+                    Los cambios se guardan solos al elegir una opción.
+                </p>
+
+                <div id="mensajeProfesores" class="alert d-none" role="alert"></div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width:200px;">Profesor(a)</th>
+                                <th style="min-width:220px;">Correo</th>
+                                <th style="min-width:140px;">Salón</th>
+                                <th style="min-width:160px;">Puede agregar estudiantes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaProfesoresAdmin">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">Cargando profesores...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== GESTIONAR CONSEJEROS (permiso de horario) ===================== -->
+        <div id="panel-consejeros" class="panel-seccion d-none">
+        <section class="card shadow border-secondary border-2 mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-user-check me-2" aria-hidden="true"></i>
+                    Gestionar consejeros
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-3">
+                    Cada consejero(a) ya tiene un salón asignado (registrado en la tabla
+                    <code>consejeros</code>). Activa este permiso para que, además del
+                    administrador, esa persona pueda cargar y editar el horario completo
+                    de <strong>su propio salón</strong> desde "Horario por salón". El
+                    cambio se guarda solo al marcar/desmarcar.
+                </p>
+
+                <div id="mensajeConsejeros" class="alert d-none" role="alert"></div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width:200px;">Consejero(a)</th>
+                                <th style="min-width:220px;">Correo</th>
+                                <th style="min-width:100px;">Salón</th>
+                                <th style="min-width:200px;">Puede editar el horario de su salón</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaConsejerosAdmin">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">Cargando consejeros...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+        <!-- ===================== TRIMESTRES (fechas y trimestre activo) ===================== -->
+        <div id="panel-trimestres" class="panel-seccion d-none">
+        <section class="card shadow border-warning border-2 mb-4">
+            <div class="card-header bg-warning">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-calendar-days me-2" aria-hidden="true"></i>
+                    Trimestres — fechas y trimestre activo
+                </h2>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-4">
+                    Definí la fecha de inicio y de fin de cada trimestre. El sistema calcula
+                    solo, según la fecha de hoy, cuál trimestre está activo para toda la
+                    escuela — ya no hace falta cambiarlo a mano desde el panel del docente.
+                </p>
+
+                <div id="mensajeTrimestres" class="alert d-none" role="alert"></div>
+
+                <div class="alert alert-light border d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+                    <span>
+                        <i class="fa-solid fa-circle-check text-success me-1"></i>
+                        <strong>Trimestre activo ahora mismo:</strong>
+                        <span id="trimestreActivoCalculado" class="fw-bold">—</span>
+                    </span>
+                    <span id="trimestreActivoDetalle" class="small text-muted"></span>
+                </div>
+
+                <div class="row g-4">
+
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <h3 class="h6 text-primary mb-3">
+                                <i class="fa-solid fa-1 me-1"></i> Trimestre 1
+                            </h3>
+                            <label for="t1Inicio" class="form-label small fw-semibold">Inicio</label>
+                            <input type="date" id="t1Inicio" class="form-control mb-2">
+                            <label for="t1Fin" class="form-label small fw-semibold">Fin</label>
+                            <input type="date" id="t1Fin" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <h3 class="h6 text-primary mb-3">
+                                <i class="fa-solid fa-2 me-1"></i> Trimestre 2
+                            </h3>
+                            <label for="t2Inicio" class="form-label small fw-semibold">Inicio</label>
+                            <input type="date" id="t2Inicio" class="form-control mb-2">
+                            <label for="t2Fin" class="form-label small fw-semibold">Fin</label>
+                            <input type="date" id="t2Fin" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <h3 class="h6 text-primary mb-3">
+                                <i class="fa-solid fa-3 me-1"></i> Trimestre 3
+                            </h3>
+                            <label for="t3Inicio" class="form-label small fw-semibold">Inicio</label>
+                            <input type="date" id="t3Inicio" class="form-control mb-2">
+                            <label for="t3Fin" class="form-label small fw-semibold">Fin</label>
+                            <input type="date" id="t3Fin" class="form-control">
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="d-flex align-items-center gap-3 mt-4">
+                    <button type="button" id="btnGuardarTrimestres" class="btn btn-warning">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Guardar fechas
+                    </button>
+                    <span id="estadoGuardadoTrimestres" class="small"></span>
+                </div>
+
+            </div>
+        </section>
+        </div>
+
+    </main>
+
+    <!-- Modal: elegir horario por profesor o por salón -->
+    <div class="modal fade" id="modalElegirHorario" tabindex="-1" aria-labelledby="modalElegirHorarioLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalElegirHorarioLabel">
+                        <i class="fa-solid fa-calendar-days me-1"></i> ¿Qué horario querés ver?
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-grid gap-3">
+                        <a href="timbre.html" target="_blank" class="btn btn-outline-dark py-3">
+                            <i class="fa-solid fa-bell fa-lg me-2" aria-hidden="true"></i>
+                            Horario de Dirección (Timbre)
+                            <span class="d-block small text-muted mt-1">Solo marca las horas: inicio y fin de cada periodo</span>
+                        </a>
+                        <a href="horario_profesores.html" target="_blank" class="btn btn-outline-dark py-3">
+                            <i class="fa-solid fa-chalkboard-user fa-lg me-2" aria-hidden="true"></i>
+                            Horario de profesores
+                            <span class="d-block small text-muted mt-1">Ver o editar el horario de cualquier profesor(a)</span>
+                        </a>
+                        <a href="horario_salon.html" target="_blank" class="btn btn-outline-dark py-3">
+                            <i class="fa-solid fa-school fa-lg me-2" aria-hidden="true"></i>
+                            Horario por salón
+                            <span class="d-block small text-muted mt-1">Cargar el horario completo de cada salón</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Librería jsPDF (para generar el reporte de notas por materia en PDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Librería jsPDF-AutoTable -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- EmailJS (para el aviso automático por correo al guardar notas) -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+    <script type="module" src="../js/admin.js"></script>
+
+    <!-- Navegación del menú principal (mostrar/ocultar secciones) -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const menu = document.getElementById("menuAdminPrincipal");
+            const volverBar = document.getElementById("volverMenuBar");
+            const btnVolver = document.getElementById("btnVolverMenu");
+            const paneles = document.querySelectorAll(".panel-seccion");
+            const botonesMenu = document.querySelectorAll(".panel-menu-btn");
+
+            function mostrarPanel(idPanel) {
+                paneles.forEach((p) => p.classList.add("d-none"));
+                const panel = document.getElementById(idPanel);
+                if (panel) panel.classList.remove("d-none");
+                menu.classList.add("d-none");
+                volverBar.classList.remove("d-none");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+
+                if (idPanel === "panel-profesores" && typeof window.cargarProfesoresAdmin === "function") {
+                    window.cargarProfesoresAdmin();
+                }
+
+                if (idPanel === "panel-consejeros" && typeof window.cargarConsejerosAdmin === "function") {
+                    window.cargarConsejerosAdmin();
+                }
+
+                if (idPanel === "panel-trimestres" && typeof window.cargarConfigTrimestres === "function") {
+                    window.cargarConfigTrimestres();
+                }
+
+                if (idPanel === "panel-estudiantes" && typeof window.cargarEstudiantesAdmin === "function") {
+                    window.cargarEstudiantesAdmin();
+                }
+
+                if (idPanel === "panel-consultas" && typeof window.cargarConsultasAdmin === "function") {
+                    window.cargarConsultasAdmin();
+                }
+
+                if (idPanel === "panel-vista-general" && typeof window.precargarTrimestreActivoVistaGeneral === "function") {
+                    window.precargarTrimestreActivoVistaGeneral();
+                }
+            }
+
+            function mostrarMenu() {
+                paneles.forEach((p) => p.classList.add("d-none"));
+                menu.classList.remove("d-none");
+                volverBar.classList.add("d-none");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+
+            botonesMenu.forEach((btn) => {
+                btn.addEventListener("click", () => mostrarPanel(btn.dataset.panel));
+            });
+
+            if (btnVolver) {
+                btnVolver.addEventListener("click", mostrarMenu);
+            }
+        });
+    </script>
+
+</body>
+
+</html>
