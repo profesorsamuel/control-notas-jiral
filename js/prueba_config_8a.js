@@ -15,6 +15,8 @@ window.PRUEBA_CONFIG = {
   tituloExamen: "Examen de Recuperación de Ciencias Naturales 8A",
   escuela: "C.E.B.G. EL JIRAL",
   codigoExamen: "cn8a-recuperacion-2026", // identifica este examen en Supabase; distinto al de 9°
+  bancoGlobal: "BANCO_CIENCIAS_8A",
+  paginaExamen: "prueba_ciencias_8a.html",
 
   // ---- Salones habilitados para este examen ----
   salones: ["8A"],
@@ -66,8 +68,6 @@ window.PRUEBA_CONFIG = {
     eventos: "prueba_eventos",
   },
 
-  // ---- Clave del panel del docente ----
-  claveAdmin: "jiral2026",
 };
 
 // ---- Utilidad: calcular nota MEDUCA a partir de un porcentaje ----

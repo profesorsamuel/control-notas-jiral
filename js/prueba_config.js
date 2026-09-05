@@ -19,6 +19,8 @@ window.PRUEBA_CONFIG = {
   tituloExamen: "Examen de Recuperación de Ciencias Naturales 9°",
   escuela: "C.E.B.G. EL JIRAL",
   codigoExamen: "cn9-recuperacion-2026", // usado como clave en Supabase; cámbialo si haces otro examen
+  bancoGlobal: "BANCO_CIENCIAS_9",
+  paginaExamen: "prueba_ciencias_9.html",
 
   // ---- Salones habilitados para este examen ----
   // (deben existir estudiantes con este valor exacto en la columna "salon" de la tabla "estudiantes")
@@ -76,12 +78,6 @@ window.PRUEBA_CONFIG = {
     eventos: "prueba_eventos",
   },
 
-  // ---- Clave del panel del docente ----
-  // Cámbiala por algo solo tú conozcas. No es un sistema de seguridad robusto
-  // (es una llave visible en el código fuente), solo evita que estudiantes
-  // curiosos entren por accidente al panel. Para más seguridad real, se
-  // podría integrar con el login de profesores que ya tiene el sistema.
-  claveAdmin: "jiral2026",
 };
 
 // ---- Utilidad: calcular nota MEDUCA a partir de un porcentaje ----

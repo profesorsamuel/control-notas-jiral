@@ -230,6 +230,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
             console.log("🛡️ Roles detectados:", { esAdmin, consejeroInfo, esProfesor });
 
+            // Si el usuario llegó desde un panel de examen protegido,
+            // regresa allí únicamente cuando su cuenta es docente/admin.
+            const destinoSolicitado = new URLSearchParams(window.location.search).get("next");
+            const panelesExamenPermitidos = [
+                "prueba_ciencias_9_admin.html",
+                "prueba_ciencias_8a_admin.html"
+            ];
+            if ((esAdmin || esProfesor) && panelesExamenPermitidos.includes(destinoSolicitado)) {
+                sessionStorage.setItem("rolActivo", esAdmin ? "admin" : "profesor");
+                registrarEntrada(correo, esAdmin ? "admin" : "profesor");
+                window.location.href = destinoSolicitado;
+                return;
+            }
+
             const cantidadRoles = [esAdmin, !!consejeroInfo, esProfesor].filter(Boolean).length;
 
             /*
