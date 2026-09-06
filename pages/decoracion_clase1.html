@@ -42,6 +42,24 @@
     width: 100%; margin-top: 7px; padding: 13px; border: 1px solid #cbd8e6;
     border-radius: 11px; background: #fbfdff; font: inherit; resize: vertical;
   }
+  .rubrica-fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+  .rubrica-fila label { margin: 0; flex: 1; font-weight: 700; font-size: 13px; }
+  .rubrica-fila select { width: 90px; margin-top: 0; }
+  .entrega-nota { font-size: 14px; font-weight: 900; color: var(--green); margin-top: 12px; text-align: center; background: var(--green-bg); padding: 10px; border-radius: 10px; }
+  .entrega-resumen { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-top: 10px; font-size: 13px; line-height: 1.6; }
+  .entrega-resumen a { color: var(--blue); }
+  .obs-participacion { border-color: #f3c3ca !important; background: #fff8f8 !important; }
+  .integrantes-lista {
+    max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px;
+    padding: 6px 4px; margin-top: 8px; background: #fbfdff;
+  }
+  .integrante-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    border-radius: 8px; cursor: pointer;
+  }
+  .integrante-item:hover { background: #edf6ff; }
+  .integrante-item input { width: auto; margin: 0; }
+  .integrante-item span { font-size: 14px; }
 </style>
 </head>
 <body>
@@ -124,13 +142,47 @@
       <p class="tag">RECLAMAR ACTIVIDAD</p>
       <h2 id="modal-deco-titulo">Actividad</h2>
       <p id="modal-deco-desc" class="lead"></p>
-      <label for="deco-integrantes">¿Quiénes más son del grupo? (opcional, nombres separados por coma)
-        <textarea id="deco-integrantes" rows="2" placeholder="Ej: Juan Pérez, María Gómez"></textarea>
-      </label>
+      <div id="modal-deco-lider-aviso" class="entrega-nota" style="background:var(--amber-bg); color:var(--amber);">
+        👑 Vas a quedar registrado(a) como el <b>LÍDER</b> de este grupo (<span id="modal-deco-lider-nombre"></span>).
+        Serás tú quien más adelante suba la foto, el video y llene la hoja de autoevaluación cuando entreguen.
+      </div>
+      <label style="margin-bottom:4px;">¿Quiénes más son del grupo? (marca sus nombres — son los de tu mismo salón)</label>
+      <div id="deco-integrantes-lista" class="integrantes-lista"></div>
+      <p id="deco-integrantes-vacio" class="lead" style="font-size:13px;" hidden>No se encontraron más estudiantes en tu salón.</p>
       <p id="deco-error" class="error" hidden></p>
       <div style="display:flex; gap:10px; margin-top:16px;">
-        <button id="btn-guardar-deco" class="wide">✅ Confirmar — la reclamo para mi grupo</button>
+        <button id="btn-guardar-deco" class="wide">✅ Confirmar — soy el líder, la reclamo para mi grupo</button>
         <button id="btn-cerrar-modal-deco" class="wide secundario">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: ENTREGAR ===================== -->
+  <div id="modal-entrega" class="admin-modal" hidden style="position:fixed;inset:0;background:#17233599;z-index:50;padding:20px;">
+    <div class="card" style="max-width:520px;margin:4vh auto;max-height:90vh;overflow-y:auto;">
+      <p class="tag">ENTREGA — AUTOEVALUACIÓN</p>
+      <h2 id="entrega-titulo-actividad">Entregar mi actividad</h2>
+      <p class="lead">Líder registrado: <b id="entrega-lider-nombre"></b>. Esto lo llena el líder del grupo (quien reclamó la actividad). Sé honesto en la autoevaluación — el profesor va a revisar el trabajo igual.</p>
+
+      <label for="entrega-foto">Link de la foto del proyecto terminado
+        <input id="entrega-foto" type="text" placeholder="Pega aquí el link (Google Drive, Fotos, etc.)">
+      </label>
+      <label for="entrega-video">Link del video explicativo (todos explican su parte)
+        <input id="entrega-video" type="text" placeholder="Pega aquí el link (YouTube, Drive, etc.)">
+      </label>
+
+      <h3 style="margin-bottom:0;">Autoevaluación (1 a 5 en cada una)</h3>
+      <div id="rubrica-cont"></div>
+      <p id="entrega-nota-preview" class="entrega-nota" hidden></p>
+
+      <label for="entrega-observacion" style="margin-top:18px;">Observación de participación
+        <textarea id="entrega-observacion" rows="3" class="obs-participacion" placeholder="¿Todos los integrantes trabajaron por igual? Si alguien NO colaboró, escribe aquí su nombre para que el profesor lo evalúe aparte. Si todos trabajaron parejo, puedes dejarlo en blanco o decir 'Todos participaron'."></textarea>
+      </label>
+
+      <p id="entrega-error" class="error" hidden></p>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button id="btn-guardar-entrega" class="wide">✅ Guardar entrega</button>
+        <button id="btn-cerrar-modal-entrega" class="wide secundario">Cerrar</button>
       </div>
     </div>
   </div>
