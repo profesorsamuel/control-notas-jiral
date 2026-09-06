@@ -68,6 +68,30 @@ function calcularPorcentajeIndividual(criterios) {
   return Math.round((puntos / (RUBRICA.length * 5)) * 100);
 }
 
+// Las fotos 2, 3 y 4 son evidencia opcional del proceso (trabajando,
+// haciendo la actividad, etc.), aparte de la foto principal del
+// proyecto terminado.
+function renderFotosAdicionales(registro) {
+  const fotos = [registro.entrega_foto2_url, registro.entrega_foto3_url, registro.entrega_foto4_url].filter(Boolean);
+  if (fotos.length === 0) return "";
+  return fotos.map((url, i) => `<br>📷 <a href="${escapeHtml(url)}" target="_blank" rel="noopener">Ver foto adicional ${i + 1}</a>`).join("");
+}
+
+// Evaluación del profesor sobre el contenido — es una nota aparte de la
+// autoevaluación del estudiante (0 a 20 puntos), la pone el profesor
+// directamente en su panel.
+function renderEvalProfesorHtml(tomada) {
+  const valor = (tomada.evaluacion_profesor_contenido === null || tomada.evaluacion_profesor_contenido === undefined) ? "" : tomada.evaluacion_profesor_contenido;
+  return `
+    <div class="eval-profesor-cont">
+      <label>📋 Evaluación del profesor — Contenido correcto (0 a 20 pts)</label>
+      <div class="eval-profesor-fila">
+        <input type="number" min="0" max="20" step="1" class="eval-profesor-input" data-id="${tomada.id}" value="${valor}" placeholder="0-20">
+        <button type="button" class="btn secundario eval-profesor-guardar" data-id="${tomada.id}">Guardar</button>
+      </div>
+    </div>`;
+}
+
 function renderTablaAutoevaluacion(registro) {
   const notas = registro.autoevaluacion_nota;
   const criteriosPorEstudiante = registro.autoevaluacion;
@@ -360,10 +384,11 @@ function renderTablero() {
             ${escapeHtml(act.descripcion)}
           </div>` : ""}
         ${miInscripcion.integrantes ? `<p style="font-size:13px; color:var(--muted); margin-top:8px;">Equipo: ${escapeHtml(miInscripcion.integrantes)}</p>` : ""}
+        ${(miInscripcion.evaluacion_profesor_contenido !== null && miInscripcion.evaluacion_profesor_contenido !== undefined) ? `<p style="font-size:13px; margin-top:8px;">📋 Evaluación del profesor (contenido): <b>${miInscripcion.evaluacion_profesor_contenido}/20 pts</b></p>` : ""}
         ${yaEntrego
           ? `<div class="entrega-resumen">
                ✅ <b>Ya entregaste</b> el ${new Date(miInscripcion.entregado_at).toLocaleString("es-PA")}.
-               ${miInscripcion.entrega_foto_url ? `<br>📷 <a href="${escapeHtml(miInscripcion.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a>` : ""}
+               ${miInscripcion.entrega_foto_url ? `<br>📷 <a href="${escapeHtml(miInscripcion.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a>${renderFotosAdicionales(miInscripcion)}` : ""}
                ${miInscripcion.entrega_video_url ? `<br>🎬 <a href="${escapeHtml(miInscripcion.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a>` : ""}
                ${miInscripcion.autoevaluacion_nota !== null && miInscripcion.autoevaluacion_nota !== undefined ? `<div style="margin-top:8px;">📝 Autoevaluación:${renderTablaAutoevaluacion(miInscripcion)}</div>` : ""}
              </div>
@@ -421,7 +446,7 @@ function renderTablero() {
     // directo aquí, sin necesidad de un panel aparte.
     const detalleProfesor = (esProfesor && !modoPruebaEstudiante && tomada.entregado_at) ? `
       <div class="entrega-resumen">
-        ${tomada.entrega_foto_url ? `📷 <a href="${escapeHtml(tomada.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a><br>` : ""}
+        ${tomada.entrega_foto_url ? `📷 <a href="${escapeHtml(tomada.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a>${renderFotosAdicionales(tomada)}<br>` : ""}
         ${tomada.entrega_video_url ? `🎬 <a href="${escapeHtml(tomada.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a><br>` : ""}
         ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `<div style="margin-top:6px;">📝 Autoevaluación:${renderTablaAutoevaluacion(tomada)}</div>` : ""}
         ${tomada.observacion_participacion ? `⚠️ <b>Observación de participación:</b> ${escapeHtml(tomada.observacion_participacion)}` : `<span style="color:var(--muted);">Sin observaciones de participación.</span>`}
@@ -433,6 +458,7 @@ function renderTablero() {
         <p class="actividad-tomada-por">🔒 Ya la tomó — 👑 Líder: <b>${escapeHtml(tomada.nombre)}</b> (${escapeHtml((tomada.salon || "").replace(/(\d+)([A-Z])/, "$1°$2"))})${tomada.integrantes ? ` · Equipo: ${escapeHtml(tomada.integrantes)}` : ""}</p>
         ${entregoInfo}
         ${detalleProfesor}
+        ${(esProfesor && !modoPruebaEstudiante) ? renderEvalProfesorHtml(tomada) : ""}
         ${(esProfesor && !modoPruebaEstudiante) ? `<button type="button" class="btn secundario actividad-liberar" data-id="${tomada.id}" data-titulo="${escapeHtml(a.titulo)}">🗑️ Liberar este cupo</button>` : ""}
       </div>`;
   }).join("");
@@ -447,6 +473,22 @@ function renderTablero() {
       if (!ok) return;
       const { error } = await sb.from(TABLA).delete().eq("id", btn.dataset.id);
       if (error) { alert("No se pudo liberar: " + error.message); return; }
+      await cargarTablero();
+    });
+  });
+  grid.querySelectorAll(".eval-profesor-guardar").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const input = grid.querySelector(`.eval-profesor-input[data-id="${id}"]`);
+      const crudo = input.value.trim();
+      const valor = crudo === "" ? null : Number(crudo);
+      if (valor !== null && (Number.isNaN(valor) || valor < 0 || valor > 20)) {
+        alert("La evaluación del profesor debe ser un número entre 0 y 20.");
+        return;
+      }
+      const { error } = await sb.from(TABLA).update({ evaluacion_profesor_contenido: valor }).eq("id", id);
+      if (error) { alert("No se pudo guardar la evaluación: " + error.message); return; }
       await cargarTablero();
     });
   });
@@ -483,7 +525,7 @@ function renderPanelProfesor() {
       : `<p class="actividad-tomada-por" style="color:var(--amber);">⏳ Todavía no ha entregado</p>`;
     const detalleProfesor = tomada.entregado_at ? `
       <div class="entrega-resumen">
-        ${tomada.entrega_foto_url ? `📷 <a href="${escapeHtml(tomada.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a><br>` : ""}
+        ${tomada.entrega_foto_url ? `📷 <a href="${escapeHtml(tomada.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a>${renderFotosAdicionales(tomada)}<br>` : ""}
         ${tomada.entrega_video_url ? `🎬 <a href="${escapeHtml(tomada.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a><br>` : ""}
         ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `<div style="margin-top:6px;">📝 Autoevaluación:${renderTablaAutoevaluacion(tomada)}</div>` : ""}
         ${tomada.observacion_participacion ? `⚠️ <b>Observación de participación:</b> ${escapeHtml(tomada.observacion_participacion)}` : `<span style="color:var(--muted);">Sin observaciones de participación.</span>`}
@@ -495,6 +537,7 @@ function renderPanelProfesor() {
         <p class="actividad-tomada-por">🔒 Ya la tomó — 👑 Líder: <b>${escapeHtml(tomada.nombre)}</b> (${escapeHtml((tomada.salon || "").replace(/(\d+)([A-Z])/, "$1°$2"))})${tomada.integrantes ? ` · Equipo: ${escapeHtml(tomada.integrantes)}` : ""}</p>
         ${entregoInfo}
         ${detalleProfesor}
+        ${renderEvalProfesorHtml(tomada)}
         <button type="button" class="btn secundario actividad-liberar" data-id="${tomada.id}" data-titulo="${escapeHtml(a.titulo)}">🗑️ Liberar este cupo</button>
       </div>`;
   }).join("");
@@ -506,6 +549,23 @@ function renderPanelProfesor() {
       if (!ok) return;
       const { error } = await sb.from(TABLA).delete().eq("id", btn.dataset.id);
       if (error) { alert("No se pudo liberar: " + error.message); return; }
+      await precargarInscripciones();
+      renderPanelProfesor();
+    });
+  });
+  grid.querySelectorAll(".eval-profesor-guardar").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const input = grid.querySelector(`.eval-profesor-input[data-id="${id}"]`);
+      const crudo = input.value.trim();
+      const valor = crudo === "" ? null : Number(crudo);
+      if (valor !== null && (Number.isNaN(valor) || valor < 0 || valor > 20)) {
+        alert("La evaluación del profesor debe ser un número entre 0 y 20.");
+        return;
+      }
+      const { error } = await sb.from(TABLA).update({ evaluacion_profesor_contenido: valor }).eq("id", id);
+      if (error) { alert("No se pudo guardar la evaluación: " + error.message); return; }
       await precargarInscripciones();
       renderPanelProfesor();
     });
@@ -540,13 +600,16 @@ function renderResumenProfesor() {
         <tr class="sin-tomar">
           <td>${escapeHtml(a.titulo)}</td>
           <td>${escapeHtml(a.zona)}</td>
-          <td colspan="4">Todavía nadie la ha reclamado.</td>
+          <td colspan="5">Todavía nadie la ha reclamado.</td>
         </tr>`;
     }
     const integrantes = tomada.integrantes
       ? tomada.integrantes.split(";").map((s) => s.trim()).filter(Boolean)
       : [];
     const evalTexto = renderTablaAutoevaluacion(tomada);
+    const evalProfesorTexto = (tomada.evaluacion_profesor_contenido !== null && tomada.evaluacion_profesor_contenido !== undefined)
+      ? `<b>${tomada.evaluacion_profesor_contenido}/20</b>`
+      : `<span style="color:var(--muted);">Sin evaluar</span>`;
     const estado = tomada.entregado_at
       ? `✅ Entregado (${new Date(tomada.entregado_at).toLocaleDateString("es-PA")})`
       : "⏳ Pendiente de entregar";
@@ -561,6 +624,7 @@ function renderResumenProfesor() {
         </td>
         <td>${estado}</td>
         <td>${evalTexto}</td>
+        <td>${evalProfesorTexto}</td>
       </tr>`;
   }).join("");
 
@@ -574,6 +638,7 @@ function renderResumenProfesor() {
           <th>Grupo (líder + integrantes)</th>
           <th>Entrega</th>
           <th>Autoevaluación</th>
+          <th>Eval. profesor (contenido)</th>
         </tr>
       </thead>
       <tbody>${filas}</tbody>
@@ -713,6 +778,9 @@ function abrirModalEntrega(inscripcion) {
   const act = CATALOGO.find((a) => a.id === inscripcion.actividad_id);
   document.getElementById("entrega-titulo-actividad").textContent = `Entregar: ${act ? act.titulo : inscripcion.actividad_id}`;
   document.getElementById("entrega-lider-nombre").textContent = inscripcion.nombre;  document.getElementById("entrega-foto").value = inscripcion.entrega_foto_url || "";
+  document.getElementById("entrega-foto2").value = inscripcion.entrega_foto2_url || "";
+  document.getElementById("entrega-foto3").value = inscripcion.entrega_foto3_url || "";
+  document.getElementById("entrega-foto4").value = inscripcion.entrega_foto4_url || "";
   document.getElementById("entrega-video").value = inscripcion.entrega_video_url || "";
   document.getElementById("entrega-observacion").value = inscripcion.observacion_participacion || "";
   document.getElementById("entrega-error").hidden = true;
@@ -802,6 +870,9 @@ document.getElementById("btn-guardar-entrega").addEventListener("click", async (
   errorBox.hidden = true;
 
   const fotoUrl = document.getElementById("entrega-foto").value.trim();
+  const foto2Url = document.getElementById("entrega-foto2").value.trim();
+  const foto3Url = document.getElementById("entrega-foto3").value.trim();
+  const foto4Url = document.getElementById("entrega-foto4").value.trim();
   const videoUrl = document.getElementById("entrega-video").value.trim();
   if (!fotoUrl) { errorBox.textContent = "Pega el link de la foto del proyecto terminado."; errorBox.hidden = false; return; }
 
@@ -820,6 +891,9 @@ document.getElementById("btn-guardar-entrega").addEventListener("click", async (
   btn.disabled = true;
   const { error } = await sb.from(TABLA).update({
     entrega_foto_url: fotoUrl,
+    entrega_foto2_url: foto2Url || null,
+    entrega_foto3_url: foto3Url || null,
+    entrega_foto4_url: foto4Url || null,
     entrega_video_url: videoUrl || null,
     autoevaluacion,
     autoevaluacion_nota,
