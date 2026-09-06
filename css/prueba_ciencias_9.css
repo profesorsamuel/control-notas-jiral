@@ -223,4 +223,25 @@ a.link:hover { text-decoration: underline; }
    los 4 del examen de opción múltiple — se ajusta la cuadrícula para
    que no quede una columna vacía. */
 #vista-resultado-pareo .count { grid-template-columns: repeat(3, 1fr); }
+#vista-resultado-fotos .count { grid-template-columns: repeat(3, 1fr); }
+
+/* ---------- Ejercicio 3: Pareo de fotos ---------- */
+.fotos-grid { display: grid; gap: 16px; margin-top: 16px; }
+.fotos-item {
+  display: grid; grid-template-columns: 90px 1fr; gap: 14px; align-items: center;
+  border: 1px solid var(--line); border-radius: 14px; padding: 12px;
+}
+.fotos-item.fotos-correcta { background: var(--green-bg); border-color: #bfe6cc; }
+.fotos-item.fotos-incorrecta { background: #fff0f1; border-color: #f3c3ca; }
+.fotos-num { font-weight: 900; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+.fotos-foto { width: 90px; height: 90px; border-radius: 12px; overflow: hidden; background: var(--line); }
+.fotos-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fotos-select-cont select { margin-top: 0; }
+.fotos-respuesta-correcta { font-size: 13px; color: var(--green); font-weight: 700; margin-top: 6px; }
+.fotos-respuesta-incorrecta { font-size: 13px; color: var(--red); font-weight: 700; margin-top: 6px; }
+
+@media (max-width: 480px) {
+  .fotos-item { grid-template-columns: 70px 1fr; }
+  .fotos-foto { width: 70px; height: 70px; }
+}
 
