@@ -523,14 +523,22 @@ async function eliminarColumnaCasillaInterno(tipo, numero) {
     // botón ➕ usa como "próxima lista para escribir"), hay que moverla
     // ANTES de recargar el salón. Si no, cargarSalon() la vuelve a crear
     // vacía de inmediato porque siempre deja lista la casilla activa
-    // para escribir. Importante: cuando la casilla borrada es la de
-    // mayor número de su Tipo (el caso más común), "el siguiente número
-    // libre" calculado a partir de lo que queda da ese MISMO número que
-    // se acaba de borrar (porque al quitarla, ese número vuelve a estar
-    // libre) — por eso simplemente usamos número+1, que nunca puede
-    // coincidir con el que se está eliminando.
+    // para escribir.
+    //
+    // OJO: esto solo se salta al número SIGUIENTE (numero+1) cuando la
+    // casilla borrada de verdad tenía notas guardadas de algún
+    // estudiante. Si estaba completamente vacía (nunca se le puso
+    // ninguna nota, como cuando se crea por error o de más), no tiene
+    // sentido "quemar" ese número: se vuelve a ofrecer el mismo,
+    // manteniendo la numeración siempre consecutiva (1, 2, 3...) sin
+    // huecos. Solo cuando SÍ había notas reales se avanza al
+    // siguiente, porque si no, "el siguiente número libre" calculado a
+    // partir de lo que queda daría ese MISMO número que se acaba de
+    // borrar (ya que al quitarlo vuelve a estar libre), y parecería
+    // que no pasó nada.
     const claveBorrada = claveCasilla(tipo, numero);
-    if (selectTipoNota && inputNumeroNota &&
+    const teniaNotasReales = contarNotasEnCasilla(tipo, numero) > 0;
+    if (teniaNotasReales && selectTipoNota && inputNumeroNota &&
         claveCasilla(selectTipoNota.value, parseInt(inputNumeroNota.value, 10)) === claveBorrada) {
         inputNumeroNota.value = String(numero + 1);
     }
@@ -1055,7 +1063,11 @@ function renderizarBotonesPrimeraColumna() {
     document.getElementById("btnAgregarPrimeraApreciacionAutomatica")?.addEventListener("click", async (ev) => {
         const btn = ev.currentTarget;
         btn.disabled = true;
-        const ok = await activarApreciacionSiguiente(selectMateriaNota.value, selectSalonNota.value, selectTrimestreNota.value, 4);
+        // Igual que el "➕" normal: sigue la numeración real de este
+        // salón (cuenta también Aprec. 1/2/3 manuales si ya existen),
+        // nunca arranca fijo en 4.
+        const siguienteNumero = obtenerUltimoNumeroTipo("apreciacion") + 1;
+        const ok = await activarApreciacionSiguiente(selectMateriaNota.value, selectSalonNota.value, selectTrimestreNota.value, siguienteNumero);
         btn.disabled = false;
         if (!ok) { alert("No se pudo agregar la columna de Apreciación automática."); return; }
         cargarSalon();
@@ -1087,7 +1099,7 @@ btnOcultarColumnasCompletas?.addEventListener("click", () => {
     casillasTabla.forEach((c) => {
         const clave = claveCasilla(c.tipo, c.numero);
 
-        if (c.tipo === "apreciacion" && c.numero >= 4) {
+        if (c.tipo === "apreciacion" && estadoApreciacionesNuevas[c.numero]) {
             const infoCol = estadoApreciacionesNuevas[c.numero];
             if (infoCol && infoCol.estado === "completada") columnasOcultas.add(clave);
             return;
@@ -1228,7 +1240,7 @@ function renderTabla() {
                 </th>`;
             return;
         }
-        if (c.tipo === "apreciacion" && c.numero >= 4) {
+        if (c.tipo === "apreciacion" && estadoApreciacionesNuevas[c.numero]) {
             const infoCol = estadoApreciacionesNuevas[c.numero] || { estado: "bloqueada", modo: null };
             const claveCas = claveCasilla(c.tipo, c.numero);
             // El encabezado siempre muestra "Aprec. N" de forma consecutiva
@@ -1329,7 +1341,7 @@ function renderTabla() {
             if (c.esBotonAgregar) return `<td></td>`;
             const claveCas = claveCasilla(c.tipo, c.numero);
 
-            if (c.tipo === "apreciacion" && c.numero >= 4) {
+            if (c.tipo === "apreciacion" && estadoApreciacionesNuevas[c.numero]) {
                 const infoCol = estadoApreciacionesNuevas[c.numero] || { estado: "bloqueada", modo: null };
                 if (infoCol.modo !== "directo") {
                     const candadoManual = casillasBloqueadas.has(claveCas);
@@ -1468,8 +1480,11 @@ function renderTabla() {
                 // Apreciación 4+ vive en apreciaciones_estado, no en la
                 // tabla "notas" normal: crea/activa la siguiente en vez
                 // de abrir una casilla vacía del sistema viejo.
-                const numerosActuales = Object.keys(estadoApreciacionesNuevas).map((n) => parseInt(n, 10));
-                const siguienteNumero = numerosActuales.length > 0 ? Math.max(...numerosActuales) + 1 : 4;
+                // El número SIEMPRE sigue la numeración real de esta
+                // materia/salón/trimestre (contando también las
+                // Apreciaciones manuales 1/2/3 que ya existan) — nunca
+                // un "4" fijo, para no dejar huecos en la secuencia.
+                const siguienteNumero = obtenerUltimoNumeroTipo("apreciacion") + 1;
                 btn.disabled = true;
                 const ok = await activarApreciacionSiguiente(selectMateriaNota.value, selectSalonNota.value, selectTrimestreNota.value, siguienteNumero);
                 btn.disabled = false;
@@ -1732,15 +1747,22 @@ async function cargarSalon() {
     ordenarCasillas(casillasTabla);
     if (inputNumeroNota && numeroYaTeniaDatos) inputNumeroNota.value = String(obtenerUltimoNumeroTipo(tipo) + 1);
 
-    // --- Apreciación 4 en adelante: sistema nuevo (asistencia +
-    // comportamiento + actividades). Estas columnas NO se manejan con
-    // el botón "➕" de arriba: se calculan solas según su estado
+    // --- Apreciación automática (asistencia + comportamiento +
+    // actividades). Estas columnas NO se manejan con el botón "➕" de
+    // arriba igual que las manuales: se calculan solas según su estado
     // (activa/completada/bloqueada) en apreciaciones_estado. Se quitan
     // aquí de casillasTabla y se vuelven a agregar con su estado, para
     // no duplicarlas si ya tenían notas guardadas.
-    casillasTabla = casillasTabla.filter((c) => !(c.tipo === "apreciacion" && c.numero >= 4));
-    estadoApreciacionesNuevas = {};
+    // OJO: antes se usaba "numero >= 4" para distinguir estas de las
+    // manuales (1/2/3), porque el sistema automático arrancaba siempre
+    // en el número 4. Ahora que su numeración sigue la secuencia real
+    // del salón (puede tocarle cualquier número), esa regla fija ya no
+    // sirve — hay que usar la fuente de verdad real: los números que
+    // de verdad están en apreciaciones_estado para este salón.
     const columnasNuevas = await calcularColumnasApreciacionesNuevas(materia, salon, trimestre);
+    const numerosAutomaticos = new Set(columnasNuevas.map((c) => c.numero));
+    casillasTabla = casillasTabla.filter((c) => !(c.tipo === "apreciacion" && numerosAutomaticos.has(c.numero)));
+    estadoApreciacionesNuevas = {};
     columnasNuevas.forEach(({ numero, estado: estadoCol, modo }) => {
         estadoApreciacionesNuevas[numero] = { estado: estadoCol, modo: modo || null };
         casillasTabla.push({ tipo: "apreciacion", numero, esNueva: true });
@@ -1976,11 +1998,13 @@ async function guardarNotas(esAutomatico = false) {
         console.error("❌ Detalle de notas que NO se guardaron:", erroresDetalle);
     }
 
-    // Si alguna de las notas guardadas era de una Apreciación 4+ en modo
-    // "directo", hay que revisar si con esto quedó completa (todos los
-    // estudiantes con nota) para activar la siguiente automáticamente.
+    // Si alguna de las notas guardadas era de una Apreciación automática
+    // en modo "directo", hay que revisar si con esto quedó completa
+    // (todos los estudiantes con nota) para activar la siguiente
+    // automáticamente. Se identifica por estar en estadoApreciacionesNuevas
+    // (fuente real de qué números son automáticos), no por ser >= 4.
     const numerosApreciacionNuevaGuardados = [...new Set(
-        aGuardar.filter((item) => item.tipo === "apreciacion" && item.numero >= 4).map((item) => item.numero)
+        aGuardar.filter((item) => item.tipo === "apreciacion" && estadoApreciacionesNuevas[item.numero]).map((item) => item.numero)
     )];
     let huboAvanceDeApreciacion = false;
     if (numerosApreciacionNuevaGuardados.length > 0) {
