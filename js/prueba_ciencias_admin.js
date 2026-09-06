@@ -107,14 +107,16 @@ function renderResumen() {
   document.getElementById("st-conectados").textContent = conectados;
   document.getElementById("st-finalizados").textContent = finalizados;
   document.getElementById("st-ausentes").textContent = ausentes;
-  // "tipo_ejercicio" distingue el quiz de opción múltiple del Ejercicio
-  // 2 (pareo); las filas guardadas ANTES de agregar el pareo no tienen
-  // esa columna definida en memoria como "pareo", así que caen del
-  // lado de "quiz" por defecto (es lo que eran).
+  // "tipo_ejercicio" distingue el quiz de opción múltiple, el pareo de
+  // términos y el pareo de fotos; las filas guardadas ANTES de agregar
+  // el pareo no tienen esa columna definida en memoria como "pareo" ni
+  // "fotos", así que caen del lado de "quiz" por defecto (es lo que eran).
   const stPractica = document.getElementById("st-practica");
   if (stPractica) stPractica.textContent = cacheIntentosPractica.filter((p) => (p.tipo_ejercicio || "quiz") === "quiz").length;
   const stPareo = document.getElementById("st-pareo");
   if (stPareo) stPareo.textContent = cacheIntentosPractica.filter((p) => p.tipo_ejercicio === "pareo").length;
+  const stFotos = document.getElementById("st-fotos");
+  if (stFotos) stFotos.textContent = cacheIntentosPractica.filter((p) => p.tipo_ejercicio === "fotos").length;
 }
 
 // ---------- Alertas ----------
@@ -197,7 +199,8 @@ function renderTabla() {
     columnas = ["Tipo", "Nombre", "Salón", "Fecha", "Hora", "Correctas", "%", "Nota", "Tiempo"];
     filas = cacheIntentosPractica.map((p) => {
       const fin = p.finalizado_at ? new Date(p.finalizado_at) : null;
-      const tipo = (p.tipo_ejercicio || "quiz") === "pareo" ? "🔤 Pareo" : "🧪 Quiz";
+      const tipoEj = p.tipo_ejercicio || "quiz";
+      const tipo = tipoEj === "pareo" ? "🔤 Pareo" : tipoEj === "fotos" ? "📷 Fotos" : "🧪 Quiz";
       return [
         tipo,
         p.nombre, (p.salon || "").replace(/(\d+)([A-Z])/, "$1°$2"),
@@ -285,9 +288,10 @@ function filasIntentosPractica() {
   return cacheIntentosPractica.map((p) => {
     const inicio = p.iniciado_at ? new Date(p.iniciado_at) : null;
     const fin = p.finalizado_at ? new Date(p.finalizado_at) : null;
+    const tipoEj = p.tipo_ejercicio || "quiz";
     return {
       Actividad: CONFIG.nombreActividad || CONFIG.tituloExamen,
-      Tipo: (p.tipo_ejercicio || "quiz") === "pareo" ? "Pareo" : "Quiz",
+      Tipo: tipoEj === "pareo" ? "Pareo" : tipoEj === "fotos" ? "Fotos" : "Quiz",
       Nombre: p.nombre, Salon: p.salon,
       Fecha: fin ? fin.toLocaleDateString("es-PA") : "",
       "Hora inicio": inicio ? inicio.toLocaleTimeString("es-PA") : "",
