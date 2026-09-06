@@ -1731,13 +1731,35 @@ async function cargarSalon() {
     // avanza igual, se crea una segunda columna vacía además de esta.
     const numeroYaTeniaDatos = casillasEncontradas.has(claveCasilla(tipo, numeroEfectivo));
 
+    // --- Apreciación (TODAS, desde la 1): siempre pasa por el sistema
+    // de apreciaciones_estado, nunca por la casilla suelta de abajo.
+    // Así, desde la Apreciación 1, se ve el punto de estado 🟢 y el
+    // profesor elige "Casilla directa" o "Detalle completo" para
+    // TODAS las Apreciaciones, no solo desde la 4 en adelante como
+    // antes. Se pide primero para poder decidir, más abajo, si hay que
+    // seguir seedeando una casilla suelta genérica para Ejercicio/Examen.
+    let columnasNuevas = await calcularColumnasApreciacionesNuevas(materia, salon, trimestre);
+
+    // Si este salón/materia/trimestre TODAVÍA no tiene absolutamente
+    // ninguna columna (ni Ejercicio, ni Examen, ni Apreciación de
+    // ningún tipo), se crea sola la Apreciación 1 a través del sistema
+    // nuevo. Cada salón/materia/trimestre la crea y la sigue de forma
+    // completamente independiente (queda guardada en
+    // apreciaciones_estado con su propia combinación salon+materia+
+    // trimestre — nunca comparte ni copia la de otro salón).
+    if (casillasEncontradas.size === 0 && columnasNuevas.length === 0) {
+        const creada = await activarApreciacionSiguiente(materia, salon, trimestre, 1);
+        if (creada) columnasNuevas = await calcularColumnasApreciacionesNuevas(materia, salon, trimestre);
+    }
+
     // Solo agregamos la casilla activa como columna "lista para escribir"
-    // cuando el salón/materia/trimestre no tiene ABSOLUTAMENTE ninguna
-    // columna todavía (primera vez que se usa esa combinación). Si ya
-    // existe al menos una columna, no la agregamos aquí: así, al eliminar
-    // una columna, no vuelve a aparecer otra automáticamente. Para
-    // agregar una columna nueva a mano, el docente usa el botón "➕".
-    if (casillasEncontradas.size === 0) {
+    // (mecanismo viejo) cuando el Tipo actual es Ejercicio o Examen: la
+    // Apreciación ya no usa esto (ver arriba). Y solo si de verdad no
+    // hay ninguna columna todavía; si ya existe al menos una, no la
+    // agregamos aquí, así al eliminar una columna no vuelve a aparecer
+    // otra sola. Para agregar una columna nueva a mano, el docente usa
+    // el botón "➕".
+    if (tipo !== "apreciacion" && casillasEncontradas.size === 0) {
         casillasEncontradas.add(claveCasilla(tipo, numeroEfectivo));
     }
     casillasTabla = [...casillasEncontradas].map((c) => {
@@ -1747,19 +1769,12 @@ async function cargarSalon() {
     ordenarCasillas(casillasTabla);
     if (inputNumeroNota && numeroYaTeniaDatos) inputNumeroNota.value = String(obtenerUltimoNumeroTipo(tipo) + 1);
 
-    // --- Apreciación automática (asistencia + comportamiento +
-    // actividades). Estas columnas NO se manejan con el botón "➕" de
-    // arriba igual que las manuales: se calculan solas según su estado
-    // (activa/completada/bloqueada) en apreciaciones_estado. Se quitan
-    // aquí de casillasTabla y se vuelven a agregar con su estado, para
-    // no duplicarlas si ya tenían notas guardadas.
-    // OJO: antes se usaba "numero >= 4" para distinguir estas de las
-    // manuales (1/2/3), porque el sistema automático arrancaba siempre
-    // en el número 4. Ahora que su numeración sigue la secuencia real
-    // del salón (puede tocarle cualquier número), esa regla fija ya no
-    // sirve — hay que usar la fuente de verdad real: los números que
-    // de verdad están en apreciaciones_estado para este salón.
-    const columnasNuevas = await calcularColumnasApreciacionesNuevas(materia, salon, trimestre);
+    // Con columnasNuevas ya resuelto (posiblemente con la Apreciación 1
+    // recién creada arriba), se arma la parte de Apreciación de la
+    // tabla: se identifica cuáles números son "del sistema nuevo" por
+    // lo que de verdad hay en apreciaciones_estado (nunca por un
+    // número fijo), se quitan de casillasTabla para no duplicar, y se
+    // vuelven a agregar con su estado real.
     const numerosAutomaticos = new Set(columnasNuevas.map((c) => c.numero));
     casillasTabla = casillasTabla.filter((c) => !(c.tipo === "apreciacion" && numerosAutomaticos.has(c.numero)));
     estadoApreciacionesNuevas = {};
