@@ -378,6 +378,7 @@ function renderTablero() {
   if (miInscripcion && (!esProfesor || modoPruebaEstudiante)) {
     const act = CATALOGO.find((a) => a.id === miInscripcion.actividad_id);
     const yaEntrego = !!miInscripcion.entregado_at;
+    const bloqueado = miInscripcion.evaluacion_profesor_contenido !== null && miInscripcion.evaluacion_profesor_contenido !== undefined;
     cont.innerHTML = `
       <div class="mi-inscripcion-card">
         ✅ Tu grupo ya está inscrito en: <b>${act ? escapeHtml(act.titulo) : miInscripcion.actividad_id}</b> (líder: tú, ${escapeHtml(estudiante.nombre)}).
@@ -387,26 +388,31 @@ function renderTablero() {
             ${escapeHtml(act.descripcion)}
           </div>` : ""}
         ${miInscripcion.integrantes ? `<p style="font-size:13px; color:var(--muted); margin-top:8px;">Equipo: ${escapeHtml(miInscripcion.integrantes)}</p>` : ""}
-        ${(miInscripcion.evaluacion_profesor_contenido !== null && miInscripcion.evaluacion_profesor_contenido !== undefined) ? `<p style="font-size:13px; margin-top:8px;">📋 Evaluación del profesor (contenido): <b>${miInscripcion.evaluacion_profesor_contenido}/20 pts</b></p>` : ""}
+        ${bloqueado ? `<p style="font-size:13px; margin-top:8px;">📋 Evaluación del profesor (contenido): <b>${miInscripcion.evaluacion_profesor_contenido}/20 pts</b></p>` : ""}
         ${yaEntrego
           ? `<div class="entrega-resumen">
                ✅ <b>Ya entregaste</b> el ${new Date(miInscripcion.entregado_at).toLocaleString("es-PA")}.
                ${miInscripcion.entrega_foto_url ? `<br>📷 <a href="${escapeHtml(miInscripcion.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a>${renderFotosAdicionales(miInscripcion)}` : ""}
                ${miInscripcion.entrega_video_url ? `<br>🎬 <a href="${escapeHtml(miInscripcion.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a>` : ""}
                ${miInscripcion.autoevaluacion_nota !== null && miInscripcion.autoevaluacion_nota !== undefined ? `<div style="margin-top:8px;">📝 Autoevaluación:${renderTablaAutoevaluacion(miInscripcion)}</div>` : ""}
-             </div>
-             <button id="btn-abrir-entrega" class="wide" style="margin-top:12px;">✏️ Editar mi entrega</button>`
-          : `<button id="btn-abrir-entrega" class="wide" style="margin-top:12px;">📤 Entregar mi actividad</button>`}
-        <button id="btn-liberar-mi-grupo" class="link" style="padding:8px 0; color:var(--red);">🗑️ Liberar mi grupo (elegir otra actividad)</button>
+             </div>`
+          : ""}
+        ${bloqueado
+          ? `<div class="entrega-bloqueada">🔒 El profesor ya puso su evaluación — tu entrega quedó bloqueada y ya no se puede editar ni liberar el grupo. Si necesitas corregir algo, pídele al profesor que borre su evaluación primero.</div>`
+          : `
+            <button id="btn-abrir-entrega" class="wide" style="margin-top:12px;">${yaEntrego ? "✏️ Editar mi entrega" : "📤 Entregar mi actividad"}</button>
+            <button id="btn-liberar-mi-grupo" class="link" style="padding:8px 0; color:var(--red);">🗑️ Liberar mi grupo (elegir otra actividad)</button>`}
       </div>`;
-    document.getElementById("btn-abrir-entrega").addEventListener("click", () => abrirModalEntrega(miInscripcion));
-    document.getElementById("btn-liberar-mi-grupo").addEventListener("click", async () => {
-      const ok = window.confirm("¿Liberar tu grupo de esta actividad? Se borra todo lo que llevabas (incluida la entrega si ya habías subido algo) y la actividad queda libre para cualquiera. Esta acción no se puede deshacer.");
-      if (!ok) return;
-      const { error } = await sb.from(TABLA).delete().eq("id", miInscripcion.id);
-      if (error) { alert("No se pudo liberar tu grupo: " + error.message); return; }
-      await cargarTablero();
-    });
+    if (!bloqueado) {
+      document.getElementById("btn-abrir-entrega").addEventListener("click", () => abrirModalEntrega(miInscripcion));
+      document.getElementById("btn-liberar-mi-grupo").addEventListener("click", async () => {
+        const ok = window.confirm("¿Liberar tu grupo de esta actividad? Se borra todo lo que llevabas (incluida la entrega si ya habías subido algo) y la actividad queda libre para cualquiera. Esta acción no se puede deshacer.");
+        if (!ok) return;
+        const { error } = await sb.from(TABLA).delete().eq("id", miInscripcion.id);
+        if (error) { alert("No se pudo liberar tu grupo: " + error.message); return; }
+        await cargarTablero();
+      });
+    }
 
     // Se esconde el resto del catálogo — ya no hace falta.
     filtroCont.hidden = true;
@@ -777,6 +783,10 @@ function esAutoevaluacionFormatoAntiguo(previo) {
 }
 
 function abrirModalEntrega(inscripcion) {
+  if (inscripcion.evaluacion_profesor_contenido !== null && inscripcion.evaluacion_profesor_contenido !== undefined) {
+    alert("El profesor ya evaluó esta entrega — ya no se puede editar.");
+    return;
+  }
   inscripcionEntregando = inscripcion;
   const act = CATALOGO.find((a) => a.id === inscripcion.actividad_id);
   document.getElementById("entrega-titulo-actividad").textContent = `Entregar: ${act ? act.titulo : inscripcion.actividad_id}`;
