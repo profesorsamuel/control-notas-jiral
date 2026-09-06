@@ -24,6 +24,21 @@ let inscripciones = [];
 let actividadEligiendo = null;
 let esProfesor = false;
 let filtroActual = "todas";
+let companerosSalon = []; // resto de estudiantes del mismo salón que el líder, para marcar integrantes
+
+// La misma rúbrica de 7 criterios que ya tienes en papel/Word, ahora
+// integrada aquí para que el líder se autoevalúe en línea. El total
+// (sobre 35 puntos) se convierte a nota MEDUCA (1.0 a 5.0) con la
+// misma fórmula que ya usan los demás ejercicios de la clase.
+const RUBRICA = [
+  { id: "contenido", etiqueta: "Contenido correcto" },
+  { id: "creatividad", etiqueta: "Creatividad y presentación" },
+  { id: "materiales", etiqueta: "Uso correcto de materiales (sin sillas)" },
+  { id: "trabajo_equipo", etiqueta: "Trabajo en equipo" },
+  { id: "foto", etiqueta: "Foto del proyecto terminado" },
+  { id: "video", etiqueta: "Video explicativo" },
+  { id: "puntualidad", etiqueta: "Puntualidad (antes del 25 de sept.)" },
+];
 
 function normalizarCedula(c) {
   return (c || "").trim().toLowerCase().replace(/[\s-]/g, "");
@@ -143,6 +158,16 @@ function irAlTablero() {
   document.getElementById("deco-saludo").textContent = `Hola, ${estudiante.nombre.split(" ")[0]} 👋 — Elige una actividad para decorar el salón`;
   mostrarVista(vistaTablero);
   cargarTablero();
+  cargarCompanerosSalon();
+}
+
+// Trae al resto de estudiantes del mismo salón del líder, para poder
+// marcarlos como integrantes del grupo con un clic (en vez de
+// escribir los nombres a mano, donde es fácil equivocarse).
+async function cargarCompanerosSalon() {
+  const { data, error } = await sb.from("estudiantes").select("id, nombre").eq("salon", estudiante.salon).order("nombre", { ascending: true });
+  if (error) { console.error("No se pudo cargar la lista del salón:", error); return; }
+  companerosSalon = (data || []).filter((e) => e.nombre !== estudiante.nombre);
 }
 
 (async function arrancar() {
@@ -182,11 +207,22 @@ function renderTablero() {
   const cont = document.getElementById("mi-inscripcion-cont");
   if (miInscripcion) {
     const act = CATALOGO.find((a) => a.id === miInscripcion.actividad_id);
+    const yaEntrego = !!miInscripcion.entregado_at;
     cont.innerHTML = `
-      <div class="mi-inscripcion" style="background: var(--green-bg); border: 1px solid #bfe6cc; border-radius: 14px; padding: 16px; margin-top: 16px;">
-        ✅ Tu grupo ya está inscrito en: <b>${act ? escapeHtml(act.titulo) : miInscripcion.actividad_id}</b>.
+      <div class="mi-inscripcion-card">
+        ✅ Tu grupo ya está inscrito en: <b>${act ? escapeHtml(act.titulo) : miInscripcion.actividad_id}</b> (líder: tú, ${escapeHtml(estudiante.nombre)}).
         Si necesitas cambiar de actividad, pídele a tu profesor(a) que la libere.
+        ${yaEntrego
+          ? `<div class="entrega-resumen">
+               ✅ <b>Ya entregaste</b> el ${new Date(miInscripcion.entregado_at).toLocaleString("es-PA")}.
+               ${miInscripcion.entrega_foto_url ? `<br>📷 <a href="${escapeHtml(miInscripcion.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a>` : ""}
+               ${miInscripcion.entrega_video_url ? `<br>🎬 <a href="${escapeHtml(miInscripcion.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a>` : ""}
+               ${miInscripcion.autoevaluacion_nota !== null && miInscripcion.autoevaluacion_nota !== undefined ? `<br>📝 Tu autoevaluación: <b>${miInscripcion.autoevaluacion_nota}</b> (nota MEDUCA)` : ""}
+             </div>
+             <button id="btn-abrir-entrega" class="link" style="padding:8px 0;">✏️ Editar mi entrega</button>`
+          : `<button id="btn-abrir-entrega" class="wide" style="margin-top:12px;">📤 Entregar mi actividad</button>`}
       </div>`;
+    document.getElementById("btn-abrir-entrega").addEventListener("click", () => abrirModalEntrega(miInscripcion));
   } else {
     cont.innerHTML = `<p class="lead" style="margin-top:12px;">Todavía no has reclamado ninguna actividad — elige una de la lista de abajo.</p>`;
   }
@@ -205,11 +241,26 @@ function renderTablero() {
           <p class="actividad-desc">${escapeHtml(a.descripcion)}</p>
         </div>`;
     }
+    const entregoInfo = tomada.entregado_at
+      ? `<p class="actividad-tomada-por" style="color:var(--green);">✅ Entregado el ${new Date(tomada.entregado_at).toLocaleDateString("es-PA")}</p>`
+      : `<p class="actividad-tomada-por" style="color:var(--amber);">⏳ Todavía no ha entregado</p>`;
+    // Al profesor le mostramos el detalle completo de la entrega
+    // (foto, video, autoevaluación, observación de participación)
+    // directo aquí, sin necesidad de un panel aparte.
+    const detalleProfesor = (esProfesor && tomada.entregado_at) ? `
+      <div class="entrega-resumen">
+        ${tomada.entrega_foto_url ? `📷 <a href="${escapeHtml(tomada.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a><br>` : ""}
+        ${tomada.entrega_video_url ? `🎬 <a href="${escapeHtml(tomada.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a><br>` : ""}
+        ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `📝 Autoevaluación del grupo: <b>${tomada.autoevaluacion_nota}</b><br>` : ""}
+        ${tomada.observacion_participacion ? `⚠️ <b>Observación de participación:</b> ${escapeHtml(tomada.observacion_participacion)}` : `<span style="color:var(--muted);">Sin observaciones de participación.</span>`}
+      </div>` : "";
     return `
       <div class="actividad-card tomada">
         <div class="actividad-titulo"><span>${escapeHtml(a.titulo)}</span><span class="actividad-zona">${escapeHtml(a.zona)}</span></div>
         <p class="actividad-desc">${escapeHtml(a.descripcion)}</p>
-        <p class="actividad-tomada-por">🔒 Ya la tomó: ${escapeHtml(tomada.nombre)} (${escapeHtml((tomada.salon || "").replace(/(\d+)([A-Z])/, "$1°$2"))})${tomada.integrantes ? " + " + escapeHtml(tomada.integrantes) : ""}</p>
+        <p class="actividad-tomada-por">🔒 Ya la tomó — 👑 Líder: <b>${escapeHtml(tomada.nombre)}</b> (${escapeHtml((tomada.salon || "").replace(/(\d+)([A-Z])/, "$1°$2"))})${tomada.integrantes ? ` · Equipo: ${escapeHtml(tomada.integrantes)}` : ""}</p>
+        ${entregoInfo}
+        ${detalleProfesor}
         ${esProfesor ? `<button type="button" class="btn secundario actividad-liberar" data-id="${tomada.id}" data-titulo="${escapeHtml(a.titulo)}">🗑️ Liberar este cupo</button>` : ""}
       </div>`;
   }).join("");
@@ -243,17 +294,36 @@ function abrirModal(actividadId) {
   const act = CATALOGO.find((a) => a.id === actividadId);
   document.getElementById("modal-deco-titulo").textContent = act.titulo;
   document.getElementById("modal-deco-desc").textContent = act.descripcion;
-  document.getElementById("deco-integrantes").value = "";
+  document.getElementById("modal-deco-lider-nombre").textContent = estudiante.nombre;
   document.getElementById("deco-error").hidden = true;
+  renderChecklistIntegrantes();
   modal.hidden = false;
 }
+
+function renderChecklistIntegrantes() {
+  const cont = document.getElementById("deco-integrantes-lista");
+  const vacio = document.getElementById("deco-integrantes-vacio");
+  if (companerosSalon.length === 0) {
+    cont.innerHTML = "";
+    vacio.hidden = false;
+    return;
+  }
+  vacio.hidden = true;
+  cont.innerHTML = companerosSalon.map((c) => `
+    <label class="integrante-item">
+      <input type="checkbox" value="${escapeHtml(c.nombre)}">
+      <span>${escapeHtml(c.nombre)}</span>
+    </label>
+  `).join("");
+}
+
 document.getElementById("btn-cerrar-modal-deco").addEventListener("click", () => { modal.hidden = true; });
 modal.addEventListener("click", (e) => { if (e.target === modal) modal.hidden = true; });
 
 document.getElementById("btn-guardar-deco").addEventListener("click", async () => {
   const errorBox = document.getElementById("deco-error");
   errorBox.hidden = true;
-  const integrantes = document.getElementById("deco-integrantes").value.trim();
+  const integrantes = [...document.querySelectorAll("#deco-integrantes-lista input:checked")].map((i) => i.value).join(", ");
 
   const btn = document.getElementById("btn-guardar-deco");
   btn.disabled = true;
@@ -280,5 +350,89 @@ document.getElementById("btn-guardar-deco").addEventListener("click", async () =
   }
 
   modal.hidden = true;
+  await cargarTablero();
+});
+
+// =========================================================
+// 4) MODAL — entregar (foto, video, autoevaluación, observación)
+// =========================================================
+const modalEntrega = document.getElementById("modal-entrega");
+let inscripcionEntregando = null;
+
+function abrirModalEntrega(inscripcion) {
+  inscripcionEntregando = inscripcion;
+  const act = CATALOGO.find((a) => a.id === inscripcion.actividad_id);
+  document.getElementById("entrega-titulo-actividad").textContent = `Entregar: ${act ? act.titulo : inscripcion.actividad_id}`;
+  document.getElementById("entrega-lider-nombre").textContent = inscripcion.nombre;  document.getElementById("entrega-foto").value = inscripcion.entrega_foto_url || "";
+  document.getElementById("entrega-video").value = inscripcion.entrega_video_url || "";
+  document.getElementById("entrega-observacion").value = inscripcion.observacion_participacion || "";
+  document.getElementById("entrega-error").hidden = true;
+
+  const previo = inscripcion.autoevaluacion || {};
+  const rubricaCont = document.getElementById("rubrica-cont");
+  rubricaCont.innerHTML = RUBRICA.map((r) => `
+    <div class="rubrica-fila">
+      <label for="rub-${r.id}">${r.etiqueta}</label>
+      <select id="rub-${r.id}" data-id="${r.id}">
+        ${[5, 4, 3, 2, 1].map((n) => `<option value="${n}" ${previo[r.id] === n ? "selected" : ""}>${n}</option>`).join("")}
+      </select>
+    </div>
+  `).join("");
+  rubricaCont.querySelectorAll("select").forEach((sel) => sel.addEventListener("change", actualizarNotaPreview));
+  actualizarNotaPreview();
+
+  modalEntrega.hidden = false;
+}
+
+function calcularNotaAutoevaluacion() {
+  const valores = RUBRICA.map((r) => parseInt(document.getElementById(`rub-${r.id}`).value, 10));
+  const puntos = valores.reduce((a, b) => a + b, 0);
+  const porcentaje = Math.round((puntos / (RUBRICA.length * 5)) * 100);
+  const nota = window.calcularNotaMeduca ? window.calcularNotaMeduca(porcentaje) : null;
+  return { puntos, porcentaje, nota };
+}
+
+function actualizarNotaPreview() {
+  const { puntos, porcentaje, nota } = calcularNotaAutoevaluacion();
+  const p = document.getElementById("entrega-nota-preview");
+  p.hidden = false;
+  p.textContent = `Autoevaluación: ${puntos}/${RUBRICA.length * 5} puntos (${porcentaje}%) → nota MEDUCA ${nota !== null ? nota.toFixed(1) : "-"}`;
+}
+
+document.getElementById("btn-cerrar-modal-entrega").addEventListener("click", () => { modalEntrega.hidden = true; });
+modalEntrega.addEventListener("click", (e) => { if (e.target === modalEntrega) modalEntrega.hidden = true; });
+
+document.getElementById("btn-guardar-entrega").addEventListener("click", async () => {
+  const errorBox = document.getElementById("entrega-error");
+  errorBox.hidden = true;
+
+  const fotoUrl = document.getElementById("entrega-foto").value.trim();
+  const videoUrl = document.getElementById("entrega-video").value.trim();
+  if (!fotoUrl) { errorBox.textContent = "Pega el link de la foto del proyecto terminado."; errorBox.hidden = false; return; }
+
+  const autoevaluacion = {};
+  RUBRICA.forEach((r) => { autoevaluacion[r.id] = parseInt(document.getElementById(`rub-${r.id}`).value, 10); });
+  const { nota } = calcularNotaAutoevaluacion();
+  const observacion = document.getElementById("entrega-observacion").value.trim();
+
+  const btn = document.getElementById("btn-guardar-entrega");
+  btn.disabled = true;
+  const { error } = await sb.from(TABLA).update({
+    entrega_foto_url: fotoUrl,
+    entrega_video_url: videoUrl || null,
+    autoevaluacion,
+    autoevaluacion_nota: nota !== null ? Number(nota.toFixed(1)) : null,
+    observacion_participacion: observacion || null,
+    entregado_at: new Date().toISOString(),
+  }).eq("id", inscripcionEntregando.id);
+  btn.disabled = false;
+
+  if (error) {
+    errorBox.textContent = "No se pudo guardar tu entrega. Intenta de nuevo. (" + error.message + ")";
+    errorBox.hidden = false;
+    return;
+  }
+
+  modalEntrega.hidden = true;
   await cargarTablero();
 });
