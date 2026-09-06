@@ -33,19 +33,22 @@ let filtroActual = "todas";
 let filtroActualProfesor = "todas";
 let companerosSalon = []; // resto de estudiantes del mismo salón que el líder, para marcar integrantes
 
-// La misma rúbrica de 7 criterios que ya tienes en papel/Word, ahora
-// integrada aquí para que el líder se autoevalúe en línea. El total
-// (sobre 35 puntos) se convierte a nota MEDUCA (1.0 a 5.0) con la
-// misma fórmula que ya usan los demás ejercicios de la clase.
+// La misma rúbrica de 7 criterios que ya tienes en papel/Word, más un
+// 8vo criterio de "Evaluación del profesor" (10 puntos, el resto son
+// de 5). El total (sobre 45 puntos) se convierte a nota MEDUCA (1.0 a
+// 5.0) con la misma fórmula que ya usan los demás ejercicios de la
+// clase. Cada criterio puede tener su propio máximo (campo "max").
 const RUBRICA = [
-  { id: "contenido", etiqueta: "Contenido correcto" },
-  { id: "creatividad", etiqueta: "Creatividad y presentación" },
-  { id: "materiales", etiqueta: "Uso correcto de materiales (sin sillas)" },
-  { id: "trabajo_equipo", etiqueta: "Trabajo en equipo" },
-  { id: "foto", etiqueta: "Foto del proyecto terminado" },
-  { id: "video", etiqueta: "Video explicativo" },
-  { id: "puntualidad", etiqueta: "Puntualidad (antes del 25 de sept.)" },
+  { id: "contenido", etiqueta: "Contenido correcto", max: 5 },
+  { id: "creatividad", etiqueta: "Creatividad y presentación", max: 5 },
+  { id: "materiales", etiqueta: "Uso correcto de materiales (sin sillas)", max: 5 },
+  { id: "trabajo_equipo", etiqueta: "Trabajo en equipo", max: 5 },
+  { id: "foto", etiqueta: "Foto del proyecto terminado", max: 5 },
+  { id: "video", etiqueta: "Video explicativo", max: 5 },
+  { id: "puntualidad", etiqueta: "Puntualidad (antes del 25 de sept.)", max: 5 },
+  { id: "eval_profesor", etiqueta: "Evaluación del profesor", max: 10 },
 ];
+const RUBRICA_TOTAL_MAX = RUBRICA.reduce((a, r) => a + r.max, 0);
 
 function normalizarCedula(c) {
   return (c || "").trim().toLowerCase().replace(/[\s-]/g, "");
@@ -65,7 +68,7 @@ function calcularPorcentajeIndividual(criterios) {
   const valores = RUBRICA.map((r) => criterios[r.id]).filter((v) => typeof v === "number");
   if (valores.length === 0) return null;
   const puntos = valores.reduce((a, b) => a + b, 0);
-  return Math.round((puntos / (RUBRICA.length * 5)) * 100);
+  return Math.round((puntos / RUBRICA_TOTAL_MAX) * 100);
 }
 
 // Las fotos 2, 3 y 4 son evidencia opcional del proceso (trabajando,
@@ -806,11 +809,11 @@ function abrirModalEntrega(inscripcion) {
       return `
         <td>
           <select data-nombre="${escapeHtml(nombre)}" data-id="${r.id}">
-            ${[5, 4, 3, 2, 1].map((n) => `<option value="${n}" ${previoEstudiante[r.id] === n ? "selected" : ""}>${n}</option>`).join("")}
+            ${Array.from({ length: r.max }, (_, i) => r.max - i).map((n) => `<option value="${n}" ${previoEstudiante[r.id] === n ? "selected" : ""}>${n}</option>`).join("")}
           </select>
         </td>`;
     }).join("");
-    return `<tr><td class="rubrica-tabla-criterio">${r.etiqueta}</td>${celdas}</tr>`;
+    return `<tr><td class="rubrica-tabla-criterio">${r.etiqueta}${r.max !== 5 ? ` <span style="color:var(--muted); font-weight:400;">(0–${r.max})</span>` : ""}</td>${celdas}</tr>`;
   }).join("");
 
   rubricaCont.innerHTML = `
@@ -838,7 +841,7 @@ function calcularNotaAutoevaluacion() {
   return Object.keys(porNombre).map((nombre) => {
     const valores = porNombre[nombre];
     const puntos = valores.reduce((a, b) => a + b, 0);
-    const porcentaje = Math.round((puntos / (RUBRICA.length * 5)) * 100);
+    const porcentaje = Math.round((puntos / RUBRICA_TOTAL_MAX) * 100);
     const nota = window.calcularNotaMeduca ? window.calcularNotaMeduca(porcentaje) : null;
     return { nombre, puntos, porcentaje, nota };
   });
@@ -854,7 +857,7 @@ function actualizarNotaPreview() {
 
   p.hidden = false;
   const filas = resultados.map((r) =>
-    `${escapeHtml(r.nombre)}: ${r.puntos}/${RUBRICA.length * 5} pts (${r.porcentaje}%) → nota MEDUCA <b>${r.nota !== null ? r.nota.toFixed(1) : "-"}</b>`
+    `${escapeHtml(r.nombre)}: ${r.puntos}/${RUBRICA_TOTAL_MAX} pts (${r.porcentaje}%) → nota MEDUCA <b>${r.nota !== null ? r.nota.toFixed(1) : "-"}</b>`
   ).join("<br>");
 
   const notasValidas = resultados.map((r) => r.nota).filter((n) => n !== null);
@@ -862,7 +865,7 @@ function actualizarNotaPreview() {
   const promedio = notasValidas.length ? notasValidas.reduce((a, b) => a + b, 0) / notasValidas.length : null;
 
   p.innerHTML = filas +
-    `<br><br>Suma total del grupo: <b>${sumaPuntos}/${RUBRICA.length * 5 * resultados.length} pts</b>` +
+    `<br><br>Suma total del grupo: <b>${sumaPuntos}/${RUBRICA_TOTAL_MAX * resultados.length} pts</b>` +
     (promedio !== null ? ` — Promedio del grupo: <b>${promedio.toFixed(1)}</b>` : "");
 }
 
