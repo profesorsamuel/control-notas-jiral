@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ejercicio 2 — Pareo de términos | Clase 1 | Ciencias 9° | C.E.B.G. El Jiral</title>
+<link rel="stylesheet" href="../css/prueba_ciencias_9.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="ph-header">
+    <img class="ph-escudo" src="../img/escudo-jiral.png" alt="Escudo C.E.B.G. El Jiral">
+    <div>
+      <p class="ph-escuela">C.E.B.G. EL JIRAL</p>
+      <h1>Ejercicio 2 — Pareo de términos<br>Clase 1: El origen del universo y del sistema solar</h1>
+    </div>
+  </header>
+
+  <!-- ===================== VISTA: INICIO ===================== -->
+  <section id="vista-inicio-pareo" class="card">
+    <p class="tag">CIENCIAS 9° · CLASE 1</p>
+    <h2>Relaciona cada término con su definición</h2>
+    <p class="lead">
+      Se te van a presentar 8 términos elegidos al azar (de un banco más grande, así que
+      pueden salir distintos cada vez). A la izquierda están los términos numerados; a la
+      derecha, las definiciones con una letra — pero en OTRO orden, para que tengas que
+      pensar cuál corresponde a cuál. Elige la letra correcta para cada número.
+    </p>
+    <p class="lead">Puedes practicar todas las veces que quieras — no cuenta para la nota.</p>
+    <button id="btn-comenzar-pareo" class="wide">🔤 Comenzar pareo</button>
+  </section>
+
+  <!-- ===================== VISTA: EJERCICIO ===================== -->
+  <section id="vista-ejercicio-pareo" class="card" hidden>
+    <p class="tag">PAREO DE TÉRMINOS</p>
+    <p id="pareo-progreso" class="pareo-progreso">0 / 8 respondidas</p>
+
+    <table class="pareo-tabla">
+      <tbody id="pareo-tabla-cuerpo"></tbody>
+    </table>
+
+    <ul id="pareo-lista-definiciones" class="pareo-definiciones"></ul>
+
+    <button id="btn-revisar-pareo" class="wide" disabled>✅ Revisar respuestas</button>
+  </section>
+
+  <!-- ===================== VISTA: RESULTADO ===================== -->
+  <section id="vista-resultado-pareo" class="result card" hidden>
+    <p class="tag">RESULTADO DEL PAREO</p>
+    <div class="grade" id="pareo-res-correctas">0/8</div>
+    <h2>¡Pareo finalizado!</h2>
+
+    <div class="count">
+      <div><b id="pareo-res-porcentaje">0%</b><span>porcentaje</span></div>
+      <div><b id="pareo-res-tiempo">0:00</b><span>tiempo</span></div>
+    </div>
+
+    <div id="pareo-revision" class="revision"></div>
+
+    <button id="btn-otro-intento" class="wide">🔄 Intentar con otras 8 palabras</button>
+    <button id="btn-volver-menu-pareo" class="wide secundario">Volver al inicio</button>
+  </section>
+
+  <footer class="ph-footer">
+    <a href="salon09-unidad-completa.html">← Volver a la Clase 1</a>
+  </footer>
+
+</div>
+
+<script src="../js/prueba_banco_pareo_clase1.js"></script>
+<script src="../js/pareo_clase1.js"></script>
+</body>
+</html>
