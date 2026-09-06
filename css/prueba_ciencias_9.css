@@ -108,6 +108,8 @@ button {
 button:disabled { opacity: .45; cursor: not-allowed; }
 button.secundario { background: var(--green); }
 button.link { background: none; color: var(--muted); text-decoration: underline; padding: 8px; font-weight: 600; }
+a.link { color: var(--blue); text-decoration: none; font-weight: 800; }
+a.link:hover { text-decoration: underline; }
 .wide { width: 100%; margin-top: 18px; }
 .error {
   padding: 12px; border-radius: 10px; background: #fff0f1; color: var(--red);
@@ -196,3 +198,24 @@ button.link { background: none; color: var(--muted); text-decoration: underline;
   .nav { flex-direction: column; align-items: stretch; }
   .nav span { text-align: center; }
 }
+
+/* ---------- Ejercicio 2: Pareo de términos ---------- */
+.pareo-tabla { width: 100%; border-collapse: collapse; margin-top: 16px; }
+.pareo-tabla td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.pareo-col-numero {
+  width: 30px; text-align: center; font-weight: 900; color: var(--muted);
+}
+.pareo-col-palabra { font-weight: 800; color: var(--navy); }
+.pareo-col-select { width: 120px; }
+.pareo-col-select select { margin-top: 0; padding: 9px; }
+.pareo-fila-correcta { background: var(--green-bg); }
+.pareo-fila-incorrecta { background: #fff0f1; }
+
+.pareo-definiciones {
+  margin: 18px 0 0; padding-left: 20px; display: grid; gap: 8px;
+  background: #fbfdff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 16px 16px 34px;
+}
+.pareo-definiciones li { line-height: 1.5; }
+
+.pareo-progreso { font-size: 13px; font-weight: 800; color: var(--muted); margin-top: 4px; }
+
