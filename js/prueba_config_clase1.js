@@ -39,7 +39,7 @@ window.PRUEBA_CONFIG = {
   // "fechaLimiteInscripcion": hasta cuándo un estudiante puede REGISTRARSE
   // por primera vez (elegir salón/nombre y ver su cédula). Los estudiantes ya
   // registrados antes de esa fecha pueden seguir entrando después sin problema.
-  fechaLimiteInscripcion: "2026-09-30T23:59:59-05:00",
+  fechaLimiteInscripcion: "2026-09-28T23:59:59-05:00",
   // "fechaInicio"/"fechaLimiteAcceso": la ventana real para PRESENTAR el
   // examen oficial (el modo práctica no depende de estas fechas y está
   // disponible desde ya). Este examen quedó configurado SOLO EN MODO
@@ -47,10 +47,13 @@ window.PRUEBA_CONFIG = {
   // no se usan para bloquear nada, pero se dejan definidas por si en el
   // futuro se vuelve a activar el examen oficial.
   fechaInicio: "2026-09-24T09:00:00-05:00",
-  fechaLimiteAcceso: "2026-09-30T23:59:59-05:00",
-  // Hora de cierre total del examen (nadie más entrega después de esto).
-  // Si el estudiante ya empezó antes de esta hora, se le deja terminar su intento.
-  fechaCierreTotal: "2026-09-30T23:59:59-05:00",
+  fechaLimiteAcceso: "2026-09-28T23:59:59-05:00",
+  // Hora de cierre total de los 3 ejercicios de esta clase (Quiz, Pareo
+  // de términos y Pareo de fotos): lunes 28 de septiembre a las 11:59
+  // p.m. Nadie más entrega después de esto, y en el panel del docente
+  // (pestaña "Promedio final") cualquier práctica que un estudiante no
+  // haya hecho para entonces se le pone en 1.0 automáticamente.
+  fechaCierreTotal: "2026-09-28T23:59:59-05:00",
 
   // ---- Examen oficial ----
   // El banco tiene 75 preguntas; cada estudiante recibe una selección
