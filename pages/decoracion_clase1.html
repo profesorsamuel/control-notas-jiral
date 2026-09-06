@@ -77,6 +77,17 @@
   .eval-profesor-cont label { font-size: 12px; font-weight: 800; color: var(--navy); margin: 0; }
   .eval-profesor-fila { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
   .eval-profesor-fila input { width: 70px; margin: 0; padding: 8px; }
+  .entrega-barra-superior {
+    position: sticky; top: 0; background: #fff; z-index: 5;
+    display: flex; justify-content: flex-end; padding: 4px 0 10px; margin: -4px 0 4px;
+  }
+  .campo-con-eliminar { display: flex; gap: 8px; align-items: center; }
+  .campo-con-eliminar input { flex: 1; margin-top: 7px; }
+  .btn-eliminar-campo {
+    flex-shrink: 0; background: #fff5f5; border: 1px solid #f3c3ca; color: var(--red);
+    border-radius: 10px; width: 40px; height: 40px; margin-top: 7px; cursor: pointer; font-size: 16px;
+  }
+  .campo-guardado { display: block; font-size: 12px; font-weight: 800; color: var(--green); margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -198,27 +209,51 @@
   </div>
 
   <!-- ===================== MODAL: ENTREGAR ===================== -->
-  <div id="modal-entrega" class="admin-modal" hidden style="position:fixed;inset:0;background:#17233599;z-index:50;padding:20px;">
-    <div class="card" style="max-width:520px;margin:4vh auto;max-height:90vh;overflow-y:auto;">
+  <div id="modal-entrega" class="admin-modal" hidden style="position:fixed;inset:0;background:#fff;z-index:50;overflow-y:auto;">
+    <div class="card" style="max-width:640px;margin:0 auto;min-height:100vh;border-radius:0;box-shadow:none;padding:16px 20px 40px;">
+      <div class="entrega-barra-superior">
+        <button id="btn-cerrar-modal-entrega-top" type="button" class="link">✕ Cerrar</button>
+      </div>
       <p class="tag">ENTREGA — AUTOEVALUACIÓN</p>
       <h2 id="entrega-titulo-actividad">Entregar mi actividad</h2>
       <p class="lead">Líder registrado: <b id="entrega-lider-nombre"></b>. Esto lo llena el líder del grupo (quien reclamó la actividad). Evalúa a cada integrante por separado en las mismas 7 preguntas — sé honesto, el profesor va a revisar el trabajo igual.</p>
 
       <label for="entrega-foto">Link de la foto del proyecto terminado
-        <input id="entrega-foto" type="text" placeholder="Pega aquí el link (Google Drive, Fotos, etc.)">
+        <div class="campo-con-eliminar">
+          <input id="entrega-foto" type="text" placeholder="Pega aquí el link (Google Drive, Fotos, etc.)">
+          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto" title="Eliminar este link">🗑️</button>
+        </div>
+        <span id="entrega-foto-guardado" class="campo-guardado" hidden></span>
       </label>
       <label for="entrega-foto2">Foto adicional 1 — el grupo trabajando (opcional)
-        <input id="entrega-foto2" type="text" placeholder="Pega aquí el link (opcional)">
+        <div class="campo-con-eliminar">
+          <input id="entrega-foto2" type="text" placeholder="Pega aquí el link (opcional)">
+          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto2" title="Eliminar este link">🗑️</button>
+        </div>
+        <span id="entrega-foto2-guardado" class="campo-guardado" hidden></span>
       </label>
       <label for="entrega-foto3">Foto adicional 2 — haciendo la actividad (opcional)
-        <input id="entrega-foto3" type="text" placeholder="Pega aquí el link (opcional)">
+        <div class="campo-con-eliminar">
+          <input id="entrega-foto3" type="text" placeholder="Pega aquí el link (opcional)">
+          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto3" title="Eliminar este link">🗑️</button>
+        </div>
+        <span id="entrega-foto3-guardado" class="campo-guardado" hidden></span>
       </label>
       <label for="entrega-foto4">Foto adicional 3 — otro momento del proceso (opcional)
-        <input id="entrega-foto4" type="text" placeholder="Pega aquí el link (opcional)">
+        <div class="campo-con-eliminar">
+          <input id="entrega-foto4" type="text" placeholder="Pega aquí el link (opcional)">
+          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto4" title="Eliminar este link">🗑️</button>
+        </div>
+        <span id="entrega-foto4-guardado" class="campo-guardado" hidden></span>
       </label>
       <label for="entrega-video">Link del video explicativo (todos explican su parte)
-        <input id="entrega-video" type="text" placeholder="Pega aquí el link (YouTube, Drive, etc.)">
+        <div class="campo-con-eliminar">
+          <input id="entrega-video" type="text" placeholder="Pega aquí el link (YouTube, Drive, etc.)">
+          <button type="button" class="btn-eliminar-campo" data-target="entrega-video" title="Eliminar este link">🗑️</button>
+        </div>
+        <span id="entrega-video-guardado" class="campo-guardado" hidden></span>
       </label>
+      <p class="lead" style="font-size:12px; margin-top:-6px;">💾 Cada link de foto o video se guarda solo, apenas lo pegas — si te equivocas, usa 🗑️ para borrarlo.</p>
 
       <h3 style="margin-bottom:0;">Autoevaluación por integrante (1 a 5 en cada pregunta)</h3>
       <div id="rubrica-cont"></div>
