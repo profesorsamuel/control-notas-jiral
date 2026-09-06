@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decoremos el salón — Clase 1 y 2 | Ciencias 9° | C.E.B.G. El Jiral</title>
+<link rel="stylesheet" href="../css/prueba_ciencias_9.css">
+<style>
+  .deco-aviso-fecha {
+    background: var(--navy); color: #fff; text-align: center; font-weight: 800;
+    padding: 10px 14px; border-radius: 12px; margin-bottom: 16px; font-size: 14px;
+  }
+  .deco-modo-profesor {
+    background: #172335; color: #fff; text-align: center; font-weight: 800;
+    padding: 8px 14px; border-radius: 10px; margin-bottom: 16px; font-size: 12px;
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .actividades-grid { display: grid; gap: 12px; margin-top: 16px; }
+  .actividad-card {
+    border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+    transition: border-color .15s, background .15s;
+  }
+  .actividad-card.disponible { cursor: pointer; }
+  .actividad-card.disponible:hover { border-color: var(--blue); background: #edf6ff; }
+  .actividad-card.tomada { background: #f5f5f5; opacity: .8; }
+  .actividad-titulo { font-weight: 900; color: var(--navy); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .actividad-zona { font-size: 11px; font-weight: 800; color: var(--muted); background: var(--line); padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+  .actividad-desc { font-size: 13px; color: var(--ink); margin: 8px 0 0; line-height: 1.5; }
+  .actividad-tomada-por { font-size: 13px; color: var(--muted); margin-top: 8px; font-weight: 700; }
+  .actividad-liberar { margin-top: 8px; }
+  .filtro-estado { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .filtro-estado button {
+    background: #fff; color: var(--muted); border: 1px solid var(--line); padding: 8px 14px;
+    border-radius: 99px; font-weight: 800; font-size: 13px; cursor: pointer;
+  }
+  .filtro-estado button.activo { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .aviso-reglas {
+    background: var(--amber-bg); color: var(--amber); border-radius: 12px; padding: 14px;
+    font-weight: 700; margin-top: 16px; font-size: 14px; line-height: 1.5;
+  }
+  textarea {
+    width: 100%; margin-top: 7px; padding: 13px; border: 1px solid #cbd8e6;
+    border-radius: 11px; background: #fbfdff; font: inherit; resize: vertical;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="ph-header">
+    <img class="ph-escudo" src="../img/escudo-jiral.png" alt="Escudo C.E.B.G. El Jiral">
+    <div>
+      <p class="ph-escuela">C.E.B.G. EL JIRAL</p>
+      <h1>Decoremos el salón 🌌<br>Clase 1 y Clase 2 — 9A / 9B / 9C</h1>
+    </div>
+  </header>
+
+  <div id="deco-modo-profesor" class="deco-modo-profesor" hidden>👩‍🏫 Modo profesor activado — puedes liberar cupos</div>
+
+  <!-- ===================== VISTA: REGISTRO ===================== -->
+  <section id="vista-registro-deco" class="card">
+    <p class="tag">REGISTRO</p>
+    <h2>Antes de inscribirte, identifícate</h2>
+    <p class="lead">Selecciona tu salón y busca tu nombre. Luego escribe tu número de cédula para confirmar tu identidad.</p>
+
+    <label for="reg-salon-deco">Salón
+      <select id="reg-salon-deco">
+        <option value="">Selecciona tu salón…</option>
+      </select>
+    </label>
+
+    <label for="reg-nombre-deco">Nombre
+      <select id="reg-nombre-deco" disabled>
+        <option value="">Selecciona primero tu salón…</option>
+      </select>
+    </label>
+
+    <label for="reg-cedula-deco">Cédula
+      <input id="reg-cedula-deco" type="text" placeholder="Escribe tu número de cédula" autocomplete="off" disabled>
+    </label>
+
+    <p id="reg-error-deco" class="error" hidden></p>
+
+    <button id="btn-registrar-deco" class="wide">Continuar</button>
+  </section>
+
+  <!-- ===================== VISTA: CATÁLOGO ===================== -->
+  <section id="vista-tablero-deco" class="card" hidden>
+    <p class="tag">9A · 9B · 9C — UN SOLO SALÓN</p>
+    <h2 id="deco-saludo">Elige una actividad para decorar el salón</h2>
+
+    <div class="deco-aviso-fecha">📅 Inscríbete antes del viernes 25 de septiembre</div>
+
+    <p class="lead">
+      Es el MISMO salón para los 3 grupos, así que en cuanto alguien reclama una
+      actividad, ya nadie más la puede tomar — se pone gris y sale quién la reclamó.
+      Ya no se puede cancelar por tu cuenta una vez inscrito: si necesitas cambiar,
+      pídele a tu profesor(a) que la libere.
+    </p>
+
+    <div class="aviso-reglas">
+      ⚠ Reglas: NO se pueden usar las sillas del salón para decorar. Usa mamparas
+      (paneles que se paren solos) o cosas que se puedan <b>colgar</b> — del techo,
+      de hilos, o pegadas a la pared — nunca apoyadas en las sillas.
+    </div>
+
+    <div id="mi-inscripcion-cont"></div>
+
+    <div class="filtro-estado">
+      <button class="filtro-btn activo" data-filtro="todas">Todas</button>
+      <button class="filtro-btn" data-filtro="disponibles">Solo disponibles</button>
+      <button class="filtro-btn" data-filtro="tomadas">Solo tomadas</button>
+    </div>
+
+    <div id="actividades-grid" class="actividades-grid"></div>
+
+    <button id="btn-cambiar-usuario-deco" class="link">No soy yo / cambiar estudiante</button>
+  </section>
+
+  <!-- ===================== MODAL: RECLAMAR ===================== -->
+  <div id="modal-deco" class="admin-modal" hidden style="position:fixed;inset:0;background:#17233599;z-index:50;padding:20px;">
+    <div class="card" style="max-width:480px;margin:6vh auto;max-height:88vh;overflow-y:auto;">
+      <p class="tag">RECLAMAR ACTIVIDAD</p>
+      <h2 id="modal-deco-titulo">Actividad</h2>
+      <p id="modal-deco-desc" class="lead"></p>
+      <label for="deco-integrantes">¿Quiénes más son del grupo? (opcional, nombres separados por coma)
+        <textarea id="deco-integrantes" rows="2" placeholder="Ej: Juan Pérez, María Gómez"></textarea>
+      </label>
+      <p id="deco-error" class="error" hidden></p>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button id="btn-guardar-deco" class="wide">✅ Confirmar — la reclamo para mi grupo</button>
+        <button id="btn-cerrar-modal-deco" class="wide secundario">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="ph-footer">
+    <a href="salon09-unidad-completa.html">← Volver a la Clase 1</a>
+  </footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/portal-config.js"></script>
+<script src="../js/prueba_config_clase1.js"></script>
+<script src="../js/decoracion_actividades_clase1.js"></script>
+<script src="../js/decoracion_clase1.js"></script>
+</body>
+</html>
