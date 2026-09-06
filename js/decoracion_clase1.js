@@ -97,7 +97,7 @@ function obtenerNombresYaIntegrantes() {
   const set = new Set();
   inscripciones.forEach((i) => {
     if (i.integrantes) {
-      i.integrantes.split(",").map((s) => s.trim()).filter(Boolean).forEach((n) => set.add(n));
+      i.integrantes.split(";").map((s) => s.trim()).filter(Boolean).forEach((n) => set.add(n));
     }
   });
   return set;
@@ -111,7 +111,7 @@ function obtenerNombresYaAsignados() {
   inscripciones.forEach((i) => {
     if (i.nombre) set.add(i.nombre);
     if (i.integrantes) {
-      i.integrantes.split(",").map((s) => s.trim()).filter(Boolean).forEach((n) => set.add(n));
+      i.integrantes.split(";").map((s) => s.trim()).filter(Boolean).forEach((n) => set.add(n));
     }
   });
   return set;
@@ -364,7 +364,7 @@ function renderChecklistIntegrantes() {
   inscripciones.forEach((i) => {
     if (i.nombre) yaAsignados.add(i.nombre);
     if (i.integrantes) {
-      i.integrantes.split(",").map((s) => s.trim()).filter(Boolean).forEach((n) => yaAsignados.add(n));
+      i.integrantes.split(";").map((s) => s.trim()).filter(Boolean).forEach((n) => yaAsignados.add(n));
     }
   });
 
@@ -393,7 +393,7 @@ modal.addEventListener("click", (e) => { if (e.target === modal) modal.hidden = 
 document.getElementById("btn-guardar-deco").addEventListener("click", async () => {
   const errorBox = document.getElementById("deco-error");
   errorBox.hidden = true;
-  const integrantes = [...document.querySelectorAll("#deco-integrantes-lista input:checked")].map((i) => i.value).join(", ");
+  const integrantes = [...document.querySelectorAll("#deco-integrantes-lista input:checked")].map((i) => i.value).join("; ");
 
   const btn = document.getElementById("btn-guardar-deco");
   btn.disabled = true;
