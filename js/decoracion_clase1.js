@@ -18,12 +18,19 @@ const CONFIG = window.PRUEBA_CONFIG;
 const CATALOGO = window.CATALOGO_DECORACION_CLASE1;
 const TABLA = "decoracion_clase1";
 const LS_KEY = "decoracion_clase1_estudiante";
+const LS_KEY_PRUEBA = "decoracion_clase1_modo_prueba_estudiante";
 
 let estudiante = null;
 let inscripciones = [];
 let actividadEligiendo = null;
 let esProfesor = false;
+// true solo cuando el profesor, teniendo su sesión real activa, decidió
+// a propósito "entrar como estudiante" para ver esa experiencia. Mientras
+// esto sea true, tratamos al profesor como estudiante normal para efectos
+// de qué ve (aunque esProfesor siga en true por debajo).
+let modoPruebaEstudiante = false;
 let filtroActual = "todas";
+let filtroActualProfesor = "todas";
 let companerosSalon = []; // resto de estudiantes del mismo salón que el líder, para marcar integrantes
 
 // La misma rúbrica de 7 criterios que ya tienes en papel/Word, ahora
@@ -51,10 +58,18 @@ function escapeHtml(str) {
 
 const vistaRegistro = document.getElementById("vista-registro-deco");
 const vistaTablero = document.getElementById("vista-tablero-deco");
+const vistaProfesor = document.getElementById("vista-profesor-deco");
 
 function mostrarVista(vista) {
-  [vistaRegistro, vistaTablero].forEach((v) => { v.hidden = v !== vista; });
+  [vistaRegistro, vistaTablero, vistaProfesor].forEach((v) => { v.hidden = v !== vista; });
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// El aviso de arriba solo debe salir cuando REALMENTE estás viendo el
+// catálogo en modo monitoreo (profesor real y no estás probando cómo
+// lo ve un estudiante).
+function actualizarBannerProfesor() {
+  document.getElementById("deco-modo-profesor").hidden = !(esProfesor && !modoPruebaEstudiante);
 }
 
 // =========================================================
@@ -63,9 +78,10 @@ function mostrarVista(vista) {
 // Se revisa en silencio: si el docente ya tiene su sesión de
 // Supabase Auth iniciada en este mismo navegador (por ejemplo, porque
 // entró antes a su panel de notas), esta página lo detecta sola y le
-// habilita el botón "Liberar" en las actividades ya tomadas. Los
-// estudiantes nunca tienen esta sesión, así que para ellos el botón
-// simplemente no existe.
+// da su propio panel de monitoreo — SIN pedirle identificarse como
+// estudiante. Los estudiantes nunca tienen esta sesión, así que para
+// ellos esto nunca se activa, sin importar qué nombre elijan al
+// identificarse.
 async function revisarModoProfesor() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { esProfesor = false; return; }
@@ -75,7 +91,11 @@ async function revisarModoProfesor() {
     sb.from("profesor_materias").select("id").eq("correo_profesor", correo).limit(1),
   ]);
   esProfesor = perfil.data?.rol === "admin" || (Array.isArray(asignaciones.data) && asignaciones.data.length > 0);
-  document.getElementById("deco-modo-profesor").hidden = !esProfesor;
+  if (!esProfesor) {
+    // Nunca debe quedar un modo de prueba "pegado" para alguien que ya
+    // no tiene sesión de profesor (por ejemplo, cerró sesión).
+    sessionStorage.removeItem(LS_KEY_PRUEBA);
+  }
 }
 
 // =========================================================
@@ -201,6 +221,7 @@ document.getElementById("btn-cambiar-usuario-deco").addEventListener("click", ()
 
 function irAlTablero() {
   document.getElementById("deco-saludo").textContent = `Hola, ${estudiante.nombre.split(" ")[0]} 👋 — Elige una actividad para decorar el salón`;
+  document.getElementById("btn-salir-prueba-estudiante").hidden = !modoPruebaEstudiante;
   mostrarVista(vistaTablero);
   cargarTablero();
   cargarCompanerosSalon();
@@ -218,6 +239,20 @@ async function cargarCompanerosSalon() {
 (async function arrancar() {
   await revisarModoProfesor();
   await precargarInscripciones();
+
+  modoPruebaEstudiante = esProfesor && sessionStorage.getItem(LS_KEY_PRUEBA) === "1";
+  actualizarBannerProfesor();
+
+  // Camino 1: sesión de profesor real y NO está probando como
+  // estudiante → va directo a su propio panel, sin identificarse.
+  if (esProfesor && !modoPruebaEstudiante) {
+    mostrarVista(vistaProfesor);
+    renderPanelProfesor();
+    return;
+  }
+
+  // Camino 2: sin sesión de profesor (o el profesor pidió explícitamente
+  // probar como estudiante) → identificación normal de estudiante.
   const guardado = localStorage.getItem(LS_KEY);
   if (guardado) {
     try { estudiante = JSON.parse(guardado); irAlTablero(); return; } catch { /* sigue a registro */ }
@@ -225,6 +260,26 @@ async function cargarCompanerosSalon() {
   mostrarVista(vistaRegistro);
   cargarSalones();
 })();
+
+document.getElementById("btn-entrar-como-estudiante").addEventListener("click", () => {
+  sessionStorage.setItem(LS_KEY_PRUEBA, "1");
+  modoPruebaEstudiante = true;
+  localStorage.removeItem(LS_KEY); // empieza limpio, no arrastra una identidad vieja
+  estudiante = null;
+  actualizarBannerProfesor();
+  mostrarVista(vistaRegistro);
+  cargarSalones();
+});
+
+document.getElementById("btn-salir-prueba-estudiante").addEventListener("click", () => {
+  sessionStorage.removeItem(LS_KEY_PRUEBA);
+  localStorage.removeItem(LS_KEY);
+  modoPruebaEstudiante = false;
+  estudiante = null;
+  actualizarBannerProfesor();
+  mostrarVista(vistaProfesor);
+  renderPanelProfesor();
+});
 
 // =========================================================
 // 2) CATÁLOGO — ver estado y reclamar
@@ -256,7 +311,7 @@ function renderTablero() {
   // (con la descripción completa, para no perder la instrucción de
   // cómo hacerla) y el botón de entrega. El profesor sigue viendo
   // todo, para poder monitorear a todos los grupos.
-  if (miInscripcion && !esProfesor) {
+  if (miInscripcion && (!esProfesor || modoPruebaEstudiante)) {
     const act = CATALOGO.find((a) => a.id === miInscripcion.actividad_id);
     const yaEntrego = !!miInscripcion.entregado_at;
     cont.innerHTML = `
@@ -327,7 +382,7 @@ function renderTablero() {
     // Al profesor le mostramos el detalle completo de la entrega
     // (foto, video, autoevaluación, observación de participación)
     // directo aquí, sin necesidad de un panel aparte.
-    const detalleProfesor = (esProfesor && tomada.entregado_at) ? `
+    const detalleProfesor = (esProfesor && !modoPruebaEstudiante && tomada.entregado_at) ? `
       <div class="entrega-resumen">
         ${tomada.entrega_foto_url ? `📷 <a href="${escapeHtml(tomada.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a><br>` : ""}
         ${tomada.entrega_video_url ? `🎬 <a href="${escapeHtml(tomada.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a><br>` : ""}
@@ -341,7 +396,7 @@ function renderTablero() {
         <p class="actividad-tomada-por">🔒 Ya la tomó — 👑 Líder: <b>${escapeHtml(tomada.nombre)}</b> (${escapeHtml((tomada.salon || "").replace(/(\d+)([A-Z])/, "$1°$2"))})${tomada.integrantes ? ` · Equipo: ${escapeHtml(tomada.integrantes)}` : ""}</p>
         ${entregoInfo}
         ${detalleProfesor}
-        ${esProfesor ? `<button type="button" class="btn secundario actividad-liberar" data-id="${tomada.id}" data-titulo="${escapeHtml(a.titulo)}">🗑️ Liberar este cupo</button>` : ""}
+        ${(esProfesor && !modoPruebaEstudiante) ? `<button type="button" class="btn secundario actividad-liberar" data-id="${tomada.id}" data-titulo="${escapeHtml(a.titulo)}">🗑️ Liberar este cupo</button>` : ""}
       </div>`;
   }).join("");
 
@@ -359,6 +414,75 @@ function renderTablero() {
     });
   });
 }
+
+// =========================================================
+// 1.5) PANEL DEL PROFESOR — catálogo completo, sin identificarse
+// =========================================================
+// Esta es la vista que ve el profesor de una vez, con su sesión real,
+// sin tener que pasar por el formulario de "identifícate como
+// estudiante". Muestra todo: quién tomó qué, entregas y el botón de
+// liberar cupos.
+function renderPanelProfesor() {
+  const grid = document.getElementById("actividades-grid-profesor");
+  const porActividad = {};
+  inscripciones.forEach((i) => { porActividad[i.actividad_id] = i; });
+
+  let lista = CATALOGO;
+  if (filtroActualProfesor === "disponibles") lista = CATALOGO.filter((a) => !porActividad[a.id]);
+  if (filtroActualProfesor === "tomadas") lista = CATALOGO.filter((a) => porActividad[a.id]);
+
+  grid.innerHTML = lista.map((a) => {
+    const tomada = porActividad[a.id];
+    if (!tomada) {
+      return `
+        <div class="actividad-card">
+          <div class="actividad-titulo"><span>${escapeHtml(a.titulo)}</span><span class="actividad-zona">${escapeHtml(a.zona)}</span></div>
+          <p class="actividad-desc">${escapeHtml(a.descripcion)}</p>
+          <p class="actividad-tomada-por" style="color:var(--muted);">Todavía nadie la ha reclamado.</p>
+        </div>`;
+    }
+    const entregoInfo = tomada.entregado_at
+      ? `<p class="actividad-tomada-por" style="color:var(--green);">✅ Entregado el ${new Date(tomada.entregado_at).toLocaleDateString("es-PA")}</p>`
+      : `<p class="actividad-tomada-por" style="color:var(--amber);">⏳ Todavía no ha entregado</p>`;
+    const detalleProfesor = tomada.entregado_at ? `
+      <div class="entrega-resumen">
+        ${tomada.entrega_foto_url ? `📷 <a href="${escapeHtml(tomada.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a><br>` : ""}
+        ${tomada.entrega_video_url ? `🎬 <a href="${escapeHtml(tomada.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a><br>` : ""}
+        ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `📝 Autoevaluación del grupo: <b>${tomada.autoevaluacion_nota}</b><br>` : ""}
+        ${tomada.observacion_participacion ? `⚠️ <b>Observación de participación:</b> ${escapeHtml(tomada.observacion_participacion)}` : `<span style="color:var(--muted);">Sin observaciones de participación.</span>`}
+      </div>` : "";
+    return `
+      <div class="actividad-card tomada">
+        <div class="actividad-titulo"><span>${escapeHtml(a.titulo)}</span><span class="actividad-zona">${escapeHtml(a.zona)}</span></div>
+        <p class="actividad-desc">${escapeHtml(a.descripcion)}</p>
+        <p class="actividad-tomada-por">🔒 Ya la tomó — 👑 Líder: <b>${escapeHtml(tomada.nombre)}</b> (${escapeHtml((tomada.salon || "").replace(/(\d+)([A-Z])/, "$1°$2"))})${tomada.integrantes ? ` · Equipo: ${escapeHtml(tomada.integrantes)}` : ""}</p>
+        ${entregoInfo}
+        ${detalleProfesor}
+        <button type="button" class="btn secundario actividad-liberar" data-id="${tomada.id}" data-titulo="${escapeHtml(a.titulo)}">🗑️ Liberar este cupo</button>
+      </div>`;
+  }).join("");
+
+  grid.querySelectorAll(".actividad-liberar").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const ok = window.confirm(`¿Liberar el cupo de "${btn.dataset.titulo}"? Volverá a estar disponible para cualquier grupo.`);
+      if (!ok) return;
+      const { error } = await sb.from(TABLA).delete().eq("id", btn.dataset.id);
+      if (error) { alert("No se pudo liberar: " + error.message); return; }
+      await precargarInscripciones();
+      renderPanelProfesor();
+    });
+  });
+}
+
+document.querySelectorAll(".filtro-btn-profesor").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filtro-btn-profesor").forEach((b) => b.classList.remove("activo"));
+    btn.classList.add("activo");
+    filtroActualProfesor = btn.dataset.filtro;
+    renderPanelProfesor();
+  });
+});
 
 // =========================================================
 // 3) MODAL — reclamar una actividad
