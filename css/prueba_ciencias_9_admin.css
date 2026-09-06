@@ -53,12 +53,23 @@
 .admin-tabla tbody tr:hover { background: #f5f8fb; }
 
 .admin-modal {
-  position: fixed; inset: 0; background: #17233599; display: flex; align-items: center; justify-content: center;
+  /* OJO: antes esta regla tenía "display: flex;" fijo aquí mismo. El
+     problema: en CSS, un selector de clase (.admin-modal) y el
+     atributo [hidden] tienen la MISMA especificidad, y como esta
+     regla de autor viene después de la hoja de estilos por defecto
+     del navegador en la cascada, GANABA — así que el <div hidden>
+     terminaba mostrándose igual (vacío, oscureciendo todo detrás,
+     porque el fondo semitransparente sí se pintaba) apenas cargaba
+     la página, sin que nadie hiciera clic en nada. Por eso el
+     "display: flex" se movió a la regla de abajo, que solo aplica
+     cuando el elemento NO tiene el atributo "hidden".
+  */
+  position: fixed; inset: 0; background: #17233599;
+  align-items: center; justify-content: center;
   z-index: 50; padding: 20px;
 }
-/* Respeta el atributo `hidden` del HTML. Sin esta regla, el `display: flex`
-   anterior mantiene el modal vacío visible y bloquea toda la página. */
-.admin-modal[hidden] { display: none !important; }
+.admin-modal:not([hidden]) { display: flex; }
+
 .admin-modal-card {
   background: #fff; border-radius: 18px; padding: 26px; max-width: 480px; width: 100%;
   max-height: 85vh; overflow-y: auto; position: relative;

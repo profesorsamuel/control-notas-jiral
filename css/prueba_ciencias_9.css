@@ -219,3 +219,8 @@ a.link:hover { text-decoration: underline; }
 
 .pareo-progreso { font-size: 13px; font-weight: 800; color: var(--muted); margin-top: 4px; }
 
+/* El resultado del pareo muestra 3 datos (nota, %, tiempo) en vez de
+   los 4 del examen de opción múltiple — se ajusta la cuadrícula para
+   que no quede una columna vacía. */
+#vista-resultado-pareo .count { grid-template-columns: repeat(3, 1fr); }
+
