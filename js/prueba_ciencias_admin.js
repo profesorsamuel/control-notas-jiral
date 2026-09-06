@@ -260,6 +260,7 @@ document.getElementById("btn-vista-previa")?.addEventListener("click", () => {
 // ---------- Exportación ----------
 function filasResultadosCompletos() {
   return cacheSesiones.filter((s) => s.estado === "finalizado").map((s) => ({
+    Actividad: CONFIG.nombreActividad || CONFIG.tituloExamen,
     Nombre: s.nombre, Salon: s.salon, Correctas: s.correctas, Incorrectas: s.incorrectas,
     Porcentaje: s.porcentaje, "Nota MEDUCA": s.nota_meduca, "Tiempo (seg)": s.tiempo_total_seg,
     "Fecha finalizacion": s.finalizado_at ? new Date(s.finalizado_at).toLocaleString("es-PA") : "",
@@ -269,11 +270,15 @@ function filasResultadosCompletos() {
 // Una fila por cada intento de práctica (un mismo estudiante puede
 // aparecer varias veces, una por cada vez que practicó), con fecha,
 // hora y duración separadas para que sea fácil de leer/filtrar en Excel.
+// La columna "Actividad" identifica de qué clase/examen es cada fila,
+// para cuando el docente junte varios reportes (Clase 1, Clase 2, etc.)
+// en una sola hoja más adelante.
 function filasIntentosPractica() {
   return cacheIntentosPractica.map((p) => {
     const inicio = p.iniciado_at ? new Date(p.iniciado_at) : null;
     const fin = p.finalizado_at ? new Date(p.finalizado_at) : null;
     return {
+      Actividad: CONFIG.nombreActividad || CONFIG.tituloExamen,
       Nombre: p.nombre, Salon: p.salon,
       Fecha: fin ? fin.toLocaleDateString("es-PA") : "",
       "Hora inicio": inicio ? inicio.toLocaleTimeString("es-PA") : "",

@@ -19,6 +19,10 @@ window.PRUEBA_CONFIG = {
   materia: "Ciencias Naturales",
   grado: "9°",
   tituloExamen: "Examen Clase 1: El origen del universo y del sistema solar",
+  // Etiqueta CORTA para diferenciar esta actividad de otras en los reportes
+  // de Excel/PDF (ej. cuando más adelante haya Clase 2, Clase 3, etc. y el
+  // docente junte varios archivos descargados en una sola hoja).
+  nombreActividad: "Clase 1",
   escuela: "C.E.B.G. EL JIRAL",
   codigoExamen: "cn9-clase1-universo-2026", // clave única en Supabase para este examen
   bancoGlobal: "BANCO_CLASE1_CIENCIAS_9",

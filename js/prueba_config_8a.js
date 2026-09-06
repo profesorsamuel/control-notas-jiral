@@ -13,6 +13,8 @@ window.PRUEBA_CONFIG = {
   materia: "Ciencias Naturales",
   grado: "8°A",
   tituloExamen: "Examen de Recuperación de Ciencias Naturales 8A",
+  // Etiqueta corta para diferenciar esta actividad de otras en Excel/PDF.
+  nombreActividad: "Recuperación 8A",
   escuela: "C.E.B.G. EL JIRAL",
   codigoExamen: "cn8a-recuperacion-2026", // identifica este examen en Supabase; distinto al de 9°
   bancoGlobal: "BANCO_CIENCIAS_8A",

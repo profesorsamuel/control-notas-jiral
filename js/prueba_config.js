@@ -17,6 +17,8 @@ window.PRUEBA_CONFIG = {
   materia: "Ciencias Naturales",
   grado: "9°",
   tituloExamen: "Examen de Recuperación de Ciencias Naturales 9°",
+  // Etiqueta corta para diferenciar esta actividad de otras en Excel/PDF.
+  nombreActividad: "Recuperación 9°",
   escuela: "C.E.B.G. EL JIRAL",
   codigoExamen: "cn9-recuperacion-2026", // usado como clave en Supabase; cámbialo si haces otro examen
   bancoGlobal: "BANCO_CIENCIAS_9",
