@@ -13,6 +13,7 @@ let tabActual = "conectados";
 let cacheEstudiantes = [];
 let cacheSesiones = [];
 let cacheEventos = [];
+let cacheIntentosPractica = [];
 
 // ---------- Acceso real mediante Supabase Auth ----------
 async function verificarAcceso() {
@@ -66,15 +67,17 @@ document.querySelectorAll(".admin-tab-btn").forEach((btn) => {
 
 // ---------- Carga de datos ----------
 async function cargarTodo() {
-  const [{ data: estudiantes }, { data: sesiones }, { data: eventos }] = await Promise.all([
+  const [{ data: estudiantes }, { data: sesiones }, { data: eventos }, { data: intentosPractica }] = await Promise.all([
     sb.from("estudiantes").select("id, nombre, salon, cedula").in("salon", CONFIG.salones),
     sb.from(T.sesiones).select("*").eq("codigo_examen", CONFIG.codigoExamen).eq("modo", "oficial"),
     sb.from(T.eventos).select("*").eq("codigo_examen", CONFIG.codigoExamen).order("creado_at", { ascending: false }).limit(50),
+    sb.from(T.intentosPractica).select("*").eq("codigo_examen", CONFIG.codigoExamen).order("finalizado_at", { ascending: false }),
   ]);
 
   cacheEstudiantes = estudiantes || [];
   cacheSesiones = sesiones || [];
   cacheEventos = eventos || [];
+  cacheIntentosPractica = intentosPractica || [];
 
   renderResumen();
   renderAlertas();
@@ -104,6 +107,8 @@ function renderResumen() {
   document.getElementById("st-conectados").textContent = conectados;
   document.getElementById("st-finalizados").textContent = finalizados;
   document.getElementById("st-ausentes").textContent = ausentes;
+  const stPractica = document.getElementById("st-practica");
+  if (stPractica) stPractica.textContent = cacheIntentosPractica.length;
 }
 
 // ---------- Alertas ----------
@@ -182,6 +187,18 @@ function renderTabla() {
       `${s.correctas}/${s.correctas + s.incorrectas}`, `${s.porcentaje}%`, s.nota_meduca,
       formatoSeg(s.tiempo_total_seg),
     ].map(String).concat([s.id]));
+  } else if (tabActual === "practica") {
+    columnas = ["Nombre", "Salón", "Fecha", "Hora", "Correctas", "%", "Nota", "Tiempo"];
+    filas = cacheIntentosPractica.map((p) => {
+      const fin = p.finalizado_at ? new Date(p.finalizado_at) : null;
+      return [
+        p.nombre, (p.salon || "").replace(/(\d+)([A-Z])/, "$1°$2"),
+        fin ? fin.toLocaleDateString("es-PA") : "—",
+        fin ? fin.toLocaleTimeString("es-PA") : "—",
+        `${p.correctas}/${p.correctas + p.incorrectas}`, `${p.porcentaje}%`, p.nota_meduca,
+        formatoSeg(p.tiempo_total_seg),
+      ].map(String).concat([null]);
+    });
   } else {
     columnas = ["Nombre", "Salón"];
     const conCedula = new Set(cacheSesiones.map((s) => s.cedula));
@@ -249,12 +266,40 @@ function filasResultadosCompletos() {
   }));
 }
 
+// Una fila por cada intento de práctica (un mismo estudiante puede
+// aparecer varias veces, una por cada vez que practicó), con fecha,
+// hora y duración separadas para que sea fácil de leer/filtrar en Excel.
+function filasIntentosPractica() {
+  return cacheIntentosPractica.map((p) => {
+    const inicio = p.iniciado_at ? new Date(p.iniciado_at) : null;
+    const fin = p.finalizado_at ? new Date(p.finalizado_at) : null;
+    return {
+      Nombre: p.nombre, Salon: p.salon,
+      Fecha: fin ? fin.toLocaleDateString("es-PA") : "",
+      "Hora inicio": inicio ? inicio.toLocaleTimeString("es-PA") : "",
+      "Hora fin": fin ? fin.toLocaleTimeString("es-PA") : "",
+      Correctas: p.correctas, Incorrectas: p.incorrectas,
+      Porcentaje: p.porcentaje, "Nota MEDUCA": p.nota_meduca,
+      "Duracion (seg)": p.tiempo_total_seg, "Duracion": formatoSeg(p.tiempo_total_seg),
+    };
+  });
+}
+
 document.getElementById("btn-exportar-excel").addEventListener("click", () => {
   const datos = filasResultadosCompletos();
-  if (datos.length === 0) { alert("Todavía no hay resultados finalizados para exportar."); return; }
-  const ws = XLSX.utils.json_to_sheet(datos);
+  const datosPractica = filasIntentosPractica();
+  if (datos.length === 0 && datosPractica.length === 0) { alert("Todavía no hay resultados ni intentos de práctica para exportar."); return; }
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Resultados");
+
+  if (datos.length > 0) {
+    const ws = XLSX.utils.json_to_sheet(datos);
+    XLSX.utils.book_append_sheet(wb, ws, "Resultados");
+  }
+
+  if (datosPractica.length > 0) {
+    const wsPractica = XLSX.utils.json_to_sheet(datosPractica);
+    XLSX.utils.book_append_sheet(wb, wsPractica, "Práctica");
+  }
 
   const ausentesWs = XLSX.utils.json_to_sheet(
     (() => {

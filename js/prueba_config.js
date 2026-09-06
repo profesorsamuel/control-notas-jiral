@@ -76,6 +76,10 @@ window.PRUEBA_CONFIG = {
   tablas: {
     sesiones: "prueba_sesiones",
     eventos: "prueba_eventos",
+    // Guarda CADA intento de práctica (fecha, hora, duración y resultado),
+    // separado de "prueba_sesiones" para no chocar con el examen oficial
+    // de un solo intento — la práctica es de intentos ilimitados.
+    intentosPractica: "prueba_intentos_practica",
   },
 
 };
