@@ -83,6 +83,14 @@
   }
   .campo-con-eliminar { display: flex; gap: 8px; align-items: center; }
   .campo-con-eliminar input { flex: 1; margin-top: 7px; }
+  .campo-archivo { display: flex; gap: 8px; align-items: center; }
+  .campo-archivo .input-archivo {
+    flex: 1; margin-top: 7px; padding: 9px; border: 1px dashed #cbd8e6;
+    border-radius: 11px; background: #fbfdff; font-size: 13px;
+  }
+  .archivo-preview { margin-top: 8px; }
+  .archivo-preview-img { max-width: 100%; max-height: 160px; border-radius: 10px; border: 1px solid var(--line); display: block; }
+  .archivo-preview-video { max-width: 100%; max-height: 200px; border-radius: 10px; border: 1px solid var(--line); display: block; }
   .btn-eliminar-campo {
     flex-shrink: 0; background: #fff5f5; border: 1px solid #f3c3ca; color: var(--red);
     border-radius: 10px; width: 40px; height: 40px; margin-top: 7px; cursor: pointer; font-size: 16px;
@@ -218,42 +226,52 @@
       <h2 id="entrega-titulo-actividad">Entregar mi actividad</h2>
       <p class="lead">Líder registrado: <b id="entrega-lider-nombre"></b>. Esto lo llena el líder del grupo (quien reclamó la actividad). Evalúa a cada integrante por separado en las mismas 7 preguntas — sé honesto, el profesor va a revisar el trabajo igual.</p>
 
-      <label for="entrega-foto">Link de la foto del proyecto terminado
-        <div class="campo-con-eliminar">
-          <input id="entrega-foto" type="text" placeholder="Pega aquí el link (Google Drive, Fotos, etc.)">
-          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto" title="Eliminar este link">🗑️</button>
+      <label for="entrega-foto-file">Foto del proyecto terminado
+        <input type="hidden" id="entrega-foto">
+        <div class="campo-archivo">
+          <input type="file" id="entrega-foto-file" accept="image/*" class="input-archivo">
+          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto" title="Eliminar">🗑️</button>
         </div>
+        <div id="entrega-foto-preview" class="archivo-preview"></div>
         <span id="entrega-foto-guardado" class="campo-guardado" hidden></span>
       </label>
-      <label for="entrega-foto2">Foto adicional 1 — el grupo trabajando (opcional)
-        <div class="campo-con-eliminar">
-          <input id="entrega-foto2" type="text" placeholder="Pega aquí el link (opcional)">
-          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto2" title="Eliminar este link">🗑️</button>
+      <label for="entrega-foto2-file">Foto adicional 1 — el grupo trabajando (opcional)
+        <input type="hidden" id="entrega-foto2">
+        <div class="campo-archivo">
+          <input type="file" id="entrega-foto2-file" accept="image/*" class="input-archivo">
+          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto2" title="Eliminar">🗑️</button>
         </div>
+        <div id="entrega-foto2-preview" class="archivo-preview"></div>
         <span id="entrega-foto2-guardado" class="campo-guardado" hidden></span>
       </label>
-      <label for="entrega-foto3">Foto adicional 2 — haciendo la actividad (opcional)
-        <div class="campo-con-eliminar">
-          <input id="entrega-foto3" type="text" placeholder="Pega aquí el link (opcional)">
-          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto3" title="Eliminar este link">🗑️</button>
+      <label for="entrega-foto3-file">Foto adicional 2 — haciendo la actividad (opcional)
+        <input type="hidden" id="entrega-foto3">
+        <div class="campo-archivo">
+          <input type="file" id="entrega-foto3-file" accept="image/*" class="input-archivo">
+          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto3" title="Eliminar">🗑️</button>
         </div>
+        <div id="entrega-foto3-preview" class="archivo-preview"></div>
         <span id="entrega-foto3-guardado" class="campo-guardado" hidden></span>
       </label>
-      <label for="entrega-foto4">Foto adicional 3 — otro momento del proceso (opcional)
-        <div class="campo-con-eliminar">
-          <input id="entrega-foto4" type="text" placeholder="Pega aquí el link (opcional)">
-          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto4" title="Eliminar este link">🗑️</button>
+      <label for="entrega-foto4-file">Foto adicional 3 — otro momento del proceso (opcional)
+        <input type="hidden" id="entrega-foto4">
+        <div class="campo-archivo">
+          <input type="file" id="entrega-foto4-file" accept="image/*" class="input-archivo">
+          <button type="button" class="btn-eliminar-campo" data-target="entrega-foto4" title="Eliminar">🗑️</button>
         </div>
+        <div id="entrega-foto4-preview" class="archivo-preview"></div>
         <span id="entrega-foto4-guardado" class="campo-guardado" hidden></span>
       </label>
-      <label for="entrega-video">Link del video explicativo (todos explican su parte)
-        <div class="campo-con-eliminar">
-          <input id="entrega-video" type="text" placeholder="Pega aquí el link (YouTube, Drive, etc.)">
-          <button type="button" class="btn-eliminar-campo" data-target="entrega-video" title="Eliminar este link">🗑️</button>
+      <label for="entrega-video-file">Video explicativo (todos explican su parte)
+        <input type="hidden" id="entrega-video">
+        <div class="campo-archivo">
+          <input type="file" id="entrega-video-file" accept="video/*" class="input-archivo">
+          <button type="button" class="btn-eliminar-campo" data-target="entrega-video" title="Eliminar">🗑️</button>
         </div>
+        <div id="entrega-video-preview" class="archivo-preview"></div>
         <span id="entrega-video-guardado" class="campo-guardado" hidden></span>
       </label>
-      <p class="lead" style="font-size:12px; margin-top:-6px;">💾 Cada link de foto o video se guarda solo, apenas lo pegas — si te equivocas, usa 🗑️ para borrarlo.</p>
+      <p class="lead" style="font-size:12px; margin-top:-6px;">📤 Selecciona el archivo y se sube solo (fotos hasta 15 MB, video hasta 200 MB). Si te equivocas, usa 🗑️ para borrarlo.</p>
 
       <h3 style="margin-bottom:0;">Autoevaluación por integrante (1 a 5 en cada pregunta)</h3>
       <div id="rubrica-cont"></div>
