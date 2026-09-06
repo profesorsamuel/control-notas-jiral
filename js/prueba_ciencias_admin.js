@@ -107,8 +107,14 @@ function renderResumen() {
   document.getElementById("st-conectados").textContent = conectados;
   document.getElementById("st-finalizados").textContent = finalizados;
   document.getElementById("st-ausentes").textContent = ausentes;
+  // "tipo_ejercicio" distingue el quiz de opción múltiple del Ejercicio
+  // 2 (pareo); las filas guardadas ANTES de agregar el pareo no tienen
+  // esa columna definida en memoria como "pareo", así que caen del
+  // lado de "quiz" por defecto (es lo que eran).
   const stPractica = document.getElementById("st-practica");
-  if (stPractica) stPractica.textContent = cacheIntentosPractica.length;
+  if (stPractica) stPractica.textContent = cacheIntentosPractica.filter((p) => (p.tipo_ejercicio || "quiz") === "quiz").length;
+  const stPareo = document.getElementById("st-pareo");
+  if (stPareo) stPareo.textContent = cacheIntentosPractica.filter((p) => p.tipo_ejercicio === "pareo").length;
 }
 
 // ---------- Alertas ----------
@@ -188,10 +194,12 @@ function renderTabla() {
       formatoSeg(s.tiempo_total_seg),
     ].map(String).concat([s.id]));
   } else if (tabActual === "practica") {
-    columnas = ["Nombre", "Salón", "Fecha", "Hora", "Correctas", "%", "Nota", "Tiempo"];
+    columnas = ["Tipo", "Nombre", "Salón", "Fecha", "Hora", "Correctas", "%", "Nota", "Tiempo"];
     filas = cacheIntentosPractica.map((p) => {
       const fin = p.finalizado_at ? new Date(p.finalizado_at) : null;
+      const tipo = (p.tipo_ejercicio || "quiz") === "pareo" ? "🔤 Pareo" : "🧪 Quiz";
       return [
+        tipo,
         p.nombre, (p.salon || "").replace(/(\d+)([A-Z])/, "$1°$2"),
         fin ? fin.toLocaleDateString("es-PA") : "—",
         fin ? fin.toLocaleTimeString("es-PA") : "—",
@@ -279,6 +287,7 @@ function filasIntentosPractica() {
     const fin = p.finalizado_at ? new Date(p.finalizado_at) : null;
     return {
       Actividad: CONFIG.nombreActividad || CONFIG.tituloExamen,
+      Tipo: (p.tipo_ejercicio || "quiz") === "pareo" ? "Pareo" : "Quiz",
       Nombre: p.nombre, Salon: p.salon,
       Fecha: fin ? fin.toLocaleDateString("es-PA") : "",
       "Hora inicio": inicio ? inicio.toLocaleTimeString("es-PA") : "",
