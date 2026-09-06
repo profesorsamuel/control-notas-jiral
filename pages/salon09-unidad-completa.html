@@ -262,6 +262,28 @@
   .btn-quiz:hover{ background: #145c2d; }
   .btn-quiz:active{ transform: scale(.97); }
 
+  .seccion-ejercicios{
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: #eef8f1;
+    border: 1.5px dashed #1a7a3c;
+    border-radius: 14px;
+  }
+  .seccion-ejercicios-titulo{
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #1a7a3c;
+    margin: 0 0 10px;
+  }
+  .seccion-ejercicios-botones{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   /* ===================== VISOR DE IMÁGENES (GALERÍA FULLSCREEN) ===================== */
   #galeriaOverlay{
     position: fixed;
@@ -4926,15 +4948,21 @@
         <a class="btn-pdf" href="pdfs-clases/pdf-clase1/Clase-1-Ciencias-14-al-25-sept.pdf" download>
           <span>📄</span> Descargar clase en PDF
         </a>
-        <a class="btn-quiz" href="prueba_clase1_ciencias_9.html">
-          <span>📝</span> Presentar el examen de esta clase
-        </a>
-        <a class="btn-quiz" href="pareo_clase1_ciencias_9.html">
-          <span>🔤</span> Ejercicio 2: Pareo de términos
-        </a>
-        <a class="btn-quiz" href="fotos_clase1_ciencias_9.html">
-          <span>📷</span> Ejercicio 3: Pareo de fotos
-        </a>
+      </div>
+
+      <div class="seccion-ejercicios">
+        <p class="seccion-ejercicios-titulo">🧪 Ejercicios de práctica — Clase 1</p>
+        <div class="seccion-ejercicios-botones">
+          <a class="btn-quiz" href="prueba_clase1_ciencias_9.html">
+            <span>📝</span> Ejercicio 1: Respuesta múltiple
+          </a>
+          <a class="btn-quiz" href="pareo_clase1_ciencias_9.html">
+            <span>🔤</span> Ejercicio 2: Pareo de términos
+          </a>
+          <a class="btn-quiz" href="fotos_clase1_ciencias_9.html">
+            <span>📷</span> Ejercicio 3: Pareo de fotos
+          </a>
+        </div>
       </div>
       
       <section class="parte-bloque">
