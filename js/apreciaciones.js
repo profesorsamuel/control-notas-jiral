@@ -131,15 +131,20 @@ export async function asegurarApreciacion4Activa(materia, salon, trimestre) {
 // se agrega ninguna columna de "vista previa" automática — para abrir
 // la siguiente Apreciación el profesor usa el botón "➕" en la tabla
 // (ver profesor.js).
+//
+// Antes, si esta materia/salón/trimestre no tenía NINGUNA fila
+// todavía, se activaba Apreciación 4 sola con asegurarApreciacion4Activa()
+// (para que "algo" apareciera). Eso hacía que, al empezar un trimestre
+// nuevo (sin haber usado ni Apreciación 1), la tabla mostrara de una
+// vez "Aprec. 1" (la manual) Y "Aprec. 4" (la automática) juntas, lo
+// cual confundía la numeración. Ahora, si no hay ninguna fila, se
+// devuelve una lista vacía: el docente decide cuándo activar el
+// sistema automático con el botón "➕ Agregar columna de Aprec.
+// (asistencia/comportamiento/actividades)" (ver
+// renderizarBotonesPrimeraColumna() en profesor.js), igual que ya pasa
+// con Ejercicio y Examen.
 export async function calcularColumnasApreciacionesNuevas(materia, salon, trimestre) {
-    let estados = await obtenerEstadoApreciaciones(materia, salon, trimestre);
-
-    if (estados.length === 0) {
-        await asegurarApreciacion4Activa(materia, salon, trimestre);
-        estados = await obtenerEstadoApreciaciones(materia, salon, trimestre);
-    }
-
-    return estados; // [{numero, estado, modo}, ...] ordenado
+    return await obtenerEstadoApreciaciones(materia, salon, trimestre);
 }
 
 // Crea (o reactiva) la siguiente Apreciación 4+ cuando el profesor le

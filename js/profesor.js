@@ -1010,17 +1010,23 @@ function renderizarListaChecksColumnas() {
 // este salón/materia/trimestre, el botón "➕" normal no aparece en ningún
 // lado (ese botón vive pegado a la última columna existente de cada Tipo).
 // Este bloque cubre ese caso: muestra un botón para crear la primera
-// columna de cada Tipo que esté vacío. Apreciación no lo necesita porque
-// su primera columna se crea sola. En cuanto el Tipo ya tiene su primera
-// columna, este botón desaparece y desde ahí se sigue con el "➕" normal.
+// columna de cada Tipo que esté vacío. Apreciación (1/2/3, la manual) no
+// lo necesita porque su primera columna se crea sola. La Apreciación
+// automática (4+, asistencia/comportamiento/actividades) SÍ pasa por
+// aquí: ya no se activa sola al cargar el salón (antes aparecía como
+// "Aprec. 4" desde el primer momento, aunque el trimestre recién
+// empezara y todavía no hubiera ni Apreciación 1); ahora, igual que
+// Ejercicio y Examen, el docente decide con este botón cuándo empezar
+// a usar ese sistema.
 function renderizarBotonesPrimeraColumna() {
     if (!bloqueAgregarPrimeraColumna) return;
 
     const tiposFaltantes = ["ejercicio", "examen"].filter(
         (tipo) => !casillasTabla.some((c) => c.tipo === tipo)
     );
+    const faltaApreciacionAutomatica = Object.keys(estadoApreciacionesNuevas).length === 0;
 
-    if (tiposFaltantes.length === 0) {
+    if (tiposFaltantes.length === 0 && !faltaApreciacionAutomatica) {
         bloqueAgregarPrimeraColumna.style.display = "none";
         bloqueAgregarPrimeraColumna.innerHTML = "";
         return;
@@ -1030,7 +1036,11 @@ function renderizarBotonesPrimeraColumna() {
     bloqueAgregarPrimeraColumna.innerHTML = tiposFaltantes.map((tipo) => `
         <button type="button" class="btn btn-sm btn-outline-success btn-agregar-primera-columna" data-tipo="${tipo}">
             ➕ Agregar columna de ${escapeHtml(ETIQUETAS_TIPO[tipo] || tipo)}
-        </button>`).join("");
+        </button>`).join("")
+        + (faltaApreciacionAutomatica ? `
+        <button type="button" class="btn btn-sm btn-outline-success" id="btnAgregarPrimeraApreciacionAutomatica">
+            ➕ Agregar columna de Aprec. (asistencia/comportamiento/actividades)
+        </button>` : "");
 
     bloqueAgregarPrimeraColumna.querySelectorAll(".btn-agregar-primera-columna").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -1040,6 +1050,15 @@ function renderizarBotonesPrimeraColumna() {
             agregarColumnaVaciaSolicitada = true;
             renderTabla();
         });
+    });
+
+    document.getElementById("btnAgregarPrimeraApreciacionAutomatica")?.addEventListener("click", async (ev) => {
+        const btn = ev.currentTarget;
+        btn.disabled = true;
+        const ok = await activarApreciacionSiguiente(selectMateriaNota.value, selectSalonNota.value, selectTrimestreNota.value, 4);
+        btn.disabled = false;
+        if (!ok) { alert("No se pudo agregar la columna de Apreciación automática."); return; }
+        cargarSalon();
     });
 }
 
