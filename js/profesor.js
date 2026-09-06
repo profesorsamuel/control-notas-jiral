@@ -332,6 +332,14 @@ let agregarColumnaVaciaSolicitada = false;
 // sistema nuevo.
 let estadoApreciacionesNuevas = {};
 
+// Guarda el salón/materia/trimestre que se cargó la última vez, para
+// que cargarSalon() pueda distinguir entre "recargar el mismo salón"
+// (por ejemplo, justo después de borrar una columna, donde sí importa
+// respetar el número que se dejó preparado) y "el docente cambió a un
+// salón distinto" (donde el número de la próxima casilla NUNCA debe
+// heredarse del salón anterior: ver el arreglo dentro de cargarSalon()).
+let contextoNotasAnterior = null;
+
 // Antes esta función usaba el correo como identificador cuando el
 // estudiante tenía cuenta, y el id solo cuando no tenía. El problema:
 // si a un estudiante le quitaban la cuenta después, sus notas viejas
@@ -529,12 +537,34 @@ async function eliminarColumnaCasillaInterno(tipo, numero) {
 
     const ahora = new Date().toISOString();
 
+    // IMPORTANTE: "notas" no tiene columna de salón (el salón se sabe
+    // indirectamente, a través de a qué estudiante pertenece cada nota).
+    // Por eso hay que filtrar explícitamente por los estudiantes de
+    // ESTE salón: si solo se filtrara por materia+trimestre+tipo+número
+    // (como antes), se borrarían también las notas de CUALQUIER OTRO
+    // salón que tenga esa misma materia y haya llegado a esa misma
+    // casilla (ej. "Ejercicio 3" de 9C borraría también "Ejercicio 3"
+    // de 8A, 8B, 9A y 9B si comparten la materia). Mismo criterio que
+    // ya usa actualizarTemaCasilla() más arriba.
+    const correosDelSalon = grupoActual.map((e) => e.correo).filter(Boolean);
+    const idsSinCuentaDelSalon = grupoActual.filter((e) => !e.correo).map((e) => e.id);
+
     // No se borra nada de verdad: se marca como eliminado (borrado
     // suave), así queda disponible para restaurar desde la papelera.
-    await supabase.from("notas")
-        .update({ eliminado_en: ahora, eliminado_por: correoProfesor })
-        .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
-        .is("eliminado_en", null);
+    if (correosDelSalon.length > 0) {
+        await supabase.from("notas")
+            .update({ eliminado_en: ahora, eliminado_por: correoProfesor })
+            .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+            .in("correo", correosDelSalon)
+            .is("eliminado_en", null);
+    }
+    if (idsSinCuentaDelSalon.length > 0) {
+        await supabase.from("notas")
+            .update({ eliminado_en: ahora, eliminado_por: correoProfesor })
+            .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+            .in("estudiante_id", idsSinCuentaDelSalon)
+            .is("eliminado_en", null);
+    }
     await supabase.from("temas_casillas")
         .update({ eliminado_en: ahora, eliminado_por: correoProfesor })
         .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
@@ -677,10 +707,27 @@ async function restaurarCasilla(tipo, numero) {
     const trimestre = selectTrimestreNota.value;
     const etiqueta = etiquetaCasilla(tipo, numero);
 
-    await supabase.from("notas")
-        .update({ eliminado_en: null, eliminado_por: null })
-        .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
-        .not("eliminado_en", "is", null);
+    // Mismo cuidado que en eliminarColumnaCasillaInterno(): "notas" no
+    // tiene columna de salón, así que hay que restaurar solo las notas
+    // de los estudiantes de ESTE salón (si no, restaurar una casilla en
+    // 9C podría restaurar por error la misma casilla de otro salón).
+    const correosDelSalon = grupoActual.map((e) => e.correo).filter(Boolean);
+    const idsSinCuentaDelSalon = grupoActual.filter((e) => !e.correo).map((e) => e.id);
+
+    if (correosDelSalon.length > 0) {
+        await supabase.from("notas")
+            .update({ eliminado_en: null, eliminado_por: null })
+            .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+            .in("correo", correosDelSalon)
+            .not("eliminado_en", "is", null);
+    }
+    if (idsSinCuentaDelSalon.length > 0) {
+        await supabase.from("notas")
+            .update({ eliminado_en: null, eliminado_por: null })
+            .eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
+            .in("estudiante_id", idsSinCuentaDelSalon)
+            .not("eliminado_en", "is", null);
+    }
     await supabase.from("temas_casillas")
         .update({ eliminado_en: null, eliminado_por: null })
         .eq("salon", salon).eq("materia", materia).eq("trimestre", trimestre).eq("tipo", tipo).eq("numero", numero)
@@ -1599,14 +1646,56 @@ async function cargarSalon() {
         if (t.oculta_estudiante) casillasOcultasEstudiante.add(clave);
     });
 
-    // ¿La casilla que estaba seleccionada (numero) ya tenía notas guardadas
-    // de verdad en la base de datos? Si es así, es una casilla real y hay
-    // que mover el puntero a la siguiente libre. Si no, es solo la casilla
-    // "lista para escribir" que ya estaba esperando (por ejemplo, la que
-    // quedó después de eliminar una columna) y no hay que avanzarla de
-    // nuevo solo porque se recargó el salón; si se avanza igual, se crea
-    // una segunda columna vacía además de esta.
-    const numeroYaTeniaDatos = casillasEncontradas.has(claveCasilla(tipo, numero));
+    // ¿Este cargarSalon() es una RECARGA del mismo salón/materia/trimestre
+    // que ya estaba abierto (por ejemplo, justo después de borrar una
+    // columna), o el docente acaba de CAMBIAR a un salón distinto?
+    // Es clave para lo de abajo: el número de "próxima casilla" (Tipo +
+    // Número) NUNCA debe heredarse de un salón distinto al que se está
+    // mostrando ahora — si no, un salón nuevo/vacío puede terminar
+    // mostrando, por ejemplo, "Ejer. 3" como si fuera su primera
+    // columna, solo porque en el salón anterior ya se había llegado
+    // hasta Ejercicio 3. Esto NUNCA modifica las notas guardadas de
+    // ningún salón: es puramente qué número le toca a la próxima
+    // columna VACÍA que se ofrece para escribir.
+    const esMismoSalonQueAntes = !!(contextoNotasAnterior &&
+        contextoNotasAnterior.salon === salon &&
+        contextoNotasAnterior.materia === materia &&
+        contextoNotasAnterior.trimestre === trimestre);
+    contextoNotasAnterior = { salon, materia, trimestre };
+
+    let numeroEfectivo = numero;
+    if (!esMismoSalonQueAntes) {
+        // Se cambió de salón/materia/trimestre: el número se recalcula
+        // desde cero, usando SOLO lo que este salón tiene de verdad en
+        // la base de datos (casillasEncontradas), nunca lo que quedó
+        // seleccionado en el salón anterior.
+        let ultimoDeEsteTipo = 0;
+        casillasEncontradas.forEach((clave) => {
+            const sep = clave.lastIndexOf("-");
+            if (clave.slice(0, sep) === tipo) {
+                const n = parseInt(clave.slice(sep + 1), 10);
+                if (n > ultimoDeEsteTipo) ultimoDeEsteTipo = n;
+            }
+        });
+        numeroEfectivo = ultimoDeEsteTipo + 1;
+        if (inputNumeroNota) inputNumeroNota.value = String(numeroEfectivo);
+
+        // Igual con "qué columnas se ven": es una preferencia de vista
+        // (checkbox "Elegir columnas para ver"), guardada en memoria por
+        // clave tipo-número sin distinguir salón. Si no se limpia aquí,
+        // ocultar "Ejer. 3" en 9C también la dejaría oculta al entrar a
+        // 8A. Al cambiar de salón se empieza siempre con todo visible.
+        columnasOcultas.clear();
+    }
+
+    // ¿La casilla que estaba seleccionada (numeroEfectivo) ya tenía notas
+    // guardadas de verdad en la base de datos? Si es así, es una casilla
+    // real y hay que mover el puntero a la siguiente libre. Si no, es
+    // solo la casilla "lista para escribir" que ya estaba esperando (por
+    // ejemplo, la que quedó después de eliminar una columna) y no hay
+    // que avanzarla de nuevo solo porque se recargó el salón; si se
+    // avanza igual, se crea una segunda columna vacía además de esta.
+    const numeroYaTeniaDatos = casillasEncontradas.has(claveCasilla(tipo, numeroEfectivo));
 
     // Solo agregamos la casilla activa como columna "lista para escribir"
     // cuando el salón/materia/trimestre no tiene ABSOLUTAMENTE ninguna
@@ -1615,7 +1704,7 @@ async function cargarSalon() {
     // una columna, no vuelve a aparecer otra automáticamente. Para
     // agregar una columna nueva a mano, el docente usa el botón "➕".
     if (casillasEncontradas.size === 0) {
-        casillasEncontradas.add(claveCasilla(tipo, numero));
+        casillasEncontradas.add(claveCasilla(tipo, numeroEfectivo));
     }
     casillasTabla = [...casillasEncontradas].map((c) => {
         const sep = c.lastIndexOf("-");
