@@ -56,6 +56,25 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// Muestra la nota (o notas) de autoevaluación. Soporta el formato nuevo
+// (un objeto { "Nombre del estudiante": nota, ... }, una nota individual
+// por cada integrante) y también el formato viejo (una sola nota de
+// número, de cuando la autoevaluación era una sola para todo el grupo),
+// para que las entregas guardadas antes de este cambio se sigan viendo
+// bien.
+function formatearAutoevaluacionNota(valor) {
+  if (valor === null || valor === undefined) return "";
+  if (typeof valor === "number") {
+    return `<b>${valor}</b> (nota MEDUCA, autoevaluación grupal — formato anterior)`;
+  }
+  const entradas = Object.entries(valor).filter(([, v]) => v !== null && v !== undefined);
+  if (entradas.length === 0) return "";
+  const lineas = entradas.map(([nombre, nota]) => `${escapeHtml(nombre)}: <b>${nota}</b>`).join(" · ");
+  if (entradas.length === 1) return lineas;
+  const promedio = entradas.reduce((a, [, v]) => a + v, 0) / entradas.length;
+  return `${lineas} <span style="color:var(--muted);">(promedio: ${promedio.toFixed(1)})</span>`;
+}
+
 const vistaRegistro = document.getElementById("vista-registro-deco");
 const vistaTablero = document.getElementById("vista-tablero-deco");
 const vistaProfesor = document.getElementById("vista-profesor-deco");
@@ -328,7 +347,7 @@ function renderTablero() {
                ✅ <b>Ya entregaste</b> el ${new Date(miInscripcion.entregado_at).toLocaleString("es-PA")}.
                ${miInscripcion.entrega_foto_url ? `<br>📷 <a href="${escapeHtml(miInscripcion.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a>` : ""}
                ${miInscripcion.entrega_video_url ? `<br>🎬 <a href="${escapeHtml(miInscripcion.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a>` : ""}
-               ${miInscripcion.autoevaluacion_nota !== null && miInscripcion.autoevaluacion_nota !== undefined ? `<br>📝 Tu autoevaluación: <b>${miInscripcion.autoevaluacion_nota}</b> (nota MEDUCA)` : ""}
+               ${miInscripcion.autoevaluacion_nota !== null && miInscripcion.autoevaluacion_nota !== undefined ? `<br>📝 Autoevaluación: ${formatearAutoevaluacionNota(miInscripcion.autoevaluacion_nota)}` : ""}
              </div>
              <button id="btn-abrir-entrega" class="wide" style="margin-top:12px;">✏️ Editar mi entrega</button>`
           : `<button id="btn-abrir-entrega" class="wide" style="margin-top:12px;">📤 Entregar mi actividad</button>`}
@@ -386,7 +405,7 @@ function renderTablero() {
       <div class="entrega-resumen">
         ${tomada.entrega_foto_url ? `📷 <a href="${escapeHtml(tomada.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a><br>` : ""}
         ${tomada.entrega_video_url ? `🎬 <a href="${escapeHtml(tomada.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a><br>` : ""}
-        ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `📝 Autoevaluación del grupo: <b>${tomada.autoevaluacion_nota}</b><br>` : ""}
+        ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `📝 Autoevaluación: ${formatearAutoevaluacionNota(tomada.autoevaluacion_nota)}<br>` : ""}
         ${tomada.observacion_participacion ? `⚠️ <b>Observación de participación:</b> ${escapeHtml(tomada.observacion_participacion)}` : `<span style="color:var(--muted);">Sin observaciones de participación.</span>`}
       </div>` : "";
     return `
@@ -448,7 +467,7 @@ function renderPanelProfesor() {
       <div class="entrega-resumen">
         ${tomada.entrega_foto_url ? `📷 <a href="${escapeHtml(tomada.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a><br>` : ""}
         ${tomada.entrega_video_url ? `🎬 <a href="${escapeHtml(tomada.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a><br>` : ""}
-        ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `📝 Autoevaluación del grupo: <b>${tomada.autoevaluacion_nota}</b><br>` : ""}
+        ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `📝 Autoevaluación: ${formatearAutoevaluacionNota(tomada.autoevaluacion_nota)}<br>` : ""}
         ${tomada.observacion_participacion ? `⚠️ <b>Observación de participación:</b> ${escapeHtml(tomada.observacion_participacion)}` : `<span style="color:var(--muted);">Sin observaciones de participación.</span>`}
       </div>` : "";
     return `
@@ -482,6 +501,81 @@ document.querySelectorAll(".filtro-btn-profesor").forEach((btn) => {
     filtroActualProfesor = btn.dataset.filtro;
     renderPanelProfesor();
   });
+});
+
+// =========================================================
+// 2.5) RESUMEN DEL PROFESOR — proyectos, grupos y evaluación
+// =========================================================
+// Una sola tabla con las 3 secciones juntas: qué actividad tomó cada
+// grupo, quién lo lidera y quiénes son los integrantes (cómo se
+// formaron los grupos), si ya entregaron y cómo va la autoevaluación
+// de cada integrante.
+function renderResumenProfesor() {
+  const cont = document.getElementById("resumen-profesor-tabla-cont");
+  const porActividad = {};
+  inscripciones.forEach((i) => { porActividad[i.actividad_id] = i; });
+
+  const filas = CATALOGO.map((a) => {
+    const tomada = porActividad[a.id];
+    if (!tomada) {
+      return `
+        <tr class="sin-tomar">
+          <td>${escapeHtml(a.titulo)}</td>
+          <td>${escapeHtml(a.zona)}</td>
+          <td colspan="4">Todavía nadie la ha reclamado.</td>
+        </tr>`;
+    }
+    const integrantes = tomada.integrantes
+      ? tomada.integrantes.split(";").map((s) => s.trim()).filter(Boolean)
+      : [];
+    const evalTexto = (() => {
+      const v = tomada.autoevaluacion_nota;
+      if (v === null || v === undefined) return "Sin autoevaluación todavía";
+      if (typeof v === "object" && Object.keys(v).length === 0) return "Sin autoevaluación todavía";
+      return formatearAutoevaluacionNota(v);
+    })();
+    const estado = tomada.entregado_at
+      ? `✅ Entregado (${new Date(tomada.entregado_at).toLocaleDateString("es-PA")})`
+      : "⏳ Pendiente de entregar";
+    return `
+      <tr class="${tomada.entregado_at ? "" : "pendiente"}">
+        <td>${escapeHtml(a.titulo)}</td>
+        <td>${escapeHtml(a.zona)}</td>
+        <td>${escapeHtml((tomada.salon || "").replace(/(\d+)([A-Z])/, "$1°$2"))}</td>
+        <td>
+          👑 ${escapeHtml(tomada.nombre)}
+          ${integrantes.length ? `<br><span style="color:var(--muted);">+ ${integrantes.length} integrante(s): ${escapeHtml(integrantes.join(", "))}</span>` : `<br><span style="color:var(--muted);">Sin más integrantes registrados.</span>`}
+        </td>
+        <td>${estado}</td>
+        <td>${evalTexto}</td>
+      </tr>`;
+  }).join("");
+
+  cont.innerHTML = `
+    <table class="resumen-tabla">
+      <thead>
+        <tr>
+          <th>Actividad</th>
+          <th>Zona</th>
+          <th>Salón</th>
+          <th>Grupo (líder + integrantes)</th>
+          <th>Entrega</th>
+          <th>Autoevaluación</th>
+        </tr>
+      </thead>
+      <tbody>${filas}</tbody>
+    </table>`;
+}
+
+document.getElementById("btn-ver-resumen-profesor").addEventListener("click", () => {
+  renderResumenProfesor();
+  document.getElementById("modal-resumen-profesor").hidden = false;
+});
+document.getElementById("btn-cerrar-modal-resumen").addEventListener("click", () => {
+  document.getElementById("modal-resumen-profesor").hidden = true;
+});
+document.getElementById("modal-resumen-profesor").addEventListener("click", (e) => {
+  if (e.target.id === "modal-resumen-profesor") document.getElementById("modal-resumen-profesor").hidden = true;
 });
 
 // =========================================================
@@ -580,6 +674,27 @@ document.getElementById("btn-guardar-deco").addEventListener("click", async () =
 const modalEntrega = document.getElementById("modal-entrega");
 let inscripcionEntregando = null;
 
+// Devuelve la lista de nombres del grupo (líder primero, luego
+// integrantes), para poder generar un bloque de rúbrica por persona.
+function obtenerMiembrosDeGrupo(inscripcion) {
+  const miembros = [inscripcion.nombre];
+  if (inscripcion.integrantes) {
+    inscripcion.integrantes.split(";").map((s) => s.trim()).filter(Boolean).forEach((n) => {
+      if (!miembros.includes(n)) miembros.push(n);
+    });
+  }
+  return miembros;
+}
+
+// Si "autoevaluacion" guardada trae directamente las claves de la
+// rúbrica (contenido, creatividad, ...) es el formato viejo — una sola
+// autoevaluación para todo el grupo. Se usa para no perder lo ya
+// guardado al editar una entrega antigua.
+const RUBRICA_IDS = new Set(RUBRICA.map((r) => r.id));
+function esAutoevaluacionFormatoAntiguo(previo) {
+  return !!previo && Object.keys(previo).some((k) => RUBRICA_IDS.has(k));
+}
+
 function abrirModalEntrega(inscripcion) {
   inscripcionEntregando = inscripcion;
   const act = CATALOGO.find((a) => a.id === inscripcion.actividad_id);
@@ -590,34 +705,68 @@ function abrirModalEntrega(inscripcion) {
   document.getElementById("entrega-error").hidden = true;
 
   const previo = inscripcion.autoevaluacion || {};
+  const formatoAntiguo = esAutoevaluacionFormatoAntiguo(previo);
+  const miembros = obtenerMiembrosDeGrupo(inscripcion);
+
   const rubricaCont = document.getElementById("rubrica-cont");
-  rubricaCont.innerHTML = RUBRICA.map((r) => `
-    <div class="rubrica-fila">
-      <label for="rub-${r.id}">${r.etiqueta}</label>
-      <select id="rub-${r.id}" data-id="${r.id}">
-        ${[5, 4, 3, 2, 1].map((n) => `<option value="${n}" ${previo[r.id] === n ? "selected" : ""}>${n}</option>`).join("")}
-      </select>
-    </div>
-  `).join("");
+  rubricaCont.innerHTML = miembros.map((nombre, idx) => {
+    // Formato viejo: solo se le puede recuperar el valor guardado al
+    // líder (idx 0), porque antes no se guardaba por persona.
+    const previoEstudiante = formatoAntiguo ? (idx === 0 ? previo : {}) : (previo[nombre] || {});
+    return `
+      <div class="rubrica-estudiante" data-nombre="${escapeHtml(nombre)}">
+        <h4 class="rubrica-estudiante-nombre">${idx === 0 ? "👑 " : "🙋 "}${escapeHtml(nombre)}${idx === 0 ? " (líder)" : ""}</h4>
+        ${RUBRICA.map((r) => `
+          <div class="rubrica-fila">
+            <label for="rub-${idx}-${r.id}">${r.etiqueta}</label>
+            <select id="rub-${idx}-${r.id}" data-id="${r.id}">
+              ${[5, 4, 3, 2, 1].map((n) => `<option value="${n}" ${previoEstudiante[r.id] === n ? "selected" : ""}>${n}</option>`).join("")}
+            </select>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }).join("");
   rubricaCont.querySelectorAll("select").forEach((sel) => sel.addEventListener("change", actualizarNotaPreview));
   actualizarNotaPreview();
 
   modalEntrega.hidden = false;
 }
 
+// Calcula la nota de cada integrante por separado (cada uno se evalúa
+// con las mismas 7 preguntas, sobre 35 puntos).
 function calcularNotaAutoevaluacion() {
-  const valores = RUBRICA.map((r) => parseInt(document.getElementById(`rub-${r.id}`).value, 10));
-  const puntos = valores.reduce((a, b) => a + b, 0);
-  const porcentaje = Math.round((puntos / (RUBRICA.length * 5)) * 100);
-  const nota = window.calcularNotaMeduca ? window.calcularNotaMeduca(porcentaje) : null;
-  return { puntos, porcentaje, nota };
+  const bloques = document.querySelectorAll("#rubrica-cont .rubrica-estudiante");
+  return [...bloques].map((bloque) => {
+    const nombre = bloque.dataset.nombre;
+    const valores = RUBRICA.map((r) => parseInt(bloque.querySelector(`select[data-id="${r.id}"]`).value, 10));
+    const puntos = valores.reduce((a, b) => a + b, 0);
+    const porcentaje = Math.round((puntos / (RUBRICA.length * 5)) * 100);
+    const nota = window.calcularNotaMeduca ? window.calcularNotaMeduca(porcentaje) : null;
+    return { nombre, puntos, porcentaje, nota };
+  });
 }
 
+// Muestra, al final del formulario, la nota de cada integrante y la
+// suma/promedio del grupo — así se ve de una vez lo que le va a quedar
+// a cada quien antes de guardar.
 function actualizarNotaPreview() {
-  const { puntos, porcentaje, nota } = calcularNotaAutoevaluacion();
+  const resultados = calcularNotaAutoevaluacion();
   const p = document.getElementById("entrega-nota-preview");
+  if (resultados.length === 0) { p.hidden = true; return; }
+
   p.hidden = false;
-  p.textContent = `Autoevaluación: ${puntos}/${RUBRICA.length * 5} puntos (${porcentaje}%) → nota MEDUCA ${nota !== null ? nota.toFixed(1) : "-"}`;
+  const filas = resultados.map((r) =>
+    `${escapeHtml(r.nombre)}: ${r.puntos}/${RUBRICA.length * 5} pts (${r.porcentaje}%) → nota MEDUCA <b>${r.nota !== null ? r.nota.toFixed(1) : "-"}</b>`
+  ).join("<br>");
+
+  const notasValidas = resultados.map((r) => r.nota).filter((n) => n !== null);
+  const sumaPuntos = resultados.reduce((a, r) => a + r.puntos, 0);
+  const promedio = notasValidas.length ? notasValidas.reduce((a, b) => a + b, 0) / notasValidas.length : null;
+
+  p.innerHTML = filas +
+    `<br><br>Suma total del grupo: <b>${sumaPuntos}/${RUBRICA.length * 5 * resultados.length} pts</b>` +
+    (promedio !== null ? ` — Promedio del grupo: <b>${promedio.toFixed(1)}</b>` : "");
 }
 
 document.getElementById("btn-cerrar-modal-entrega").addEventListener("click", () => { modalEntrega.hidden = true; });
@@ -631,9 +780,16 @@ document.getElementById("btn-guardar-entrega").addEventListener("click", async (
   const videoUrl = document.getElementById("entrega-video").value.trim();
   if (!fotoUrl) { errorBox.textContent = "Pega el link de la foto del proyecto terminado."; errorBox.hidden = false; return; }
 
+  const resultados = calcularNotaAutoevaluacion();
   const autoevaluacion = {};
-  RUBRICA.forEach((r) => { autoevaluacion[r.id] = parseInt(document.getElementById(`rub-${r.id}`).value, 10); });
-  const { nota } = calcularNotaAutoevaluacion();
+  const autoevaluacion_nota = {};
+  document.querySelectorAll("#rubrica-cont .rubrica-estudiante").forEach((bloque) => {
+    const nombre = bloque.dataset.nombre;
+    const valores = {};
+    RUBRICA.forEach((r) => { valores[r.id] = parseInt(bloque.querySelector(`select[data-id="${r.id}"]`).value, 10); });
+    autoevaluacion[nombre] = valores;
+  });
+  resultados.forEach((r) => { autoevaluacion_nota[r.nombre] = r.nota !== null ? Number(r.nota.toFixed(1)) : null; });
   const observacion = document.getElementById("entrega-observacion").value.trim();
 
   const btn = document.getElementById("btn-guardar-entrega");
@@ -642,7 +798,7 @@ document.getElementById("btn-guardar-entrega").addEventListener("click", async (
     entrega_foto_url: fotoUrl,
     entrega_video_url: videoUrl || null,
     autoevaluacion,
-    autoevaluacion_nota: nota !== null ? Number(nota.toFixed(1)) : null,
+    autoevaluacion_nota,
     observacion_participacion: observacion || null,
     entregado_at: new Date().toISOString(),
   }).eq("id", inscripcionEntregando.id);
