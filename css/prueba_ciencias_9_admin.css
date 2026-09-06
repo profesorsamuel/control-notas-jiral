@@ -10,7 +10,10 @@
 .admin-header-botones button { padding: 10px 14px; }
 
 .admin-resumen {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px;
+  /* auto-fit en vez de un número fijo de columnas: así se acomoda solo
+     sin dejar una tarjeta huérfana, sea que haya 4 o 5 (con la de
+     "Intentos de práctica" agregada). */
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 18px;
 }
 .admin-stat {
   background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px; text-align: center;
