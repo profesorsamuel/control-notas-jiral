@@ -135,7 +135,15 @@ function actualizarCuentaRegresiva() {
   btn.disabled = false;
   btn.textContent = "Continuar →";
 
-  if (ahora > fLimite) {
+  // Si esta página no tiene botón de examen oficial (se quitó del HTML),
+  // el examen queda solo en modo práctica y no aplica ningún mensaje de
+  // cierre de horario oficial.
+  const soloPractica = !document.getElementById("btn-oficial");
+
+  if (soloPractica) {
+    titulo.textContent = "El examen ya está disponible";
+    fechaTxt.textContent = "Puedes practicar este tema cuando quieras.";
+  } else if (ahora > fLimite) {
     titulo.textContent = "El horario del examen oficial ya cerró";
     fechaTxt.textContent = "Puedes seguir practicando, pero el examen oficial ya no está disponible.";
   } else {
@@ -290,12 +298,25 @@ async function cargarMenu() {
   document.getElementById("menu-saludo").textContent = MODO_VISTA_PREVIA
     ? "Vista previa de administrador 🔍"
     : `Hola, ${estudiante.nombre.split(" ")[0]} 👋`;
+
+  const btnOficial = document.getElementById("btn-oficial");
+  const aviso = document.getElementById("menu-aviso");
+
+  // Esta página no tiene botón de examen oficial (se quitó del HTML):
+  // el examen queda disponible solo en modo práctica.
+  if (!btnOficial) {
+    document.getElementById("menu-info").textContent = MODO_VISTA_PREVIA
+      ? "Puedes probar la práctica tal como la ve un estudiante. Nada de esto se guarda."
+      : `${estudiante.salon.replace(/(\d+)([A-Z])/, "$1°$2")} · ¡Que tengas una buena práctica!`;
+    if (aviso) aviso.hidden = true;
+    document.getElementById("btn-practica").onclick = () => iniciarQuiz("practica");
+    return;
+  }
+
   document.getElementById("menu-info").textContent = MODO_VISTA_PREVIA
     ? "Puedes probar la práctica y el examen oficial tal como los ve un estudiante. Nada de esto se guarda."
     : `${estudiante.salon.replace(/(\d+)([A-Z])/, "$1°$2")} · Confirma que la información sea correcta antes de presentar tu examen oficial.`;
 
-  const btnOficial = document.getElementById("btn-oficial");
-  const aviso = document.getElementById("menu-aviso");
   aviso.hidden = true;
   btnOficial.disabled = false;
   btnOficial.innerHTML = `📝 Presentar examen oficial<br><small>25 preguntas · un solo intento · cuenta para tu nota</small>`;
