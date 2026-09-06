@@ -246,17 +246,28 @@ document.querySelectorAll(".filtro-btn").forEach((btn) => {
 });
 
 function renderTablero() {
-  const porActividad = {};
-  inscripciones.forEach((i) => { porActividad[i.actividad_id] = i; });
-
   const miInscripcion = inscripciones.find((i) => i.cedula === estudiante.cedula);
   const cont = document.getElementById("mi-inscripcion-cont");
-  if (miInscripcion) {
+  const filtroCont = document.getElementById("filtro-estado-cont");
+  const grid = document.getElementById("actividades-grid");
+
+  // Un estudiante normal que YA tiene su actividad ya no necesita ver
+  // el resto del catálogo — se le queda solo su propia actividad
+  // (con la descripción completa, para no perder la instrucción de
+  // cómo hacerla) y el botón de entrega. El profesor sigue viendo
+  // todo, para poder monitorear a todos los grupos.
+  if (miInscripcion && !esProfesor) {
     const act = CATALOGO.find((a) => a.id === miInscripcion.actividad_id);
     const yaEntrego = !!miInscripcion.entregado_at;
     cont.innerHTML = `
       <div class="mi-inscripcion-card">
         ✅ Tu grupo ya está inscrito en: <b>${act ? escapeHtml(act.titulo) : miInscripcion.actividad_id}</b> (líder: tú, ${escapeHtml(estudiante.nombre)}).
+        ${act ? `
+          <div class="entrega-resumen">
+            <span class="actividad-zona">${escapeHtml(act.zona)}</span><br>
+            ${escapeHtml(act.descripcion)}
+          </div>` : ""}
+        ${miInscripcion.integrantes ? `<p style="font-size:13px; color:var(--muted); margin-top:8px;">Equipo: ${escapeHtml(miInscripcion.integrantes)}</p>` : ""}
         ${yaEntrego
           ? `<div class="entrega-resumen">
                ✅ <b>Ya entregaste</b> el ${new Date(miInscripcion.entregado_at).toLocaleString("es-PA")}.
@@ -264,7 +275,7 @@ function renderTablero() {
                ${miInscripcion.entrega_video_url ? `<br>🎬 <a href="${escapeHtml(miInscripcion.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a>` : ""}
                ${miInscripcion.autoevaluacion_nota !== null && miInscripcion.autoevaluacion_nota !== undefined ? `<br>📝 Tu autoevaluación: <b>${miInscripcion.autoevaluacion_nota}</b> (nota MEDUCA)` : ""}
              </div>
-             <button id="btn-abrir-entrega" class="link" style="padding:8px 0;">✏️ Editar mi entrega</button>`
+             <button id="btn-abrir-entrega" class="wide" style="margin-top:12px;">✏️ Editar mi entrega</button>`
           : `<button id="btn-abrir-entrega" class="wide" style="margin-top:12px;">📤 Entregar mi actividad</button>`}
         <button id="btn-liberar-mi-grupo" class="link" style="padding:8px 0; color:var(--red);">🗑️ Liberar mi grupo (elegir otra actividad)</button>
       </div>`;
@@ -276,15 +287,31 @@ function renderTablero() {
       if (error) { alert("No se pudo liberar tu grupo: " + error.message); return; }
       await cargarTablero();
     });
+
+    // Se esconde el resto del catálogo — ya no hace falta.
+    filtroCont.hidden = true;
+    grid.hidden = true;
+    return;
+  }
+
+  filtroCont.hidden = false;
+  grid.hidden = false;
+
+  if (miInscripcion) {
+    // Esta rama solo la ve el profesor (si entró identificado como un
+    // estudiante que también tiene actividad, caso raro pero posible).
+    cont.innerHTML = `<div class="mi-inscripcion-card">✅ Ya tienes una actividad reclamada, pero como modo profesor sigues viendo el catálogo completo abajo.</div>`;
   } else {
     cont.innerHTML = `<p class="lead" style="margin-top:12px;">Todavía no has reclamado ninguna actividad — elige una de la lista de abajo.</p>`;
   }
+
+  const porActividad = {};
+  inscripciones.forEach((i) => { porActividad[i.actividad_id] = i; });
 
   let lista = CATALOGO;
   if (filtroActual === "disponibles") lista = CATALOGO.filter((a) => !porActividad[a.id]);
   if (filtroActual === "tomadas") lista = CATALOGO.filter((a) => porActividad[a.id]);
 
-  const grid = document.getElementById("actividades-grid");
   grid.innerHTML = lista.map((a) => {
     const tomada = porActividad[a.id];
     if (!tomada) {
