@@ -70,6 +70,13 @@
   .mini-autoeval { border-collapse: collapse; font-size: 12px; margin-top: 4px; }
   .mini-autoeval th, .mini-autoeval td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
   .mini-autoeval th { background: #f5f7fa; font-weight: 800; color: var(--navy); }
+  .eval-profesor-cont {
+    background: #f0f6ff; border: 1px solid #cbe0fb; border-radius: 12px;
+    padding: 10px 12px; margin-top: 10px;
+  }
+  .eval-profesor-cont label { font-size: 12px; font-weight: 800; color: var(--navy); margin: 0; }
+  .eval-profesor-fila { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+  .eval-profesor-fila input { width: 70px; margin: 0; padding: 8px; }
 </style>
 </head>
 <body>
@@ -207,6 +214,15 @@
 
       <label for="entrega-foto">Link de la foto del proyecto terminado
         <input id="entrega-foto" type="text" placeholder="Pega aquí el link (Google Drive, Fotos, etc.)">
+      </label>
+      <label for="entrega-foto2">Foto adicional 1 — el grupo trabajando (opcional)
+        <input id="entrega-foto2" type="text" placeholder="Pega aquí el link (opcional)">
+      </label>
+      <label for="entrega-foto3">Foto adicional 2 — haciendo la actividad (opcional)
+        <input id="entrega-foto3" type="text" placeholder="Pega aquí el link (opcional)">
+      </label>
+      <label for="entrega-foto4">Foto adicional 3 — otro momento del proceso (opcional)
+        <input id="entrega-foto4" type="text" placeholder="Pega aquí el link (opcional)">
       </label>
       <label for="entrega-video">Link del video explicativo (todos explican su parte)
         <input id="entrega-video" type="text" placeholder="Pega aquí el link (YouTube, Drive, etc.)">
