@@ -76,6 +76,28 @@
 
   <div id="deco-modo-profesor" class="deco-modo-profesor" hidden>👩‍🏫 Modo profesor activado — puedes liberar cupos</div>
 
+  <!-- ===================== VISTA: PANEL PROFESOR ===================== -->
+  <section id="vista-profesor-deco" class="card" hidden>
+    <p class="tag">PANEL DEL PROFESOR</p>
+    <h2>Catálogo completo — Decoremos el salón</h2>
+    <p class="lead">
+      Aquí ves las 3 secciones (9A, 9B, 9C) como un solo salón: quién
+      reclamó cada actividad, si ya entregó, y puedes liberar un cupo si
+      un grupo necesita cambiar. Cada estudiante, en cambio, solo ve su
+      propia actividad una vez que la reclama.
+    </p>
+
+    <div class="filtro-estado">
+      <button class="filtro-btn-profesor activo" data-filtro="todas">Todas</button>
+      <button class="filtro-btn-profesor" data-filtro="disponibles">Solo disponibles</button>
+      <button class="filtro-btn-profesor" data-filtro="tomadas">Solo tomadas</button>
+    </div>
+
+    <div id="actividades-grid-profesor" class="actividades-grid"></div>
+
+    <button id="btn-entrar-como-estudiante" class="link" style="margin-top:16px;">🎓 Entrar como estudiante en su lugar (para probar cómo lo ven ellos)</button>
+  </section>
+
   <!-- ===================== VISTA: REGISTRO ===================== -->
   <section id="vista-registro-deco" class="card">
     <p class="tag">REGISTRO</p>
@@ -135,6 +157,7 @@
     <div id="actividades-grid" class="actividades-grid"></div>
 
     <button id="btn-cambiar-usuario-deco" class="link">No soy yo / cambiar estudiante</button>
+    <button id="btn-salir-prueba-estudiante" class="link" hidden>👩‍🏫 Salir del modo prueba y volver a mi panel de profesor</button>
   </section>
 
   <!-- ===================== MODAL: RECLAMAR ===================== -->
