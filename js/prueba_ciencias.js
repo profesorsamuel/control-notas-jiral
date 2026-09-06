@@ -129,37 +129,22 @@ function actualizarCuentaRegresiva() {
   const cont = document.getElementById("cuenta-regresiva");
   const btn = document.getElementById("btn-continuar-inicio");
 
-  const opcionesFecha = { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" };
-  fechaTxt.textContent = `El examen oficial se presenta el: ${fInicio.toLocaleString("es-PA", opcionesFecha)}`;
-
-  // La inscripción (registrarse por primera vez) SÍ está abierta desde ya,
-  // solo se cierra para estudiantes nuevos después de fechaLimiteInscripcion.
-  // El botón de "Continuar" nunca se bloquea: solo cambia el mensaje.
+  // El examen oficial ya está disponible en cuanto el estudiante entra;
+  // no se hace esperar a una hora de inicio. Solo se avisa si ya cerró.
+  cont.hidden = true;
   btn.disabled = false;
   btn.textContent = "Continuar →";
 
-  if (ahora < fInicio) {
-    cont.hidden = false;
-    titulo.textContent = "Ya puedes inscribirte. El examen oficial comienza en:";
-    const diff = fInicio - ahora;
-    const dias = Math.floor(diff / 86400000);
-    const horas = Math.floor((diff % 86400000) / 3600000);
-    const min = Math.floor((diff % 3600000) / 60000);
-    const seg = Math.floor((diff % 60000) / 1000);
-    document.getElementById("cr-dias").textContent = String(dias).padStart(2, "0");
-    document.getElementById("cr-horas").textContent = String(horas).padStart(2, "0");
-    document.getElementById("cr-min").textContent = String(min).padStart(2, "0");
-    document.getElementById("cr-seg").textContent = String(seg).padStart(2, "0");
-  } else if (ahora <= fLimite) {
-    cont.hidden = true;
-    titulo.textContent = "El examen oficial ya está habilitado";
-  } else {
-    cont.hidden = true;
+  if (ahora > fLimite) {
     titulo.textContent = "El horario del examen oficial ya cerró";
+    fechaTxt.textContent = "Puedes seguir practicando, pero el examen oficial ya no está disponible.";
+  } else {
+    titulo.textContent = "El examen ya está disponible";
+    fechaTxt.textContent = "Puedes practicar y presentar el examen oficial en cuanto estés listo.";
   }
 }
 actualizarCuentaRegresiva();
-setInterval(actualizarCuentaRegresiva, 1000);
+setInterval(actualizarCuentaRegresiva, 30000);
 
 document.getElementById("btn-continuar-inicio").addEventListener("click", () => {
   const guardado = localStorage.getItem(LS_KEY);
@@ -190,6 +175,7 @@ document.getElementById("reg-salon").addEventListener("change", async (e) => {
   selNombre.innerHTML = `<option value="">Cargando…</option>`;
   selNombre.disabled = true;
   inputCedula.value = "";
+  inputCedula.disabled = true;
   if (!salon) {
     selNombre.innerHTML = `<option value="">Selecciona primero tu salón…</option>`;
     return;
@@ -209,25 +195,24 @@ document.getElementById("reg-salon").addEventListener("change", async (e) => {
     data.map((e2) => `<option value="${e2.id}" data-cedula="${e2.cedula || ""}">${e2.nombre}</option>`).join("");
 });
 
-// Al elegir el nombre, la cédula se autocompleta sola (ya vive en la base de
-// datos) — el estudiante solo la confirma visualmente, no la escribe.
+// Al elegir el nombre, la cédula NUNCA se muestra ni se autocompleta.
+// Solo se habilita el campo para que el propio estudiante la escriba;
+// se valida contra la cédula real al presionar "Continuar".
 document.getElementById("reg-nombre").addEventListener("change", (e) => {
   const opt = e.target.selectedOptions[0];
   const inputCedula = document.getElementById("reg-cedula");
   const errorBox = document.getElementById("reg-error");
   errorBox.hidden = true;
-  if (!opt || !opt.value) {
-    inputCedula.value = "";
-    return;
-  }
+  inputCedula.value = "";
+  inputCedula.disabled = true;
+  if (!opt || !opt.value) return;
   const cedula = opt.dataset.cedula || "";
   if (!cedula) {
-    inputCedula.value = "";
     errorBox.textContent = "Este estudiante no tiene cédula registrada en el sistema. Contacta a tu profesor para que la agregue antes de continuar.";
     errorBox.hidden = false;
     return;
   }
-  inputCedula.value = cedula;
+  inputCedula.disabled = false;
 });
 
 document.getElementById("btn-registrar").addEventListener("click", async () => {
@@ -237,15 +222,26 @@ document.getElementById("btn-registrar").addEventListener("click", async () => {
   const salon = document.getElementById("reg-salon").value;
   const selNombre = document.getElementById("reg-nombre");
   const nombreOpt = selNombre.selectedOptions[0];
-  const cedulaRegistrada = document.getElementById("reg-cedula").value;
+  const cedulaReal = nombreOpt ? (nombreOpt.dataset.cedula || "") : "";
+  const cedulaEscrita = document.getElementById("reg-cedula").value;
 
   if (!salon || !nombreOpt || !nombreOpt.value) {
     errorBox.textContent = "Selecciona tu salón y tu nombre.";
     errorBox.hidden = false;
     return;
   }
-  if (!cedulaRegistrada) {
+  if (!cedulaReal) {
     errorBox.textContent = "Este estudiante no tiene cédula registrada en el sistema. Contacta a tu profesor.";
+    errorBox.hidden = false;
+    return;
+  }
+  if (!cedulaEscrita.trim()) {
+    errorBox.textContent = "Escribe tu número de cédula para continuar.";
+    errorBox.hidden = false;
+    return;
+  }
+  if (normalizarCedula(cedulaEscrita) !== normalizarCedula(cedulaReal)) {
+    errorBox.textContent = "La cédula que escribiste no coincide con la registrada para este estudiante. Verifica e intenta de nuevo.";
     errorBox.hidden = false;
     return;
   }
@@ -253,7 +249,7 @@ document.getElementById("btn-registrar").addEventListener("click", async () => {
   estudiante = {
     salon,
     nombre: nombreOpt.textContent,
-    cedula: normalizarCedula(cedulaRegistrada),
+    cedula: normalizarCedula(cedulaReal),
     estudianteId: nombreOpt.value,
   };
 
@@ -327,12 +323,10 @@ async function cargarMenu() {
   } else if (sesion && sesion.estado === "en_progreso") {
     btnOficial.innerHTML = `⏵ Continuar examen oficial<br><small>Tenías un intento en curso, pregunta ${sesion.pregunta_actual + 1} de ${CONFIG.preguntasExamenOficial}</small>`;
   } else {
+    // El examen oficial se habilita apenas el estudiante entra; ya no espera
+    // una hora de inicio. Solo se bloquea si el horario de acceso ya cerró.
     const ahora = new Date();
-    if (ahora < fInicio) {
-      btnOficial.disabled = true;
-      aviso.hidden = false;
-      aviso.textContent = "El examen oficial todavía no ha iniciado. Espera la hora oficial.";
-    } else if (ahora > fLimite) {
+    if (ahora > fLimite) {
       btnOficial.disabled = true;
       aviso.hidden = false;
       aviso.textContent = "El horario de acceso al examen oficial ya cerró.";
