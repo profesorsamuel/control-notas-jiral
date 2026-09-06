@@ -56,23 +56,41 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// Muestra la nota (o notas) de autoevaluación. Soporta el formato nuevo
-// (un objeto { "Nombre del estudiante": nota, ... }, una nota individual
-// por cada integrante) y también el formato viejo (una sola nota de
-// número, de cuando la autoevaluación era una sola para todo el grupo),
-// para que las entregas guardadas antes de este cambio se sigan viendo
-// bien.
-function formatearAutoevaluacionNota(valor) {
-  if (valor === null || valor === undefined) return "";
-  if (typeof valor === "number") {
-    return `<b>${valor}</b> (nota MEDUCA, autoevaluación grupal — formato anterior)`;
+// Muestra la nota (o notas) de autoevaluación como una tabla: cada fila
+// es un estudiante, con su % y su nota MEDUCA al lado. Soporta el
+// formato nuevo (una nota por integrante) y el formato viejo (una sola
+// nota de número para todo el grupo, de antes de este cambio).
+function calcularPorcentajeIndividual(criterios) {
+  if (!criterios || typeof criterios !== "object") return null;
+  const valores = RUBRICA.map((r) => criterios[r.id]).filter((v) => typeof v === "number");
+  if (valores.length === 0) return null;
+  const puntos = valores.reduce((a, b) => a + b, 0);
+  return Math.round((puntos / (RUBRICA.length * 5)) * 100);
+}
+
+function renderTablaAutoevaluacion(registro) {
+  const notas = registro.autoevaluacion_nota;
+  const criteriosPorEstudiante = registro.autoevaluacion;
+
+  if (typeof notas === "number") {
+    return `<span>${notas} (nota MEDUCA, autoevaluación grupal — formato anterior)</span>`;
   }
-  const entradas = Object.entries(valor).filter(([, v]) => v !== null && v !== undefined);
-  if (entradas.length === 0) return "";
-  const lineas = entradas.map(([nombre, nota]) => `${escapeHtml(nombre)}: <b>${nota}</b>`).join(" · ");
-  if (entradas.length === 1) return lineas;
-  const promedio = entradas.reduce((a, [, v]) => a + v, 0) / entradas.length;
-  return `${lineas} <span style="color:var(--muted);">(promedio: ${promedio.toFixed(1)})</span>`;
+  if (!notas || typeof notas !== "object" || Object.keys(notas).length === 0) {
+    return `<span style="color:var(--muted);">Sin autoevaluación todavía</span>`;
+  }
+
+  const filas = Object.keys(notas).map((nombre) => {
+    const nota = notas[nombre];
+    const criterios = (criteriosPorEstudiante && typeof criteriosPorEstudiante === "object") ? criteriosPorEstudiante[nombre] : null;
+    const porcentaje = calcularPorcentajeIndividual(criterios);
+    return `<tr><td>${escapeHtml(nombre)}</td><td>${porcentaje !== null ? porcentaje + "%" : "-"}</td><td>${nota !== null && nota !== undefined ? nota : "-"}</td></tr>`;
+  }).join("");
+
+  return `
+    <table class="mini-autoeval">
+      <thead><tr><th>Estudiante</th><th>%</th><th>Nota</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>`;
 }
 
 const vistaRegistro = document.getElementById("vista-registro-deco");
@@ -347,7 +365,7 @@ function renderTablero() {
                ✅ <b>Ya entregaste</b> el ${new Date(miInscripcion.entregado_at).toLocaleString("es-PA")}.
                ${miInscripcion.entrega_foto_url ? `<br>📷 <a href="${escapeHtml(miInscripcion.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a>` : ""}
                ${miInscripcion.entrega_video_url ? `<br>🎬 <a href="${escapeHtml(miInscripcion.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a>` : ""}
-               ${miInscripcion.autoevaluacion_nota !== null && miInscripcion.autoevaluacion_nota !== undefined ? `<br>📝 Autoevaluación: ${formatearAutoevaluacionNota(miInscripcion.autoevaluacion_nota)}` : ""}
+               ${miInscripcion.autoevaluacion_nota !== null && miInscripcion.autoevaluacion_nota !== undefined ? `<div style="margin-top:8px;">📝 Autoevaluación:${renderTablaAutoevaluacion(miInscripcion)}</div>` : ""}
              </div>
              <button id="btn-abrir-entrega" class="wide" style="margin-top:12px;">✏️ Editar mi entrega</button>`
           : `<button id="btn-abrir-entrega" class="wide" style="margin-top:12px;">📤 Entregar mi actividad</button>`}
@@ -405,7 +423,7 @@ function renderTablero() {
       <div class="entrega-resumen">
         ${tomada.entrega_foto_url ? `📷 <a href="${escapeHtml(tomada.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a><br>` : ""}
         ${tomada.entrega_video_url ? `🎬 <a href="${escapeHtml(tomada.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a><br>` : ""}
-        ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `📝 Autoevaluación: ${formatearAutoevaluacionNota(tomada.autoevaluacion_nota)}<br>` : ""}
+        ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `<div style="margin-top:6px;">📝 Autoevaluación:${renderTablaAutoevaluacion(tomada)}</div>` : ""}
         ${tomada.observacion_participacion ? `⚠️ <b>Observación de participación:</b> ${escapeHtml(tomada.observacion_participacion)}` : `<span style="color:var(--muted);">Sin observaciones de participación.</span>`}
       </div>` : "";
     return `
@@ -467,7 +485,7 @@ function renderPanelProfesor() {
       <div class="entrega-resumen">
         ${tomada.entrega_foto_url ? `📷 <a href="${escapeHtml(tomada.entrega_foto_url)}" target="_blank" rel="noopener">Ver foto</a><br>` : ""}
         ${tomada.entrega_video_url ? `🎬 <a href="${escapeHtml(tomada.entrega_video_url)}" target="_blank" rel="noopener">Ver video</a><br>` : ""}
-        ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `📝 Autoevaluación: ${formatearAutoevaluacionNota(tomada.autoevaluacion_nota)}<br>` : ""}
+        ${tomada.autoevaluacion_nota !== null && tomada.autoevaluacion_nota !== undefined ? `<div style="margin-top:6px;">📝 Autoevaluación:${renderTablaAutoevaluacion(tomada)}</div>` : ""}
         ${tomada.observacion_participacion ? `⚠️ <b>Observación de participación:</b> ${escapeHtml(tomada.observacion_participacion)}` : `<span style="color:var(--muted);">Sin observaciones de participación.</span>`}
       </div>` : "";
     return `
@@ -528,12 +546,7 @@ function renderResumenProfesor() {
     const integrantes = tomada.integrantes
       ? tomada.integrantes.split(";").map((s) => s.trim()).filter(Boolean)
       : [];
-    const evalTexto = (() => {
-      const v = tomada.autoevaluacion_nota;
-      if (v === null || v === undefined) return "Sin autoevaluación todavía";
-      if (typeof v === "object" && Object.keys(v).length === 0) return "Sin autoevaluación todavía";
-      return formatearAutoevaluacionNota(v);
-    })();
+    const evalTexto = renderTablaAutoevaluacion(tomada);
     const estado = tomada.entregado_at
       ? `✅ Entregado (${new Date(tomada.entregado_at).toLocaleDateString("es-PA")})`
       : "⏳ Pendiente de entregar";
