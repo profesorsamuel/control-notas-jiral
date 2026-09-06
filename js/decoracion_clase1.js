@@ -87,6 +87,45 @@ function cargarSalones() {
     CONFIG.salones.map((s) => `<option value="${s}">${s.replace(/(\d+)([A-Z])/, "$1°$2")}</option>`).join("");
 }
 
+// Para el paso de identificación: excluye solo a quienes YA fueron
+// marcados como integrantes de un grupo de otra persona (para que no
+// se registren aparte y reclamen su propia actividad, quedando en dos
+// grupos). A los LÍDERES no se les excluye aquí: alguien que ya lidera
+// una actividad debe poder seguir identificándose (por ejemplo, si
+// entra desde otro dispositivo) para llegar a "Entregar mi actividad".
+function obtenerNombresYaIntegrantes() {
+  const set = new Set();
+  inscripciones.forEach((i) => {
+    if (i.integrantes) {
+      i.integrantes.split(",").map((s) => s.trim()).filter(Boolean).forEach((n) => set.add(n));
+    }
+  });
+  return set;
+}
+
+// Para el checklist de "¿quiénes más son del grupo?": ahí sí se
+// excluye a CUALQUIERA ya comprometido, sea líder o integrante de
+// otra actividad — a esos ya no se les puede volver a marcar.
+function obtenerNombresYaAsignados() {
+  const set = new Set();
+  inscripciones.forEach((i) => {
+    if (i.nombre) set.add(i.nombre);
+    if (i.integrantes) {
+      i.integrantes.split(",").map((s) => s.trim()).filter(Boolean).forEach((n) => set.add(n));
+    }
+  });
+  return set;
+}
+
+// Se trae la lista de inscripciones DESDE ANTES de identificarse, para
+// poder filtrar el selector de nombres del registro (si alguien ya
+// está en un grupo, ni siquiera debe verse ahí como opción).
+async function precargarInscripciones() {
+  const { data, error } = await sb.from(TABLA).select("*");
+  if (error) { console.error("No se pudo precargar inscripciones:", error); return; }
+  inscripciones = data || [];
+}
+
 document.getElementById("reg-salon-deco").addEventListener("change", async (e) => {
   const salon = e.target.value;
   const selNombre = document.getElementById("reg-nombre-deco");
@@ -104,9 +143,15 @@ document.getElementById("reg-salon-deco").addEventListener("change", async (e) =
     selNombre.innerHTML = `<option value="">No se encontraron estudiantes en este salón</option>`;
     return;
   }
+  const yaIntegrantes = obtenerNombresYaIntegrantes();
+  const disponibles = data.filter((e2) => !yaIntegrantes.has(e2.nombre));
   selNombre.disabled = false;
+  if (disponibles.length === 0) {
+    selNombre.innerHTML = `<option value="">Todos en este salón ya están en un grupo</option>`;
+    return;
+  }
   selNombre.innerHTML = `<option value="">Selecciona tu nombre…</option>` +
-    data.map((e2) => `<option value="${e2.id}" data-cedula="${e2.cedula || ""}">${e2.nombre}</option>`).join("");
+    disponibles.map((e2) => `<option value="${e2.id}" data-cedula="${e2.cedula || ""}">${e2.nombre}</option>`).join("");
 });
 
 document.getElementById("reg-nombre-deco").addEventListener("change", (e) => {
@@ -172,6 +217,7 @@ async function cargarCompanerosSalon() {
 
 (async function arrancar() {
   await revisarModoProfesor();
+  await precargarInscripciones();
   const guardado = localStorage.getItem(LS_KEY);
   if (guardado) {
     try { estudiante = JSON.parse(guardado); irAlTablero(); return; } catch { /* sigue a registro */ }
@@ -211,7 +257,6 @@ function renderTablero() {
     cont.innerHTML = `
       <div class="mi-inscripcion-card">
         ✅ Tu grupo ya está inscrito en: <b>${act ? escapeHtml(act.titulo) : miInscripcion.actividad_id}</b> (líder: tú, ${escapeHtml(estudiante.nombre)}).
-        Si necesitas cambiar de actividad, pídele a tu profesor(a) que la libere.
         ${yaEntrego
           ? `<div class="entrega-resumen">
                ✅ <b>Ya entregaste</b> el ${new Date(miInscripcion.entregado_at).toLocaleString("es-PA")}.
@@ -221,8 +266,16 @@ function renderTablero() {
              </div>
              <button id="btn-abrir-entrega" class="link" style="padding:8px 0;">✏️ Editar mi entrega</button>`
           : `<button id="btn-abrir-entrega" class="wide" style="margin-top:12px;">📤 Entregar mi actividad</button>`}
+        <button id="btn-liberar-mi-grupo" class="link" style="padding:8px 0; color:var(--red);">🗑️ Liberar mi grupo (elegir otra actividad)</button>
       </div>`;
     document.getElementById("btn-abrir-entrega").addEventListener("click", () => abrirModalEntrega(miInscripcion));
+    document.getElementById("btn-liberar-mi-grupo").addEventListener("click", async () => {
+      const ok = window.confirm("¿Liberar tu grupo de esta actividad? Se borra todo lo que llevabas (incluida la entrega si ya habías subido algo) y la actividad queda libre para cualquiera. Esta acción no se puede deshacer.");
+      if (!ok) return;
+      const { error } = await sb.from(TABLA).delete().eq("id", miInscripcion.id);
+      if (error) { alert("No se pudo liberar tu grupo: " + error.message); return; }
+      await cargarTablero();
+    });
   } else {
     cont.innerHTML = `<p class="lead" style="margin-top:12px;">Todavía no has reclamado ninguna actividad — elige una de la lista de abajo.</p>`;
   }
@@ -303,13 +356,30 @@ function abrirModal(actividadId) {
 function renderChecklistIntegrantes() {
   const cont = document.getElementById("deco-integrantes-lista");
   const vacio = document.getElementById("deco-integrantes-vacio");
-  if (companerosSalon.length === 0) {
+
+  // Un estudiante que ya es líder de otra actividad, o que ya fue
+  // marcado como integrante de otro grupo, no debe volver a aparecer
+  // aquí — así nadie queda anotado en dos grupos a la vez.
+  const yaAsignados = new Set();
+  inscripciones.forEach((i) => {
+    if (i.nombre) yaAsignados.add(i.nombre);
+    if (i.integrantes) {
+      i.integrantes.split(",").map((s) => s.trim()).filter(Boolean).forEach((n) => yaAsignados.add(n));
+    }
+  });
+
+  const disponibles = companerosSalon.filter((c) => !yaAsignados.has(c.nombre));
+
+  if (disponibles.length === 0) {
     cont.innerHTML = "";
     vacio.hidden = false;
+    vacio.textContent = companerosSalon.length === 0
+      ? "No se encontraron más estudiantes en tu salón."
+      : "Todos tus compañeros de salón ya están en otro grupo.";
     return;
   }
   vacio.hidden = true;
-  cont.innerHTML = companerosSalon.map((c) => `
+  cont.innerHTML = disponibles.map((c) => `
     <label class="integrante-item">
       <input type="checkbox" value="${escapeHtml(c.nombre)}">
       <span>${escapeHtml(c.nombre)}</span>
