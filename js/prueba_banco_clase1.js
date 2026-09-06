@@ -85,10 +85,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "En el contexto del Big Bang, ¿qué es la 'singularidad'?",
     "opciones": [
-      "Una estrella que explotó recientemente",
-      "El nombre del primer planeta formado",
-      "Una galaxia especialmente brillante",
-      "Un punto de densidad infinita donde estaban concentrados toda la materia, energía y espacio del universo"
+      "Una estrella que ya había explotado hace miles de millones de años",
+      "El nombre que los astrónomos dan al primer planeta formado",
+      "Una galaxia extremadamente brillante y visible a simple vista",
+      "El punto de densidad infinita que concentraba toda la materia y energía"
     ],
     "respuesta": 3,
     "explicacion": "La singularidad es el punto de densidad infinita en el que estaban concentrados toda la materia, la energía y el espacio antes de la expansión."
@@ -100,7 +100,7 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué proceso describe la teoría del Big Bang tras el estado de singularidad?",
     "opciones": [
-      "Una expansión acelerada",
+      "Una expansión rápida y acelerada",
       "Una contracción lenta y gradual",
       "Un enfriamiento sin cambios de volumen",
       "Una rotación constante sin cambios"
@@ -115,10 +115,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "Aunque el Big Bang cuenta con amplia evidencia científica, el texto aclara que sigue siendo objeto de investigación. ¿Cuál idea refleja mejor esto?",
     "opciones": [
-      "Ya se sabe todo sobre el Big Bang y no hay nada más que investigar",
-      "La teoría del Big Bang ha sido completamente descartada por la ciencia actual",
-      "Todavía no se comprenden del todo los primeros instantes del universo, la naturaleza de la singularidad, ni qué pudo haber sucedido antes",
-      "El Big Bang solo explica el origen de la Luna, no del universo"
+      "Ya se conoce con total certeza cada detalle sobre el origen del universo, sin dudas pendientes",
+      "La comunidad científica descartó por completo la teoría del Big Bang hace ya varios años",
+      "Todavía no se comprende del todo qué ocurrió en los primeros instantes ni antes del Big Bang",
+      "El Big Bang únicamente explica el origen de la Luna, y no el del universo en general"
     ],
     "respuesta": 2,
     "explicacion": "El texto explica que aún no se comprenden completamente los primeros instantes del universo, la naturaleza de la singularidad ni qué pasó antes del Big Bang."
@@ -220,10 +220,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué ocurrió en el siglo XX, según el texto, respecto a las teorías sobre el origen del sistema solar?",
     "opciones": [
-      "Se abandonó por completo la investigación del tema",
-      "Se comenzó a formular una variedad de nuevas teorías, apoyadas en avances de la astronomía y la astrofísica",
-      "Se demostró que el sistema solar no tiene un origen científico",
-      "Se descubrió el Big Bang por primera vez"
+      "Los científicos abandonaron por completo cualquier investigación sobre este tema",
+      "Surgieron nuevas teorías, apoyadas en avances de la astronomía y la astrofísica",
+      "Se demostró científicamente que el sistema solar carece de un origen natural",
+      "Se descubrió por primera vez la existencia del fenómeno del Big Bang"
     ],
     "respuesta": 1,
     "explicacion": "El texto indica que en el siglo XX surgieron nuevas teorías apoyadas en los avances de la astronomía y la astrofísica."
@@ -250,10 +250,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "El texto pregunta por qué seguimos investigando algo que 'ya tiene una teoría aceptada'. ¿Cuál respuesta refleja mejor la naturaleza de la ciencia?",
     "opciones": [
-      "Porque la ciencia nunca se equivoca y no necesita revisión",
-      "Porque los científicos se aburren y buscan algo que hacer",
-      "Porque una teoría aceptada puede seguir perfeccionándose a medida que aparece nueva evidencia, y aún quedan preguntas sin responder",
-      "Porque el Big Bang ya fue completamente descartado"
+      "Porque la ciencia jamás se equivoca y ninguna teoría necesita revisarse",
+      "Porque a los científicos se les acaban los temas y buscan entretenerse",
+      "Porque una teoría aceptada puede seguir perfeccionándose con nueva evidencia",
+      "Porque la teoría del Big Bang ya quedó completamente descartada por errónea"
     ],
     "respuesta": 2,
     "explicacion": "El conocimiento científico se perfecciona con nueva evidencia; el texto mismo aclara que persisten preguntas abiertas sobre los primeros instantes del universo."
@@ -266,9 +266,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "enunciado": "Un astrónomo mide la luz de varias galaxias lejanas y descubre que casi todas se alejan de la Tierra y entre sí. ¿Qué evidencia del Big Bang confirma esta observación?",
     "opciones": [
       "La expansión constante del universo",
-      "La formación de elementos",
+      "La formación de elementos químicos",
       "La radiación cósmica de fondo",
-      "La teoría de la captura"
+      "La teoría de la captura solar"
     ],
     "respuesta": 0,
     "explicacion": "Que las galaxias se alejen entre sí es precisamente la evidencia de la expansión constante del universo mencionada en el texto."
@@ -325,10 +325,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según la teoría de la acreción, ¿cómo se forman los planetas y otros cuerpos celestes?",
     "opciones": [
-      "Por la fisión de un planeta gigante ya existente",
+      "Por la fisión repentina de un planeta gigante que ya existía",
       "Por la captura directa de planetas ya formados en otro sistema",
-      "Por la colisión de dos estrellas completas",
-      "Mediante la condensación de pequeñas partículas de polvo atraídas entre sí por gravedad"
+      "Por la colisión directa entre dos estrellas ya completamente formadas",
+      "Por la condensación de partículas de polvo atraídas entre sí por gravedad"
     ],
     "respuesta": 3,
     "explicacion": "La teoría de la acreción explica la formación de los planetas mediante la condensación de partículas de polvo atraídas por la fuerza de gravedad."
@@ -340,10 +340,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según la teoría de la acreción, ¿qué papel jugó otra estrella en la formación del sistema solar?",
     "opciones": [
-      "Ayudó al Sol a capturar la materia de la nube al pasar juntos por una nebulosa rica en polvo y gas",
-      "Ninguno, la teoría no menciona otra estrella",
-      "Chocó directamente contra el Sol",
-      "Se convirtió en uno de los planetas del sistema solar"
+      "Ayudó al Sol a capturar materia al pasar juntos por una nebulosa de polvo y gas",
+      "Ninguno; esta teoría en particular no hace mención de otra estrella",
+      "Chocó de forma directa y violenta contra la superficie del Sol",
+      "Terminó convirtiéndose en uno más de los planetas del sistema solar"
     ],
     "respuesta": 0,
     "explicacion": "La cercanía de otra estrella, al pasar junto al Sol por una nebulosa rica en polvo y gas, ayudó al Sol a capturar la materia que dio origen a los planetas."
@@ -355,10 +355,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "En la teoría de los planetesimales (protoplanetas), ¿qué es el 'protosol'?",
     "opciones": [
-      "Un planeta ya completamente formado",
-      "Un tipo de cometa muy antiguo",
-      "El centro denso que se formó dentro de la nebulosa solar",
-      "El nombre de la primera estrella descubierta"
+      "Un planeta que ya estaba completamente formado",
+      "Un tipo de cometa sumamente antiguo y helado",
+      "El centro denso formado dentro de la nebulosa solar",
+      "El nombre dado a la primera estrella descubierta"
     ],
     "respuesta": 2,
     "explicacion": "Según esta teoría, la nube interestelar densa formó la nebulosa solar, la cual desarrolló un centro denso llamado protosol."
@@ -370,10 +370,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según el vocabulario clave del texto, ¿qué son los 'protoplanetas'?",
     "opciones": [
-      "Estrellas moribundas que ya perdieron todo su brillo",
-      "Satélites artificiales creados por la NASA",
-      "Fragmentos de la Luna esparcidos por el sistema solar",
-      "Cuerpos celestes del tamaño aproximado de la Luna que dieron origen a los planetas"
+      "Estrellas moribundas que ya habían perdido por completo su brillo",
+      "Satélites artificiales que fueron creados y lanzados por la NASA",
+      "Fragmentos desprendidos de la Luna esparcidos por el sistema solar",
+      "Cuerpos celestes del tamaño aproximado de la Luna, origen de los planetas"
     ],
     "respuesta": 3,
     "explicacion": "El texto define a los protoplanetas como cuerpos celestes de tamaño aproximado al de la Luna, presentes en los discos protoplanetarios."
@@ -385,10 +385,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué son los 'planetesimales', según el texto?",
     "opciones": [
-      "Planetas enanos ya completamente formados",
-      "Cuerpos de hasta 1 kilómetro de diámetro que colisionan por atracción gravitacional y dan origen a los protoplanetas",
-      "Estrellas muy pequeñas del tamaño de Marte",
-      "Restos de cometas que ya se desintegraron"
+      "Planetas enanos que ya estaban completamente formados desde el inicio",
+      "Cuerpos de hasta 1 km de diámetro que colisionan y dan origen a los protoplanetas",
+      "Estrellas de un tamaño muy reducido, similar al del planeta Marte",
+      "Restos de cometas antiguos que ya se habían desintegrado por completo"
     ],
     "respuesta": 1,
     "explicacion": "Los planetesimales son cuerpos de hasta 1 km de diámetro que se atraen entre sí por gravedad y colisionan, dando origen a los protoplanetas."
@@ -416,9 +416,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "enunciado": "Cuando el protosol se comprimió por la fuerza de gravedad, ¿qué ocurrió, según el texto?",
     "opciones": [
       "Se calentó y arrojó gran parte del resto de la nube hacia el espacio",
-      "Se enfrió instantáneamente y dejó de existir",
-      "Se convirtió inmediatamente en un agujero negro",
-      "Se dividió en dos estrellas idénticas"
+      "Se enfrió de manera instantánea y simplemente dejó de existir",
+      "Se transformó de inmediato en un pequeño agujero negro",
+      "Se dividió repentinamente en dos estrellas completamente idénticas"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que, al comprimirse por gravedad, el protosol se calentó y arrojó gran parte del resto de la nube hacia el espacio."
@@ -430,10 +430,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "Según la teoría de Laplace, ¿cómo se formaron el Sol y los planetas?",
     "opciones": [
-      "De una nebulosa en rotación que se enfrió y se condensó en anillos, los cuales dieron origen a los planetas",
-      "De la colisión de dos protoestrellas gigantes",
-      "De la fragmentación repentina del Sol ya formado",
-      "De material capturado de una galaxia vecina"
+      "De una nebulosa en rotación que se enfrió y formó anillos, origen de los planetas",
+      "De la colisión violenta entre dos enormes protoestrellas gigantes",
+      "De la fragmentación repentina de un Sol que ya estaba formado",
+      "De material que fue capturado desde una galaxia vecina cercana"
     ],
     "respuesta": 0,
     "explicacion": "La teoría de Laplace propone que una nebulosa en rotación se enfrió y condensó en anillos que dieron origen a los planetas, mientras la masa central formó el Sol."
@@ -445,10 +445,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según la teoría de la captura, ¿qué hizo el Sol para dar origen a los planetas?",
     "opciones": [
-      "Absorbió por completo a otra estrella",
-      "Se dividió en varias partes iguales",
-      "Interactuó con una protoestrella cercana, extrayendo de ella un filamento de materia",
-      "Capturó planetas ya formados de otro sistema solar"
+      "Absorbió por completo la masa de otra estrella cercana",
+      "Se dividió espontáneamente en varias partes exactamente iguales",
+      "Interactuó con una protoestrella cercana y extrajo un filamento de materia",
+      "Capturó varios planetas que ya estaban formados en otro sistema"
     ],
     "respuesta": 2,
     "explicacion": "La teoría de la captura asume que el Sol interactuó con una protoestrella cercana, extrayendo de ella un filamento de materia que después formó los planetas."
@@ -460,10 +460,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Qué característica del Sol explica la teoría de la captura, según el texto?",
     "opciones": [
-      "Su alta temperatura superficial",
+      "Su temperatura superficial inusualmente alta comparada con otras estrellas",
       "Su baja velocidad de rotación, por haberse formado antes que los planetas",
-      "Su color amarillo",
-      "Su cercanía a la Tierra"
+      "Su característico color amarillo, parecido al de muchas otras estrellas",
+      "Su relativa cercanía a la Tierra dentro de todo el sistema solar"
     ],
     "respuesta": 1,
     "explicacion": "La teoría de la captura explica la baja velocidad de rotación del Sol por su formación anterior a la de los planetas."
@@ -475,10 +475,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Qué fenómeno observado en otros sistemas planetarios NO logra explicar la teoría de los protoplanetas (discos protoplanetarios), según el texto?",
     "opciones": [
-      "Por qué el Sol tiene manchas solares",
-      "Por qué la Tierra tiene una sola Luna",
-      "Por qué Júpiter es el planeta más grande",
-      "Por qué algunos planetas descubiertos tienen órbitas alargadas, ovaladas o incluso un movimiento 'hacia atrás'"
+      "Por qué el Sol presenta manchas oscuras en su superficie visible",
+      "Por qué la Tierra cuenta únicamente con una sola Luna natural",
+      "Por qué Júpiter resulta ser el planeta más grande del sistema solar",
+      "Por qué algunos planetas descubiertos tienen órbitas alargadas o retrógradas"
     ],
     "respuesta": 3,
     "explicacion": "El texto indica que esta teoría no logra explicar por qué algunos planetas descubiertos tienen órbitas alargadas, ovaladas o retrógradas."
@@ -506,9 +506,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "enunciado": "Según la teoría de los planetesimales, ¿dónde se formaron los planetas gigantes de composición gaseosa?",
     "opciones": [
       "A una distancia superior a las 3 unidades astronómicas (UA)",
-      "Muy cerca de la estrella central, a menos de 1 UA",
-      "Fuera por completo del sistema solar",
-      "Solo dentro del cinturón de asteroides"
+      "Muy cerca de la estrella central, a menos de 1 unidad astronómica",
+      "Completamente fuera de los límites del sistema solar",
+      "Únicamente dentro de los límites del cinturón de asteroides"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que los planetas gigantes gaseosos se formaron a una distancia superior a las 3 unidades astronómicas."
@@ -520,10 +520,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "El texto pregunta: si hay tantas teorías distintas sobre la formación del sistema solar, ¿significa que los científicos 'no saben' la respuesta?",
     "opciones": [
-      "Sí, significa que ningún científico tiene idea del tema",
-      "Sí, porque la ciencia solo acepta una única teoría para siempre, sin excepciones",
-      "No, porque todas las teorías son igual de válidas y ninguna es más aceptada que otra",
-      "No necesariamente; distintas teorías reflejan distintos intentos de explicar la evidencia disponible, y una de ellas (la nebulosa) es actualmente la más respaldada"
+      "Sí, esto demuestra que ningún científico ha tenido jamás una idea clara sobre el tema",
+      "Sí, porque la ciencia solo puede aceptar una única teoría para siempre, sin excepción",
+      "No, porque todas las teorías tienen exactamente la misma validez y ninguna es más aceptada",
+      "No necesariamente; cada teoría fue un intento de explicar la evidencia, y la nebulosa es hoy la más aceptada"
     ],
     "respuesta": 3,
     "explicacion": "La existencia de varias teorías refleja el proceso de construcción del conocimiento científico; actualmente la teoría de la nebulosa es la más aceptada, sin que eso signifique que las demás no aportaron ideas."
@@ -535,10 +535,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Qué papel juega el descubrimiento de nuevos planetas y sistemas planetarios en poner a prueba las teorías sobre el origen del sistema solar?",
     "opciones": [
-      "Ninguno, las teorías no pueden cambiar nunca",
-      "Permite comparar lo observado con lo que predice cada teoría, y así reforzar o cuestionar sus explicaciones",
-      "Solo sirve para nombrar nuevos planetas, sin relación con las teorías",
-      "Hace que todas las teorías anteriores queden automáticamente descartadas"
+      "Ningún papel; las teorías científicas jamás pueden ser modificadas ni revisadas",
+      "Permite comparar lo observado con las predicciones de cada teoría, reforzándolas",
+      "Solo sirve para asignar nombre a los nuevos planetas que se van descubriendo",
+      "Hace que todas las teorías anteriores queden automáticamente descartadas para siempre"
     ],
     "respuesta": 1,
     "explicacion": "Los nuevos descubrimientos permiten contrastar la evidencia observada con las predicciones de cada teoría, ayudando a reforzarlas o cuestionarlas."
@@ -550,9 +550,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "Los astrónomos descubren un planeta con una órbita muy alargada y con movimiento 'hacia atrás' respecto a su estrella. ¿Qué teoría tendría más dificultad para explicar este caso?",
     "opciones": [
-      "La teoría de la nebulosa",
-      "La teoría de los protoplanetas (discos protoplanetarios)",
-      "La teoría del Big Bang",
+      "La teoría clásica de la nebulosa solar",
+      "La teoría de los discos protoplanetarios",
+      "La teoría del Big Bang inicial",
       "La teoría de la radiación cósmica de fondo"
     ],
     "respuesta": 1,
@@ -566,8 +566,8 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "enunciado": "¿Qué tienen en común la teoría de la acreción y la teoría de la captura, según el texto?",
     "opciones": [
       "Ambas afirman que el sistema solar no tiene un origen físico",
-      "Ambas niegan la existencia de los planetas gaseosos",
-      "Ambas fueron formuladas por Descartes en el siglo XVII",
+      "Ambas niegan por completo la existencia de planetas gaseosos",
+      "Ambas teorías fueron formuladas originalmente por Descartes",
       "Ambas involucran la interacción del Sol o su nube con otra estrella cercana"
     ],
     "respuesta": 3,
@@ -581,9 +581,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "enunciado": "¿En qué se basa la teoría moderna de la nebulosa, según el texto?",
     "opciones": [
       "En el descubrimiento de otros sistemas planetarios, como Beta Pictoris",
-      "Únicamente en cálculos matemáticos sin observación",
-      "En la mitología griega antigua",
-      "En la exploración de la Luna realizada por la NASA"
+      "Únicamente en cálculos matemáticos, sin ningún tipo de observación",
+      "En relatos y leyendas antiguas de la mitología griega clásica",
+      "En la exploración lunar realizada por la agencia espacial NASA"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que la teoría moderna de la nebulosa se basa en el descubrimiento de otros sistemas planetarios, como Beta Pictoris."
@@ -596,9 +596,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "enunciado": "En las estrellas jóvenes observadas, ¿por qué se genera una diferencia de velocidades de rotación entre el centro y el exterior de la estrella?",
     "opciones": [
       "Porque el centro de la estrella gira en sentido contrario al exterior",
-      "Porque el exterior del disco no tiene ninguna masa",
-      "Porque el exterior del disco recibe más energía y se frena menos que el centro, donde se concentra la mayoría de la masa",
-      "Porque la gravedad no actúa en la zona exterior del disco"
+      "Porque la zona exterior del disco prácticamente no posee masa alguna",
+      "Porque el exterior del disco recibe más energía y se frena menos que el centro",
+      "Porque la fuerza de gravedad no actúa en la zona exterior del disco"
     ],
     "respuesta": 2,
     "explicacion": "El texto explica que la zona exterior del disco recibe más energía y se frena menos, generando una diferencia de velocidades respecto al centro, donde se concentra la mayor parte de la masa."
@@ -625,10 +625,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "Según el texto, ¿qué proceso dio origen al sistema solar?",
     "opciones": [
-      "La explosión de un agujero negro",
+      "La explosión repentina de un enorme agujero negro cercano",
       "El colapso gravitacional de una pequeña parte de una nebulosa gigante",
-      "La captura de un planeta ya formado por el Sol",
-      "La fusión de dos sistemas solares completos"
+      "La captura de un planeta que ya estaba formado por el Sol",
+      "La fusión completa entre dos sistemas solares distintos"
     ],
     "respuesta": 1,
     "explicacion": "El texto señala que la formación del sistema solar comenzó con el colapso gravitacional de una pequeña parte de una nebulosa gigante."
@@ -655,10 +655,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Qué evidencia menciona el texto que sugiere que hubo una supernova cerca del origen del sistema solar?",
     "opciones": [
-      "Los elementos que se observan en el sistema solar",
-      "La forma esférica de la Tierra",
-      "La existencia de la Luna",
-      "El color amarillo del Sol"
+      "Los elementos químicos que se observan hoy en el sistema solar",
+      "La forma esférica que presenta actualmente la Tierra",
+      "La existencia misma de la Luna en el cielo nocturno",
+      "El color amarillo característico que presenta el Sol"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que los elementos observados en el sistema solar indican que debió haber una supernova cerca de su origen."
@@ -670,9 +670,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "En el modelo moderno, ¿cómo se formó el Sol?",
     "opciones": [
-      "A partir de un protosol que concentró la mayor parte de la masa en el centro de la nebulosa",
-      "A partir de la fusión de varios planetas ya existentes",
-      "Capturando materia de otra galaxia distinta a la Vía Láctea",
+      "A partir de un protosol que concentró la mayor parte de la masa central",
+      "A partir de la fusión repentina de varios planetas ya existentes",
+      "Capturando materia proveniente de una galaxia distinta a la Vía Láctea",
       "A partir de un disco de anillos ya formados alrededor de la Tierra"
     ],
     "respuesta": 0,
@@ -685,10 +685,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según el modelo moderno, ¿cómo fueron aumentando de masa los planetas hasta formarse?",
     "opciones": [
-      "Aparecieron ya formados desde el primer instante del colapso",
-      "Se separaron todos al mismo tiempo del núcleo del Sol",
-      "Los granos de polvo en órbita fueron colisionando y aglutinándose gradualmente durante millones de años",
-      "Fueron capturados ya completos de otro sistema solar"
+      "Aparecieron ya completamente formados desde el primer instante del colapso",
+      "Se separaron todos exactamente al mismo tiempo desde el núcleo del Sol",
+      "Los granos de polvo en órbita colisionaron y se aglutinaron durante millones de años",
+      "Fueron capturados ya completamente formados desde otro sistema solar"
     ],
     "respuesta": 2,
     "explicacion": "El texto explica que los planetas comenzaron como granos de polvo que fueron colisionando y aglutinándose gradualmente hasta ganar masa."
@@ -715,10 +715,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué es una 'protoestrella', según el texto?",
     "opciones": [
-      "Una estrella que ya terminó su vida y se apagó",
-      "Un tipo de planeta gaseoso gigante",
-      "El nombre que se le da al Sol en su etapa actual",
-      "Una fase temprana de formación de una estrella, en la que aún no ha comenzado la fusión nuclear en su núcleo"
+      "Una estrella que ya llegó al final de su vida y se apagó",
+      "Un tipo particular de planeta gaseoso de gran tamaño",
+      "El nombre que recibe el Sol durante su etapa actual",
+      "Una fase temprana de formación estelar sin fusión nuclear en su núcleo"
     ],
     "respuesta": 3,
     "explicacion": "Una protoestrella es una fase temprana de formación estelar en la que la fusión nuclear todavía no ha comenzado en su núcleo."
@@ -730,10 +730,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Cómo define el texto a una 'supernova'?",
     "opciones": [
-      "Un planeta que gira alrededor de dos soles",
-      "Una nube de polvo sin ningún tipo de energía",
-      "Una explosión de una estrella que emite gran cantidad de energía y expulsa materia a velocidades extremadamente altas",
-      "Un cometa que se acerca demasiado al Sol"
+      "Un planeta que orbita alrededor de dos soles distintos a la vez",
+      "Una nube de polvo y gas que carece de cualquier tipo de energía",
+      "La explosión de una estrella que libera enorme energía y materia a gran velocidad",
+      "Un cometa que se acerca peligrosamente demasiado cerca del Sol"
     ],
     "respuesta": 2,
     "explicacion": "El texto define la supernova como la explosión de una estrella que libera gran cantidad de energía y expulsa materia a velocidades extremadamente altas."
@@ -745,10 +745,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según el texto, ¿cuál es la diferencia entre astronomía y astrofísica?",
     "opciones": [
-      "La astronomía estudia los cuerpos celestes y el universo en general, mientras la astrofísica se enfoca en las propiedades físicas de los astros y los fenómenos del universo",
-      "No existe ninguna diferencia entre ambas",
-      "La astrofísica solo estudia la Tierra, mientras la astronomía estudia el resto del universo",
-      "La astronomía es una rama de la astrofísica dedicada solo a la Luna"
+      "La astronomía estudia los cuerpos celestes en general; la astrofísica se enfoca en sus propiedades físicas",
+      "No existe absolutamente ninguna diferencia real entre estas dos ciencias",
+      "La astrofísica únicamente estudia la Tierra, y la astronomía estudia el resto del universo",
+      "La astronomía es apenas una rama de la astrofísica dedicada solo a estudiar la Luna"
     ],
     "respuesta": 0,
     "explicacion": "La astronomía estudia los cuerpos celestes y el universo en general; la astrofísica, como rama de la astronomía, se centra en las propiedades físicas de los astros y sus fenómenos."
@@ -760,10 +760,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué es la radiación cósmica de fondo (RCF), según el texto?",
     "opciones": [
-      "Una señal de radio moderna creada por satélites",
-      "La luz visible que emite el Sol actualmente",
-      "Un fenómeno exclusivo de la Luna",
-      "Uno de los vestigios fundamentales del Big Bang, un remanente de ese evento primitivo"
+      "Una señal de radio completamente moderna, creada por satélites artificiales",
+      "La luz visible que el Sol emite continuamente en la actualidad",
+      "Un fenómeno que ocurre de manera exclusiva únicamente en la Luna",
+      "Uno de los vestigios fundamentales del Big Bang, un remanente primitivo"
     ],
     "respuesta": 3,
     "explicacion": "La RCF es considerada uno de los vestigios fundamentales del Big Bang, un remanente de ese evento primitivo."
@@ -791,9 +791,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "enunciado": "Si toda la materia del sistema solar proviene de la misma nube de gas y polvo, ¿por qué el Sol, la Tierra y un cometa terminaron siendo tan distintos entre sí?",
     "opciones": [
       "En realidad no vienen de la misma nube, son de orígenes completamente distintos",
-      "La posición dentro del disco (cerca o lejos del centro), la temperatura y la cantidad de masa acumulada determinaron composiciones y estructuras diferentes",
-      "Es pura casualidad sin ninguna explicación científica posible",
-      "Todos los cuerpos del sistema solar son en realidad idénticos entre sí"
+      "La posición en el disco, la temperatura y la masa acumulada determinaron composiciones distintas",
+      "Es pura casualidad, sin ninguna explicación científica detrás de ello",
+      "En realidad, todos los cuerpos del sistema solar son completamente idénticos"
     ],
     "respuesta": 1,
     "explicacion": "Según el proceso descrito, la distancia al centro, la temperatura y la cantidad de material acumulado explican por qué distintos cuerpos formados de la misma nube terminan siendo tan diferentes."
@@ -835,10 +835,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según la teoría de la captura sobre el origen de la Luna, ¿qué se propone?",
     "opciones": [
-      "Que la Luna se formó cerca de la Tierra desde el inicio",
-      "Que la Luna nunca tuvo una órbita estable",
-      "Que la Luna se formó en otro lugar del sistema solar y luego fue capturada por la gravedad terrestre",
-      "Que la Luna se formó al mismo tiempo que el Sol"
+      "Que la Luna se formó muy cerca de la Tierra desde un inicio",
+      "Que la Luna nunca llegó a tener una órbita estable alrededor de la Tierra",
+      "Que la Luna se formó lejos y luego fue capturada por la gravedad terrestre",
+      "Que la Luna se formó exactamente al mismo tiempo que el Sol"
     ],
     "respuesta": 2,
     "explicacion": "Esta teoría sugiere que la Luna se formó en otro lugar del sistema solar y fue capturada posteriormente por la órbita terrestre debido a su gravedad."
@@ -850,7 +850,7 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según la teoría de la fisión, ¿cómo se formó la Luna?",
     "opciones": [
-      "Fue capturada de otro sistema planetario",
+      "Fue capturada gravitacionalmente desde otro sistema planetario lejano",
       "Se formó junto a la Tierra a partir del mismo disco de material",
       "Resultó de múltiples colisiones entre la Tierra y planetesimales",
       "Se separó de la Tierra porque la rápida rotación terrestre arrojó material al espacio"
@@ -865,10 +865,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué propone la teoría de la 'conformación lunar' sobre el origen de la Luna y la Tierra?",
     "opciones": [
-      "Que la Luna llegó de otra galaxia",
-      "Que se formaron juntas, a partir del mismo disco de material del sistema solar primitivo",
+      "Que la Luna llegó desde una galaxia completamente distinta",
+      "Que ambas se formaron juntas, del mismo disco de material primitivo",
       "Que la Tierra se formó primero y luego capturó a la Luna",
-      "Que ambas se formaron por un gran impacto"
+      "Que ambas se formaron a partir de un gran impacto violento"
     ],
     "respuesta": 1,
     "explicacion": "Esta teoría argumenta que la Luna y la Tierra se formaron juntas, a partir del mismo disco de material presente en el sistema solar primitivo."
@@ -881,9 +881,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "enunciado": "Según la teoría de las colisiones planetesimales, ¿cómo se formó la Luna?",
     "opciones": [
       "Por un único impacto de un protoplaneta del tamaño de Marte",
-      "Por la fisión repentina del núcleo terrestre",
+      "Por la fisión repentina y total del núcleo del planeta terrestre",
       "Como resultado de múltiples colisiones entre la Tierra primitiva y planetesimales",
-      "Por la captura de un asteroide gigante ya formado"
+      "Por la captura de un enorme asteroide que ya estaba formado"
     ],
     "respuesta": 2,
     "explicacion": "Esta teoría indica que la Luna se formó como resultado de múltiples colisiones entre la Tierra primitiva y planetesimales."
@@ -925,10 +925,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según la teoría del gran impacto, ¿cuál fue el proceso final que dio forma a la Luna?",
     "opciones": [
-      "La captura instantánea de rocas ya sólidas",
-      "La fisión espontánea de la corteza terrestre",
-      "La solidificación, a lo largo de millones de años, de una masa fundida formada por los restos de la colisión",
-      "La unión de dos planetas completos ya formados"
+      "La captura instantánea de rocas que ya se encontraban sólidas",
+      "La fisión espontánea y repentina de la corteza terrestre",
+      "La lenta solidificación de la masa fundida por la colisión",
+      "La unión final de dos planetas que ya estaban completos"
     ],
     "respuesta": 2,
     "explicacion": "Las rocas proyectadas por la colisión se concentraron en una masa fundida que, a lo largo de millones de años, se solidificó hasta formar la Luna."
@@ -955,10 +955,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué agencias espaciales se mencionan como responsables de la exploración lunar, según el texto?",
     "opciones": [
-      "Únicamente la NASA",
-      "Solo agencias privadas como SpaceX",
-      "Ninguna, la Luna nunca ha sido explorada",
-      "NASA, ESA (Agencia Espacial Europea) y Roscosmos, y más recientemente China e India"
+      "Únicamente la NASA, sin ninguna otra agencia involucrada",
+      "Únicamente agencias privadas, como la empresa SpaceX",
+      "Ninguna agencia; la Luna nunca ha sido explorada por el ser humano",
+      "La NASA, la ESA, Roscosmos y, más recientemente, China e India"
     ],
     "respuesta": 3,
     "explicacion": "El texto menciona a la NASA, la ESA y Roscosmos como las principales agencias, y más recientemente a China e India."
@@ -970,10 +970,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Qué hallazgo de las expediciones lunares fue clave para plantear la teoría del gran impacto?",
     "opciones": [
-      "Que la Luna no tiene atmósfera",
-      "Que la Luna tiene cráteres",
+      "Que la Luna carece completamente de atmósfera propia",
+      "Que la superficie de la Luna está cubierta de cráteres",
       "Que la composición geológica de la Luna es similar a la de la Tierra",
-      "Que la Luna refleja la luz del Sol"
+      "Que la Luna únicamente refleja la luz proveniente del Sol"
     ],
     "respuesta": 2,
     "explicacion": "El hallazgo de que la composición geológica de la Luna es similar a la de la Tierra fue clave para plantear que la Luna se formó de material desprendido de la propia Tierra."
@@ -985,10 +985,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "El texto pregunta: si la Luna y la Tierra tienen una composición geológica parecida, ¿por qué esa similitud no encaja bien con la teoría de la captura?",
     "opciones": [
-      "Si la Luna hubiera sido capturada de otro lugar del sistema solar, lo más probable es que tuviera una composición muy distinta a la de la Tierra",
-      "La teoría de la captura nunca menciona la composición de la Luna",
-      "La composición de la Luna y la Tierra en realidad no se parece en nada",
-      "La teoría de la captura fue formulada después de conocer la composición lunar"
+      "Si la Luna hubiera sido capturada de otro lugar, tendría una composición muy distinta a la Tierra",
+      "En realidad, la teoría de la captura nunca hace mención de la composición lunar",
+      "En realidad, la composición de la Luna y la Tierra no se parece absolutamente en nada",
+      "La teoría de la captura fue formulada mucho después de conocerse la composición lunar"
     ],
     "respuesta": 0,
     "explicacion": "Si la Luna se hubiera formado en otro lugar y luego hubiera sido capturada, no habría razón para que compartiera una composición geológica tan parecida a la de la Tierra."
@@ -1015,10 +1015,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Cuál es la diferencia principal entre la teoría de la fisión y la teoría de las colisiones planetesimales sobre el origen de la Luna?",
     "opciones": [
-      "No hay ninguna diferencia, son la misma teoría",
-      "La fisión propone que el material salió de la Tierra por su rápida rotación, mientras las colisiones planetesimales proponen múltiples impactos externos sobre la Tierra primitiva",
-      "La fisión dice que la Luna vino de otra galaxia y las colisiones planetesimales que vino del Sol",
-      "La fisión es más reciente que las colisiones planetesimales"
+      "En realidad no existe ninguna diferencia, pues son exactamente la misma teoría",
+      "La fisión atribuye el origen a la rotación terrestre; las colisiones planetesimales, a impactos externos",
+      "La fisión afirma que la Luna vino de otra galaxia, y las colisiones que vino del Sol",
+      "La teoría de la fisión es mucho más reciente que las colisiones planetesimales"
     ],
     "respuesta": 1,
     "explicacion": "La fisión explica el origen por material expulsado de la propia Tierra debido a su rotación; las colisiones planetesimales lo explican por múltiples impactos externos."
@@ -1046,9 +1046,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "enunciado": "¿Por qué la teoría del gran impacto explica bien tanto el tamaño relativamente grande de la Luna respecto a la Tierra como su composición geológica similar?",
     "opciones": [
       "Porque la Luna se formó completamente al azar, sin relación con la Tierra",
-      "Porque la teoría del gran impacto no dice nada sobre el tamaño ni la composición de la Luna",
-      "Porque Tea era un cuerpo mucho más pequeño que un asteroide común",
-      "Porque la Luna se formó a partir de material desprendido de la propia Tierra tras el impacto de Tea, lo que explica su composición parecida y su tamaño considerable"
+      "Porque la teoría del gran impacto no explica ni el tamaño ni la composición lunar",
+      "Porque Tea en realidad era un cuerpo mucho más pequeño que un asteroide común",
+      "Porque la Luna se formó de material desprendido de la Tierra tras el impacto de Tea"
     ],
     "respuesta": 3,
     "explicacion": "Al formarse de material desprendido de la Tierra en el impacto con Tea, la Luna hereda una composición parecida a la terrestre y un tamaño considerable respecto a nuestro planeta."
@@ -1060,10 +1060,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Por qué es importante estudiar temas como el origen del universo, del sistema solar y de la Luna, aunque parezcan muy alejados de la vida diaria?",
     "opciones": [
-      "Porque ayuda a comprender el método científico, cómo se construye el conocimiento con evidencia, y nuestro lugar en el universo",
-      "Porque no tiene ninguna utilidad práctica y es solo curiosidad",
+      "Porque ayuda a comprender el método científico y nuestro lugar en el universo",
+      "Porque no tiene ninguna utilidad práctica real, solo es simple curiosidad",
       "Porque es un tema que ya está resuelto por completo y no requiere más estudio",
-      "Porque solo interesa a los astronautas"
+      "Porque este tema solo despierta interés entre los astronautas profesionales"
     ],
     "respuesta": 0,
     "explicacion": "Estudiar estos temas ayuda a entender cómo se construye el conocimiento científico a partir de evidencia, y a comprender mejor nuestro lugar en el universo."
@@ -1075,10 +1075,10 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según los datos del texto, ¿qué evento ocurrió primero: el Big Bang o la formación del sistema solar?",
     "opciones": [
-      "La formación del sistema solar ocurrió antes que el Big Bang",
-      "Ambos ocurrieron exactamente al mismo tiempo",
-      "El Big Bang, hace unos 13 800 millones de años, mucho antes que el sistema solar (4568 millones de años)",
-      "El texto no permite determinar cuál ocurrió primero"
+      "La formación del sistema solar ocurrió mucho antes que el propio Big Bang",
+      "Ambos eventos ocurrieron exactamente al mismo tiempo, sin diferencia alguna",
+      "El Big Bang, hace 13 800 millones de años, mucho antes que el sistema solar",
+      "El texto no aporta información suficiente para determinar cuál ocurrió primero"
     ],
     "respuesta": 2,
     "explicacion": "El Big Bang, con una antigüedad de unos 13 800 millones de años, es muchísimo más antiguo que la formación del sistema solar, hace 4568 millones de años."
@@ -1093,7 +1093,7 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
       "Que estudiar no sirve porque las ideas científicas siempre cambian y nunca llegan a nada",
       "Que solo los científicos famosos como Descartes o Laplace pueden aportar algo a la ciencia",
       "Que la ciencia moderna no tiene relación con las ideas de siglos anteriores",
-      "Que el conocimiento se construye poco a poco, y estudiar nos permite entender y participar en ese proceso de mejora constante"
+      "Que el conocimiento se construye poco a poco, y estudiar nos permite participar en ese proceso"
     ],
     "respuesta": 3,
     "explicacion": "El recorrido histórico de las teorías muestra que el conocimiento científico se construye progresivamente, y estudiar permite comprender y valorar ese proceso."
@@ -1106,9 +1106,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "enunciado": "Un compañero afirma: 'Como todavía hay preguntas sin responder sobre el Big Bang, entonces la teoría es falsa y no sirve de nada'. Según lo aprendido sobre cómo funciona la ciencia, ¿qué le responderías?",
     "opciones": [
       "Que tiene razón, cualquier teoría con preguntas pendientes debe descartarse por completo",
-      "Que una teoría puede tener amplia evidencia a favor y seguir siendo objeto de investigación en algunos aspectos, sin que eso la invalide",
-      "Que la ciencia nunca tiene preguntas pendientes sobre nada",
-      "Que el Big Bang no tiene ninguna evidencia científica"
+      "Que una teoría puede tener amplia evidencia y aun así seguir siendo objeto de estudio",
+      "Que en la ciencia nunca existen preguntas pendientes sobre ningún tema",
+      "Que la teoría del Big Bang carece de cualquier evidencia científica real"
     ],
     "respuesta": 1,
     "explicacion": "El propio texto explica que el Big Bang cuenta con amplia evidencia y, aun así, sigue siendo objeto de investigación en ciertos aspectos; ambas cosas pueden ser ciertas a la vez."
@@ -1120,9 +1120,9 @@ window.BANCO_CLASE1_CIENCIAS_9 = [
     "dificultad": "avanzada",
     "enunciado": "Tomando en cuenta todo lo leído (origen del universo, del sistema solar y de la Luna), ¿cuál afirmación resume mejor el enfoque general de la ciencia sobre estos temas?",
     "opciones": [
-      "La ciencia inventa historias sin ninguna base observable",
-      "Una vez que se acepta una teoría, ya no se puede cuestionar nunca más",
-      "La ciencia propone modelos explicativos que se apoyan en evidencia observable y se van ajustando o reemplazando conforme aparece nueva información",
+      "La ciencia simplemente inventa historias sin ninguna base observable real",
+      "Una vez aceptada una teoría, esta ya nunca puede volver a cuestionarse",
+      "La ciencia propone modelos basados en evidencia que se ajustan con nueva información",
       "Todas las teorías presentadas en el texto son igual de aceptadas hoy en día"
     ],
     "respuesta": 2,
