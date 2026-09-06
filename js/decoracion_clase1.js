@@ -777,14 +777,14 @@ function abrirModalEntrega(inscripcion) {
   inscripcionEntregando = inscripcion;
   const act = CATALOGO.find((a) => a.id === inscripcion.actividad_id);
   document.getElementById("entrega-titulo-actividad").textContent = `Entregar: ${act ? act.titulo : inscripcion.actividad_id}`;
-  document.getElementById("entrega-lider-nombre").textContent = inscripcion.nombre;  document.getElementById("entrega-foto").value = inscripcion.entrega_foto_url || "";
-  document.getElementById("entrega-foto2").value = inscripcion.entrega_foto2_url || "";
-  document.getElementById("entrega-foto3").value = inscripcion.entrega_foto3_url || "";
-  document.getElementById("entrega-foto4").value = inscripcion.entrega_foto4_url || "";
-  document.getElementById("entrega-video").value = inscripcion.entrega_video_url || "";
+  document.getElementById("entrega-lider-nombre").textContent = inscripcion.nombre;
   document.getElementById("entrega-observacion").value = inscripcion.observacion_participacion || "";
   document.getElementById("entrega-error").hidden = true;
-  CAMPOS_AUTOGUARDABLES.forEach(({ inputId }) => {
+  CAMPOS_AUTOGUARDABLES.forEach(({ inputId, fileInputId, previewId, tipo, columna }) => {
+    const url = inscripcion[columna] || "";
+    document.getElementById(inputId).value = url;
+    document.getElementById(fileInputId).value = "";
+    renderPreviewArchivo(previewId, url, tipo);
     const indicador = document.getElementById(`${inputId}-guardado`);
     if (indicador) indicador.hidden = true;
   });
@@ -871,17 +871,22 @@ document.getElementById("btn-cerrar-modal-entrega-top").addEventListener("click"
 modalEntrega.addEventListener("click", (e) => { if (e.target === modalEntrega) modalEntrega.hidden = true; });
 
 // =========================================================
-// 4.5) GUARDADO AUTOMÁTICO de fotos y video (aparte del botón grande
-// de "Guardar entrega") — así no se pierde el link si alguien cierra
-// el formulario sin darse cuenta. Cada campo se guarda solo apenas
-// se sale de él (blur), y el botón 🗑️ lo borra al instante.
+// 4.5) SUBIR ARCHIVOS (fotos y video) directo a Supabase Storage —
+// en vez de pegar un link, el estudiante elige el archivo de su
+// celular/computadora y se sube solo. El link público que genera
+// Supabase Storage se guarda automáticamente en la misma fila de la
+// tabla, en las mismas columnas de siempre (entrega_foto_url, etc.).
+// Requiere que exista el bucket "decoracion-entregas" en Supabase
+// Storage, marcado como público, con permiso de subida para el rol
+// "anon" (los estudiantes no tienen sesión real de Supabase Auth).
 // =========================================================
+const BUCKET_ENTREGAS = "decoracion-entregas";
 const CAMPOS_AUTOGUARDABLES = [
-  { inputId: "entrega-foto", columna: "entrega_foto_url" },
-  { inputId: "entrega-foto2", columna: "entrega_foto2_url" },
-  { inputId: "entrega-foto3", columna: "entrega_foto3_url" },
-  { inputId: "entrega-foto4", columna: "entrega_foto4_url" },
-  { inputId: "entrega-video", columna: "entrega_video_url" },
+  { inputId: "entrega-foto", fileInputId: "entrega-foto-file", previewId: "entrega-foto-preview", columna: "entrega_foto_url", tipo: "imagen" },
+  { inputId: "entrega-foto2", fileInputId: "entrega-foto2-file", previewId: "entrega-foto2-preview", columna: "entrega_foto2_url", tipo: "imagen" },
+  { inputId: "entrega-foto3", fileInputId: "entrega-foto3-file", previewId: "entrega-foto3-preview", columna: "entrega_foto3_url", tipo: "imagen" },
+  { inputId: "entrega-foto4", fileInputId: "entrega-foto4-file", previewId: "entrega-foto4-preview", columna: "entrega_foto4_url", tipo: "imagen" },
+  { inputId: "entrega-video", fileInputId: "entrega-video-file", previewId: "entrega-video-preview", columna: "entrega_video_url", tipo: "video" },
 ];
 
 async function guardarCampoAuto(columna, valor) {
@@ -898,26 +903,68 @@ function mostrarIndicadorGuardado(inputId, texto) {
   indicador.textContent = texto;
   indicador.hidden = false;
   clearTimeout(indicador._timeoutId);
-  indicador._timeoutId = setTimeout(() => { indicador.hidden = true; }, 2500);
+  if (texto) indicador._timeoutId = setTimeout(() => { indicador.hidden = true; }, 2500);
 }
 
-CAMPOS_AUTOGUARDABLES.forEach(({ inputId, columna }) => {
-  const input = document.getElementById(inputId);
-  input.addEventListener("blur", async () => {
-    const valor = input.value.trim();
-    const ok = await guardarCampoAuto(columna, valor);
-    if (ok) mostrarIndicadorGuardado(inputId, valor ? "✓ Guardado" : "");
+function renderPreviewArchivo(previewId, url, tipo) {
+  const cont = document.getElementById(previewId);
+  if (!cont) return;
+  if (!url) { cont.innerHTML = ""; return; }
+  cont.innerHTML = tipo === "video"
+    ? `<video src="${escapeHtml(url)}" controls class="archivo-preview-video"></video>`
+    : `<a href="${escapeHtml(url)}" target="_blank" rel="noopener"><img src="${escapeHtml(url)}" class="archivo-preview-img" alt="Vista previa"></a>`;
+}
+
+CAMPOS_AUTOGUARDABLES.forEach(({ inputId, fileInputId, previewId, columna, tipo }) => {
+  const fileInput = document.getElementById(fileInputId);
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files[0];
+    if (!file || !inscripcionEntregando) return;
+
+    const limiteMB = tipo === "video" ? 200 : 15;
+    if (file.size > limiteMB * 1024 * 1024) {
+      alert(`El archivo pesa demasiado (máximo ${limiteMB} MB para ${tipo === "video" ? "video" : "fotos"}). Comprímelo e inténtalo de nuevo.`);
+      fileInput.value = "";
+      return;
+    }
+
+    mostrarIndicadorGuardado(inputId, "⏳ Subiendo…");
+    fileInput.disabled = true;
+    const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+    const ruta = `${inscripcionEntregando.id}/${inputId}_${Date.now()}.${ext}`;
+
+    const { error: errorSubida } = await sb.storage.from(BUCKET_ENTREGAS).upload(ruta, file, {
+      upsert: true,
+      contentType: file.type || undefined,
+    });
+    fileInput.disabled = false;
+
+    if (errorSubida) {
+      console.error("No se pudo subir el archivo:", errorSubida);
+      mostrarIndicadorGuardado(inputId, "");
+      alert("No se pudo subir el archivo: " + errorSubida.message);
+      fileInput.value = "";
+      return;
+    }
+
+    const { data: urlData } = sb.storage.from(BUCKET_ENTREGAS).getPublicUrl(ruta);
+    const url = urlData ? urlData.publicUrl : "";
+    document.getElementById(inputId).value = url;
+    const ok = await guardarCampoAuto(columna, url);
+    renderPreviewArchivo(previewId, url, tipo);
+    mostrarIndicadorGuardado(inputId, ok ? "✓ Guardado" : "");
   });
 });
 
 document.querySelectorAll(".btn-eliminar-campo").forEach((btn) => {
   btn.addEventListener("click", async () => {
     const inputId = btn.dataset.target;
-    const input = document.getElementById(inputId);
-    const columna = CAMPOS_AUTOGUARDABLES.find((c) => c.inputId === inputId)?.columna;
-    if (!columna) return;
-    input.value = "";
-    const ok = await guardarCampoAuto(columna, null);
+    const campo = CAMPOS_AUTOGUARDABLES.find((c) => c.inputId === inputId);
+    if (!campo) return;
+    document.getElementById(inputId).value = "";
+    document.getElementById(campo.fileInputId).value = "";
+    renderPreviewArchivo(campo.previewId, "", campo.tipo);
+    const ok = await guardarCampoAuto(campo.columna, null);
     if (ok) mostrarIndicadorGuardado(inputId, "🗑️ Eliminado");
   });
 });
