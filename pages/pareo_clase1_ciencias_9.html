@@ -18,10 +18,40 @@
     </div>
   </header>
 
+  <!-- ===================== VISTA: REGISTRO DEL ESTUDIANTE ===================== -->
+  <!-- Es la MISMA identificación que usa el examen de esta clase: si el
+       estudiante ya se registró ahí, este ejercicio lo reconoce solo y
+       no le vuelve a pedir nada (se guarda en el mismo localStorage). -->
+  <section id="vista-registro-pareo" class="card">
+    <p class="tag">REGISTRO</p>
+    <h2>Antes de empezar, identifícate</h2>
+    <p class="lead">Selecciona tu salón y busca tu nombre. Luego escribe tú mismo(a) tu número de cédula para confirmar tu identidad.</p>
+
+    <label for="reg-salon-pareo">Salón
+      <select id="reg-salon-pareo">
+        <option value="">Selecciona tu salón…</option>
+      </select>
+    </label>
+
+    <label for="reg-nombre-pareo">Nombre
+      <select id="reg-nombre-pareo" disabled>
+        <option value="">Selecciona primero tu salón…</option>
+      </select>
+    </label>
+
+    <label for="reg-cedula-pareo">Cédula
+      <input id="reg-cedula-pareo" type="text" placeholder="Escribe tu número de cédula" autocomplete="off" disabled>
+    </label>
+
+    <p id="reg-error-pareo" class="error" hidden></p>
+
+    <button id="btn-registrar-pareo" class="wide">Continuar</button>
+  </section>
+
   <!-- ===================== VISTA: INICIO ===================== -->
-  <section id="vista-inicio-pareo" class="card">
+  <section id="vista-inicio-pareo" class="card" hidden>
     <p class="tag">CIENCIAS 9° · CLASE 1</p>
-    <h2>Relaciona cada término con su definición</h2>
+    <h2 id="pareo-saludo">Relaciona cada término con su definición</h2>
     <p class="lead">
       Se te van a presentar 8 términos elegidos al azar (de un banco más grande, así que
       pueden salir distintos cada vez). A la izquierda están los términos numerados; a la
@@ -30,6 +60,7 @@
     </p>
     <p class="lead">Puedes practicar todas las veces que quieras — no cuenta para la nota.</p>
     <button id="btn-comenzar-pareo" class="wide">🔤 Comenzar pareo</button>
+    <button id="btn-cambiar-usuario-pareo" class="link">No soy yo / cambiar estudiante</button>
   </section>
 
   <!-- ===================== VISTA: EJERCICIO ===================== -->
@@ -53,6 +84,7 @@
     <h2>¡Pareo finalizado!</h2>
 
     <div class="count">
+      <div><b id="pareo-res-nota">-</b><span>nota MEDUCA</span></div>
       <div><b id="pareo-res-porcentaje">0%</b><span>porcentaje</span></div>
       <div><b id="pareo-res-tiempo">0:00</b><span>tiempo</span></div>
     </div>
@@ -69,6 +101,9 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/portal-config.js"></script>
+<script src="../js/prueba_config_clase1.js"></script>
 <script src="../js/prueba_banco_pareo_clase1.js"></script>
 <script src="../js/pareo_clase1.js"></script>
 </body>
