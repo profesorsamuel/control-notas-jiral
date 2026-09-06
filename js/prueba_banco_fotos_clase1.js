@@ -42,4 +42,4 @@ window.BANCO_FOTOS_CLASE1 = [
   { imagen: "30.jpg", nombre: "Colisiones Planetesimales" },
   { imagen: "31.jpg", nombre: "Gran Impacto" },
   { imagen: "32.jpg", nombre: "Theia" },
-].map((t) => ({ ...t, imagen: `../img/vocabulario-clase1/${t.imagen}` }));
+].map((t) => ({ ...t, imagen: `../img/${t.imagen}` }));
