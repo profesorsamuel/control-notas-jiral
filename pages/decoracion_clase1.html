@@ -45,6 +45,11 @@
   .rubrica-fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
   .rubrica-fila label { margin: 0; flex: 1; font-weight: 700; font-size: 13px; }
   .rubrica-fila select { width: 90px; margin-top: 0; }
+  .rubrica-estudiante {
+    border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+    margin-top: 14px; background: #fbfdff;
+  }
+  .rubrica-estudiante-nombre { margin: 0 0 4px; font-size: 14px; color: var(--navy); font-weight: 900; }
   .entrega-nota { font-size: 14px; font-weight: 900; color: var(--green); margin-top: 12px; text-align: center; background: var(--green-bg); padding: 10px; border-radius: 10px; }
   .entrega-resumen { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-top: 10px; font-size: 13px; line-height: 1.6; }
   .entrega-resumen a { color: var(--blue); }
@@ -60,6 +65,11 @@
   .integrante-item:hover { background: #edf6ff; }
   .integrante-item input { width: auto; margin: 0; }
   .integrante-item span { font-size: 14px; }
+  .resumen-tabla { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+  .resumen-tabla th, .resumen-tabla td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  .resumen-tabla th { background: #f5f7fa; font-weight: 800; color: var(--navy); white-space: nowrap; }
+  .resumen-tabla tr.pendiente { background: #fff9ec; }
+  .resumen-tabla tr.sin-tomar td { color: var(--muted); font-style: italic; }
 </style>
 </head>
 <body>
@@ -95,7 +105,11 @@
 
     <div id="actividades-grid-profesor" class="actividades-grid"></div>
 
-    <button id="btn-entrar-como-estudiante" class="link" style="margin-top:16px;">🎓 Entrar como estudiante en su lugar (para probar cómo lo ven ellos)</button>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
+      <button id="btn-ver-resumen-profesor" class="btn secundario">📊 Ver resumen: proyectos, grupos y evaluación</button>
+    </div>
+
+    <button id="btn-entrar-como-estudiante" class="link" style="margin-top:16px;">🎓 Entrar como un estudiante (para ver o ayudarle con su cuenta)</button>
   </section>
 
   <!-- ===================== VISTA: REGISTRO ===================== -->
@@ -141,9 +155,12 @@
     </p>
 
     <div class="aviso-reglas">
-      ⚠ Reglas: NO se pueden usar las sillas del salón para decorar. Usa mamparas
-      (paneles que se paren solos) o cosas que se puedan <b>colgar</b> — del techo,
-      de hilos, o pegadas a la pared — nunca apoyadas en las sillas.
+      ⚠ Reglas: Sí pueden usar mesa o sillas para apoyar la decoración, pero
+      deben conseguirlas ustedes mismos — si se las piden prestadas a la
+      dirección, tienen que devolverlas. Usen principalmente <b>mamparas</b>
+      (paneles que se paren solos) a la altura de poder leerlas sin
+      agacharse, o cosas que se puedan <b>colgar</b> — del techo, de hilos, o
+      pegadas a la pared — nunca apoyadas en las sillas del salón.
     </div>
 
     <div id="mi-inscripcion-cont"></div>
@@ -157,7 +174,7 @@
     <div id="actividades-grid" class="actividades-grid"></div>
 
     <button id="btn-cambiar-usuario-deco" class="link">No soy yo / cambiar estudiante</button>
-    <button id="btn-salir-prueba-estudiante" class="link" hidden>👩‍🏫 Salir del modo prueba y volver a mi panel de profesor</button>
+    <button id="btn-salir-prueba-estudiante" class="link" hidden>👩‍🏫 Volver a mi panel de profesor</button>
   </section>
 
   <!-- ===================== MODAL: RECLAMAR ===================== -->
@@ -186,7 +203,7 @@
     <div class="card" style="max-width:520px;margin:4vh auto;max-height:90vh;overflow-y:auto;">
       <p class="tag">ENTREGA — AUTOEVALUACIÓN</p>
       <h2 id="entrega-titulo-actividad">Entregar mi actividad</h2>
-      <p class="lead">Líder registrado: <b id="entrega-lider-nombre"></b>. Esto lo llena el líder del grupo (quien reclamó la actividad). Sé honesto en la autoevaluación — el profesor va a revisar el trabajo igual.</p>
+      <p class="lead">Líder registrado: <b id="entrega-lider-nombre"></b>. Esto lo llena el líder del grupo (quien reclamó la actividad). Evalúa a cada integrante por separado en las mismas 7 preguntas — sé honesto, el profesor va a revisar el trabajo igual.</p>
 
       <label for="entrega-foto">Link de la foto del proyecto terminado
         <input id="entrega-foto" type="text" placeholder="Pega aquí el link (Google Drive, Fotos, etc.)">
@@ -195,7 +212,7 @@
         <input id="entrega-video" type="text" placeholder="Pega aquí el link (YouTube, Drive, etc.)">
       </label>
 
-      <h3 style="margin-bottom:0;">Autoevaluación (1 a 5 en cada una)</h3>
+      <h3 style="margin-bottom:0;">Autoevaluación por integrante (1 a 5 en cada pregunta)</h3>
       <div id="rubrica-cont"></div>
       <p id="entrega-nota-preview" class="entrega-nota" hidden></p>
 
@@ -207,6 +224,19 @@
       <div style="display:flex; gap:10px; margin-top:16px;">
         <button id="btn-guardar-entrega" class="wide">✅ Guardar entrega</button>
         <button id="btn-cerrar-modal-entrega" class="wide secundario">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: RESUMEN PROFESOR ===================== -->
+  <div id="modal-resumen-profesor" class="admin-modal" hidden style="position:fixed;inset:0;background:#17233599;z-index:50;padding:20px;">
+    <div class="card" style="max-width:920px;margin:4vh auto;max-height:90vh;overflow-y:auto;">
+      <p class="tag">RESUMEN — 9A · 9B · 9C</p>
+      <h2>Proyectos, grupos y evaluación</h2>
+      <p class="lead">Las 3 secciones juntas en una sola tabla: qué actividad tomó cada grupo, quiénes lo forman y cómo va la autoevaluación.</p>
+      <div id="resumen-profesor-tabla-cont" style="overflow-x:auto;"></div>
+      <div style="display:flex; margin-top:16px;">
+        <button id="btn-cerrar-modal-resumen" class="wide secundario">Cerrar</button>
       </div>
     </div>
   </div>
