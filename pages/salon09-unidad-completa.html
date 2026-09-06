@@ -241,6 +241,27 @@
   .btn-pdf:hover{ background: #b90510; }
   .btn-pdf:active{ transform: scale(.97); }
 
+  /* ===================== BOTÓN "PRESENTAR EXAMEN" ===================== */
+  .btn-quiz{
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #1a7a3c;
+    color: var(--blanco);
+    text-decoration: none;
+    border: none;
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    padding: 9px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .btn-quiz:hover{ background: #145c2d; }
+  .btn-quiz:active{ transform: scale(.97); }
+
   /* ===================== VISOR DE IMÁGENES (GALERÍA FULLSCREEN) ===================== */
   #galeriaOverlay{
     position: fixed;
@@ -4904,6 +4925,9 @@
         </button>
         <a class="btn-pdf" href="pdfs-clases/pdf-clase1/Clase-1-Ciencias-14-al-25-sept.pdf" download>
           <span>📄</span> Descargar clase en PDF
+        </a>
+        <a class="btn-quiz" href="prueba_clase1_ciencias_9.html">
+          <span>📝</span> Presentar el examen de esta clase
         </a>
       </div>
       
