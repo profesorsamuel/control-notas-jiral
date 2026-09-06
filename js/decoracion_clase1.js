@@ -722,24 +722,32 @@ function abrirModalEntrega(inscripcion) {
   const miembros = obtenerMiembrosDeGrupo(inscripcion);
 
   const rubricaCont = document.getElementById("rubrica-cont");
-  rubricaCont.innerHTML = miembros.map((nombre, idx) => {
-    // Formato viejo: solo se le puede recuperar el valor guardado al
-    // líder (idx 0), porque antes no se guardaba por persona.
-    const previoEstudiante = formatoAntiguo ? (idx === 0 ? previo : {}) : (previo[nombre] || {});
-    return `
-      <div class="rubrica-estudiante" data-nombre="${escapeHtml(nombre)}">
-        <h4 class="rubrica-estudiante-nombre">${idx === 0 ? "👑 " : "🙋 "}${escapeHtml(nombre)}${idx === 0 ? " (líder)" : ""}</h4>
-        ${RUBRICA.map((r) => `
-          <div class="rubrica-fila">
-            <label for="rub-${idx}-${r.id}">${r.etiqueta}</label>
-            <select id="rub-${idx}-${r.id}" data-id="${r.id}">
-              ${[5, 4, 3, 2, 1].map((n) => `<option value="${n}" ${previoEstudiante[r.id] === n ? "selected" : ""}>${n}</option>`).join("")}
-            </select>
-          </div>
-        `).join("")}
-      </div>
-    `;
+  const encabezados = miembros.map((nombre, idx) => `
+    <th>${idx === 0 ? "👑" : "🙋"}<br>${escapeHtml(nombre)}${idx === 0 ? "<br><span style=\"font-weight:400;\">(líder)</span>" : ""}</th>
+  `).join("");
+
+  const filas = RUBRICA.map((r) => {
+    const celdas = miembros.map((nombre, idx) => {
+      // Formato viejo: solo se le puede recuperar el valor guardado al
+      // líder (idx 0), porque antes no se guardaba por persona.
+      const previoEstudiante = formatoAntiguo ? (idx === 0 ? previo : {}) : (previo[nombre] || {});
+      return `
+        <td>
+          <select data-nombre="${escapeHtml(nombre)}" data-id="${r.id}">
+            ${[5, 4, 3, 2, 1].map((n) => `<option value="${n}" ${previoEstudiante[r.id] === n ? "selected" : ""}>${n}</option>`).join("")}
+          </select>
+        </td>`;
+    }).join("");
+    return `<tr><td class="rubrica-tabla-criterio">${r.etiqueta}</td>${celdas}</tr>`;
   }).join("");
+
+  rubricaCont.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table class="rubrica-tabla">
+        <thead><tr><th></th>${encabezados}</tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>`;
   rubricaCont.querySelectorAll("select").forEach((sel) => sel.addEventListener("change", actualizarNotaPreview));
   actualizarNotaPreview();
 
@@ -749,10 +757,14 @@ function abrirModalEntrega(inscripcion) {
 // Calcula la nota de cada integrante por separado (cada uno se evalúa
 // con las mismas 7 preguntas, sobre 35 puntos).
 function calcularNotaAutoevaluacion() {
-  const bloques = document.querySelectorAll("#rubrica-cont .rubrica-estudiante");
-  return [...bloques].map((bloque) => {
-    const nombre = bloque.dataset.nombre;
-    const valores = RUBRICA.map((r) => parseInt(bloque.querySelector(`select[data-id="${r.id}"]`).value, 10));
+  const porNombre = {};
+  document.querySelectorAll("#rubrica-cont select").forEach((sel) => {
+    const nombre = sel.dataset.nombre;
+    if (!porNombre[nombre]) porNombre[nombre] = [];
+    porNombre[nombre].push(parseInt(sel.value, 10));
+  });
+  return Object.keys(porNombre).map((nombre) => {
+    const valores = porNombre[nombre];
     const puntos = valores.reduce((a, b) => a + b, 0);
     const porcentaje = Math.round((puntos / (RUBRICA.length * 5)) * 100);
     const nota = window.calcularNotaMeduca ? window.calcularNotaMeduca(porcentaje) : null;
@@ -796,11 +808,10 @@ document.getElementById("btn-guardar-entrega").addEventListener("click", async (
   const resultados = calcularNotaAutoevaluacion();
   const autoevaluacion = {};
   const autoevaluacion_nota = {};
-  document.querySelectorAll("#rubrica-cont .rubrica-estudiante").forEach((bloque) => {
-    const nombre = bloque.dataset.nombre;
-    const valores = {};
-    RUBRICA.forEach((r) => { valores[r.id] = parseInt(bloque.querySelector(`select[data-id="${r.id}"]`).value, 10); });
-    autoevaluacion[nombre] = valores;
+  document.querySelectorAll("#rubrica-cont select").forEach((sel) => {
+    const nombre = sel.dataset.nombre;
+    if (!autoevaluacion[nombre]) autoevaluacion[nombre] = {};
+    autoevaluacion[nombre][sel.dataset.id] = parseInt(sel.value, 10);
   });
   resultados.forEach((r) => { autoevaluacion_nota[r.nombre] = r.nota !== null ? Number(r.nota.toFixed(1)) : null; });
   const observacion = document.getElementById("entrega-observacion").value.trim();
