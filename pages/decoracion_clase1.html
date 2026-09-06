@@ -42,14 +42,11 @@
     width: 100%; margin-top: 7px; padding: 13px; border: 1px solid #cbd8e6;
     border-radius: 11px; background: #fbfdff; font: inherit; resize: vertical;
   }
-  .rubrica-fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
-  .rubrica-fila label { margin: 0; flex: 1; font-weight: 700; font-size: 13px; }
-  .rubrica-fila select { width: 90px; margin-top: 0; }
-  .rubrica-estudiante {
-    border: 1px solid var(--line); border-radius: 12px; padding: 14px;
-    margin-top: 14px; background: #fbfdff;
-  }
-  .rubrica-estudiante-nombre { margin: 0 0 4px; font-size: 14px; color: var(--navy); font-weight: 900; }
+  .rubrica-tabla { border-collapse: collapse; font-size: 12px; width: 100%; margin-top: 8px; }
+  .rubrica-tabla th, .rubrica-tabla td { border: 1px solid var(--line); padding: 6px 8px; vertical-align: middle; text-align: center; }
+  .rubrica-tabla thead th { background: #f5f7fa; font-weight: 800; color: var(--navy); font-size: 11px; white-space: nowrap; }
+  .rubrica-tabla td.rubrica-tabla-criterio { text-align: left; font-weight: 700; font-size: 12px; min-width: 150px; background: #fbfdff; }
+  .rubrica-tabla select { width: 56px; margin: 0; padding: 4px; }
   .entrega-nota { font-size: 14px; font-weight: 900; color: var(--green); margin-top: 12px; text-align: center; background: var(--green-bg); padding: 10px; border-radius: 10px; }
   .entrega-resumen { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-top: 10px; font-size: 13px; line-height: 1.6; }
   .entrega-resumen a { color: var(--blue); }
