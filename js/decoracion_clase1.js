@@ -918,17 +918,93 @@ function renderPreviewArchivo(previewId, url, tipo) {
     : `<a href="${escapeHtml(url)}" target="_blank" rel="noopener"><img src="${escapeHtml(url)}" class="archivo-preview-img" alt="Vista previa"></a>`;
 }
 
+// Reduce una foto a un tamaño razonable (máximo 1600px de lado más
+// largo) y la reconvierte a JPG antes de subirla — así el estudiante
+// nunca tiene que preocuparse por bajarle la resolución él mismo.
+function comprimirImagen(file, maxLado = 1600, calidad = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxLado || height > maxLado) {
+        if (width >= height) { height = Math.round(height * (maxLado / width)); width = maxLado; }
+        else { width = Math.round(width * (maxLado / height)); height = maxLado; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        if (!blob) { reject(new Error("No se pudo procesar la imagen")); return; }
+        resolve(blob);
+      }, "image/jpeg", calidad);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo leer la imagen")); };
+    img.src = url;
+  });
+}
+
+// Lee la duración de un video sin subirlo, para poder rechazar los que
+// duren más de 2 minutos antes de gastar tiempo/datos subiéndolos.
+function obtenerDuracionVideo(file) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    const url = URL.createObjectURL(file);
+    video.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(video.duration); };
+    video.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo leer el video")); };
+    video.src = url;
+  });
+}
+
+const DURACION_MAX_VIDEO_SEG = 120;
+
 CAMPOS_AUTOGUARDABLES.forEach(({ inputId, fileInputId, previewId, columna, tipo }) => {
   const fileInput = document.getElementById(fileInputId);
   fileInput.addEventListener("change", async () => {
-    const file = fileInput.files[0];
+    let file = fileInput.files[0];
     if (!file || !inscripcionEntregando) return;
 
     const limiteMB = tipo === "video" ? 200 : 15;
-    if (file.size > limiteMB * 1024 * 1024) {
-      alert(`El archivo pesa demasiado (máximo ${limiteMB} MB para ${tipo === "video" ? "video" : "fotos"}). Comprímelo e inténtalo de nuevo.`);
-      fileInput.value = "";
-      return;
+
+    if (tipo === "video") {
+      try {
+        const duracion = await obtenerDuracionVideo(file);
+        // Si el navegador no pudo leer la duración (pasa con algunos
+        // formatos), no bloqueamos la subida — mejor dejarlo pasar que
+        // rechazar un video válido por un error del navegador.
+        if (Number.isFinite(duracion) && duracion > DURACION_MAX_VIDEO_SEG) {
+          alert(`El video dura ${Math.round(duracion)} segundos. El máximo permitido es 2 minutos (120 segundos) — recórtalo e inténtalo de nuevo.`);
+          fileInput.value = "";
+          return;
+        }
+      } catch (e) {
+        console.warn("No se pudo verificar la duración del video, se sube igual:", e);
+      }
+      if (file.size > limiteMB * 1024 * 1024) {
+        alert(`El video pesa demasiado (máximo ${limiteMB} MB). Comprímelo e inténtalo de nuevo.`);
+        fileInput.value = "";
+        return;
+      }
+    } else {
+      // Fotos: se comprimen SIEMPRE antes de subir, así nunca hace
+      // falta que el estudiante le baje la resolución a mano.
+      mostrarIndicadorGuardado(inputId, "🖼️ Optimizando foto…");
+      try {
+        const comprimida = await comprimirImagen(file);
+        file = new File([comprimida], (file.name.replace(/\.[^.]+$/, "") || "foto") + ".jpg", { type: "image/jpeg" });
+      } catch (e) {
+        console.warn("No se pudo comprimir la imagen, se sube el original:", e);
+      }
+      if (file.size > limiteMB * 1024 * 1024) {
+        alert(`La foto sigue pesando demasiado incluso después de optimizarla (máximo ${limiteMB} MB). Prueba con otra foto.`);
+        fileInput.value = "";
+        mostrarIndicadorGuardado(inputId, "");
+        return;
+      }
     }
 
     mostrarIndicadorGuardado(inputId, "⏳ Subiendo…");
