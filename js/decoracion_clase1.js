@@ -784,6 +784,10 @@ function abrirModalEntrega(inscripcion) {
   document.getElementById("entrega-video").value = inscripcion.entrega_video_url || "";
   document.getElementById("entrega-observacion").value = inscripcion.observacion_participacion || "";
   document.getElementById("entrega-error").hidden = true;
+  CAMPOS_AUTOGUARDABLES.forEach(({ inputId }) => {
+    const indicador = document.getElementById(`${inputId}-guardado`);
+    if (indicador) indicador.hidden = true;
+  });
 
   const previo = inscripcion.autoevaluacion || {};
   const formatoAntiguo = esAutoevaluacionFormatoAntiguo(previo);
@@ -863,7 +867,60 @@ function actualizarNotaPreview() {
 }
 
 document.getElementById("btn-cerrar-modal-entrega").addEventListener("click", () => { modalEntrega.hidden = true; });
+document.getElementById("btn-cerrar-modal-entrega-top").addEventListener("click", () => { modalEntrega.hidden = true; });
 modalEntrega.addEventListener("click", (e) => { if (e.target === modalEntrega) modalEntrega.hidden = true; });
+
+// =========================================================
+// 4.5) GUARDADO AUTOMÁTICO de fotos y video (aparte del botón grande
+// de "Guardar entrega") — así no se pierde el link si alguien cierra
+// el formulario sin darse cuenta. Cada campo se guarda solo apenas
+// se sale de él (blur), y el botón 🗑️ lo borra al instante.
+// =========================================================
+const CAMPOS_AUTOGUARDABLES = [
+  { inputId: "entrega-foto", columna: "entrega_foto_url" },
+  { inputId: "entrega-foto2", columna: "entrega_foto2_url" },
+  { inputId: "entrega-foto3", columna: "entrega_foto3_url" },
+  { inputId: "entrega-foto4", columna: "entrega_foto4_url" },
+  { inputId: "entrega-video", columna: "entrega_video_url" },
+];
+
+async function guardarCampoAuto(columna, valor) {
+  if (!inscripcionEntregando) return false;
+  const { error } = await sb.from(TABLA).update({ [columna]: valor || null }).eq("id", inscripcionEntregando.id);
+  if (error) { console.error("No se pudo autoguardar", columna, error); return false; }
+  inscripcionEntregando[columna] = valor || null;
+  return true;
+}
+
+function mostrarIndicadorGuardado(inputId, texto) {
+  const indicador = document.getElementById(`${inputId}-guardado`);
+  if (!indicador) return;
+  indicador.textContent = texto;
+  indicador.hidden = false;
+  clearTimeout(indicador._timeoutId);
+  indicador._timeoutId = setTimeout(() => { indicador.hidden = true; }, 2500);
+}
+
+CAMPOS_AUTOGUARDABLES.forEach(({ inputId, columna }) => {
+  const input = document.getElementById(inputId);
+  input.addEventListener("blur", async () => {
+    const valor = input.value.trim();
+    const ok = await guardarCampoAuto(columna, valor);
+    if (ok) mostrarIndicadorGuardado(inputId, valor ? "✓ Guardado" : "");
+  });
+});
+
+document.querySelectorAll(".btn-eliminar-campo").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const inputId = btn.dataset.target;
+    const input = document.getElementById(inputId);
+    const columna = CAMPOS_AUTOGUARDABLES.find((c) => c.inputId === inputId)?.columna;
+    if (!columna) return;
+    input.value = "";
+    const ok = await guardarCampoAuto(columna, null);
+    if (ok) mostrarIndicadorGuardado(inputId, "🗑️ Eliminado");
+  });
+});
 
 document.getElementById("btn-guardar-entrega").addEventListener("click", async () => {
   const errorBox = document.getElementById("entrega-error");
