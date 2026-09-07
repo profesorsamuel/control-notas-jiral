@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ejercicio 3 — Pareo de fotos | Clase 3 | Ciencias 9° | C.E.B.G. El Jiral</title>
+<link rel="stylesheet" href="../css/prueba_ciencias_9.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="ph-header">
+    <img class="ph-escudo" src="../img/escudo-jiral.png" alt="Escudo C.E.B.G. El Jiral">
+    <div>
+      <p class="ph-escuela">C.E.B.G. EL JIRAL</p>
+      <h1>Ejercicio 3 — Pareo de fotos<br>Clase 3: El movimiento ondulatorio</h1>
+    </div>
+  </header>
+
+  <!-- ===================== VISTA: REGISTRO DEL ESTUDIANTE ===================== -->
+  <!-- Es la MISMA identificación que usa el examen y el pareo de esta
+       clase: si el estudiante ya se registró en cualquiera de los dos,
+       este ejercicio lo reconoce solo (mismo localStorage). -->
+  <section id="vista-registro-fotos" class="card">
+    <p class="tag">REGISTRO</p>
+    <h2>Antes de empezar, identifícate</h2>
+    <p class="lead">Selecciona tu salón y busca tu nombre. Luego escribe tú mismo(a) tu número de cédula para confirmar tu identidad.</p>
+
+    <label for="reg-salon-fotos">Salón
+      <select id="reg-salon-fotos">
+        <option value="">Selecciona tu salón…</option>
+      </select>
+    </label>
+
+    <label for="reg-nombre-fotos">Nombre
+      <select id="reg-nombre-fotos" disabled>
+        <option value="">Selecciona primero tu salón…</option>
+      </select>
+    </label>
+
+    <label for="reg-cedula-fotos">Cédula
+      <input id="reg-cedula-fotos" type="text" placeholder="Escribe tu número de cédula" autocomplete="off" disabled>
+    </label>
+
+    <p id="reg-error-fotos" class="error" hidden></p>
+
+    <button id="btn-registrar-fotos" class="wide">Continuar</button>
+  </section>
+
+  <!-- ===================== VISTA: INICIO ===================== -->
+  <section id="vista-inicio-fotos" class="card" hidden>
+    <p class="tag">CIENCIAS 9° · CLASE 3</p>
+    <h2 id="fotos-saludo">Relaciona cada foto con su nombre</h2>
+    <p class="lead">
+      Se te van a mostrar 8 fotos elegidas al azar (de un banco de 33, así que
+      pueden salir distintas cada vez), siempre en un orden diferente.
+      Junto a cada foto, elige su nombre correcto de la lista — la lista
+      también sale revuelta cada vez, así que no te la puedes aprender de memoria.
+    </p>
+    <p class="lead">Puedes practicar todas las veces que quieras — no cuenta para la nota. <b>Disponible hasta el 9 de octubre de 2026.</b></p>
+    <button id="btn-comenzar-fotos" class="wide">📷 Comenzar pareo de fotos</button>
+    <button id="btn-cambiar-usuario-fotos" class="link">No soy yo / cambiar estudiante</button>
+  </section>
+
+  <!-- ===================== VISTA: EJERCICIO ===================== -->
+  <section id="vista-ejercicio-fotos" class="card" hidden>
+    <p class="tag">PAREO DE FOTOS</p>
+    <p id="fotos-progreso" class="pareo-progreso">0 / 8 respondidas</p>
+
+    <div id="fotos-grid" class="fotos-grid"></div>
+
+    <button id="btn-revisar-fotos" class="wide" disabled>✅ Revisar respuestas</button>
+  </section>
+
+  <!-- ===================== VISTA: RESULTADO ===================== -->
+  <section id="vista-resultado-fotos" class="result card" hidden>
+    <p class="tag">RESULTADO DEL PAREO DE FOTOS</p>
+    <div class="grade" id="fotos-res-correctas">0/8</div>
+    <h2>¡Pareo de fotos finalizado!</h2>
+
+    <div class="count">
+      <div><b id="fotos-res-nota">-</b><span>nota MEDUCA</span></div>
+      <div><b id="fotos-res-porcentaje">0%</b><span>porcentaje</span></div>
+      <div><b id="fotos-res-tiempo">0:00</b><span>tiempo</span></div>
+    </div>
+
+    <div id="fotos-revision" class="fotos-grid"></div>
+
+    <button id="btn-otro-intento-fotos" class="wide">🔄 Intentar con otras 8 fotos</button>
+    <button id="btn-volver-menu-fotos" class="wide secundario">Volver al inicio</button>
+  </section>
+
+  <footer class="ph-footer">
+    <a href="salon09-unidad-completa.html#clase3">← Volver a la Clase 3</a>
+  </footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/portal-config.js"></script>
+<script src="../js/prueba_config_clase3.js"></script>
+<script src="../js/prueba_banco_fotos_clase3.js"></script>
+<script src="../js/fotos_clase3.js"></script>
+</body>
+</html>
