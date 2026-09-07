@@ -1,0 +1,120 @@
+// =========================================================
+// CONFIGURACIÓN — Examen Clase 3: El movimiento ondulatorio
+// Ciencias Naturales 9° | C.E.B.G. EL JIRAL
+// =========================================================
+// Este es el ÚNICO lugar que necesitas tocar para:
+//  - Cambiar la fecha/hora del examen oficial
+//  - Cambiar cuántas preguntas se toman en práctica/oficial (banco tiene 60)
+//  - Cambiar los tiempos por dificultad
+//  - Cambiar la clave del panel del docente
+// La conexión a Supabase (URL y llave) ya vive en js/portal-config.js
+// (se reutiliza la misma que usa el resto del sistema).
+// El motor (js/prueba_ciencias.js) es el MISMO que usan los demás exámenes:
+// es genérico y lee todo desde este archivo de configuración.
+// =========================================================
+
+window.PRUEBA_CONFIG = {
+
+  // ---- Identidad del examen ----
+  materia: "Ciencias Naturales",
+  grado: "9°",
+  tituloExamen: "Examen Clase 3: El movimiento ondulatorio",
+  // Etiqueta CORTA para diferenciar esta actividad de otras en los reportes
+  // de Excel/PDF (ej. cuando el docente junte varios archivos descargados
+  // en una sola hoja).
+  nombreActividad: "Clase 3",
+  escuela: "C.E.B.G. EL JIRAL",
+  codigoExamen: "cn9-clase3-ondas-2026", // clave única en Supabase para este examen
+  bancoGlobal: "BANCO_CLASE3_CIENCIAS_9",
+  paginaExamen: "prueba_clase3_ciencias_9.html",
+
+  // ---- Salones habilitados para este examen ----
+  // (deben existir estudiantes con este valor exacto en la columna "salon"
+  // de la tabla "estudiantes" — son los mismos salones que ya usa el resto del sistema)
+  salones: ["9A", "9B", "9C"],
+
+  // ---- Fecha y hora oficiales ----
+  // Formato ISO con zona horaria de Panamá (UTC-5, sin horario de verano).
+  // AJUSTA estas 4 fechas según cuándo quieras abrir/cerrar este examen.
+  // "fechaLimiteInscripcion": hasta cuándo un estudiante puede REGISTRARSE
+  // por primera vez (elegir salón/nombre y ver su cédula). Los estudiantes ya
+  // registrados antes de esa fecha pueden seguir entrando después sin problema.
+  fechaLimiteInscripcion: "2026-10-09T23:59:59-05:00",
+  // "fechaInicio"/"fechaLimiteAcceso": la ventana real para PRESENTAR el
+  // examen oficial (el modo práctica no depende de estas fechas y está
+  // disponible desde ya). Este examen quedó configurado SOLO EN MODO
+  // PRÁCTICA (ver prueba_clase3_ciencias_9.html), igual que las Clases 1 y
+  // 2, así que estas fechas ya no se usan para bloquear nada, pero se dejan
+  // definidas por si en el futuro se vuelve a activar el examen oficial.
+  fechaInicio: "2026-10-06T09:00:00-05:00",
+  fechaLimiteAcceso: "2026-10-09T23:59:59-05:00",
+  // Hora de cierre total de los 3 ejercicios de esta clase (Quiz, Pareo
+  // de términos y Pareo de fotos): viernes 9 de octubre a las 11:59 p.m.
+  // Nadie más entrega después de esto, y en el panel del docente
+  // (pestaña "Promedio final") cualquier práctica que un estudiante no
+  // haya hecho para entonces se le pone en 1.0 automáticamente.
+  fechaCierreTotal: "2026-10-09T23:59:59-05:00",
+
+  // ---- Examen oficial ----
+  // El banco tiene 60 preguntas; cada estudiante recibe una selección
+  // aleatoria (pero fija para él/ella) de este tamaño.
+  preguntasExamenOficial: 25,
+  unSoloIntento: true,
+
+  // ---- Modo práctica ----
+  preguntasModoPractica: 15,
+
+  // ---- Tiempos por pregunta según dificultad (segundos) ----
+  tiempos: {
+    basica: 30,
+    intermedia: 60,
+    dificil: 90,
+    avanzada: 120,
+  },
+
+  // ---- Escala de calificación MEDUCA (nota de 1.0 a 5.0) ----
+  escalaMeduca: [
+    { min: 91, max: 100, nota: 5.0 },
+    { min: 81, max: 90, nota: 4.5 },
+    { min: 71, max: 80, nota: 4.0 },
+    { min: 61, max: 70, nota: 3.5 },
+    { min: 51, max: 60, nota: 3.0 },
+    { min: 41, max: 50, nota: 2.5 },
+    { min: 31, max: 40, nota: 2.0 },
+    { min: 21, max: 30, nota: 1.5 },
+    { min: 0, max: 20, nota: 1.0 },
+  ],
+
+  // ---- Seguridad ----
+  maxCambiosPestanaAntesDeAlerta: 3,
+  segundosInactividadAlerta: 45,
+
+  // ---- Clave para entrar al Panel del Docente (cámbiala por una propia) ----
+  claveAdmin: "clase3jiral2026",
+
+  // ---- Nombres de tablas en Supabase (compartidas con los demás exámenes;
+  // se distinguen por "codigoExamen", así que no se mezclan los resultados) ----
+  tablas: {
+    sesiones: "prueba_sesiones",
+    eventos: "prueba_eventos",
+    // Guarda CADA intento de práctica (fecha, hora, duración y resultado),
+    // separado de "prueba_sesiones" para no chocar con el examen oficial
+    // de un solo intento — la práctica es de intentos ilimitados.
+    intentosPractica: "prueba_intentos_practica",
+  },
+
+};
+
+// ---- Utilidad: calcular nota MEDUCA a partir de un porcentaje ----
+window.calcularNotaMeduca = function (porcentaje) {
+  const escala = window.PRUEBA_CONFIG.escalaMeduca;
+  for (const tramo of escala) {
+    if (porcentaje >= tramo.min && porcentaje <= tramo.max) return tramo.nota;
+  }
+  return 1.0;
+};
+
+// ---- Utilidad: tiempo en segundos según dificultad ----
+window.tiempoPorDificultad = function (dificultad) {
+  return window.PRUEBA_CONFIG.tiempos[dificultad] || 60;
+};
