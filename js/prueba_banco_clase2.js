@@ -1,8 +1,8 @@
 // Banco de 60 preguntas — Clase 2: La vida en la Tierra, la historia geológica
 // y la exploración del universo | Ciencias Naturales 9° | C.E.B.G. El Jiral
 // 28 de septiembre al 8 de octubre
-// Generado a partir de la guía de clase. No editar el formato a mano;
-// para agregar/cambiar preguntas, manten la misma estructura por objeto.
+// Las 4 opciones de cada pregunta se mantienen de tamaño similar a propósito,
+// para que la longitud de la respuesta no delate cuál es la correcta.
 window.BANCO_CLASE2_CIENCIAS_9 = [
   {
     "id": "Q001",
@@ -26,10 +26,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué factores provocaron el calentamiento de la Tierra durante su formación, según el texto?",
     "opciones": [
-      "El impacto de meteoritos, la contracción gravitatoria y la desintegración radiactiva",
+      "Meteoritos, contracción gravitatoria y radiactividad",
       "La explosión cámbrica y la fragmentación de Pangea",
       "La aparición de cianobacterias fotosintéticas",
-      "La formación del núcleo de hierro únicamente"
+      "La formación inicial del núcleo de hierro y níquel"
     ],
     "respuesta": 0,
     "explicacion": "El texto señala que la Tierra se calentó por la energía liberada por el impacto de meteoritos, la contracción gravitatoria y la desintegración radiactiva de ciertos elementos."
@@ -56,10 +56,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "Según el texto, ¿qué le ocurrió a la Tierra debido al calentamiento provocado por los impactos y la radiactividad?",
     "opciones": [
-      "Se fundió totalmente y se convirtió en una masa incandescente",
-      "Se dividió en varios planetas más pequeños",
-      "Perdió toda su atmósfera de forma permanente",
-      "Se congeló por completo"
+      "Se fundió y se volvió una masa incandescente",
+      "Se dividió en varios planetas pequeños",
+      "Perdió su atmósfera por completo",
+      "Se congeló casi por completo"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que, debido a este calentamiento, la Tierra se fundió totalmente y se convirtió en una masa incandescente."
@@ -71,10 +71,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué elementos formaron el núcleo de la Tierra durante la diferenciación de sus capas?",
     "opciones": [
-      "Los elementos pesados, como el hierro y el níquel",
+      "Los elementos pesados, como hierro y níquel",
       "Los elementos ligeros, como los silicatos",
       "Los gases liberados por los volcanes",
-      "El vapor de agua condensado"
+      "El vapor de agua ya condensado"
     ],
     "respuesta": 0,
     "explicacion": "Por la diferenciación de capas, los elementos pesados —como el hierro y el níquel— se fundieron y formaron el núcleo."
@@ -86,9 +86,9 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué capas formaron los elementos ligeros, como los minerales con silicatos?",
     "opciones": [
-      "La corteza y el manto",
-      "El núcleo únicamente",
-      "La hidrósfera",
+      "La corteza y el manto terrestre",
+      "El núcleo, de forma única",
+      "La hidrósfera del planeta",
       "La atmósfera primitiva"
     ],
     "respuesta": 0,
@@ -101,9 +101,9 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Cómo se originó la atmósfera primitiva de la Tierra, según el texto?",
     "opciones": [
-      "Por los elementos gaseosos que escaparon a través de erupciones volcánicas",
-      "Por la llegada de cometas cargados de gases",
-      "Por la fotosíntesis de las primeras plantas",
+      "Por gases liberados en erupciones volcánicas",
+      "Por la llegada de cometas con gases",
+      "Por la fotosíntesis de primeras plantas",
       "Por la condensación del vapor de agua"
     ],
     "respuesta": 0,
@@ -116,10 +116,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Cómo se formó la hidrósfera terrestre, según el texto?",
     "opciones": [
-      "El vapor de agua se condensó",
-      "Los volcanes liberaron agua líquida directamente",
-      "Los cometas trajeron toda el agua de los océanos",
-      "Se formó al mismo tiempo que el núcleo"
+      "El vapor de agua se fue condensando",
+      "Los volcanes liberaron agua líquida",
+      "Los cometas trajeron toda el agua",
+      "Se formó junto con el núcleo"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que el vapor de agua se condensó y formó la hidrósfera."
@@ -131,10 +131,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Por qué no existen rocas ni evidencias de las primeras etapas de la Tierra, según el texto?",
     "opciones": [
-      "Porque las rocas que se iban generando se volvían a fundir",
-      "Porque nunca existieron rocas en esa época",
-      "Porque todas se destruyeron en la explosión cámbrica",
-      "Porque los científicos aún no las han buscado"
+      "Las rocas generadas se volvían a fundir",
+      "Nunca existieron rocas en esa época",
+      "Se destruyeron en la explosión cámbrica",
+      "Los científicos no las han buscado"
     ],
     "respuesta": 0,
     "explicacion": "El texto explica que en las primeras etapas las rocas que se iban generando se volvían a fundir, por lo que no dejaron evidencias de su paso."
@@ -147,7 +147,7 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "enunciado": "¿A partir de qué surgió la vida en la Tierra, según el texto?",
     "opciones": [
       "De compuestos orgánicos simples",
-      "De rocas volcánicas enfriadas",
+      "De rocas volcánicas ya enfriadas",
       "De la radiación cósmica de fondo",
       "De la fragmentación de Pangea"
     ],
@@ -161,10 +161,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según el texto, ¿cuál fue el orden en que aparecieron las formas de vida a partir de las moléculas orgánicas?",
     "opciones": [
-      "Organismos unicelulares y luego seres pluricelulares, vegetales y animales",
-      "Seres pluricelulares y luego organismos unicelulares",
-      "Animales, luego plantas y después organismos unicelulares",
-      "Vegetales, luego animales y finalmente organismos unicelulares"
+      "Unicelulares, luego pluricelulares, vegetales y animales",
+      "Pluricelulares y luego organismos unicelulares",
+      "Animales, luego plantas y unicelulares",
+      "Vegetales, animales y luego unicelulares"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que esas moléculas dieron origen a organismos unicelulares y, más tarde, a los seres pluricelulares, vegetales y animales."
@@ -179,7 +179,7 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
       "Desde hace unos 4000 millones de años",
       "Desde hace unos 541 millones de años",
       "Desde hace unos 66 millones de años",
-      "Desde hace unos 200 000 años"
+      "Desde hace unos 200 mil años"
     ],
     "respuesta": 0,
     "explicacion": "El texto señala que hace unos 4000 millones de años ya existían moléculas capaces de replicarse o reproducirse, la base considerada del origen de la vida."
@@ -191,10 +191,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "Según la escala de tiempo geológico, ¿cuál es la diferencia principal entre un eón y una época?",
     "opciones": [
-      "El eón es la unidad más grande (miles de millones de años) y la época es la más breve (varios millones de años)",
+      "El eón es de miles de millones; la época, de millones",
       "El eón y la época duran exactamente lo mismo",
-      "La época es más grande que el eón",
-      "El eón se usa solo para el Cenozoico y la época para el Precámbrico"
+      "La época es más larga que el eón",
+      "El eón es solo del Cenozoico y la época del Precámbrico"
     ],
     "respuesta": 0,
     "explicacion": "El eón es la unidad más grande de tiempo geológico (miles de millones de años) mientras que la época es la unidad más breve de las cuatro (varios millones de años)."
@@ -206,10 +206,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según la tabla de la escala de tiempo geológico del texto, ¿en qué se divide la era?",
     "opciones": [
-      "En varios periodos",
-      "En eones",
-      "En épocas únicamente sin periodos",
-      "No se divide en nada"
+      "En varios periodos geológicos",
+      "En eones geológicos",
+      "En épocas, sin periodos",
+      "En nada, no se divide"
     ],
     "respuesta": 0,
     "explicacion": "La tabla indica que la era comprende varios periodos y se utiliza para representar intervalos significativos de tiempo geológico."
@@ -221,10 +221,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Por qué se considera que el registro fósil de los últimos 541 millones de años es más útil para estudiar la Tierra que el de épocas anteriores?",
     "opciones": [
-      "Porque solo existen fósiles adecuados para su estudio a partir de esa fecha",
-      "Porque antes de esa fecha la Tierra no tenía vida",
-      "Porque después de esa fecha ya no hubo más cambios geológicos",
-      "Porque los científicos decidieron arbitrariamente esa fecha sin ninguna evidencia"
+      "Solo hay fósiles útiles desde esa fecha",
+      "Antes de esa fecha no había vida",
+      "Después de esa fecha no hubo cambios",
+      "Los científicos eligieron esa fecha al azar"
     ],
     "respuesta": 0,
     "explicacion": "El texto explica que los primeros 4560 a 540 millones de años están registrados en rocas casi sin fósiles, y que solo existen fósiles adecuados para el estudio de los últimos 541 millones de años."
@@ -251,10 +251,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué rasgo principal caracteriza al Paleozoico, según la tabla de eras del texto?",
     "opciones": [
-      "La explosión cámbrica y la salida de la vida animal del agua hacia la tierra firme",
-      "La fragmentación de Pangea",
+      "La explosión cámbrica y la salida del agua a tierra",
+      "La fragmentación del supercontinente Pangea",
       "La diversificación de los mamíferos",
-      "La formación del planeta"
+      "La formación inicial del planeta"
     ],
     "respuesta": 0,
     "explicacion": "La tabla indica que el rasgo principal del Paleozoico es la explosión cámbrica y la salida de la vida animal del agua hacia la tierra firme."
@@ -266,9 +266,9 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué ocurrió durante el Mesozoico, según el texto?",
     "opciones": [
-      "La fragmentación de Pangea y el dominio de los grandes reptiles",
+      "La fragmentación de Pangea y el dominio de reptiles",
       "La aparición del Homo sapiens sapiens",
-      "La explosión cámbrica",
+      "La explosión cámbrica de organismos",
       "La formación de la corteza terrestre"
     ],
     "respuesta": 0,
@@ -281,10 +281,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Cuál es el rasgo principal del Cenozoico, según el texto?",
     "opciones": [
-      "La diversificación de los mamíferos y la aparición del Homo sapiens sapiens",
-      "La fragmentación de Pangea",
-      "La explosión cámbrica",
-      "La formación de las primeras moléculas replicantes"
+      "Diversificación de mamíferos y el Homo sapiens sapiens",
+      "La fragmentación del continente Pangea",
+      "La explosión cámbrica de vida",
+      "La formación de moléculas replicantes"
     ],
     "respuesta": 0,
     "explicacion": "La tabla indica que el rasgo principal del Cenozoico es la diversificación de los mamíferos y la aparición del Homo sapiens sapiens."
@@ -296,8 +296,8 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Hasta cuándo se extendió el Precámbrico, según su definición en el texto?",
     "opciones": [
-      "Hasta hace unos 541 millones de años, cuando aparecieron los primeros organismos pluricelulares",
-      "Hasta la actualidad",
+      "Hasta que aparecieron organismos pluricelulares",
+      "Hasta la actualidad, sin final",
       "Hasta hace 66 millones de años",
       "Hasta hace 4000 millones de años"
     ],
@@ -311,10 +311,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "Según el texto, ¿cuál es el orden cronológico correcto de estos eventos del Precámbrico?",
     "opciones": [
-      "Primeros signos de vida (3700 Ma) → cianobacterias fotosintéticas (3500 Ma) → primeros organismos liberadores de oxígeno (2800 Ma)",
-      "Cianobacterias (3500 Ma) → primeros signos de vida (3700 Ma) → oxígeno liberado (2800 Ma)",
-      "Oxígeno liberado (2800 Ma) → cianobacterias (3500 Ma) → primeros signos de vida (3700 Ma)",
-      "Primeros organismos liberadores de oxígeno → primeros signos de vida → cianobacterias"
+      "Vida (3700 Ma), cianobacterias (3500 Ma), oxígeno (2800 Ma)",
+      "Cianobacterias, luego vida, luego oxígeno liberado",
+      "Oxígeno liberado, luego cianobacterias, luego vida",
+      "Oxígeno liberado, luego vida, luego cianobacterias"
     ],
     "respuesta": 0,
     "explicacion": "El texto ordena estos eventos así: hace 3700 Ma aparecen los primeros signos de vida, hace 3500 Ma existen cianobacterias fotosintéticas, y hace 2800 Ma aparecen organismos que liberan oxígeno."
@@ -326,8 +326,8 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Qué hacían las cianobacterias que existían hace unos 3500 millones de años, según el texto?",
     "opciones": [
-      "Realizaban fotosíntesis y consumían dióxido de carbono, aunque aún no liberaban oxígeno",
-      "Liberaban oxígeno pero no hacían fotosíntesis",
+      "Hacían fotosíntesis sin liberar oxígeno aún",
+      "Liberaban oxígeno sin hacer fotosíntesis",
       "Vivían exclusivamente en tierra firme",
       "Eran organismos pluricelulares complejos"
     ],
@@ -341,10 +341,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué evento marca el fin del eón Precámbrico, según el texto?",
     "opciones": [
-      "La aparición de las células eucariotas al final de la era Proterozoica",
-      "La explosión cámbrica",
+      "La aparición de células eucariotas",
+      "La explosión cámbrica de vida",
       "La extinción de los dinosaurios",
-      "La aparición del Homo sapiens sapiens"
+      "La aparición del Homo sapiens"
     ],
     "respuesta": 0,
     "explicacion": "El texto señala que la aparición de las células eucariotas, al final de la era Proterozoica, marca el fin del eón Precámbrico."
@@ -356,10 +356,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Qué diferencia había entre los organismos de la era Arcaica y los del final de la era Proterozoica, según el texto?",
     "opciones": [
-      "En la era Arcaica existían organismos procariotas, mientras que al final de la Proterozoica aparecieron las células eucariotas",
-      "En ambas eras solo existían células eucariotas",
-      "En la era Arcaica ya existían dinosaurios",
-      "No existía ninguna diferencia entre ambas eras"
+      "Arcaica: procariotas; final Proterozoica: eucariotas",
+      "En ambas eras solo había eucariotas",
+      "En la Arcaica ya existían dinosaurios",
+      "No había ninguna diferencia entre ambas"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que durante la era Arcaica existían organismos procariotas, y que al final de la era Proterozoica aparecieron las células eucariotas."
@@ -371,10 +371,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué aspecto tenían las tierras emergidas durante la era Paleozoica, según el texto?",
     "opciones": [
-      "Islas más o menos dispersas alrededor del ecuador terrestre",
-      "Un único supercontinente llamado Pangea",
-      "Continentes ya en sus posiciones actuales",
-      "No existían todavía tierras emergidas"
+      "Islas dispersas alrededor del ecuador",
+      "Un solo supercontinente, Pangea",
+      "Continentes ya en su lugar actual",
+      "Sin tierras emergidas todavía"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que en la era Paleozoica las tierras emergidas tenían el aspecto de islas más o menos dispersas alrededor del ecuador terrestre."
@@ -388,8 +388,8 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "opciones": [
       "Trilobites, graptolitos y crinoideos",
       "Dinosaurios, pterosaurios e ictiosaurios",
-      "Mamíferos y primates",
-      "Anfibios y reptiles únicamente"
+      "Mamíferos y primates diversos",
+      "Solo anfibios y reptiles"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que los fósiles de la primera mitad de la era Paleozoica corresponden a invertebrados como trilobites, graptolitos y crinoideos."
@@ -401,10 +401,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué fue la explosión cámbrica, según el texto?",
     "opciones": [
-      "Una 'explosión' de vida con unos cincuenta grupos de organismos, la mayoría de los cuales no evolucionó hacia una especie actual",
+      "Explosión de vida con cincuenta grupos nuevos",
       "La extinción masiva de los dinosaurios",
-      "El choque de un meteorito contra la Tierra",
-      "La formación de Pangea"
+      "El choque de un gran meteorito",
+      "La formación del continente Pangea"
     ],
     "respuesta": 0,
     "explicacion": "El texto explica que en el periodo Cámbrico se produjo una 'explosión' de vida, con unos cincuenta grupos de organismos que en su mayoría no evolucionaron hacia una especie actual."
@@ -416,10 +416,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué era Pangea, según el texto?",
     "opciones": [
-      "Un único continente gigante en el que se habían reunido todas las tierras al inicio del Mesozoico",
+      "Un continente gigante que reunió todas las tierras",
       "Un océano que cubría toda la Tierra",
-      "El primer organismo pluricelular",
-      "Una era geológica"
+      "El primer organismo pluricelular conocido",
+      "Una simple era geológica más"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que al principio del Mesozoico todos los continentes o islas se habían reunido en un único continente gigante, llamado Pangea."
@@ -431,10 +431,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "Según el texto, ¿qué relación existe entre la fragmentación de Pangea y la diversidad de formas de vida en el Mesozoico?",
     "opciones": [
-      "Al separarse los continentes, las especies evolucionaron en ambientes distintos, lo que aumentó la diversidad de vida",
-      "La fragmentación de Pangea eliminó por completo la vida animal",
-      "La diversidad de vida no tuvo relación con la fragmentación de Pangea",
-      "Pangea se formó después de que la vida ya era diversa"
+      "Ambientes separados aumentaron la diversidad de vida",
+      "La fragmentación eliminó la vida animal",
+      "No hubo relación con la diversidad",
+      "Pangea se formó tras la diversidad"
     ],
     "respuesta": 0,
     "explicacion": "El texto señala que la fragmentación de Pangea favoreció la evolución de especies en ambientes separados y aumentó la diversidad de las formas de vida."
@@ -446,9 +446,9 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué ocurrió hace aproximadamente 200 000 años, según el texto sobre el Cenozoico?",
     "opciones": [
-      "De los homínidos evolucionó la especie Homo sapiens sapiens",
+      "Evolucionó el Homo sapiens sapiens",
       "Se extinguieron los dinosaurios",
-      "Surgieron los primates",
+      "Surgieron los primeros primates",
       "Comenzó la era Cenozoica"
     ],
     "respuesta": 0,
@@ -461,9 +461,9 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué permitieron las observaciones del cielo nocturno en las antiguas civilizaciones, según el texto?",
     "opciones": [
-      "Establecer calendarios, predecir movimientos astronómicos y orientar a los navegantes",
-      "Construir el telescopio espacial James Webb",
-      "Enviar sondas espaciales a otros planetas",
+      "Calendarios, predicciones astronómicas y navegación",
+      "Construir el telescopio James Webb",
+      "Enviar sondas a otros planetas",
       "Descubrir la teoría del Big Bang"
     ],
     "respuesta": 0,
@@ -506,8 +506,8 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Cuáles de los siguientes descubrimientos hizo Galileo con su telescopio, según el texto?",
     "opciones": [
-      "La superficie lunar, el planeta Venus, satélites de Júpiter y manchas solares",
-      "Los anillos de Saturno y las lunas de Marte",
+      "Luna, Venus, satélites de Júpiter y manchas solares",
+      "Anillos de Saturno y lunas de Marte",
       "La existencia de galaxias distantes",
       "La composición química del Sol"
     ],
@@ -521,10 +521,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué es el telescopio espacial James Webb, según el texto?",
     "opciones": [
-      "Un telescopio capaz de capturar imágenes de alta resolución del espacio",
-      "Un tipo de sonda espacial no tripulada",
+      "Un telescopio de alta resolución espacial",
+      "Un tipo de sonda no tripulada",
       "Una estación espacial habitada",
-      "Un cohete de la NASA"
+      "Un cohete propio de la NASA"
     ],
     "respuesta": 0,
     "explicacion": "El texto lo presenta como un ejemplo de telescopio grande y sofisticado, capaz de capturar imágenes de alta resolución del espacio."
@@ -536,9 +536,9 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué significan las siglas GTC mencionadas en el texto?",
     "opciones": [
-      "Gran Telescopio para Estudios de Orígenes Cósmicos",
+      "Gran Telescopio de Orígenes Cósmicos",
       "Grupo de Tecnología Cósmica",
-      "Gran Telescopio Cassini",
+      "Gran Telescopio Cassini espacial",
       "Generador de Trayectorias Cósmicas"
     ],
     "respuesta": 0,
@@ -551,10 +551,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Para qué se utilizan las supercomputadoras y los softwares avanzados en el estudio del universo, según el texto?",
     "opciones": [
-      "Para simular fenómenos cósmicos complejos, como la formación de galaxias o la evolución estelar",
-      "Para fotografiar directamente los agujeros negros",
-      "Para reemplazar a los telescopios espaciales",
-      "Para enviar astronautas al espacio"
+      "Simular galaxias, estrellas y agujeros negros",
+      "Fotografiar directamente agujeros negros",
+      "Reemplazar a los telescopios espaciales",
+      "Enviar astronautas al espacio"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que se usan para simular fenómenos como la formación de galaxias, la evolución estelar o la interacción de agujeros negros."
@@ -566,10 +566,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué es la Estación Espacial Internacional (EEI), según el texto?",
     "opciones": [
-      "Un laboratorio espacial habitable que orbita alrededor de la Tierra",
-      "Una sonda que explora los límites del sistema solar",
-      "Un telescopio terrestre",
-      "Un cohete no tripulado"
+      "Un laboratorio orbital habitable en la Tierra",
+      "Una sonda de los límites solares",
+      "Un telescopio ubicado en la Tierra",
+      "Un cohete espacial no tripulado"
     ],
     "respuesta": 0,
     "explicacion": "El texto define la EEI como un laboratorio espacial habitable que orbita alrededor de la Tierra."
@@ -581,10 +581,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué agencias espaciales participan en el proyecto de la Estación Espacial Internacional, según el texto?",
     "opciones": [
-      "NASA, Roscosmos, la ESA, la JAXA y la CSA, entre otras",
-      "Solamente la NASA",
-      "Solamente la NASA y Roscosmos",
-      "La ESA y la CSA únicamente"
+      "NASA, Roscosmos, ESA, JAXA y CSA",
+      "Solamente la agencia NASA",
+      "Solamente NASA y Roscosmos juntas",
+      "Solo la ESA y la CSA"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que la EEI es resultado de un proyecto conjunto entre la NASA, Roscosmos, la ESA, la JAXA y la CSA, entre otras agencias."
@@ -596,9 +596,9 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué actividades realiza la tripulación de la Estación Espacial Internacional, según el texto?",
     "opciones": [
-      "Investigaciones, mantenimiento y experimentos en microgravedad",
+      "Investigación, mantenimiento y experimentos orbitales",
       "Reparación de telescopios terrestres",
-      "Lanzamiento de nuevos satélites de comunicación",
+      "Lanzamiento de satélites de comunicación",
       "Observación directa de agujeros negros"
     ],
     "respuesta": 0,
@@ -611,10 +611,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué ha permitido el desarrollo de naves espaciales, sondas y vehículos no tripulados, según el texto?",
     "opciones": [
-      "Explorar planetas, lunas y asteroides, y obtener información sobre su composición y características",
-      "Eliminar por completo la necesidad de telescopios",
+      "Explorar planetas, lunas y asteroides",
+      "Eliminar la necesidad de telescopios",
       "Viajar más rápido que la luz",
-      "Predecir con exactitud el clima terrestre"
+      "Predecir con exactitud el clima"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que estos desarrollos han permitido explorar planetas, lunas y asteroides, brindando información sobre su composición y características."
@@ -626,10 +626,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "Según el texto, ¿por qué se dice que la tecnología ha sido fundamental para la astronomía?",
     "opciones": [
-      "Porque ha permitido descubrimientos significativos, avances científicos y una comprensión más profunda de los fenómenos cósmicos",
-      "Porque reemplazó completamente el estudio a simple vista del cielo",
-      "Porque solo sirve para tomar fotografías del espacio",
-      "Porque eliminó la necesidad de científicos"
+      "Trajo descubrimientos y avances científicos",
+      "Reemplazó el estudio a simple vista",
+      "Solo sirve para tomar fotografías",
+      "Eliminó la necesidad de científicos"
     ],
     "respuesta": 0,
     "explicacion": "El texto afirma que la tecnología ha sido fundamental en la astronomía, permitiendo descubrimientos significativos, avances científicos y una comprensión más profunda de los fenómenos cósmicos."
@@ -642,7 +642,7 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "enunciado": "Antes de la invención del telescopio, ¿cómo estudiaban los seres humanos el cielo nocturno, según el texto?",
     "opciones": [
       "Mirándolo a simple vista",
-      "Con telescopios espaciales",
+      "Con telescopios espaciales modernos",
       "Con sondas no tripuladas",
       "Con satélites artificiales"
     ],
@@ -656,10 +656,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué avances permitieron construir telescopios más grandes y sofisticados, según el texto?",
     "opciones": [
-      "Los avances en óptica, en la fabricación de lentes y en la ciencia de materiales",
-      "La invención de la radiación cósmica de fondo",
+      "Avances en óptica, lentes y materiales",
+      "La radiación cósmica de fondo",
       "La aparición del eón Fanerozoico",
-      "El descubrimiento de Pangea"
+      "El descubrimiento del continente Pangea"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que los avances en óptica, en la fabricación de lentes y en la ciencia de materiales han permitido construir telescopios más grandes y sofisticados."
@@ -671,10 +671,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Qué relación establece el texto entre la astronomía y el desarrollo tecnológico?",
     "opciones": [
-      "El continuo desarrollo tecnológico permite ampliar los límites de la exploración del universo cada día más",
-      "La astronomía dejó de avanzar después de Galileo",
-      "La tecnología solo sirve para observar el Sol",
-      "No existe ninguna relación entre ambas"
+      "La tecnología amplía la exploración cada día",
+      "La astronomía dejó de avanzar tras Galileo",
+      "La tecnología solo sirve para ver el Sol",
+      "No hay relación entre ambas cosas"
     ],
     "respuesta": 0,
     "explicacion": "El texto concluye que el continuo desarrollo tecnológico permite ampliar los límites de la exploración del universo cada día más."
@@ -686,10 +686,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué son las sondas espaciales y los robots exploradores, según el texto?",
     "opciones": [
-      "Vehículos espaciales no tripulados diseñados para explorar, investigar y recopilar información sobre cuerpos celestes",
-      "Naves diseñadas exclusivamente para transportar astronautas",
+      "Vehículos no tripulados para explorar cuerpos celestes",
+      "Naves solo para transportar astronautas",
       "Telescopios terrestres de gran tamaño",
-      "Estaciones orbitales habitadas"
+      "Estaciones orbitales habitadas por humanos"
     ],
     "respuesta": 0,
     "explicacion": "El texto los define como vehículos espaciales no tripulados diseñados para explorar, investigar y recopilar información sobre cuerpos celestes."
@@ -703,8 +703,8 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "opciones": [
       "Cámaras, sensores y herramientas de medición",
       "Motores de propulsión nuclear únicamente",
-      "Paneles solares y nada más",
-      "Sistemas de soporte vital para humanos"
+      "Solo paneles solares y nada más",
+      "Sistemas de soporte vital humano"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que están equipados con instrumentos como cámaras, sensores y herramientas de medición."
@@ -716,10 +716,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Cuál es la diferencia entre una sonda espacial y un robot explorador, según el texto?",
     "opciones": [
-      "Las sondas orbitan alrededor de los cuerpos celestes, mientras que los robots exploradores, además, pueden aterrizar en su superficie",
-      "Las sondas siempre son tripuladas y los robots no",
-      "Los robots exploradores solo estudian el Sol",
-      "No existe ninguna diferencia entre ambos"
+      "Sondas orbitan; robots también aterrizan",
+      "Las sondas son siempre tripuladas",
+      "Los robots solo estudian el Sol",
+      "No hay diferencia entre ambos"
     ],
     "respuesta": 0,
     "explicacion": "El texto explica que las sondas espaciales orbitan alrededor de los cuerpos celestes, y los robots exploradores, además, pueden aterrizar en su superficie."
@@ -732,8 +732,8 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "enunciado": "¿Qué ha explorado la sonda Voyager, según el texto?",
     "opciones": [
       "Los límites del sistema solar",
-      "La superficie de Marte",
-      "Saturno y sus lunas",
+      "La superficie del planeta Marte",
+      "Saturno y sus lunas heladas",
       "Plutón y el cinturón de Kuiper"
     ],
     "respuesta": 0,
@@ -748,8 +748,8 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "opciones": [
       "Sojourner, Spirit, Opportunity y Curiosity",
       "Voyager 1 y Voyager 2",
-      "Cassini y Huygens",
-      "Soyuz y Crew Dragon"
+      "Cassini y Huygens juntas",
+      "Soyuz y la Crew Dragon"
     ],
     "respuesta": 0,
     "explicacion": "El texto menciona a Sojourner, Spirit, Opportunity y Curiosity como los rovers que han estudiado la superficie de Marte."
@@ -776,8 +776,8 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué ha estudiado la sonda New Horizons, según el texto?",
     "opciones": [
-      "Plutón y objetos del cinturón de Kuiper",
-      "La superficie lunar",
+      "Plutón y el cinturón de Kuiper",
+      "La superficie de la Luna",
       "Saturno y sus anillos",
       "El Sol y sus manchas"
     ],
@@ -791,10 +791,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Qué son las naves espaciales tripuladas, según el texto?",
     "opciones": [
-      "Vehículos diseñados para transportar astronautas al espacio y devolverlos a la Tierra",
-      "Vehículos que solo orbitan sin regresar nunca",
-      "Sondas que exploran planetas sin instrumentos",
-      "Robots que caminan sobre la superficie de Marte"
+      "Transportar astronautas y traerlos de vuelta",
+      "Vehículos que orbitan sin regresar",
+      "Sondas que exploran sin instrumentos",
+      "Robots que caminan sobre Marte"
     ],
     "respuesta": 0,
     "explicacion": "El texto las define como vehículos diseñados para transportar astronautas, cosmonautas y otros tripulantes al espacio exterior y devolverlos a la Tierra."
@@ -836,10 +836,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "Según el texto, ¿por qué misiones como la exploración de Plutón se realizan con sondas no tripuladas y no con astronautas?",
     "opciones": [
-      "Porque las distancias y condiciones extremas hacen más viable enviar vehículos no tripulados que mantener con vida a una tripulación humana",
-      "Porque las sondas son más lentas que las naves tripuladas",
-      "Porque no existe tecnología para tripular ninguna nave",
-      "Porque a los astronautas no les interesa ir a Plutón"
+      "Las distancias hacen inviable llevar humanos",
+      "Las sondas son más lentas que las naves",
+      "No existe tecnología para naves tripuladas",
+      "A los astronautas no les interesa Plutón"
     ],
     "respuesta": 0,
     "explicacion": "El texto invita a reflexionar sobre por qué misiones de larga distancia, como la de Plutón, se hacen con sondas no tripuladas en lugar de astronautas a bordo."
@@ -851,10 +851,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "dificil",
     "enunciado": "¿Qué diferencia principal señala el texto entre las sondas no tripuladas y naves tripuladas como la Soyuz o la Crew Dragon?",
     "opciones": [
-      "Las sondas no tripuladas viajan solas hacia otros mundos, mientras que las naves tripuladas hacen el camino de ida y vuelta",
-      "Las naves tripuladas nunca regresan a la Tierra",
-      "Las sondas no tripuladas transportan astronautas",
-      "No hay ninguna diferencia entre ambas"
+      "Sondas van solas; naves van y vuelven",
+      "Las naves tripuladas nunca regresan",
+      "Las sondas transportan astronautas también",
+      "No hay diferencia entre ambas naves"
     ],
     "respuesta": 0,
     "explicacion": "El texto explica que mientras las sondas no tripuladas viajan solas hacia otros mundos, las naves tripuladas hacen el camino de ida y vuelta, llevando y trayendo de regreso a los astronautas."
@@ -866,10 +866,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "basica",
     "enunciado": "¿Para qué son esenciales las naves espaciales tripuladas, según el texto?",
     "opciones": [
-      "Para la exploración espacial, la investigación científica y el mantenimiento de estaciones espaciales",
-      "Únicamente para tomar fotografías del espacio",
-      "Solo para explorar planetas sin regresar",
-      "Para reemplazar a las sondas no tripuladas"
+      "Exploración, investigación y estaciones espaciales",
+      "Solo para tomar fotos del espacio",
+      "Solo para explorar sin regresar",
+      "Para reemplazar a las sondas"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que estas naves son esenciales para la exploración espacial, la investigación científica y el mantenimiento de estaciones espaciales."
@@ -881,10 +881,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "intermedia",
     "enunciado": "¿Qué debe garantizar una nave espacial tripulada durante el viaje, según el texto?",
     "opciones": [
-      "Mantener la vida y proporcionar un entorno seguro para los seres humanos",
+      "Mantener la vida en un entorno seguro",
       "Alcanzar la velocidad de la luz",
-      "Aterrizar automáticamente en cualquier planeta",
-      "Funcionar sin ningún tipo de instrumento"
+      "Aterrizar sola en cualquier planeta",
+      "Funcionar sin ningún instrumento"
     ],
     "respuesta": 0,
     "explicacion": "El texto indica que estas naves están equipadas para mantener la vida y proporcionar un entorno seguro para los seres humanos durante el viaje espacial."
@@ -896,10 +896,10 @@ window.BANCO_CLASE2_CIENCIAS_9 = [
     "dificultad": "avanzada",
     "enunciado": "Comparando las secciones de naves tripuladas y no tripuladas, ¿qué conclusión general se puede extraer sobre la exploración espacial actual?",
     "opciones": [
-      "Se combinan vehículos no tripulados para misiones de largo alcance o de riesgo, y naves tripuladas para investigación humana directa y mantenimiento de estaciones",
-      "Toda la exploración espacial actual se realiza únicamente con astronautas",
-      "Las sondas no tripuladas ya no se utilizan en la actualidad",
-      "Las naves tripuladas han reemplazado por completo a las sondas"
+      "Se combinan sondas y naves según la misión",
+      "Todo se hace solo con astronautas",
+      "Las sondas ya no se usan hoy",
+      "Las naves reemplazaron a las sondas"
     ],
     "respuesta": 0,
     "explicacion": "El texto, al presentar ambos tipos de vehículos, muestra que la exploración espacial combina sondas no tripuladas para misiones lejanas o riesgosas con naves tripuladas para investigación humana directa y el mantenimiento de estaciones como la EEI."
