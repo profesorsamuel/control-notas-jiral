@@ -580,6 +580,14 @@ function construirTablaRiesgoHtml(filas, meta) {
     </table>`;
 }
 
+// Compara sin importar tildes/mayúsculas (por si en la base de datos la
+// materia quedó guardada como "Informatica" sin tilde, o en otra
+// capitalización).
+function esMismaMateria(materia, nombreBuscado) {
+    const normalizar = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    return normalizar(materia) === normalizar(nombreBuscado);
+}
+
 // =========================================================
 // 6) GENERAR CUADRO
 // =========================================================
@@ -606,7 +614,7 @@ btnGenerar.addEventListener("click", async () => {
         contenidoReporte.innerHTML = `
             ${construirEncabezadoHtml(filas)}
             ${construirTablaHtml(filas)}
-            ${construirTablaRiesgoHtml(filas, PROMEDIO_MINIMO_APROBAR)}
+            ${esMismaMateria(materia, "Informática") ? "" : construirTablaRiesgoHtml(filas, PROMEDIO_MINIMO_APROBAR)}
             ${construirNotasHtml()}
         `;
         mostrarAvisoGenero(filas);
