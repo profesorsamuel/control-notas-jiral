@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Ver mis Notas - C.E.B.G. El Jiral</title>
+    <title>Boletín de los 3 Trimestres - C.E.B.G. El Jiral</title>
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="../img/favicon.ico">
@@ -24,7 +24,7 @@
         }
 
         .contenedor {
-            max-width: 950px;
+            max-width: 1000px;
             margin: 0 auto;
         }
 
@@ -131,6 +131,7 @@
         }
 
         .resumen-estudiante p { margin: 0; color: var(--texto-suave); }
+        .resumen-estudiante .fecha-generacion { font-size: 0.78rem; color: var(--texto-mas-suave, #94a3b8); }
 
         .acciones {
             display: flex;
@@ -149,62 +150,62 @@
 
         #btnPdf { background: #198754; }
         #btnPdf:hover { background: #146c43; }
+        #btnImprimir { background: #1f4e79; }
+        #btnImprimir:hover { background: #17395a; }
 
-        select#filtroTrimestre {
-            padding: 8px 10px;
-            border-radius: 6px;
-            border: 1px solid var(--borde);
-        }
-
-        .materia-card {
+        .tarjeta-tabla {
             background: #ffffff;
-            border-radius: 12px;
-            padding: 16px 18px 18px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 2px 10px rgba(0,0,0,.06);
+            margin-bottom: 18px;
+            overflow-x: auto;
         }
 
-        .materia-card h3 {
-            margin: 0 0 10px;
-            color: #1f4e79;
-            font-size: 1.05rem;
-        }
-
-        table.tabla-notas {
+        table.tabla-boletin {
             width: 100%;
             border-collapse: collapse;
             text-align: center;
-            font-size: .88rem;
+            font-size: .92rem;
         }
 
-        table.tabla-notas th,
-        table.tabla-notas td {
+        table.tabla-boletin th,
+        table.tabla-boletin td {
             border: 1px solid var(--borde);
-            padding: 8px 6px;
+            padding: 10px 8px;
         }
 
-        table.tabla-notas thead {
+        table.tabla-boletin thead {
             background: #1e293b;
             color: #fff;
         }
 
-        table.tabla-notas td.promedio {
-            font-weight: 700;
-            background: var(--fondo);
+        table.tabla-boletin thead th:first-child { text-align: left; }
+
+        .celda-materia {
+            text-align: left;
+            font-weight: 600;
+            color: #1e293b;
         }
 
-        table.tabla-notas td.promedio-fracaso {
+        .celda-nota { font-weight: 600; }
+
+        .celda-final {
+            font-weight: 800;
+            font-size: 1rem;
+        }
+
+        .resaltado-rojo {
             background: #fee2e2;
-            color: #b91c1c;
+            color: #b91c1c !important;
         }
 
-        .materia-fracaso {
-            border: 2px solid #fca5a5;
+        .resaltado-verde {
+            background: #dcfce7;
+            color: #166534 !important;
         }
 
-        .materia-fracaso h3 {
-            color: #b91c1c;
-        }
+        tr.fila-fracaso td.celda-materia { color: #b91c1c; }
 
         .etiqueta-fracaso {
             display: inline-block;
@@ -215,68 +216,71 @@
             padding: 2px 8px;
             border-radius: 999px;
             vertical-align: middle;
-            margin-left: 6px;
         }
 
-        .promedio-final-linea {
-            text-align: right;
-            margin: 10px 2px 0;
-            font-weight: bold;
-            color: #1f4e79;
-        }
-
-        .promedio-final-linea.fracaso {
-            color: #dc2626;
-        }
-
-        .aviso-fracaso-card {
-            margin: 10px 2px 0;
-            padding: 8px 10px;
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            border-radius: 8px;
-            color: #991b1b;
-            font-size: 0.82rem;
-            line-height: 1.4;
-        }
-
-        .tarjeta-registro-rapido {
+        .bloque-promedio-general {
+            display: none;
+            justify-content: space-between;
+            align-items: center;
             background: #eff6ff;
             border: 1px solid #bfdbfe;
             border-radius: 12px;
-            padding: 16px 18px;
+            padding: 16px 20px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
-        .btn-registro-rapido,
-        .btn-datos-rapido {
+        .bloque-promedio-general h3 {
+            margin: 0;
+            color: #1f4e79;
+            font-size: 1.05rem;
+        }
+
+        .valor-promedio-general {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #15803d;
+        }
+
+        .valor-promedio-general.fracaso { color: #dc2626; }
+
+        #avisoFracaso {
+            display: none;
+            margin-bottom: 18px;
+            padding: 12px 14px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            color: #991b1b;
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+
+        .leyenda-colores {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            font-size: 0.82rem;
+            color: var(--texto-suave);
+            margin-bottom: 18px;
+        }
+
+        .leyenda-colores span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .punto {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
             display: inline-block;
-            padding: 9px 16px;
-            border-radius: 7px;
-            font-weight: bold;
-            font-size: 14px;
-            text-decoration: none;
-            margin-right: 10px;
-            margin-top: 4px;
         }
 
-        .btn-registro-rapido {
-            background: var(--azul);
-            color: #fff;
-        }
-
-        .btn-registro-rapido:hover {
-            background: #1d4ed8;
-        }
-
-        .btn-datos-rapido {
-            background: #ffffff;
-            color: var(--azul);
-            border: 1px solid #93c5fd;
-        }
-
-        .btn-datos-rapido:hover {
-            background: #eff6ff;
-        }
+        .punto.rojo { background: #fee2e2; border: 1px solid #fca5a5; }
+        .punto.verde { background: #dcfce7; border: 1px solid #86efac; }
 
         .volver {
             display: block;
@@ -294,6 +298,16 @@
             button.btn-buscar { width: 100%; }
             .resumen-estudiante { flex-direction: column; align-items: flex-start; }
         }
+
+        @media print {
+            .tarjeta-busqueda, .acciones, .volver, .leyenda-colores { display: none !important; }
+            body { background: #fff; padding: 0; }
+            .contenedor { max-width: 100%; }
+            .tarjeta-tabla, .resumen-estudiante, .bloque-promedio-general, #avisoFracaso {
+                box-shadow: none;
+                border: 1px solid #ccc;
+            }
+        }
     </style>
     <link rel="stylesheet" href="../css/temas.css">
 </head>
@@ -304,19 +318,19 @@
 
         <div class="encabezado">
             <h1>🎓 C.E.B.G. EL JIRAL</h1>
-            <p>Consulta de notas por cédula</p>
+            <p>Boletín de los 3 Trimestres y Promedio Final</p>
         </div>
 
         <div class="tarjeta-busqueda">
             <label for="cedula" style="display:block; font-weight:bold; margin-bottom:8px; color:#334155;">
-                Escribe tu cédula
+                Escribe la cédula del estudiante
             </label>
             <div class="fila-busqueda">
                 <div class="campo-cedula">
                     <input type="password" id="cedula" placeholder="0-000-0000" autocomplete="off">
                     <button type="button" class="btn-ojo" id="btnOjo" title="Mostrar/ocultar cédula">👁️</button>
                 </div>
-                <button type="button" class="btn-buscar" id="btnBuscar">Ver mis notas</button>
+                <button type="button" class="btn-buscar" id="btnBuscar">Ver boletín</button>
             </div>
             <div id="mensaje" class="mensaje" role="alert"></div>
         </div>
@@ -327,46 +341,40 @@
                 <div>
                     <h2 id="nombreEstudiante">-</h2>
                     <p id="salonEstudiante"></p>
+                    <p class="fecha-generacion">Generado el: <span id="fechaGeneracion">-</span></p>
                 </div>
                 <div class="acciones">
-                    <select id="filtroTrimestre">
-                        <option value="Trimestre 1">Trimestre 1</option>
-                        <option value="Trimestre 2">Trimestre 2</option>
-                        <option value="Trimestre 3">Trimestre 3</option>
-                        <option value="todos">Todos los trimestres</option>
-                    </select>
+                    <button type="button" id="btnImprimir">🖨️ Imprimir</button>
                     <button type="button" id="btnPdf">📄 Descargar PDF</button>
-                    <a id="btnBoletin3Trim" href="boletin_trimestral.html" target="_blank" style="padding:9px 14px; border-radius:6px; background:#0d9488; color:#fff; font-size:14px; text-decoration:none; display:inline-flex; align-items:center;">📊 Boletín 3 Trimestres</a>
                 </div>
             </div>
 
-            <div id="bloqueNoRegistrado" style="display:none; margin-bottom:18px;">
-                <div class="tarjeta-registro-rapido">
-                    <p class="mb-2" style="margin:0 0 10px; color:#334155;">
-                        Este estudiante todavía no tiene una cuenta para registrar sus propias notas.
-                    </p>
-                    <div class="acciones">
-                        <a id="btnRegistrarNotas" href="#" class="btn-registro-rapido">
-                            📝 Registrar mis notas
-                        </a>
-                    </div>
-                </div>
+            <div id="avisoFracaso"></div>
+
+            <div class="bloque-promedio-general" id="bloquePromedioGeneral">
+                <h3>Promedio General (3 trimestres)</h3>
+                <span class="valor-promedio-general" id="promedioGeneral">-</span>
             </div>
 
-            <div id="bloqueRegistrado" style="display:none; margin-bottom:18px;">
-                <div class="tarjeta-registro-rapido">
-                    <div class="acciones">
-                        <a id="btnEditarNotas" href="#" class="btn-registro-rapido">
-                            ✏️ Editar mis notas
-                        </a>
-                        <a id="btnDatosEstudianteRegistrado" href="#" class="btn-datos-rapido" style="display:none;">
-                            📋 Datos del estudiante
-                        </a>
-                    </div>
-                </div>
+            <div class="leyenda-colores">
+                <span><span class="punto rojo"></span> Nota por debajo de 3.0 (en riesgo)</span>
+                <span><span class="punto verde"></span> Promedio final aprobado</span>
             </div>
 
-            <div id="materias"></div>
+            <div class="tarjeta-tabla">
+                <table class="tabla-boletin">
+                    <thead>
+                        <tr>
+                            <th>Materia</th>
+                            <th>Trimestre 1</th>
+                            <th>Trimestre 2</th>
+                            <th>Trimestre 3</th>
+                            <th>Promedio Final</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTabla"></tbody>
+                </table>
+            </div>
 
         </div>
 
@@ -378,7 +386,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
-    <script type="module" src="../js/consulta.js"></script>
+    <script type="module" src="../js/boletin_trimestral.js"></script>
 
 </body>
 </html>
