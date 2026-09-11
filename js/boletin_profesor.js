@@ -1,4 +1,12 @@
 import { supabase } from "./supabase.js";
+// Reutiliza el mismo cálculo y el mismo formato de reporte que usa
+// la página "Cuadro de Aprobados y Reprobados", para que el botón
+// "📦 Descargar TODO" de aquí abajo pueda generar esos cuadros (uno
+// por materia) sin duplicar esa lógica.
+import {
+    calcularDatosSalon,
+    generarReporteCompletoHtml,
+} from "./cuadro_aprobados_core.js";
 
 // =====================================================
 // PLANILLA DE NOTAS FINALES (ESTILO "CALIFICACIÓN POR MATERIA")
@@ -64,6 +72,12 @@ const btnPdfIndividuales = document.getElementById("btnPdfIndividuales");
 const estadoZip = document.getElementById("estadoZip");
 const btnPdfGrupales = document.getElementById("btnPdfGrupales");
 const estadoZipGrupal = document.getElementById("estadoZipGrupal");
+const btnDescargarTodo = document.getElementById("btnDescargarTodo");
+const estadoDescargarTodo = document.getElementById("estadoDescargarTodo");
+const selectTrimestreCuadro = document.getElementById("selectTrimestreCuadro");
+const inputAnioCuadro = document.getElementById("inputAnioCuadro");
+const selectJornadaCuadro = document.getElementById("selectJornadaCuadro");
+const contenedorCuadroOffscreen = document.getElementById("contenedorCuadroOffscreen");
 const selectColumnaLeer = document.getElementById("selectColumnaLeer");
 const inputPausaSegundos = document.getElementById("inputPausaSegundos");
 const inputVelocidadLectura = document.getElementById("inputVelocidadLectura");
@@ -899,6 +913,159 @@ btnPdfGrupales.addEventListener("click", async () => {
 });
 
 // =====================================================
+// 📦 DESCARGAR TODO (TODOS LOS BOLETINES GRUPALES DE TODAS LAS
+// MATERIAS Y SALONES DEL DOCENTE + LOS CUADROS DE APROBADOS Y
+// REPROBADOS DE CADA MATERIA), TODO JUNTO EN UN SOLO .ZIP
+// =====================================================
+// Un solo clic recorre TODAS las asignaciones (materia + salón) que
+// este docente tiene en "misAsignaciones" (no solo la que está
+// seleccionada en los filtros de arriba): para cada materia genera
+// la planilla "Notas Trimestrales, Ausencias y Tardanzas" de cada uno
+// de sus salones (igual que "Boletines grupales (ZIP)"), y además el
+// "Cuadro de Aprobados y Reprobados" de esa materia (con todos sus
+// salones juntos, igual que la página cuadro_aprobados.html), usando
+// el trimestre/año/jornada elegidos aquí. Todo se empaca en un único
+// .zip, organizado en carpetas, listo para imprimir o enviar por
+// correo de una sola vez.
+
+async function esperarSiguienteFrame() {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+// Genera el PDF del "Cuadro de Aprobados y Reprobados" de una materia
+// (con todos sus salones), reutilizando el mismo HTML que ve el
+// docente en cuadro_aprobados.html, pero renderizado fuera de pantalla
+// (ver #contenedorCuadroOffscreen en boletin_profesor.html) y
+// convertido a imagen con html2canvas — el mismo método que usa esa
+// página para su botón "Descargar PDF".
+async function construirPdfCuadroAprobados(materia, salonesDeLaMateria, opcionesCuadro) {
+    const filas = [];
+    for (const salon of salonesDeLaMateria) {
+        filas.push(await calcularDatosSalon(salon, materia, opcionesCuadro.trimestre, mapaSalones));
+    }
+
+    const datosEncabezado = {
+        materia,
+        trimestre: opcionesCuadro.trimestre,
+        anio: opcionesCuadro.anio,
+        jornada: opcionesCuadro.jornada || "—",
+        nombreProfesor: nombreDocenteActual,
+        mapaSalones,
+    };
+
+    contenedorCuadroOffscreen.innerHTML = generarReporteCompletoHtml(filas, datosEncabezado);
+
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    await esperarSiguienteFrame();
+
+    const canvas = await html2canvas(contenedorCuadroOffscreen, { scale: 2.5, backgroundColor: "#ffffff" });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const ratio = Math.min((pageWidth - 24) / canvas.width, (pageHeight - 24) / canvas.height);
+    const w = canvas.width * ratio;
+    const h = canvas.height * ratio;
+    pdf.addImage(canvas.toDataURL("image/jpeg", 1.0), "JPEG", (pageWidth - w) / 2, (pageHeight - h) / 2, w, h);
+
+    contenedorCuadroOffscreen.innerHTML = "";
+    return pdf;
+}
+
+btnDescargarTodo?.addEventListener("click", async () => {
+    if (!misAsignaciones || misAsignaciones.length === 0) return;
+
+    const trimestreCuadro = selectTrimestreCuadro?.value || "Trimestre 3";
+    const anioCuadro = inputAnioCuadro?.value || new Date().getFullYear();
+    const jornadaCuadro = selectJornadaCuadro?.value || "";
+
+    btnDescargarTodo.disabled = true;
+    const textoOriginal = btnDescargarTodo.textContent;
+
+    try {
+        const zip = new JSZip();
+        const materias = [...new Set(misAsignaciones.map((a) => a.materia))].sort();
+        let totalGrupales = 0;
+        let totalCuadros = 0;
+
+        // ---------- 1) Boletines grupales de CADA materia y salón ----------
+        for (let im = 0; im < materias.length; im++) {
+            const materia = materias[im];
+            const salonesDeLaMateria = [...new Set(
+                misAsignaciones.filter((a) => a.materia === materia).map((a) => a.salon)
+            )].sort((a, b) => (mapaSalones[a]?.orden ?? 0) - (mapaSalones[b]?.orden ?? 0));
+
+            for (let is = 0; is < salonesDeLaMateria.length; is++) {
+                const salon = salonesDeLaMateria[is];
+                estadoDescargarTodo.textContent =
+                    `Generando boletines grupales: materia ${im + 1} de ${materias.length} (${materia}), ` +
+                    `salón ${is + 1} de ${salonesDeLaMateria.length}...`;
+                try {
+                    const { filas, nombreConsejero } = await calcularDatosPlanilla(salon, materia);
+                    const doc = construirPdfPlanilla(filas, { salon, materia, nombreConsejero, aplicarFiltroBusqueda: false });
+                    const nombreArchivo = `Notas_Trimestrales_${nombreArchivoSeguro(nombreVisibleSalon(salon))}.pdf`;
+                    zip.file(`Boletines_Grupales/${nombreArchivoSeguro(materia)}/${nombreArchivo}`, doc.output("blob"));
+                    totalGrupales++;
+                } catch (errorSalon) {
+                    console.error(`❌ Error generando el boletín grupal de ${materia} / ${salon}:`, errorSalon);
+                }
+            }
+        }
+
+        // ---------- 2) Cuadro de Aprobados y Reprobados de CADA materia ----------
+        for (let im = 0; im < materias.length; im++) {
+            const materia = materias[im];
+            const salonesDeLaMateria = [...new Set(
+                misAsignaciones.filter((a) => a.materia === materia).map((a) => a.salon)
+            )].sort((a, b) => (mapaSalones[a]?.orden ?? 0) - (mapaSalones[b]?.orden ?? 0));
+
+            estadoDescargarTodo.textContent = `Generando cuadro de aprobados: materia ${im + 1} de ${materias.length} (${materia})...`;
+            try {
+                const pdf = await construirPdfCuadroAprobados(materia, salonesDeLaMateria, {
+                    trimestre: trimestreCuadro,
+                    anio: anioCuadro,
+                    jornada: jornadaCuadro,
+                });
+                zip.file(
+                    `Cuadros_Aprobados_Reprobados/Cuadro_${nombreArchivoSeguro(materia)}_${nombreArchivoSeguro(trimestreCuadro)}.pdf`,
+                    pdf.output("blob")
+                );
+                totalCuadros++;
+            } catch (errorMateria) {
+                console.error(`❌ Error generando el cuadro de aprobados de ${materia}:`, errorMateria);
+            }
+        }
+
+        if (totalGrupales === 0 && totalCuadros === 0) {
+            estadoDescargarTodo.textContent = "❌ No se pudo generar ningún archivo.";
+            return;
+        }
+
+        estadoDescargarTodo.textContent = "Empacando todo en un .zip...";
+        const contenidoZip = await zip.generateAsync({ type: "blob" });
+
+        const url = URL.createObjectURL(contenidoZip);
+        const enlace = document.createElement("a");
+        enlace.href = url;
+        enlace.download = `Todo_${nombreArchivoSeguro(nombreDocenteActual)}`.replace(/\s+/g, "_") + ".zip";
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+        URL.revokeObjectURL(url);
+
+        estadoDescargarTodo.textContent =
+            `✅ Listo: ${totalGrupales} boletín(es) grupal(es) y ${totalCuadros} cuadro(s) de aprobados ` +
+            `de ${materias.length} materia(s) descargados en un solo .zip.`;
+    } catch (error) {
+        console.error("❌ Error al generar la descarga completa:", error);
+        estadoDescargarTodo.textContent = "❌ Ocurrió un error generando los archivos. Intenta de nuevo.";
+    } finally {
+        btnDescargarTodo.disabled = false;
+        btnDescargarTodo.textContent = textoOriginal;
+    }
+});
+
+// =====================================================
 // BOLETINES INDIVIDUALES (UN PDF POR ALUMNO, EN UN SOLO ZIP)
 // =====================================================
 // Genera, para cada estudiante de la planilla actual, una hojita
@@ -1038,4 +1205,5 @@ btnPdfIndividuales.addEventListener("click", async () => {
     if (!ok) return;
     await cargarCatalogoSalones();
     poblarSalones();
+    if (inputAnioCuadro) inputAnioCuadro.value = new Date().getFullYear();
 })();
