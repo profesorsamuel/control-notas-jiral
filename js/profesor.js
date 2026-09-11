@@ -2542,6 +2542,67 @@ tablaNotasGrupo?.addEventListener("blur", (e) => {
     }
 }, true);
 
+// =========================================================
+// PEGAR VARIAS NOTAS DE UNA VEZ (ej. una columna copiada de Excel)
+// =========================================================
+// Si el docente pega en una casilla de nota un texto con varias líneas
+// (una nota por línea, como al copiar una columna de Excel/Google
+// Sheets), se reparte automáticamente hacia abajo: la primera línea va
+// en la casilla donde se pegó, la segunda en la del siguiente
+// estudiante visible, y así sucesivamente — siempre en el MISMO ORDEN
+// en el que aparecen las filas en pantalla en ese momento. Si solo se
+// pega una nota (sin saltos de línea), se deja el pegado normal del
+// navegador, como si fuera cualquier otra casilla de texto.
+tablaNotasGrupo?.addEventListener("paste", (e) => {
+    const input = e.target;
+    if (!input.classList?.contains("input-nota-grupo")) return;
+
+    const texto = (e.clipboardData || window.clipboardData)?.getData("text");
+    if (!texto) return;
+
+    // Una línea por estudiante. Si además trae tabulaciones (por si se
+    // copió sin querer más de una columna de Excel), solo se usa la
+    // primera columna de cada línea.
+    const valores = texto
+        .split(/\r?\n/)
+        .map((linea) => linea.split("\t")[0].trim());
+    // Quita la última línea si quedó vacía (típico al copiar de Excel).
+    while (valores.length > 0 && valores[valores.length - 1] === "") valores.pop();
+
+    if (valores.length <= 1) return; // una sola nota: pegado normal del navegador
+
+    e.preventDefault();
+
+    const filaInicial = input.closest("tr[data-clave-estudiante]");
+    if (!filaInicial) return;
+
+    const tipo = input.dataset.tipo;
+    const numero = input.dataset.numero;
+
+    const filasVisibles = Array.from(tablaNotasGrupo.querySelectorAll("tr[data-clave-estudiante]"));
+    const indiceInicial = filasVisibles.indexOf(filaInicial);
+    if (indiceInicial === -1) return;
+
+    let pegadas = 0, saltadas = 0;
+    valores.forEach((valorCrudo, offset) => {
+        const fila = filasVisibles[indiceInicial + offset];
+        if (!fila) return;
+        const inputDestino = fila.querySelector(`.input-nota-grupo[data-tipo="${tipo}"][data-numero="${numero}"]`);
+        if (!inputDestino || inputDestino.disabled) { saltadas++; return; }
+        if (valorCrudo === "") return; // línea vacía: deja esa casilla como estaba
+        inputDestino.value = formatearNotaFinal(valorCrudo);
+        pegadas++;
+    });
+
+    recalcularPromedios();
+    guardarNotasAutomaticoSeguro();
+
+    if (estadoCargaSalon) {
+        estadoCargaSalon.textContent = `✅ Se pegaron ${pegadas} nota(s)` +
+            (saltadas ? ` (${saltadas} casilla(s) bloqueada(s) que no se tocaron)` : "") + ".";
+    }
+}, true);
+
 // Respaldo por si algo quedó sin guardar (ej. el profesor cerró la pestaña
 // mientras seguía escribiendo en la misma celda sin salir de ella).
 setInterval(() => {
