@@ -434,20 +434,17 @@ export function construirTablaRiesgoHtml(filas, meta) {
 }
 
 // "filas" se recibe como parámetro (antes se leía de window.__ultimasFilasCuadro).
+// Nota: ya NO se listan aquí los nombres de reprobados/sin-calificaciones
+// (esa lista podía crecer muchísimo, sobre todo en materias con muchos
+// reprobados como Ciencias Naturales, y ocupaba demasiado espacio en el
+// PDF/impreso). El detalle de quién reprobó y quién no tiene calificación
+// ya se ve en la planilla y en el conteo por grado de la tabla de arriba.
 export function construirNotasHtml(filas = []) {
     return `
     <div class="bloque-notas">
         <div class="fila-causas">
             <strong>CAUSAS DEL RETIRO DEL ALUMNO SIN CALIFICACIONES:</strong>
             <div class="celda-editable linea-editable" contenteditable="true">&nbsp;</div>
-        </div>
-        <div class="fila-reprobados">
-            <strong>Nombre de los estudiantes reprobados en su asignatura:</strong>
-            <div id="listaReprobados">${construirNombresReprobados(filas)}</div>
-        </div>
-        <div class="fila-reprobados">
-            <strong>Nombre de los estudiantes sin calificaciones:</strong>
-            <div id="listaSinCalificacion">${construirNombresSinCalificacion(filas)}</div>
         </div>
         <div class="nota-pie">
             <strong>NOTA:</strong>
@@ -458,6 +455,7 @@ export function construirNotasHtml(filas = []) {
         </div>
         <div class="fila-firmas">
             <div class="firma"><div class="linea-firma"></div>FIRMA DEL PROFESOR</div>
+
             <div class="firma"><div class="linea-firma"></div>FIRMA DEL DIRECTOR</div>
         </div>
     </div>`;
