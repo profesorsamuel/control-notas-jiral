@@ -292,10 +292,34 @@ selectMateriaNota?.addEventListener("change", () => {
 });
 
 // Cambiar el trimestre (con salón y materia ya elegidos) también debe
-// recargar solo, porque cambia qué notas se muestran.
+// recargar solo, porque cambia qué notas se muestran. Esto permite que
+// el/la docente regrese a un trimestre anterior (por ejemplo Trimestre 1
+// estando ya en Trimestre 3) para revisar o rectificar alguna nota.
 selectTrimestreNota?.addEventListener("change", () => {
+    renderizarChips(selectTrimestreNota, "chipsTrimestreNota");
+    actualizarAvisoTrimestrePasado();
     if (selectSalonNota.value && selectMateriaNota.value) cargarSalon();
 });
+
+// Guarda cuál es el trimestre que realmente está activo hoy (calculado
+// por fechas), para poder avisar cuando el/la docente esté viendo/
+// editando un trimestre DISTINTO a ese (por ejemplo, corrigiendo notas
+// de Trimestre 1 mientras ya se cursa Trimestre 2 o 3).
+let trimestreActivoCalculadoGlobal = null;
+
+function actualizarAvisoTrimestrePasado() {
+    const aviso = document.getElementById("avisoTrimestrePasado");
+    if (!aviso) return;
+
+    if (!trimestreActivoCalculadoGlobal || !selectTrimestreNota ||
+        selectTrimestreNota.value === trimestreActivoCalculadoGlobal) {
+        aviso.style.display = "none";
+        return;
+    }
+
+    aviso.style.display = "block";
+    aviso.textContent = `✏️ Estás viendo/editando ${selectTrimestreNota.value}. El trimestre activo actualmente es ${trimestreActivoCalculadoGlobal}.`;
+}
 
 // =========================================================
 // 3) TABLA DE ESTUDIANTES CON NOTAS EDITABLES (misma lógica del admin)
@@ -2555,13 +2579,14 @@ async function cargarTrimestreActivo() {
     // hoy no cae en ningún rango (fechas sin configurar, o receso),
     // se usa como respaldo el último trimestre_activo guardado.
     const trimestreCalculado = calcularTrimestreActivo(data) || data.trimestre_activo;
+    trimestreActivoCalculadoGlobal = trimestreCalculado || null;
 
     if (trimestreCalculado && selectTrimestreNota) {
         selectTrimestreNota.value = trimestreCalculado;
     }
 
-    const textoTrimestre = document.getElementById("textoTrimestreActivo");
-    if (textoTrimestre) textoTrimestre.textContent = trimestreCalculado || "Sin definir";
+    renderizarChips(selectTrimestreNota, "chipsTrimestreNota");
+    actualizarAvisoTrimestrePasado();
 }
 
 // =========================================================
