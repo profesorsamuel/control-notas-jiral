@@ -250,10 +250,14 @@ function renderPlanilla() {
         return;
     }
 
-    const celda = (valor) => {
-        if (valor === null) return `<td>-</td>`;
-        const fallo = valor < NOTA_MINIMA_APROBAR;
-        return `<td${fallo ? ' class="nota-fallo"' : ""}>${valor.toFixed(2)}</td>`;
+    const celda = (valor, trimestreNombre) => {
+        const url = `profesor.html?salon=${encodeURIComponent(salonActual)}&materia=${encodeURIComponent(materiaActual)}&trimestre=${encodeURIComponent(trimestreNombre)}`;
+        const titulo = valor === null
+            ? `Agregar notas de ${trimestreNombre}`
+            : `Editar notas de ${trimestreNombre}`;
+        const texto = valor === null ? "-" : valor.toFixed(2);
+        const fallo = valor !== null && valor < NOTA_MINIMA_APROBAR;
+        return `<td${fallo ? ' class="nota-fallo"' : ""}><a class="celda-editar" href="${url}" target="_blank" title="${titulo}">${texto}</a></td>`;
     };
 
     cuerpoPlanilla.innerHTML = filas.map((f) => {
@@ -267,9 +271,9 @@ function renderPlanilla() {
                 <td>${escapeHtml(f.codigo || "-")}</td>
                 <td class="col-cedula">${escapeHtml(f.cedula || "-")}</td>
                 <td class="col-nombre">${escapeHtml(f.nombre || "-")}</td>
-                ${celda(f.t1)}
-                ${celda(f.t2)}
-                ${celda(f.t3)}
+                ${celda(f.t1, "Trimestre 1")}
+                ${celda(f.t2, "Trimestre 2")}
+                ${celda(f.t3, "Trimestre 3")}
                 <td class="col-final${f.fracaso ? " fallo" : ""}">${finalTexto}</td>
                 <td>${boton}</td>
             </tr>

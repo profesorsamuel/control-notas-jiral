@@ -322,6 +322,52 @@ function actualizarAvisoTrimestrePasado() {
 }
 
 // =========================================================
+// ABRIR DIRECTO EN UN SALÓN/MATERIA/TRIMESTRE DESDE LA URL
+// =========================================================
+// Permite que otras páginas (por ejemplo la planilla de boletín) enlacen
+// directo aquí con ?salon=...&materia=...&trimestre=..., para que el
+// docente llegue ya listo para agregar/corregir esa nota, sin tener que
+// volver a elegir todo a mano.
+function aplicarParametrosURL() {
+    const params = new URLSearchParams(window.location.search);
+    const salonParam = params.get("salon");
+    const materiaParam = params.get("materia");
+    const trimestreParam = params.get("trimestre");
+
+    if (!salonParam || !selectSalonNota) return;
+
+    // 1) Trimestre primero, para que al cargar el salón/materia ya tome
+    //    ese trimestre y no haga falta recargar dos veces.
+    if (trimestreParam && selectTrimestreNota) {
+        const opcionTrimestre = Array.from(selectTrimestreNota.options).some((o) => o.value === trimestreParam);
+        if (opcionTrimestre) {
+            selectTrimestreNota.value = trimestreParam;
+            renderizarChips(selectTrimestreNota, "chipsTrimestreNota");
+            actualizarAvisoTrimestrePasado();
+        }
+    }
+
+    // 2) Salón
+    const opcionSalon = Array.from(selectSalonNota.options).some((o) => o.value === salonParam);
+    if (!opcionSalon) return;
+
+    selectSalonNota.value = salonParam;
+    renderizarChips(selectSalonNota, "chipsSalonNota");
+    poblarSelectMateria(); // si el salón solo tiene 1 materia, ya carga sola
+
+    // 3) Materia (si el salón tiene varias, la elegimos aquí; si solo
+    //    tenía una, poblarSelectMateria() ya la seleccionó y cargó sola).
+    if (materiaParam && selectMateriaNota.value !== materiaParam) {
+        const opcionMateria = Array.from(selectMateriaNota.options).some((o) => o.value === materiaParam);
+        if (opcionMateria) {
+            selectMateriaNota.value = materiaParam;
+            renderizarChips(selectMateriaNota, "chipsMateriaNota");
+            cargarSalon();
+        }
+    }
+}
+
+// =========================================================
 // 3) TABLA DE ESTUDIANTES CON NOTAS EDITABLES (misma lógica del admin)
 // =========================================================
 
@@ -3444,6 +3490,7 @@ function iniciarControlAnchoCasilla() {
 
     pintarCambiarPanel("profesor", "oscuro-sobre-claro");
     poblarSelectSalon();
-    cargarTrimestreActivo();
+    await cargarTrimestreActivo();
     iniciarControlAnchoCasilla();
+    aplicarParametrosURL();
 })();
