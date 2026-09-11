@@ -623,7 +623,7 @@ inputBuscar.addEventListener("input", renderPlanilla);
 
 function construirPdfPlanilla() {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: "landscape", format: "letter" });
+    const doc = new jsPDF({ orientation: "portrait", format: "letter" });
     const anchoPagina = doc.internal.pageSize.getWidth();
     const anioLectivo = new Date().getFullYear();
 
@@ -690,11 +690,21 @@ function construirPdfPlanilla() {
         body: cuerpo,
         startY: 39,
         theme: "grid",
-        styles: { fontSize: 8, halign: "center", valign: "middle", cellPadding: 2, lineColor: [30, 58, 138], lineWidth: 0.2 },
-        headStyles: { fillColor: [219, 234, 254], textColor: [30, 58, 138], fontStyle: "bold", halign: "center", valign: "middle" },
+        tableWidth: "wrap",
+        margin: { left: 10, right: 10 },
+        styles: { fontSize: 6.5, halign: "center", valign: "middle", cellPadding: 1.3, lineColor: [30, 58, 138], lineWidth: 0.2 },
+        headStyles: { fillColor: [219, 234, 254], textColor: [30, 58, 138], fontStyle: "bold", halign: "center", valign: "middle", fontSize: 6.5 },
         columnStyles: {
-            0: { cellWidth: 10 },
-            1: { halign: "left", fontStyle: "bold", cellWidth: 62 }
+            0: { cellWidth: 7 },
+            1: { halign: "left", fontStyle: "bold", cellWidth: 42 },
+            2: { cellWidth: 10 },
+            3: { cellWidth: 10 },
+            4: { cellWidth: 10 },
+            5: { cellWidth: 12 },
+            6: { cellWidth: 8 }, 7: { cellWidth: 8 },
+            8: { cellWidth: 8 }, 9: { cellWidth: 8 },
+            10: { cellWidth: 8 }, 11: { cellWidth: 8 },
+            12: { cellWidth: 9 }, 13: { cellWidth: 9 }
         },
         didParseCell: (data) => {
             if (data.section !== "body") return;
