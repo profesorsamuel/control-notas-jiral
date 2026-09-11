@@ -269,10 +269,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return;
                 }
 
-                const { error: errBorrar } = await supabase
+                const { data: filasBorradas, error: errBorrar } = await supabase
                     .from("estudiantes")
                     .delete()
-                    .eq("id", id);
+                    .eq("id", id)
+                    .select("id");
 
                 if (errBorrar) {
                     console.error("❌ Error al eliminar estudiante:", errBorrar);
@@ -280,6 +281,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                     // para saber de una vez qué otra tabla todavía tiene datos de
                     // este estudiante, si el problema no era notas ni asistencia.
                     avisoGuardado(`❌ No se pudo eliminar: ${errBorrar.message}`, true);
+                    btnBorrar.disabled = false;
+                    return;
+                }
+
+                // Con RLS, un "delete" sin permiso real a veces NO da error:
+                // simplemente no borra ninguna fila. Si eso pasa, .select("id")
+                // devuelve un arreglo vacío, y hay que avisar en vez de darlo
+                // por hecho (si no, la fila "desaparece" en pantalla pero sigue
+                // en la base de datos y vuelve a aparecer al recargar).
+                if (!filasBorradas || filasBorradas.length === 0) {
+                    avisoGuardado("❌ No se borró (sin permiso en la base de datos). Revisa las políticas de la tabla 'estudiantes' en Supabase.", true);
                     btnBorrar.disabled = false;
                     return;
                 }
