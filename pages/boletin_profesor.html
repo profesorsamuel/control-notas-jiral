@@ -17,6 +17,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Librería JSZip (para empacar todos los boletines individuales en un solo .zip) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Librería html2canvas (para convertir el "Cuadro de Aprobados y Reprobados" en PDF, igual que hace cuadro_aprobados.html) -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
     <style>
         body {
@@ -317,9 +319,166 @@
         }
 
         @media print {
-            .docente-header, .panel-blanco:first-of-type, .botonera-exportar, .leyenda-colores, .panel-lectura { display: none !important; }
+            .docente-header, .panel-blanco:first-of-type, .botonera-exportar, .leyenda-colores, .panel-lectura,
+            .panel-todo, #contenedorCuadroOffscreen { display: none !important; }
             body { background: #fff; padding: 0; }
         }
+
+        /* ===== Panel "Descargar TODO" ===== */
+        .panel-todo {
+            background: #fff7ed;
+            border: 1px solid #fdba74;
+            border-radius: 16px;
+            padding: 18px 22px;
+            margin-bottom: 20px;
+        }
+        .panel-todo h3 {
+            margin: 0 0 4px;
+            font-size: 1rem;
+            color: #9a3412;
+        }
+        .panel-todo p.explicacion {
+            margin: 0 0 14px;
+            font-size: 12.5px;
+            color: #7c2d12;
+        }
+        .fila-todo {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .fila-todo label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #9a3412;
+            margin-bottom: 5px;
+        }
+        .fila-todo select,
+        .fila-todo input {
+            padding: 8px 10px;
+            border: 1px solid #fdba74;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        #btnDescargarTodo {
+            padding: 11px 20px;
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 14.5px;
+            cursor: pointer;
+            background: #ea580c;
+            white-space: nowrap;
+        }
+        #btnDescargarTodo:hover { background: #c2410c; }
+        #btnDescargarTodo:disabled { background: #fdba95; cursor: not-allowed; }
+        #estadoDescargarTodo {
+            font-size: 13px;
+            color: #9a3412;
+            margin-top: 10px;
+        }
+
+        /* ===== Contenedor "fuera de pantalla" donde se arma el Cuadro de
+           Aprobados y Reprobados para convertirlo a PDF con html2canvas
+           (mismas clases/estilos que usa pages/cuadro_aprobados.html,
+           para que el PDF salga idéntico). Se mantiene en el DOM (no
+           display:none) para que html2canvas pueda medirlo y capturarlo,
+           pero desplazado fuera del área visible de la pantalla. ===== */
+        #contenedorCuadroOffscreen {
+            position: fixed;
+            top: 0;
+            left: -10000px;
+            width: 1150px;
+            background: #fff;
+            padding: 22px 26px;
+        }
+        #contenedorCuadroOffscreen .encabezado-institucion {
+            text-align: center;
+            font-weight: 800;
+            font-size: 15px;
+            border: 1px solid #1e293b;
+            padding: 8px;
+            margin-bottom: 6px;
+        }
+        #contenedorCuadroOffscreen .encabezado-titulo {
+            text-align: center;
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        #contenedorCuadroOffscreen .encabezado-subtitulo {
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 14px;
+        }
+        #contenedorCuadroOffscreen .grid-datos {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px 22px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        #contenedorCuadroOffscreen table.tabla-cuadro {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin-bottom: 18px;
+        }
+        #contenedorCuadroOffscreen table.tabla-cuadro th,
+        #contenedorCuadroOffscreen table.tabla-cuadro td {
+            border: 1px solid #333;
+            padding: 6px 5px;
+            text-align: center;
+        }
+        #contenedorCuadroOffscreen table.tabla-cuadro thead th {
+            background: var(--color-primario, #4338ca);
+            color: #fff;
+        }
+        #contenedorCuadroOffscreen table.tabla-cuadro .fila-totales td { background: #f1f5f9; }
+        #contenedorCuadroOffscreen .pct-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 12.5px;
+        }
+        #contenedorCuadroOffscreen .pct-badge.ok { background: #dcfce7; color: #15803d; }
+        #contenedorCuadroOffscreen .pct-badge.mal { background: #fee2e2; color: #b91c1c; }
+        #contenedorCuadroOffscreen .titulo-seccion-riesgo {
+            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
+            font-size: 15px;
+            color: #3730a3;
+            margin: 22px 0 8px;
+            padding-top: 14px;
+            border-top: 2px dashed #cbd5e1;
+        }
+        #contenedorCuadroOffscreen .celda-editable { background: #fff7ed; }
+        #contenedorCuadroOffscreen .bloque-notas { font-size: 12.5px; }
+        #contenedorCuadroOffscreen .fila-causas,
+        #contenedorCuadroOffscreen .fila-reprobados { margin-bottom: 12px; }
+        #contenedorCuadroOffscreen .linea-editable {
+            min-height: 20px;
+            border-bottom: 1px solid #999;
+            margin-top: 4px;
+        }
+        #contenedorCuadroOffscreen .nota-pie {
+            font-size: 11.5px;
+            color: #374151;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        #contenedorCuadroOffscreen .fila-firmas {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 46px;
+        }
+        #contenedorCuadroOffscreen .firma { text-align: center; font-size: 12px; }
+        #contenedorCuadroOffscreen .linea-firma { width: 240px; border-top: 1px solid #444; margin-bottom: 6px; }
     </style>
 
     <link rel="stylesheet" href="../css/temas.css">
@@ -359,6 +518,49 @@
         <p class="estado-carga" id="estadoCarga"></p>
         <p class="estado-carga" id="estadoZipGrupal"></p>
     </div>
+
+    <div class="panel-todo">
+        <h3>📦 Descargar TODO en un clic</h3>
+        <p class="explicacion">
+            Genera de una sola vez los <strong>boletines grupales</strong> (PDF) de <strong>todas tus materias
+            y salones</strong>, más el <strong>Cuadro de Aprobados y Reprobados</strong> de cada materia, y lo
+            empaca todo en un único .zip organizado en carpetas — listo para imprimir o enviar por correo.
+        </p>
+        <div class="fila-todo">
+            <div>
+                <label for="selectTrimestreCuadro">Trimestre (para los cuadros)</label>
+                <select id="selectTrimestreCuadro">
+                    <option value="Trimestre 1">Trimestre 1</option>
+                    <option value="Trimestre 2">Trimestre 2</option>
+                    <option value="Trimestre 3" selected>Trimestre 3</option>
+                </select>
+            </div>
+            <div>
+                <label for="inputAnioCuadro">Año electivo</label>
+                <input type="number" id="inputAnioCuadro" style="width:110px;">
+            </div>
+            <div>
+                <label for="selectJornadaCuadro">Jornada</label>
+                <select id="selectJornadaCuadro">
+                    <option value="">Selecciona</option>
+                    <option value="Matutina">Matutina</option>
+                    <option value="Vespertina">Vespertina</option>
+                    <option value="Nocturna">Nocturna</option>
+                </select>
+            </div>
+            <div>
+                <label>&nbsp;</label>
+                <button type="button" id="btnDescargarTodo">📦 Descargar TODO (.zip)</button>
+            </div>
+        </div>
+        <p class="estado-carga" id="estadoDescargarTodo"></p>
+    </div>
+
+    <!-- Contenedor invisible donde se arma cada Cuadro de Aprobados y Reprobados
+         antes de convertirlo a PDF (ver construirPdfCuadroAprobados() en
+         boletin_profesor.js). No lo ocultes con display:none: html2canvas
+         necesita que esté realmente en el DOM y "layouteado". -->
+    <div id="contenedorCuadroOffscreen"></div>
 
     <div class="panel-blanco" id="panelPlanilla" style="display:none;">
         <div class="botonera-exportar">
