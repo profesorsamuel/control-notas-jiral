@@ -181,24 +181,33 @@ async function cargarPlanilla() {
     estudiantes.forEach((e) => { if (e.correo) correoAId[e.correo] = e.id; });
     const correosActuales = Object.keys(correoAId);
 
-    // notas_por_estudiante[estudianteId][trimestre] = [ {tipo, nota, estado}, ... ]
+    // Misma clave que usa profesor.js para identificar una casilla exacta
+    // (tipo + número). Es importante para no contar dos veces una misma
+    // casilla si por alguna razón quedó más de una fila en la base de
+    // datos para el mismo tipo+número (la última que llegue "gana",
+    // igual que hace la tabla de notas real).
+    function claveCasilla(tipo, numero) {
+        return `${(tipo || "").toLowerCase()}_${numero}`;
+    }
+
+    // notasPorEstudiante[estudianteId][trimestre] = { "apreciacion_1": {...}, "ejercicio_2": {...}, ... }
     const notasPorEstudiante = {};
     function registrar(estudianteId, n) {
         if (!notasPorEstudiante[estudianteId]) notasPorEstudiante[estudianteId] = {};
-        if (!notasPorEstudiante[estudianteId][n.trimestre]) notasPorEstudiante[estudianteId][n.trimestre] = [];
-        notasPorEstudiante[estudianteId][n.trimestre].push(n);
+        if (!notasPorEstudiante[estudianteId][n.trimestre]) notasPorEstudiante[estudianteId][n.trimestre] = {};
+        notasPorEstudiante[estudianteId][n.trimestre][claveCasilla(n.tipo, n.numero)] = n;
     }
 
     if (todosLosIds.length > 0) {
         const { data } = await supabase.from("notas")
-            .select("estudiante_id, correo, trimestre, tipo, nota, estado")
+            .select("estudiante_id, correo, trimestre, tipo, numero, nota, estado")
             .eq("materia", materia).in("estudiante_id", todosLosIds)
             .is("eliminado_en", null);
         (data || []).forEach((n) => registrar(n.estudiante_id, n));
     }
     if (correosActuales.length > 0) {
         const { data } = await supabase.from("notas")
-            .select("estudiante_id, correo, trimestre, tipo, nota, estado")
+            .select("estudiante_id, correo, trimestre, tipo, numero, nota, estado")
             .eq("materia", materia).in("correo", correosActuales)
             .is("eliminado_en", null);
         (data || []).forEach((n) => {
@@ -213,14 +222,19 @@ async function cargarPlanilla() {
         return valores.reduce((a, b) => a + b, 0) / valores.length;
     }
 
+    // Igual fórmula que recalcularPromedios() en profesor.js: usa el
+    // valor de "nota" tal cual está guardado (sin transformar por
+    // "estado"), agrupado por tipo de casilla.
     function promedioTrimestre(notasTrimestre) {
-        if (!notasTrimestre || notasTrimestre.length === 0) return null;
+        if (!notasTrimestre) return null;
         const porTipo = { apreciacion: [], ejercicio: [], examen: [] };
-        notasTrimestre.forEach((n) => {
+        Object.values(notasTrimestre).forEach((n) => {
             const tipoNorm = (n.tipo || "").toLowerCase();
-            if (tipoNorm !== "apreciacion" && tipoNorm !== "ejercicio" && tipoNorm !== "examen") return;
-            const valor = n.estado === "Intencional" ? 0 : Number(n.nota);
-            porTipo[tipoNorm].push(valor);
+            const valor = parseFloat(n.nota);
+            if (isNaN(valor)) return;
+            if (tipoNorm === "apreciacion") porTipo.apreciacion.push(valor);
+            else if (tipoNorm === "examen") porTipo.examen.push(valor);
+            else if (tipoNorm === "ejercicio") porTipo.ejercicio.push(valor);
         });
         const promApr = calcularPromedio(porTipo.apreciacion);
         const promEje = calcularPromedio(porTipo.ejercicio);
