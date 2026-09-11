@@ -9,6 +9,23 @@ import { supabase } from "./supabase.js";
 // el sistema anterior de la escuela). Cada fila también tiene un enlace
 // para abrir el boletín completo (todas las materias) de ese estudiante.
 
+// ---------- Logo institucional MEDUCA para los PDFs ----------
+// Se precarga una sola vez como Data URL para poder usarlo con
+// doc.addImage() de forma síncrona cada vez que se genera un PDF.
+const LOGO_MEDUCA_ANCHO_MM = 24;
+const LOGO_MEDUCA_ALTO_MM = LOGO_MEDUCA_ANCHO_MM * (231 / 418); // proporción real del logo (418x231 px)
+let logoMeducaDataUrl = null;
+fetch("../img/meduca-logo.png")
+    .then((r) => r.blob())
+    .then((blob) => new Promise((resolve, reject) => {
+        const lector = new FileReader();
+        lector.onload = () => resolve(lector.result);
+        lector.onerror = reject;
+        lector.readAsDataURL(blob);
+    }))
+    .then((dataUrl) => { logoMeducaDataUrl = dataUrl; })
+    .catch(() => { logoMeducaDataUrl = null; });
+
 const TRIMESTRES = ["Trimestre 1", "Trimestre 2", "Trimestre 3"];
 const NOTA_MINIMA_APROBAR = 3;
 
@@ -45,6 +62,8 @@ const btnImprimirPlanilla = document.getElementById("btnImprimirPlanilla");
 const btnPdfPlanilla = document.getElementById("btnPdfPlanilla");
 const btnPdfIndividuales = document.getElementById("btnPdfIndividuales");
 const estadoZip = document.getElementById("estadoZip");
+const btnPdfGrupales = document.getElementById("btnPdfGrupales");
+const estadoZipGrupal = document.getElementById("estadoZipGrupal");
 const selectColumnaLeer = document.getElementById("selectColumnaLeer");
 const inputPausaSegundos = document.getElementById("inputPausaSegundos");
 const inputVelocidadLectura = document.getElementById("inputVelocidadLectura");
@@ -256,28 +275,19 @@ async function obtenerNombreConsejero(salon) {
 // profesor.js, para no perder notas antiguas).
 // =====================================================
 
-async function cargarPlanilla() {
-    const salon = selectSalon.value;
-    const materia = selectMateria.value;
-    if (!salon || !materia) return;
-
-    salonActual = salon;
-    materiaActual = materia;
-
-    estadoCarga.textContent = "Cargando notas...";
-    panelPlanilla.style.display = "none";
-
+// Calcula las filas de la planilla (y el nombre del consejero) para
+// CUALQUIER salón/materia, sin tocar el estado global ni la pantalla.
+// La usan tanto cargarPlanilla() (para el salón/materia que se está
+// viendo) como el botón "Boletines grupales (ZIP)" (para recorrer
+// varios salones de una misma materia uno por uno).
+async function calcularDatosPlanilla(salon, materia) {
     const { data: estudiantesSalon, error: errEst } = await supabase
         .from("estudiantes")
         .select("id, codigo, nombre, cedula, correo, es_prueba")
         .eq("salon", salon)
         .order("nombre", { ascending: true });
 
-    if (errEst) {
-        estadoCarga.textContent = "";
-        alert("No se pudieron cargar los estudiantes: " + errEst.message);
-        return;
-    }
+    if (errEst) throw new Error(errEst.message);
 
     const estudiantes = (estudiantesSalon || []).filter((e) => !e.es_prueba);
     const todosLosIds = estudiantes.map((e) => e.id);
@@ -362,9 +372,8 @@ async function cargarPlanilla() {
         cargarAsistenciaPorEstudiante(salon, materia, todosLosIds),
         obtenerNombreConsejero(salon)
     ]);
-    nombreConsejeroActual = nombreConsejero;
 
-    filasPlanillaActual = estudiantes.map((e) => {
+    const filas = estudiantes.map((e) => {
         const notasEst = notasPorEstudiante[e.id] || {};
         const porTrimestre = TRIMESTRES.map((t) => promedioTrimestre(notasEst[t]));
         const presentes = porTrimestre.filter((v) => v !== null);
@@ -388,6 +397,32 @@ async function cargarPlanilla() {
             totalTardanzas
         };
     });
+
+    return { filas, nombreConsejero };
+}
+
+// Carga en pantalla la planilla del salón/materia elegidos en los selects
+// (usa calcularDatosPlanilla() y guarda el resultado en el estado global).
+async function cargarPlanilla() {
+    const salon = selectSalon.value;
+    const materia = selectMateria.value;
+    if (!salon || !materia) return;
+
+    salonActual = salon;
+    materiaActual = materia;
+
+    estadoCarga.textContent = "Cargando notas...";
+    panelPlanilla.style.display = "none";
+
+    try {
+        const { filas, nombreConsejero } = await calcularDatosPlanilla(salon, materia);
+        filasPlanillaActual = filas;
+        nombreConsejeroActual = nombreConsejero;
+    } catch (error) {
+        estadoCarga.textContent = "";
+        alert("No se pudieron cargar las notas: " + (error?.message || error));
+        return;
+    }
 
     estadoCarga.textContent = "";
     renderPlanilla();
@@ -623,31 +658,34 @@ inputBuscar.addEventListener("input", renderPlanilla);
 // Anuales de Ausencias/Tardanzas).
 // =====================================================
 
-function construirPdfPlanilla() {
+const MARGEN_LATERAL_MM = 14;
+const ALTURA_EXTRA_PIE_MM = 28; // espacio aprox. que ocupa la firma después de la tabla
+const ALTURA_INICIO_TABLA_MM = 39; // separación fija desde el borde superior hasta el inicio de la tabla
+
+// filasEntrada/opciones son opcionales: sin argumentos, genera el PDF del
+// salón/materia que se está viendo en pantalla (comportamiento original).
+// Pasando filasEntrada + { salon, materia, nombreConsejero } se puede
+// generar el PDF de CUALQUIER salón/materia sin tocar lo que está en
+// pantalla — lo usa "Boletines grupales (ZIP)" para armar varios de golpe.
+function construirPdfPlanilla(filasEntrada, opciones = {}) {
+    const {
+        salon = salonActual,
+        materia = materiaActual,
+        nombreConsejero = nombreConsejeroActual,
+        aplicarFiltroBusqueda = true
+    } = opciones;
+    const filasBase = filasEntrada || filasPlanillaActual;
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: "landscape", format: "letter" });
     const anchoPagina = doc.internal.pageSize.getWidth();
+    const altoPagina = doc.internal.pageSize.getHeight();
     const anioLectivo = new Date().getFullYear();
 
-    const filtro = inputBuscar.value.trim().toLowerCase();
+    const filtro = aplicarFiltroBusqueda ? inputBuscar.value.trim().toLowerCase() : "";
     const filas = filtro
-        ? filasPlanillaActual.filter((f) => (f.nombre || "").toLowerCase().includes(filtro))
-        : filasPlanillaActual;
-
-    // ---------- Encabezado institucional ----------
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.text("MINISTERIO DE EDUCACIÓN", anchoPagina / 2, 14, { align: "center" });
-    doc.text("NOTAS TRIMESTRALES, AUSENCIAS Y TARDANZAS", anchoPagina / 2, 20, { align: "center" });
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`PLANTEL: C.E.B.G. EL JIRAL`, 14, 28);
-    doc.text(`ASIGNATURA: ${materiaActual.toUpperCase()}`, anchoPagina / 2 + 10, 28);
-    doc.text(
-        `AÑO LEC. ${anioLectivo}    GRUPO ${nombreVisibleSalon(salonActual)}    PROF. CONSEJERO: ${nombreConsejeroActual || "____________________"}`,
-        14, 34
-    );
+        ? filasBase.filter((f) => (f.nombre || "").toLowerCase().includes(filtro))
+        : filasBase;
 
     // ---------- Encabezados de la tabla (3 niveles) ----------
     const head = [
@@ -687,11 +725,11 @@ function construirPdfPlanilla() {
         String(f.totalTardanzas || "")
     ]);
 
-    doc.autoTable({
+    const opcionesTabla = {
         head,
         body: cuerpo,
-        startY: 39,
         theme: "grid",
+        tableWidth: "wrap", // el ancho depende solo del contenido, no del margen (necesario para poder centrarla)
         styles: { fontSize: 8, halign: "center", valign: "middle", cellPadding: 2, lineColor: [30, 58, 138], lineWidth: 0.2 },
         headStyles: { fillColor: [219, 234, 254], textColor: [30, 58, 138], fontStyle: "bold", halign: "center", valign: "middle" },
         columnStyles: {
@@ -711,6 +749,58 @@ function construirPdfPlanilla() {
                 }
             }
         }
+    };
+
+    // ---------- Medición previa (documento descartable) ----------
+    // Se dibuja la misma tabla en un documento aparte, sin mostrarla,
+    // solo para conocer su ancho y alto reales y así poder centrarla
+    // en la hoja final en vez de adivinar sus medidas.
+    const docMedicion = new jsPDF({ orientation: "landscape", format: "letter" });
+    let anchoTabla = 0;
+    docMedicion.autoTable({
+        ...opcionesTabla,
+        startY: 0,
+        margin: { left: MARGEN_LATERAL_MM, right: MARGEN_LATERAL_MM, top: 0, bottom: 0 },
+        didDrawPage: (data) => { anchoTabla = data.table.width; }
+    });
+    const altoTabla = docMedicion.lastAutoTable.finalY;
+
+    // ---------- Cálculo de centrado vertical y horizontal ----------
+    const altoBloque = ALTURA_INICIO_TABLA_MM + altoTabla + ALTURA_EXTRA_PIE_MM;
+    const desplazamientoVertical = Math.max(0, (altoPagina - altoBloque) / 2);
+    const margenHorizontalTabla = Math.max(MARGEN_LATERAL_MM, (anchoPagina - anchoTabla) / 2);
+
+    // ---------- Logo MEDUCA (arriba a la derecha) ----------
+    if (logoMeducaDataUrl) {
+        doc.addImage(
+            logoMeducaDataUrl,
+            "PNG",
+            anchoPagina - MARGEN_LATERAL_MM - LOGO_MEDUCA_ANCHO_MM,
+            4 + desplazamientoVertical,
+            LOGO_MEDUCA_ANCHO_MM,
+            LOGO_MEDUCA_ALTO_MM
+        );
+    }
+
+    // ---------- Encabezado institucional ----------
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("MINISTERIO DE EDUCACIÓN", anchoPagina / 2, 14 + desplazamientoVertical, { align: "center" });
+    doc.text("NOTAS TRIMESTRALES, AUSENCIAS Y TARDANZAS", anchoPagina / 2, 20 + desplazamientoVertical, { align: "center" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`PLANTEL: C.E.B.G. EL JIRAL`, 14, 28 + desplazamientoVertical);
+    doc.text(`ASIGNATURA: ${materia.toUpperCase()}`, anchoPagina / 2 + 10, 28 + desplazamientoVertical);
+    doc.text(
+        `AÑO LEC. ${anioLectivo}    GRUPO ${nombreVisibleSalon(salon)}    PROF. CONSEJERO: ${nombreConsejero || "____________________"}`,
+        14, 34 + desplazamientoVertical
+    );
+
+    doc.autoTable({
+        ...opcionesTabla,
+        startY: ALTURA_INICIO_TABLA_MM + desplazamientoVertical,
+        margin: { left: margenHorizontalTabla, right: margenHorizontalTabla, top: 10, bottom: 10 }
     });
 
     // ---------- Pie de página con la firma del docente ----------
@@ -734,6 +824,78 @@ btnPdfPlanilla.addEventListener("click", () => {
     if (filasPlanillaActual.length === 0) return;
     const doc = construirPdfPlanilla();
     doc.save(`Notas_Trimestrales_${salonActual}_${materiaActual}.pdf`.replace(/\s+/g, "_"));
+});
+
+// =====================================================
+// BOLETINES GRUPALES (LA PLANILLA DE TODOS LOS SALONES DE UNA
+// MISMA MATERIA, EN UN SOLO ZIP)
+// =====================================================
+// Para la asignatura seleccionada (ej. "Ciencias Naturales"), recorre
+// TODOS los salones que el docente tiene asignados en esa materia
+// (ej. 9°A, 9°B, 9°C, 8°A), genera la planilla de "Notas Trimestrales,
+// Ausencias y Tardanzas" (la misma de "Descargar PDF") de cada uno, y
+// empaca todos esos PDFs en un único .zip para descargarlos de golpe.
+
+btnPdfGrupales.addEventListener("click", async () => {
+    const materia = selectMateria.value || materiaActual;
+    if (!materia) {
+        alert("Primero selecciona una asignatura.");
+        return;
+    }
+
+    const salonesDeLaMateria = [...new Set(
+        misAsignaciones.filter((a) => a.materia === materia).map((a) => a.salon)
+    )].sort((a, b) => (mapaSalones[a]?.orden ?? 0) - (mapaSalones[b]?.orden ?? 0));
+
+    if (salonesDeLaMateria.length === 0) return;
+
+    btnPdfGrupales.disabled = true;
+    const textoOriginal = btnPdfGrupales.textContent;
+
+    try {
+        const zip = new JSZip();
+        let generados = 0;
+
+        for (let i = 0; i < salonesDeLaMateria.length; i++) {
+            const salon = salonesDeLaMateria[i];
+            estadoZipGrupal.textContent = `Generando planilla ${i + 1} de ${salonesDeLaMateria.length} (${nombreVisibleSalon(salon)})...`;
+            try {
+                const { filas, nombreConsejero } = await calcularDatosPlanilla(salon, materia);
+                const doc = construirPdfPlanilla(filas, { salon, materia, nombreConsejero, aplicarFiltroBusqueda: false });
+                const nombreArchivo = `Notas_Trimestrales_${nombreArchivoSeguro(nombreVisibleSalon(salon))}_${nombreArchivoSeguro(materia)}.pdf`;
+                zip.file(nombreArchivo, doc.output("blob"));
+                generados++;
+            } catch (errorSalon) {
+                console.error(`❌ Error generando la planilla de ${nombreVisibleSalon(salon)}:`, errorSalon);
+            }
+        }
+
+        if (generados === 0) {
+            estadoZipGrupal.textContent = "❌ No se pudo generar ninguna planilla.";
+            return;
+        }
+
+        estadoZipGrupal.textContent = "Empacando todo en un .zip...";
+        const contenidoZip = await zip.generateAsync({ type: "blob" });
+
+        const url = URL.createObjectURL(contenidoZip);
+        const enlace = document.createElement("a");
+        enlace.href = url;
+        enlace.download = `Boletines_Grupales_${nombreArchivoSeguro(materia)}`.replace(/\s+/g, "_") + ".zip";
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+        URL.revokeObjectURL(url);
+
+        const listaSalones = salonesDeLaMateria.map(nombreVisibleSalon).join(", ");
+        estadoZipGrupal.textContent = `✅ Listo: ${generados} planilla(s) de ${materia} (${listaSalones}) descargadas en un .zip.`;
+    } catch (error) {
+        console.error("❌ Error al generar los boletines grupales:", error);
+        estadoZipGrupal.textContent = "❌ Ocurrió un error generando los boletines grupales. Intenta de nuevo.";
+    } finally {
+        btnPdfGrupales.disabled = false;
+        btnPdfGrupales.textContent = textoOriginal;
+    }
 });
 
 // =====================================================
