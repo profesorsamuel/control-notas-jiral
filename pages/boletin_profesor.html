@@ -15,6 +15,8 @@
     <!-- Librería jsPDF (para el botón de descarga / planilla) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <!-- Librería JSZip (para empacar todos los boletines individuales en un solo .zip) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <style>
         body {
@@ -119,6 +121,9 @@
         #btnPdfPlanilla:hover { background: #146c43; }
         #btnImprimirPlanilla { background: #1f4e79; }
         #btnImprimirPlanilla:hover { background: #17395a; }
+        #btnPdfIndividuales { background: #7c3aed; }
+        #btnPdfIndividuales:hover { background: #6d28d9; }
+        #btnPdfIndividuales:disabled { background: #c4b5fd; cursor: not-allowed; }
 
         /* ===== Planilla estilo "Calificación por Materia" ===== */
         .contenedor-planilla { overflow-x: auto; }
@@ -340,7 +345,9 @@
         <div class="botonera-exportar">
             <button type="button" id="btnImprimirPlanilla">🖨️ Imprimir</button>
             <button type="button" id="btnPdfPlanilla">📄 Descargar PDF</button>
+            <button type="button" id="btnPdfIndividuales">📥 Boletines individuales (ZIP)</button>
         </div>
+        <p class="estado-carga" id="estadoZip"></p>
 
         <div class="contenedor-planilla">
             <table class="planilla">
