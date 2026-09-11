@@ -677,7 +677,7 @@ function construirPdfPlanilla(filasEntrada, opciones = {}) {
     const filasBase = filasEntrada || filasPlanillaActual;
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: "landscape", format: "letter" });
+    const doc = new jsPDF({ orientation: "portrait", format: "letter" });
     const anchoPagina = doc.internal.pageSize.getWidth();
     const altoPagina = doc.internal.pageSize.getHeight();
     const anioLectivo = new Date().getFullYear();
@@ -755,7 +755,7 @@ function construirPdfPlanilla(filasEntrada, opciones = {}) {
     // Se dibuja la misma tabla en un documento aparte, sin mostrarla,
     // solo para conocer su ancho y alto reales y así poder centrarla
     // en la hoja final en vez de adivinar sus medidas.
-    const docMedicion = new jsPDF({ orientation: "landscape", format: "letter" });
+    const docMedicion = new jsPDF({ orientation: "portrait", format: "letter" });
     let anchoTabla = 0;
     docMedicion.autoTable({
         ...opcionesTabla,
