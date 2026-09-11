@@ -761,7 +761,7 @@ function construirPdfPlanilla(filasEntrada, opciones = {}) {
         ...opcionesTabla,
         startY: 0,
         margin: { left: MARGEN_LATERAL_MM, right: MARGEN_LATERAL_MM, top: 0, bottom: 0 },
-        didDrawPage: (data) => { anchoTabla = data.table.width; }
+        didDrawPage: (data) => { anchoTabla = data.table.getWidth(); }
     });
     const altoTabla = docMedicion.lastAutoTable.finalY;
 
