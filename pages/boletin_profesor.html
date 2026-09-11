@@ -125,6 +125,20 @@
         #btnPdfIndividuales:hover { background: #6d28d9; }
         #btnPdfIndividuales:disabled { background: #c4b5fd; cursor: not-allowed; }
 
+        #btnPdfGrupales {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            background: #ea580c;
+            white-space: nowrap;
+        }
+        #btnPdfGrupales:hover { background: #c2410c; }
+        #btnPdfGrupales:disabled { background: #fdba95; cursor: not-allowed; }
+
         /* ===== Planilla estilo "Calificación por Materia" ===== */
         .contenedor-planilla { overflow-x: auto; }
 
@@ -337,8 +351,13 @@
                 <label for="inputBuscar">Buscar por nombre</label>
                 <input type="text" id="inputBuscar" placeholder="Escribe un nombre...">
             </div>
+            <div>
+                <label>&nbsp;</label>
+                <button type="button" id="btnPdfGrupales">🗂️ Boletines grupales (ZIP)</button>
+            </div>
         </div>
         <p class="estado-carga" id="estadoCarga"></p>
+        <p class="estado-carga" id="estadoZipGrupal"></p>
     </div>
 
     <div class="panel-blanco" id="panelPlanilla" style="display:none;">
