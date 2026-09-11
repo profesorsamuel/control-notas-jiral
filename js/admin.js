@@ -236,7 +236,38 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             btnBorrar.addEventListener("click", async () => {
                 const nombreActual = inputNombre.value || "este estudiante";
-                if (!confirm(`¿Eliminar a ${nombreActual}? Esto no borra sus notas, solo su ficha de estudiante.`)) return;
+                if (!confirm(`¿Eliminar a ${nombreActual}? Esto borra su ficha de estudiante y también sus notas y asistencia registradas. No se puede deshacer.`)) return;
+
+                btnBorrar.disabled = true;
+
+                // Antes de borrar la ficha del estudiante, hay que borrar sus
+                // filas en las tablas que dependen de él (notas y asistencia).
+                // Si no se hace esto primero, Postgres rechaza el borrado del
+                // estudiante por una restricción de llave foránea (el error
+                // típico es "violates foreign key constraint ..._estudiante_id_fkey").
+                const { error: errNotas } = await supabase
+                    .from("notas")
+                    .delete()
+                    .eq("estudiante_id", id);
+
+                if (errNotas) {
+                    console.error("❌ Error al borrar notas del estudiante:", errNotas);
+                    avisoGuardado(`❌ No se pudo eliminar: ${errNotas.message}`, true);
+                    btnBorrar.disabled = false;
+                    return;
+                }
+
+                const { error: errAsistencia } = await supabase
+                    .from("asistencia_detalle")
+                    .delete()
+                    .eq("estudiante_id", id);
+
+                if (errAsistencia) {
+                    console.error("❌ Error al borrar asistencia del estudiante:", errAsistencia);
+                    avisoGuardado(`❌ No se pudo eliminar: ${errAsistencia.message}`, true);
+                    btnBorrar.disabled = false;
+                    return;
+                }
 
                 const { error: errBorrar } = await supabase
                     .from("estudiantes")
@@ -245,7 +276,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (errBorrar) {
                     console.error("❌ Error al eliminar estudiante:", errBorrar);
-                    avisoGuardado("❌ No se pudo eliminar", true);
+                    // Se muestra el mensaje real de Postgres (en vez de uno genérico)
+                    // para saber de una vez qué otra tabla todavía tiene datos de
+                    // este estudiante, si el problema no era notas ni asistencia.
+                    avisoGuardado(`❌ No se pudo eliminar: ${errBorrar.message}`, true);
+                    btnBorrar.disabled = false;
                     return;
                 }
 
