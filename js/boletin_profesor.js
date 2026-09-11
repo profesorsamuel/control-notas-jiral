@@ -43,6 +43,11 @@ const cuerpoPlanilla = document.getElementById("cuerpoPlanilla");
 const nombreProfesorHeader = document.getElementById("nombreProfesorHeader");
 const btnImprimirPlanilla = document.getElementById("btnImprimirPlanilla");
 const btnPdfPlanilla = document.getElementById("btnPdfPlanilla");
+const selectColumnaLeer = document.getElementById("selectColumnaLeer");
+const inputPausaSegundos = document.getElementById("inputPausaSegundos");
+const btnLeer = document.getElementById("btnLeer");
+const btnDetenerLectura = document.getElementById("btnDetenerLectura");
+const estadoLectura = document.getElementById("estadoLectura");
 
 let misAsignaciones = []; // [{materia, salon}]
 let mapaSalones = {};     // codigo -> {nivel, letra, nombre_visible, orden}
@@ -295,11 +300,168 @@ function renderPlanilla() {
 }
 
 // =====================================================
+// LEER NOTAS EN VOZ ALTA (con pausa entre estudiante y estudiante,
+// para dar tiempo de escribirlas en otro sistema)
+// =====================================================
+
+const hablaDisponible = "speechSynthesis" in window;
+
+let colaLectura = [];
+let indiceLectura = 0;
+let temporizadorLectura = null;
+let lecturaActiva = false;
+let lecturaPausada = false;
+
+function limpiarTemporizadorLectura() {
+    if (temporizadorLectura) {
+        clearTimeout(temporizadorLectura);
+        temporizadorLectura = null;
+    }
+}
+
+function actualizarBotonesLectura() {
+    if (!hablaDisponible) {
+        btnLeer.disabled = true;
+        btnLeer.textContent = "🔊 No disponible en este navegador";
+        btnDetenerLectura.disabled = true;
+        return;
+    }
+
+    if (!lecturaActiva) {
+        btnLeer.textContent = "▶️ Iniciar lectura";
+        btnDetenerLectura.disabled = true;
+    } else if (lecturaPausada) {
+        btnLeer.textContent = "▶️ Reanudar";
+        btnDetenerLectura.disabled = false;
+    } else {
+        btnLeer.textContent = "⏸️ Pausar";
+        btnDetenerLectura.disabled = false;
+    }
+}
+
+function construirColaLectura() {
+    const columna = selectColumnaLeer.value; // "t1" | "t2" | "t3" | "final"
+    const filtro = inputBuscar.value.trim().toLowerCase();
+    const filas = filtro
+        ? filasPlanillaActual.filter((f) => (f.nombre || "").toLowerCase().includes(filtro))
+        : filasPlanillaActual;
+
+    return filas.map((f) => {
+        const valor = f[columna];
+        const notaHablada = valor === null ? "sin nota registrada" : formatearNota(valor).replace(".", " punto ");
+        return {
+            nombre: f.nombre || "Estudiante",
+            texto: `${f.nombre}. Nota: ${notaHablada}.`
+        };
+    });
+}
+
+function leerSiguiente() {
+    if (!lecturaActiva || lecturaPausada) return;
+
+    if (indiceLectura >= colaLectura.length) {
+        estadoLectura.textContent = "✅ Lectura terminada.";
+        lecturaActiva = false;
+        lecturaPausada = false;
+        actualizarBotonesLectura();
+        return;
+    }
+
+    const item = colaLectura[indiceLectura];
+    estadoLectura.textContent = `🔊 Leyendo ${indiceLectura + 1} de ${colaLectura.length}: ${item.nombre}`;
+
+    const utterance = new SpeechSynthesisUtterance(item.texto);
+    utterance.lang = "es-ES";
+    utterance.rate = 0.82; // un poco más lento, para que se entienda con calma
+    utterance.pitch = 1;
+
+    utterance.onend = () => {
+        if (!lecturaActiva || lecturaPausada) return;
+        indiceLectura++;
+        const segundos = Math.max(3, parseInt(inputPausaSegundos.value, 10) || 15);
+        estadoLectura.textContent = `⏳ Esperando ${segundos}s antes de leer a la siguiente persona...`;
+        temporizadorLectura = setTimeout(() => {
+            if (lecturaActiva && !lecturaPausada) leerSiguiente();
+        }, segundos * 1000);
+    };
+
+    utterance.onerror = () => {
+        if (!lecturaActiva || lecturaPausada) return;
+        indiceLectura++;
+        leerSiguiente();
+    };
+
+    speechSynthesis.speak(utterance);
+}
+
+function iniciarLectura() {
+    colaLectura = construirColaLectura();
+    if (colaLectura.length === 0) {
+        alert("No hay notas para leer con el filtro actual.");
+        return;
+    }
+
+    speechSynthesis.cancel();
+    limpiarTemporizadorLectura();
+    indiceLectura = 0;
+    lecturaActiva = true;
+    lecturaPausada = false;
+    actualizarBotonesLectura();
+    leerSiguiente();
+}
+
+function pausarLectura() {
+    if (!lecturaActiva || lecturaPausada) return;
+    lecturaPausada = true;
+    limpiarTemporizadorLectura();
+    if (speechSynthesis.speaking) speechSynthesis.pause();
+    estadoLectura.textContent += " (pausado)";
+    actualizarBotonesLectura();
+}
+
+function reanudarLectura() {
+    if (!lecturaActiva || !lecturaPausada) return;
+    lecturaPausada = false;
+    actualizarBotonesLectura();
+
+    if (speechSynthesis.paused || speechSynthesis.speaking) {
+        speechSynthesis.resume();
+    } else {
+        // Estábamos en la pausa de espera entre un estudiante y otro:
+        // seguimos desde ahí, sin repetir al mismo estudiante.
+        leerSiguiente();
+    }
+}
+
+function detenerLectura() {
+    lecturaActiva = false;
+    lecturaPausada = false;
+    limpiarTemporizadorLectura();
+    speechSynthesis.cancel();
+    estadoLectura.textContent = "";
+    actualizarBotonesLectura();
+}
+
+btnLeer?.addEventListener("click", () => {
+    if (!lecturaActiva) {
+        iniciarLectura();
+    } else if (lecturaPausada) {
+        reanudarLectura();
+    } else {
+        pausarLectura();
+    }
+});
+
+btnDetenerLectura?.addEventListener("click", detenerLectura);
+
+actualizarBotonesLectura();
+
+// =====================================================
 // EVENTOS
 // =====================================================
 
-selectSalon.addEventListener("change", poblarMaterias);
-selectMateria.addEventListener("change", cargarPlanilla);
+selectSalon.addEventListener("change", () => { detenerLectura(); poblarMaterias(); });
+selectMateria.addEventListener("change", () => { detenerLectura(); cargarPlanilla(); });
 inputBuscar.addEventListener("input", renderPlanilla);
 
 btnImprimirPlanilla.addEventListener("click", () => window.print());
