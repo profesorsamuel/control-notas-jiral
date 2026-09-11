@@ -30,6 +30,19 @@ const MATERIAS_BASE = [
 const TRIMESTRES = ["Trimestre 1", "Trimestre 2", "Trimestre 3"];
 const NOTA_MINIMA_APROBAR = 3;
 
+// Redondeo matemático estándar a 1 decimal (ej. 4.66 -> 4.7, 4.64 -> 4.6),
+// no truncamiento. Se usa siempre que se muestra o exporta una nota
+// calculada, para que el boletín coincida con la "ley del redondeo".
+function redondear1(valor) {
+    if (valor === null || valor === undefined || Number.isNaN(valor)) return null;
+    return Math.round((valor + Number.EPSILON) * 10) / 10;
+}
+
+function formatearNota(valor) {
+    const redondeado = redondear1(valor);
+    return redondeado === null ? "-" : redondeado.toFixed(1);
+}
+
 // =====================================================
 // ELEMENTOS DEL DOM
 // =====================================================
@@ -255,7 +268,7 @@ function render() {
     const celda = (valor) => {
         if (valor === null) return `<td class="celda-nota">-</td>`;
         const fallo = valor < NOTA_MINIMA_APROBAR;
-        return `<td class="celda-nota${fallo ? " resaltado-rojo" : ""}">${valor.toFixed(1)}</td>`;
+        return `<td class="celda-nota${fallo ? " resaltado-rojo" : ""}">${formatearNota(valor)}</td>`;
     };
 
     cuerpoTabla.innerHTML = resumenActual.map((r) => {
@@ -263,7 +276,7 @@ function render() {
         const finalClase = r.promFinal === null
             ? "celda-nota celda-final"
             : `celda-nota celda-final${r.fracaso ? " resaltado-rojo" : " resaltado-verde"}`;
-        const finalTexto = r.promFinal !== null ? r.promFinal.toFixed(1) : "-";
+        const finalTexto = formatearNota(r.promFinal);
 
         return `
             <tr class="${filaClase}">
@@ -284,7 +297,7 @@ function render() {
     if (promedioGeneral !== null) {
         const enFracaso = promedioGeneral < NOTA_MINIMA_APROBAR;
         bloquePromedioGeneral.style.display = "flex";
-        promedioGeneralEl.textContent = promedioGeneral.toFixed(1) + (enFracaso ? "  (EN FRACASO)" : "");
+        promedioGeneralEl.textContent = formatearNota(promedioGeneral) + (enFracaso ? "  (EN FRACASO)" : "");
         promedioGeneralEl.className = enFracaso ? "valor-promedio-general fracaso" : "valor-promedio-general";
     } else {
         bloquePromedioGeneral.style.display = "none";
@@ -331,10 +344,10 @@ btnPdf.addEventListener("click", () => {
 
     const cuerpo = resumenActual.map((r) => [
         r.materia + (r.fracaso ? "  (EN RIESGO)" : ""),
-        r.t1 !== null ? r.t1.toFixed(1) : "-",
-        r.t2 !== null ? r.t2.toFixed(1) : "-",
-        r.t3 !== null ? r.t3.toFixed(1) : "-",
-        r.promFinal !== null ? r.promFinal.toFixed(1) : "-"
+        r.t1 !== null ? formatearNota(r.t1) : "-",
+        r.t2 !== null ? formatearNota(r.t2) : "-",
+        r.t3 !== null ? formatearNota(r.t3) : "-",
+        r.promFinal !== null ? formatearNota(r.promFinal) : "-"
     ]);
 
     doc.autoTable({
@@ -380,7 +393,7 @@ btnPdf.addEventListener("click", () => {
         doc.setFontSize(13);
         doc.setFont(undefined, "bold");
         if (enFracaso) doc.setTextColor(200, 0, 0);
-        doc.text(`Promedio General: ${promedioGeneral.toFixed(1)}${enFracaso ? "  (EN FRACASO)" : ""}`, 20, y);
+        doc.text(`Promedio General: ${formatearNota(promedioGeneral)}${enFracaso ? "  (EN FRACASO)" : ""}`, 20, y);
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, "normal");
         y += 10;

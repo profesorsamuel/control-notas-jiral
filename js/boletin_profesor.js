@@ -12,6 +12,19 @@ import { supabase } from "./supabase.js";
 const TRIMESTRES = ["Trimestre 1", "Trimestre 2", "Trimestre 3"];
 const NOTA_MINIMA_APROBAR = 3;
 
+// Redondeo matemático estándar a 1 decimal (ej. 4.66 -> 4.7, 4.64 -> 4.6),
+// no truncamiento. Se usa siempre que se muestra o exporta una nota
+// calculada, para que la planilla coincida con la "ley del redondeo".
+function redondear1(valor) {
+    if (valor === null || valor === undefined || Number.isNaN(valor)) return null;
+    return Math.round((valor + Number.EPSILON) * 10) / 10;
+}
+
+function formatearNota(valor) {
+    const redondeado = redondear1(valor);
+    return redondeado === null ? "-" : redondeado.toFixed(1);
+}
+
 function escapeHtml(str) {
     return String(str ?? "")
         .replace(/&/g, "&amp;")
@@ -255,13 +268,13 @@ function renderPlanilla() {
         const titulo = valor === null
             ? `Agregar notas de ${trimestreNombre}`
             : `Editar notas de ${trimestreNombre}`;
-        const texto = valor === null ? "-" : valor.toFixed(2);
+        const texto = formatearNota(valor);
         const fallo = valor !== null && valor < NOTA_MINIMA_APROBAR;
         return `<td${fallo ? ' class="nota-fallo"' : ""}><a class="celda-editar" href="${url}" target="_blank" title="${titulo}">${texto}</a></td>`;
     };
 
     cuerpoPlanilla.innerHTML = filas.map((f) => {
-        const finalTexto = f.final !== null ? f.final.toFixed(2) : "-";
+        const finalTexto = formatearNota(f.final);
         const boton = f.cedula
             ? `<a class="btn-mini-boletin" href="boletin_trimestral.html?cedula=${encodeURIComponent(f.cedula)}" target="_blank">Ver boletín</a>`
             : `<span style="color:#b91c1c; font-size:11px;">Sin cédula</span>`;
@@ -311,10 +324,10 @@ btnPdfPlanilla.addEventListener("click", () => {
         f.codigo || "-",
         f.cedula || "-",
         f.nombre || "-",
-        f.t1 !== null ? f.t1.toFixed(2) : "-",
-        f.t2 !== null ? f.t2.toFixed(2) : "-",
-        f.t3 !== null ? f.t3.toFixed(2) : "-",
-        f.final !== null ? f.final.toFixed(2) : "-"
+        f.t1 !== null ? formatearNota(f.t1) : "-",
+        f.t2 !== null ? formatearNota(f.t2) : "-",
+        f.t3 !== null ? formatearNota(f.t3) : "-",
+        f.final !== null ? formatearNota(f.final) : "-"
     ]);
 
     doc.autoTable({
