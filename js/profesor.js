@@ -863,7 +863,7 @@ function calcularTendenciaEstudiante(historial, valoresEnPantalla) {
             valorStr = valoresEnPantalla[clave];
         } else {
             const n = historial[clave];
-            valorStr = (n && n.nota !== null && n.nota !== undefined) ? String(n.nota) : "";
+            valorStr = (n && n.nota !== null && n.nota !== undefined) ? formatearNotaFinal(String(n.nota)) : "";
         }
         if (valorStr === "") return;
         const num = parseFloat(valorStr);
@@ -896,8 +896,15 @@ function obtenerValorCasillaFila(tr, historial, c) {
         const v = input.value.trim();
         return v === "" ? null : parseFloat(v);
     }
+    // Casilla oculta (sin input en pantalla): igual que en
+    // recalcularPromedios(), hay que pasar el valor guardado por
+    // formatearNotaFinal() para que el detalle coincida con lo que se
+    // ve/calcula cuando la columna está visible.
     const n = historial[claveCasilla(c.tipo, c.numero)];
-    if (n && n.nota !== null && n.nota !== undefined) return parseFloat(n.nota);
+    if (n && n.nota !== null && n.nota !== undefined) {
+        const formateado = formatearNotaFinal(String(n.nota));
+        return formateado === "" ? null : parseFloat(formateado);
+    }
     return null;
 }
 
@@ -965,10 +972,21 @@ function recalcularPromedios() {
             const clave = claveCasilla(c.tipo, c.numero);
             let valorStr;
             if (clave in valoresEnPantalla) {
+                // El valor en pantalla ya salió de formatearNotaFinal() al
+                // pintarse (o del propio docente al escribir), así que ya
+                // viene limitado entre 1 y 5.
                 valorStr = valoresEnPantalla[clave];
             } else {
+                // Columna oculta: no hay input en pantalla, así que se usa
+                // el último valor guardado en la base de datos. IMPORTANTE:
+                // hay que pasarlo por el mismo límite (1-5) que usa
+                // formatearNotaFinal(), o si no, ocultar/mostrar columnas
+                // cambiaría el promedio solo por leer el dato "crudo" sin
+                // ese límite (por ejemplo, una nota mal escrita como "37"
+                // en vez de "3.7" se vería como 5 mientras está visible,
+                // pero como 37 en cuanto se oculta esa columna).
                 const n = historial[clave];
-                valorStr = (n && n.nota !== null && n.nota !== undefined) ? String(n.nota) : "";
+                valorStr = (n && n.nota !== null && n.nota !== undefined) ? formatearNotaFinal(String(n.nota)) : "";
             }
             if (valorStr === "") return;
             const num = parseFloat(valorStr);
