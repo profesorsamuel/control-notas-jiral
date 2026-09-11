@@ -246,7 +246,10 @@ function render() {
         const promedioActual = (f.t1 + f.t2) / 2;
         // Final = (T1 + T2 + T3) / 3 >= meta  =>  T3 >= 3*meta - T1 - T2
         const necesitaT3 = redondear1(3 * meta - f.t1 - f.t2);
-        const enRiesgo = promedioActual < meta || (necesitaT3 !== null && necesitaT3 > 1);
+        // Solo se considera "en riesgo" al que YA está en fracaso ahora
+        // mismo, sumando/promediando lo que lleva de Trimestre 1 y 2
+        // (no a cualquiera que simplemente necesite algo más en el III).
+        const enRiesgo = promedioActual < meta;
         const imposible = necesitaT3 !== null && necesitaT3 > 5;
         return { ...f, promedioActual, necesitaT3, enRiesgo, imposible };
     }).filter((f) => f.enRiesgo);
