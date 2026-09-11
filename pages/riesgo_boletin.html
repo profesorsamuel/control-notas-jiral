@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estudiantes en Riesgo — Todos los Salones | Panel del Docente</title>
+
+    <link rel="icon" type="image/x-icon" href="../img/profesor-favicon.ico">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: var(--color-fondo);
+            color: var(--color-texto);
+            padding: 20px;
+        }
+
+        h1, h2 { font-family: 'Baloo 2', 'Inter', Arial, sans-serif; }
+
+        .docente-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 26px;
+            margin-bottom: 22px;
+            box-shadow: 0 8px 24px rgba(127, 29, 29, .28);
+        }
+
+        .docente-header h1 { color: #fff; font-size: 1.5rem; margin: 0; }
+        .docente-header p { color: #fecaca; margin: 4px 0 0; font-size: 13px; }
+
+        .btn-header-accion {
+            background: var(--color-acento);
+            color: #fff;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-header-accion:hover { background: var(--color-acento-oscuro); color: #fff; }
+
+        .panel-blanco {
+            background: #fff;
+            border-radius: 16px;
+            padding: 22px 24px;
+            box-shadow: 0 4px 18px rgba(0,0,0,.06);
+            margin-bottom: 20px;
+        }
+
+        .fila-filtros {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .fila-filtros label {
+            display: block;
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--color-texto);
+            margin-bottom: 6px;
+        }
+
+        .fila-filtros select,
+        .fila-filtros input {
+            padding: 9px 11px;
+            border: 1px solid var(--color-borde);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .campo-buscar { flex: 1; min-width: 200px; }
+
+        .estado-carga {
+            font-size: 13px;
+            color: var(--color-texto-suave, #64748b);
+            margin-top: 10px;
+        }
+
+        .resumen-numeros {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .tarjeta-numero {
+            flex: 1;
+            min-width: 150px;
+            background: #fff;
+            border-radius: 12px;
+            padding: 14px 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,.06);
+            border-left: 5px solid #b91c1c;
+        }
+
+        .tarjeta-numero.gris { border-left-color: #64748b; }
+        .tarjeta-numero.verde { border-left-color: #15803d; }
+
+        .tarjeta-numero .num { font-size: 1.6rem; font-weight: 800; color: #1e293b; }
+        .tarjeta-numero .lbl { font-size: 12px; color: #64748b; }
+
+        .botonera-exportar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .botonera-exportar button {
+            padding: 9px 16px;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #btnPdfRiesgo { background: #198754; }
+        #btnPdfRiesgo:hover { background: #146c43; }
+        #btnImprimirRiesgo { background: #1f4e79; }
+        #btnImprimirRiesgo:hover { background: #17395a; }
+
+        .contenedor-tabla { overflow-x: auto; }
+
+        table.tabla-riesgo {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .87rem;
+        }
+
+        table.tabla-riesgo th,
+        table.tabla-riesgo td {
+            border: 1px solid #fecaca;
+            padding: 8px 8px;
+            text-align: center;
+        }
+
+        table.tabla-riesgo thead th {
+            background: #b91c1c;
+            color: #fff;
+            font-weight: 800;
+            font-size: .76rem;
+            text-transform: uppercase;
+        }
+
+        table.tabla-riesgo td.col-nombre { text-align: left; font-weight: 600; color: #1e293b; white-space: nowrap; }
+        table.tabla-riesgo tbody tr:nth-child(even) { background: #fef2f2; }
+
+        td.necesita-imposible { background: #7f1d1d; color: #fff; font-weight: 800; }
+        td.necesita-alto { background: #fee2e2; color: #b91c1c; font-weight: 800; }
+        td.necesita-ok { background: #fef3c7; color: #92400e; font-weight: 700; }
+
+        .btn-mini-boletin {
+            display: inline-block;
+            background: #0d9488;
+            color: #fff;
+            padding: 4px 9px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .btn-mini-boletin:hover { background: #0f766e; color: #fff; }
+
+        .leyenda {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+            color: var(--color-texto-suave, #64748b);
+            margin: 12px 0 4px;
+        }
+        .leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+        .punto { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+        .punto.imposible { background: #7f1d1d; }
+        .punto.alto { background: #fee2e2; border: 1px solid #fca5a5; }
+        .punto.ok { background: #fef3c7; border: 1px solid #fcd34d; }
+
+        @media print {
+            .docente-header, .panel-blanco:first-of-type, .botonera-exportar, .leyenda { display: none !important; }
+            body { background: #fff; padding: 0; }
+        }
+    </style>
+
+    <link rel="stylesheet" href="../css/temas.css">
+</head>
+
+<body class="tema-docente">
+
+    <header class="docente-header">
+        <div>
+            <h1 id="nombreProfesorHeader">Cargando...</h1>
+            <p>⚠️ Estudiantes en riesgo — todos tus salones, con la nota que necesitan en Trimestre 3</p>
+        </div>
+        <div>
+            <a href="profesor.html" class="btn-header-accion">↩️ Regresar a Docente</a>
+        </div>
+    </header>
+
+    <div class="panel-blanco">
+        <div class="fila-filtros">
+            <div>
+                <label for="selectMateriaFiltro">Asignatura</label>
+                <select id="selectMateriaFiltro">
+                    <option value="">Todas mis asignaturas</option>
+                </select>
+            </div>
+            <div>
+                <label for="inputMetaAprobar">Nota para aprobar</label>
+                <input type="number" id="inputMetaAprobar" min="1" max="5" step="0.1" value="3.0" style="width:90px;">
+            </div>
+            <div class="campo-buscar">
+                <label for="inputBuscarRiesgo">Buscar por nombre</label>
+                <input type="text" id="inputBuscarRiesgo" placeholder="Escribe un nombre..." style="width:100%;">
+            </div>
+        </div>
+        <p class="estado-carga" id="estadoCargaRiesgo">Cargando tus salones y materias...</p>
+    </div>
+
+    <div id="panelResultados" style="display:none;">
+        <div class="resumen-numeros">
+            <div class="tarjeta-numero">
+                <div class="num" id="numEnRiesgo">-</div>
+                <div class="lbl">Estudiantes en riesgo</div>
+            </div>
+            <div class="tarjeta-numero gris">
+                <div class="num" id="numImposible">-</div>
+                <div class="lbl">Ya no pueden pasar (necesitan más de 5.0)</div>
+            </div>
+            <div class="tarjeta-numero verde">
+                <div class="num" id="numRevisados">-</div>
+                <div class="lbl">Estudiantes revisados (con T1 y T2)</div>
+            </div>
+        </div>
+
+        <div class="panel-blanco">
+            <div class="botonera-exportar">
+                <button type="button" id="btnImprimirRiesgo">🖨️ Imprimir</button>
+                <button type="button" id="btnPdfRiesgo">📄 Descargar PDF</button>
+            </div>
+
+            <div class="contenedor-tabla">
+                <table class="tabla-riesgo">
+                    <thead>
+                        <tr>
+                            <th>Salón</th>
+                            <th>Asignatura</th>
+                            <th style="text-align:left;">Estudiante</th>
+                            <th>I Tri.</th>
+                            <th>II Tri.</th>
+                            <th>Promedio<br>hasta ahora</th>
+                            <th>Necesita en<br>III Tri. para 3.0</th>
+                            <th>Boletín</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoRiesgo"></tbody>
+                </table>
+            </div>
+
+            <div class="leyenda">
+                <span><span class="punto imposible"></span> Ya no puede pasar aunque saque 5.0 en el III Trimestre</span>
+                <span><span class="punto alto"></span> Necesita una nota alta (por encima de la meta) en III Trimestre</span>
+                <span><span class="punto ok"></span> Con lo mínimo aceptable en III Trimestre, pasa</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../js/riesgo_boletin.js"></script>
+</body>
+
+</html>
