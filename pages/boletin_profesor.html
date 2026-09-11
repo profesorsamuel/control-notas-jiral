@@ -224,8 +224,81 @@
 
         .punto.rojo { background: #fee2e2; border: 1px solid #fca5a5; }
 
+        /* ===== Panel de lectura en voz alta ===== */
+        .panel-lectura {
+            background: #f5f3ff;
+            border: 1px solid #ddd6fe;
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-top: 18px;
+        }
+
+        .panel-lectura h3 {
+            margin: 0 0 10px;
+            font-size: 1rem;
+            color: #5b21b6;
+        }
+
+        .fila-lectura {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .fila-lectura label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #5b21b6;
+            margin-bottom: 5px;
+        }
+
+        .fila-lectura select,
+        .fila-lectura input {
+            padding: 8px 10px;
+            border: 1px solid #c4b5fd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .fila-lectura input[type="number"] { width: 90px; }
+
+        .botonera-lectura {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .botonera-lectura button {
+            padding: 9px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            color: #fff;
+        }
+
+        #btnLeer { background: #7c3aed; }
+        #btnLeer:hover { background: #6d28d9; }
+        #btnLeer:disabled { background: #c4b5fd; cursor: not-allowed; }
+
+        #btnDetenerLectura { background: #64748b; }
+        #btnDetenerLectura:hover { background: #475569; }
+        #btnDetenerLectura:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+        #estadoLectura {
+            margin-top: 10px;
+            font-size: 13.5px;
+            font-weight: 600;
+            color: #5b21b6;
+            min-height: 18px;
+        }
+
         @media print {
-            .docente-header, .panel-blanco:first-of-type, .botonera-exportar, .leyenda-colores { display: none !important; }
+            .docente-header, .panel-blanco:first-of-type, .botonera-exportar, .leyenda-colores, .panel-lectura { display: none !important; }
             body { background: #fff; padding: 0; }
         }
     </style>
@@ -293,6 +366,34 @@
         <div class="leyenda-colores">
             <span><span class="punto rojo"></span> Nota por debajo de 3.0 (en riesgo)</span>
             <span>🖱️ Haz clic en una nota de I, II o III Trimestre para ir a agregarla o corregirla</span>
+        </div>
+
+        <div class="panel-lectura">
+            <h3>🔊 Leer notas en voz alta</h3>
+            <div class="fila-lectura">
+                <div>
+                    <label for="selectColumnaLeer">Columna a leer</label>
+                    <select id="selectColumnaLeer">
+                        <option value="t1">I Trimestre</option>
+                        <option value="t2">II Trimestre</option>
+                        <option value="t3">III Trimestre</option>
+                        <option value="final" selected>Calificación Final</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="inputPausaSegundos">Pausa entre estudiantes (segundos)</label>
+                    <input type="number" id="inputPausaSegundos" min="3" max="60" value="15">
+                </div>
+            </div>
+            <div class="botonera-lectura">
+                <button type="button" id="btnLeer">▶️ Iniciar lectura</button>
+                <button type="button" id="btnDetenerLectura" disabled>⏹️ Detener</button>
+            </div>
+            <p id="estadoLectura"></p>
+            <p style="font-size:12px; color:#7c3aed; margin:6px 0 0;">
+                Lee el nombre y la nota de cada estudiante (respetando el filtro de búsqueda de arriba), con una pausa
+                entre cada uno para darte tiempo de escribirla en otro lugar. Puedes pausar y reanudar cuando quieras.
+            </p>
         </div>
     </div>
 
