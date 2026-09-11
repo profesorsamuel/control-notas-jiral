@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boletín de Notas Finales | Panel del Docente</title>
+
+    <link rel="icon" type="image/x-icon" href="../img/profesor-favicon.ico">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: var(--color-fondo);
+            color: var(--color-texto);
+            padding: 20px;
+        }
+
+        h1, h2 { font-family: 'Baloo 2', 'Inter', Arial, sans-serif; }
+
+        .docente-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 26px;
+            margin-bottom: 22px;
+            box-shadow: 0 8px 24px rgba(67, 56, 202, .28);
+        }
+
+        .docente-header h1 { color: #fff; font-size: 1.5rem; margin: 0; }
+        .docente-header p { color: #e0e7ff; margin: 4px 0 0; font-size: 13px; }
+
+        .btn-header-accion {
+            background: var(--color-acento);
+            color: #fff;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-header-accion:hover { background: var(--color-acento-oscuro); color: #fff; }
+
+        .panel-blanco {
+            background: #fff;
+            border-radius: 16px;
+            padding: 22px 24px;
+            box-shadow: 0 4px 18px rgba(0,0,0,.06);
+            margin-bottom: 20px;
+        }
+
+        .panel-blanco label {
+            display: block;
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--color-texto);
+            margin-bottom: 6px;
+        }
+
+        .panel-blanco select,
+        .panel-blanco input {
+            width: 100%;
+            max-width: 360px;
+            padding: 10px 12px;
+            border: 1px solid var(--color-borde);
+            border-radius: 8px;
+            font-size: 15px;
+        }
+
+        .fila-filtros {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        table.tabla-roster {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+            font-size: .92rem;
+        }
+
+        table.tabla-roster th,
+        table.tabla-roster td {
+            border: 1px solid var(--color-borde);
+            padding: 10px 8px;
+            text-align: left;
+        }
+
+        table.tabla-roster thead {
+            background: var(--color-primario);
+            color: #fff;
+        }
+
+        table.tabla-roster tbody tr:nth-child(even) { background: var(--color-fondo); }
+
+        .btn-ver-boletin {
+            background: #0d9488;
+            color: #fff;
+            border: none;
+            padding: 7px 14px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-ver-boletin:hover { background: #0f766e; color: #fff; }
+
+        .estado-carga {
+            font-size: 13px;
+            color: var(--color-texto-suave, #64748b);
+            margin-top: 10px;
+        }
+
+        .campo-buscar { flex: 1; min-width: 220px; }
+    </style>
+
+    <link rel="stylesheet" href="../css/temas.css">
+</head>
+
+<body class="tema-docente">
+
+    <header class="docente-header">
+        <div>
+            <h1 id="nombreProfesorHeader">Cargando...</h1>
+            <p>📊 Boletín de Notas Finales (Trimestre 1, 2, 3 y promedio)</p>
+        </div>
+        <div>
+            <a href="profesor.html" class="btn-header-accion">↩️ Regresar a Docente</a>
+        </div>
+    </header>
+
+    <div class="panel-blanco">
+        <div class="fila-filtros">
+            <div>
+                <label for="selectSalon">Salón</label>
+                <select id="selectSalon"><option value="">Cargando...</option></select>
+            </div>
+            <div class="campo-buscar">
+                <label for="inputBuscar">Buscar por nombre</label>
+                <input type="text" id="inputBuscar" placeholder="Escribe un nombre...">
+            </div>
+        </div>
+        <p class="estado-carga" id="estadoCarga"></p>
+    </div>
+
+    <div class="panel-blanco" id="panelRoster" style="display:none;">
+        <table class="tabla-roster">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>Cédula</th>
+                    <th>Boletín</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpoRoster"></tbody>
+        </table>
+    </div>
+
+    <script type="module" src="../js/boletin_profesor.js"></script>
+</body>
+
+</html>
