@@ -57,6 +57,7 @@ let filasPlanillaActual = []; // resultado calculado para la materia/salón actu
 let salonActual = "";
 let materiaActual = "";
 let nombreDocenteActual = "";
+let nombreConsejeroActual = "";
 
 // =====================================================
 // SESIÓN
@@ -146,6 +147,105 @@ function poblarMaterias() {
     selectMateria.innerHTML = `<option value="">Selecciona una asignatura</option>` +
         materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
     panelPlanilla.style.display = "none";
+}
+
+// =====================================================
+// ASISTENCIA (AUSENCIAS Y TARDANZAS) POR TRIMESTRE
+// =====================================================
+// Reutiliza las tablas ya existentes del módulo de Asistencia
+// ("asistencias" + "asistencia_detalle") y las fechas de cada
+// trimestre que el admin configura en "configuracion" (t1_inicio,
+// t1_fin, t2_inicio, t2_fin, t3_inicio, t3_fin) para contar, por
+// estudiante y por trimestre, cuántas veces quedó "ausente" o
+// "tardanza" en esta materia/salón. No se le pide nada nuevo al
+// docente: se calcula solo, a partir de la asistencia que ya tomó.
+
+let rangosTrimestreCache = null;
+
+async function obtenerRangosTrimestre() {
+    if (rangosTrimestreCache) return rangosTrimestreCache;
+    const { data } = await supabase
+        .from("configuracion")
+        .select("t1_inicio, t1_fin, t2_inicio, t2_fin, t3_inicio, t3_fin")
+        .eq("id", 1)
+        .maybeSingle();
+
+    rangosTrimestreCache = {
+        t1: [data?.t1_inicio || null, data?.t1_fin || null],
+        t2: [data?.t2_inicio || null, data?.t2_fin || null],
+        t3: [data?.t3_inicio || null, data?.t3_fin || null],
+    };
+    return rangosTrimestreCache;
+}
+
+function trimestreDeFecha(fecha, rangos) {
+    if (!fecha) return null;
+    for (const clave of ["t1", "t2", "t3"]) {
+        const [inicio, fin] = rangos[clave];
+        if (inicio && fin && fecha >= inicio && fecha <= fin) return clave;
+    }
+    return null;
+}
+
+function asistenciaVacia() {
+    return {
+        t1: { ausente: 0, tardanza: 0 },
+        t2: { ausente: 0, tardanza: 0 },
+        t3: { ausente: 0, tardanza: 0 },
+    };
+}
+
+// Devuelve { estudianteId: { t1:{ausente,tardanza}, t2:{...}, t3:{...} } }
+// para todos los estudiantes de este salón, en esta materia.
+async function cargarAsistenciaPorEstudiante(salon, materia, idsEstudiantes) {
+    const resultado = {};
+    idsEstudiantes.forEach((id) => { resultado[id] = asistenciaVacia(); });
+
+    const rangos = await obtenerRangosTrimestre();
+
+    const { data: sesiones, error: errSesiones } = await supabase
+        .from("asistencias")
+        .select("id, fecha")
+        .eq("materia", materia)
+        .eq("salon", salon);
+
+    if (errSesiones || !sesiones || sesiones.length === 0) return resultado;
+
+    const trimestrePorSesion = {};
+    sesiones.forEach((s) => { trimestrePorSesion[s.id] = trimestreDeFecha(s.fecha, rangos); });
+
+    const { data: detalles, error: errDetalle } = await supabase
+        .from("asistencia_detalle")
+        .select("asistencia_id, estudiante_id, estado")
+        .in("asistencia_id", sesiones.map((s) => s.id));
+
+    if (errDetalle || !detalles) return resultado;
+
+    detalles.forEach((d) => {
+        const trimestre = trimestrePorSesion[d.asistencia_id];
+        if (!trimestre || !resultado[d.estudiante_id]) return;
+        // "fuga" cuenta como ausencia, igual que hacen las alertas
+        // de riesgo en el módulo de Asistencia.
+        const estado = d.estado === "fuga" ? "ausente" : d.estado;
+        if (estado === "ausente") resultado[d.estudiante_id][trimestre].ausente++;
+        else if (estado === "tardanza") resultado[d.estudiante_id][trimestre].tardanza++;
+    });
+
+    return resultado;
+}
+
+// Nombre del/la consejero(a) de este salón, para el encabezado del PDF
+// (campo "PROF. CONSEJERO"). Si hay varias filas para el mismo salón,
+// se prefiere la que tenga rol "consejero" explícito.
+async function obtenerNombreConsejero(salon) {
+    const { data } = await supabase
+        .from("consejeros")
+        .select("nombre, rol")
+        .eq("salon", salon);
+
+    if (!data || data.length === 0) return "";
+    const preferido = data.find((c) => (c.rol || "").trim().toLowerCase() === "consejero");
+    return (preferido || data[0]).nombre || "";
 }
 
 // =====================================================
@@ -256,11 +356,21 @@ async function cargarPlanilla() {
         return presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
     }
 
+    const [asistenciaPorEstudiante, nombreConsejero] = await Promise.all([
+        cargarAsistenciaPorEstudiante(salon, materia, todosLosIds),
+        obtenerNombreConsejero(salon)
+    ]);
+    nombreConsejeroActual = nombreConsejero;
+
     filasPlanillaActual = estudiantes.map((e) => {
         const notasEst = notasPorEstudiante[e.id] || {};
         const porTrimestre = TRIMESTRES.map((t) => promedioTrimestre(notasEst[t]));
         const presentes = porTrimestre.filter((v) => v !== null);
         const promFinal = presentes.length ? presentes.reduce((a, b) => a + b, 0) / presentes.length : null;
+
+        const asis = asistenciaPorEstudiante[e.id] || asistenciaVacia();
+        const totalAusencias = asis.t1.ausente + asis.t2.ausente + asis.t3.ausente;
+        const totalTardanzas = asis.t1.tardanza + asis.t2.tardanza + asis.t3.tardanza;
 
         return {
             codigo: e.codigo,
@@ -270,7 +380,10 @@ async function cargarPlanilla() {
             t2: porTrimestre[1],
             t3: porTrimestre[2],
             final: promFinal,
-            fracaso: promFinal !== null && promFinal < NOTA_MINIMA_APROBAR
+            fracaso: promFinal !== null && promFinal < NOTA_MINIMA_APROBAR,
+            asistencia: asis,
+            totalAusencias,
+            totalTardanzas
         };
     });
 
@@ -499,54 +612,126 @@ selectSalon.addEventListener("change", () => { detenerLectura(); poblarMaterias(
 selectMateria.addEventListener("change", () => { detenerLectura(); cargarPlanilla(); });
 inputBuscar.addEventListener("input", renderPlanilla);
 
-btnImprimirPlanilla.addEventListener("click", () => window.print());
+// =====================================================
+// PDF — FORMATO OFICIAL "MINISTERIO DE EDUCACIÓN":
+// NOTAS TRIMESTRALES, AUSENCIAS Y TARDANZAS
+// (misma estructura que la planilla en papel/Excel que ya
+// usaba la escuela: N°, Nombre, Trimestres 1-2-3, Notas
+// Finales, Ausencias/Tardanzas por trimestre y Totales
+// Anuales de Ausencias/Tardanzas).
+// =====================================================
 
-btnPdfPlanilla.addEventListener("click", () => {
-    if (filasPlanillaActual.length === 0) return;
-
+function construirPdfPlanilla() {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: "landscape" });
-
-    doc.setFontSize(13);
-    doc.text("C.E.B.G. EL JIRAL - Planilla de Notas Finales", 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Salón: ${nombreVisibleSalon(salonActual)}   |   Asignatura: ${materiaActual}   |   Docente: ${nombreDocenteActual}`, 14, 22);
+    const doc = new jsPDF({ orientation: "landscape", format: "letter" });
+    const anchoPagina = doc.internal.pageSize.getWidth();
+    const anioLectivo = new Date().getFullYear();
 
     const filtro = inputBuscar.value.trim().toLowerCase();
     const filas = filtro
         ? filasPlanillaActual.filter((f) => (f.nombre || "").toLowerCase().includes(filtro))
         : filasPlanillaActual;
 
-    const cuerpo = filas.map((f) => [
-        f.codigo || "-",
-        f.cedula || "-",
-        f.nombre || "-",
-        f.t1 !== null ? formatearNota(f.t1) : "-",
-        f.t2 !== null ? formatearNota(f.t2) : "-",
-        f.t3 !== null ? formatearNota(f.t3) : "-",
-        f.final !== null ? formatearNota(f.final) : "-"
+    // ---------- Encabezado institucional ----------
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("MINISTERIO DE EDUCACIÓN", anchoPagina / 2, 14, { align: "center" });
+    doc.text("NOTAS TRIMESTRALES, AUSENCIAS Y TARDANZAS", anchoPagina / 2, 20, { align: "center" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`PLANTEL: C.E.B.G. EL JIRAL`, 14, 28);
+    doc.text(`ASIGNATURA: ${materiaActual.toUpperCase()}`, anchoPagina / 2 + 10, 28);
+    doc.text(
+        `AÑO LEC. ${anioLectivo}    GRUPO ${nombreVisibleSalon(salonActual)}    PROF. CONSEJERO: ${nombreConsejeroActual || "____________________"}`,
+        14, 34
+    );
+
+    // ---------- Encabezados de la tabla (3 niveles) ----------
+    const head = [
+        [
+            { content: "N°", rowSpan: 3 },
+            { content: "Nombre de los Alumnos", rowSpan: 3 },
+            { content: "Trimestres", colSpan: 3 },
+            { content: "Notas\nFinales", rowSpan: 3 },
+            { content: "Trimestres", colSpan: 6 },
+            { content: "Totales\nAnuales", colSpan: 2, rowSpan: 2 }
+        ],
+        [
+            { content: "1", rowSpan: 2 },
+            { content: "2", rowSpan: 2 },
+            { content: "3", rowSpan: 2 },
+            { content: "1", colSpan: 2 },
+            { content: "2", colSpan: 2 },
+            { content: "3", colSpan: 2 }
+        ],
+        ["A", "T", "A", "T", "A", "T", "A", "T"]
+    ];
+
+    const cuerpo = filas.map((f, indice) => [
+        String(indice + 1),
+        (f.nombre || "-").toUpperCase(),
+        f.t1 !== null ? formatearNota(f.t1) : "",
+        f.t2 !== null ? formatearNota(f.t2) : "",
+        f.t3 !== null ? formatearNota(f.t3) : "",
+        f.final !== null ? formatearNota(f.final) : "",
+        String(f.asistencia.t1.ausente || ""),
+        String(f.asistencia.t1.tardanza || ""),
+        String(f.asistencia.t2.ausente || ""),
+        String(f.asistencia.t2.tardanza || ""),
+        String(f.asistencia.t3.ausente || ""),
+        String(f.asistencia.t3.tardanza || ""),
+        String(f.totalAusencias || ""),
+        String(f.totalTardanzas || "")
     ]);
 
     doc.autoTable({
-        head: [["Código", "Cédula", "Nombre", "I Tri.", "II Tri.", "III Tri.", "Cal. Final"]],
+        head,
         body: cuerpo,
-        startY: 28,
-        styles: { fontSize: 9, halign: "center" },
-        headStyles: { fillColor: [30, 58, 138], textColor: 255 },
-        columnStyles: { 2: { halign: "left", fontStyle: "bold" } },
+        startY: 39,
+        theme: "grid",
+        styles: { fontSize: 8, halign: "center", valign: "middle", cellPadding: 2, lineColor: [30, 58, 138], lineWidth: 0.2 },
+        headStyles: { fillColor: [219, 234, 254], textColor: [30, 58, 138], fontStyle: "bold", halign: "center", valign: "middle" },
+        columnStyles: {
+            0: { cellWidth: 10 },
+            1: { halign: "left", fontStyle: "bold", cellWidth: 62 }
+        },
         didParseCell: (data) => {
             if (data.section !== "body") return;
             const fila = filas[data.row.index];
-            const valor = [null, null, null, fila.t1, fila.t2, fila.t3, fila.final][data.column.index];
-            if (data.column.index >= 3 && valor !== null && valor < NOTA_MINIMA_APROBAR) {
-                data.cell.styles.fillColor = [254, 226, 226];
-                data.cell.styles.textColor = [185, 28, 28];
-                data.cell.styles.fontStyle = "bold";
+            // Columnas 2,3,4,5 = I,II,III Trimestre y Nota Final: resaltar si reprueba
+            if (data.column.index >= 2 && data.column.index <= 5) {
+                const valor = [null, null, fila.t1, fila.t2, fila.t3, fila.final][data.column.index];
+                if (valor !== null && valor < NOTA_MINIMA_APROBAR) {
+                    data.cell.styles.fillColor = [254, 226, 226];
+                    data.cell.styles.textColor = [185, 28, 28];
+                    data.cell.styles.fontStyle = "bold";
+                }
             }
         }
     });
 
-    doc.save(`Planilla_${salonActual}_${materiaActual}.pdf`.replace(/\s+/g, "_"));
+    // ---------- Pie de página con la firma del docente ----------
+    const finalY = doc.lastAutoTable.finalY + 18;
+    doc.setFontSize(10);
+    doc.text("PROFESOR: ________________________________________", anchoPagina / 2, finalY, { align: "center" });
+    doc.setFont("helvetica", "bold");
+    doc.text(nombreDocenteActual || "", anchoPagina / 2, finalY + 6, { align: "center" });
+
+    return doc;
+}
+
+btnImprimirPlanilla.addEventListener("click", () => {
+    if (filasPlanillaActual.length === 0) { window.print(); return; }
+    const doc = construirPdfPlanilla();
+    doc.autoPrint();
+    window.open(doc.output("bloburl"), "_blank");
+});
+
+btnPdfPlanilla.addEventListener("click", () => {
+    if (filasPlanillaActual.length === 0) return;
+    const doc = construirPdfPlanilla();
+    doc.save(`Notas_Trimestrales_${salonActual}_${materiaActual}.pdf`.replace(/\s+/g, "_"));
 });
 
 // =====================================================
