@@ -12,6 +12,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+    <!-- Librería jsPDF (para el botón de descarga / planilla) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
     <style>
         body {
             font-family: 'Inter', Arial, sans-serif;
@@ -72,7 +76,7 @@
         .panel-blanco select,
         .panel-blanco input {
             width: 100%;
-            max-width: 360px;
+            max-width: 320px;
             padding: 10px 12px;
             border: 1px solid var(--color-borde);
             border-radius: 8px;
@@ -86,41 +90,7 @@
             align-items: flex-end;
         }
 
-        table.tabla-roster {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 18px;
-            font-size: .92rem;
-        }
-
-        table.tabla-roster th,
-        table.tabla-roster td {
-            border: 1px solid var(--color-borde);
-            padding: 10px 8px;
-            text-align: left;
-        }
-
-        table.tabla-roster thead {
-            background: var(--color-primario);
-            color: #fff;
-        }
-
-        table.tabla-roster tbody tr:nth-child(even) { background: var(--color-fondo); }
-
-        .btn-ver-boletin {
-            background: #0d9488;
-            color: #fff;
-            border: none;
-            padding: 7px 14px;
-            border-radius: 7px;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-ver-boletin:hover { background: #0f766e; color: #fff; }
+        .campo-buscar { flex: 1; min-width: 220px; }
 
         .estado-carga {
             font-size: 13px;
@@ -128,7 +98,121 @@
             margin-top: 10px;
         }
 
-        .campo-buscar { flex: 1; min-width: 220px; }
+        .botonera-exportar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .botonera-exportar button {
+            padding: 9px 16px;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #btnPdfPlanilla { background: #198754; }
+        #btnPdfPlanilla:hover { background: #146c43; }
+        #btnImprimirPlanilla { background: #1f4e79; }
+        #btnImprimirPlanilla:hover { background: #17395a; }
+
+        /* ===== Planilla estilo "Calificación por Materia" ===== */
+        .contenedor-planilla { overflow-x: auto; }
+
+        table.planilla {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .86rem;
+        }
+
+        table.planilla th,
+        table.planilla td {
+            border: 1px solid #93c5fd;
+            padding: 6px 8px;
+            text-align: center;
+        }
+
+        table.planilla thead th {
+            background: #dbeafe;
+            color: #1e3a8a;
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: .74rem;
+            letter-spacing: .02em;
+        }
+
+        table.planilla td.col-nombre {
+            text-align: left;
+            font-weight: 600;
+            color: #1e293b;
+            white-space: nowrap;
+        }
+
+        table.planilla td.col-cedula { white-space: nowrap; color: #334155; }
+
+        table.planilla tbody tr:nth-child(even) { background: #f8fafc; }
+
+        table.planilla td.nota-fallo {
+            background: #fee2e2;
+            color: #b91c1c;
+            font-weight: 700;
+        }
+
+        table.planilla td.col-final {
+            font-weight: 800;
+            background: #eff6ff;
+        }
+
+        table.planilla td.col-final.fallo {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .btn-mini-boletin {
+            display: inline-block;
+            background: #0d9488;
+            color: #fff;
+            padding: 4px 9px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .btn-mini-boletin:hover { background: #0f766e; color: #fff; }
+
+        .leyenda-colores {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            font-size: 0.82rem;
+            color: var(--color-texto-suave, #64748b);
+            margin: 10px 0 4px;
+        }
+
+        .leyenda-colores span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .punto {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
+        .punto.rojo { background: #fee2e2; border: 1px solid #fca5a5; }
+
+        @media print {
+            .docente-header, .panel-blanco:first-of-type, .botonera-exportar, .leyenda-colores { display: none !important; }
+            body { background: #fff; padding: 0; }
+        }
     </style>
 
     <link rel="stylesheet" href="../css/temas.css">
@@ -139,7 +223,7 @@
     <header class="docente-header">
         <div>
             <h1 id="nombreProfesorHeader">Cargando...</h1>
-            <p>📊 Boletín de Notas Finales (Trimestre 1, 2, 3 y promedio)</p>
+            <p>📊 Boletín de Notas Finales — I, II, III Trimestre y Calificación Final</p>
         </div>
         <div>
             <a href="profesor.html" class="btn-header-accion">↩️ Regresar a Docente</a>
@@ -152,6 +236,10 @@
                 <label for="selectSalon">Salón</label>
                 <select id="selectSalon"><option value="">Cargando...</option></select>
             </div>
+            <div>
+                <label for="selectMateria">Asignatura</label>
+                <select id="selectMateria"><option value="">Selecciona primero un salón</option></select>
+            </div>
             <div class="campo-buscar">
                 <label for="inputBuscar">Buscar por nombre</label>
                 <input type="text" id="inputBuscar" placeholder="Escribe un nombre...">
@@ -160,18 +248,36 @@
         <p class="estado-carga" id="estadoCarga"></p>
     </div>
 
-    <div class="panel-blanco" id="panelRoster" style="display:none;">
-        <table class="tabla-roster">
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Nombre</th>
-                    <th>Cédula</th>
-                    <th>Boletín</th>
-                </tr>
-            </thead>
-            <tbody id="cuerpoRoster"></tbody>
-        </table>
+    <div class="panel-blanco" id="panelPlanilla" style="display:none;">
+        <div class="botonera-exportar">
+            <button type="button" id="btnImprimirPlanilla">🖨️ Imprimir</button>
+            <button type="button" id="btnPdfPlanilla">📄 Descargar PDF</button>
+        </div>
+
+        <div class="contenedor-planilla">
+            <table class="planilla">
+                <thead>
+                    <tr>
+                        <th rowspan="2">Código</th>
+                        <th rowspan="2">Cédula</th>
+                        <th rowspan="2" style="text-align:left;">Nombre</th>
+                        <th colspan="4">Calificaciones</th>
+                        <th rowspan="2">Boletín<br>completo</th>
+                    </tr>
+                    <tr>
+                        <th>I Tri.</th>
+                        <th>II Tri.</th>
+                        <th>III Tri.</th>
+                        <th>Cal. Fin.</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoPlanilla"></tbody>
+            </table>
+        </div>
+
+        <div class="leyenda-colores">
+            <span><span class="punto rojo"></span> Nota por debajo de 3.0 (en riesgo)</span>
+        </div>
     </div>
 
     <script type="module" src="../js/boletin_profesor.js"></script>
