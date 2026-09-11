@@ -2488,6 +2488,22 @@ async function construirExcelSnapshot(combinaciones, trimestre) {
 // guardado, aunque en realidad sí se guardó un instante después).
 let guardadoAutomaticoPendiente = null;
 
+// Evita que dos guardados automáticos corran al mismo tiempo (por
+// ejemplo: el docente sale de una casilla justo cuando toca el
+// guardado de respaldo cada 30 segundos). Si ya hay uno en curso,
+// este espera a que termine antes de lanzar el siguiente — así el
+// segundo guardado SIEMPRE ve el id que dejó el primero y actualiza
+// esa fila en vez de crear una fila nueva duplicada.
+async function guardarNotasAutomaticoSeguro() {
+    if (guardadoAutomaticoPendiente) {
+        try { await guardadoAutomaticoPendiente; } catch (err) { /* el error ya se mostró dentro de guardarNotas() */ }
+    }
+    guardadoAutomaticoPendiente = guardarNotas(true).finally(() => {
+        guardadoAutomaticoPendiente = null;
+    });
+    return guardadoAutomaticoPendiente;
+}
+
 // En cuanto el docente vuelve a tocar una celda que había quedado
 // marcada en rojo (por un error de guardado anterior), le quitamos la
 // marca: si el próximo guardado sale bien, no debe quedar pintada de
@@ -2504,16 +2520,14 @@ tablaNotasGrupo?.addEventListener("blur", (e) => {
     if (e.target.classList?.contains("input-nota-grupo")) {
         e.target.value = formatearNotaFinal(e.target.value);
         recalcularPromedios();
-        guardadoAutomaticoPendiente = guardarNotas(true).finally(() => {
-            guardadoAutomaticoPendiente = null;
-        });
+        guardarNotasAutomaticoSeguro();
     }
 }, true);
 
 // Respaldo por si algo quedó sin guardar (ej. el profesor cerró la pestaña
 // mientras seguía escribiendo en la misma celda sin salir de ella).
 setInterval(() => {
-    if (bloqueTablaNotas && bloqueTablaNotas.style.display !== "none") guardarNotas(true);
+    if (bloqueTablaNotas && bloqueTablaNotas.style.display !== "none") guardarNotasAutomaticoSeguro();
 }, 30000);
 
 // =========================================================
