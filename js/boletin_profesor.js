@@ -223,8 +223,18 @@ async function cargarPlanilla() {
     }
 
     // Igual fórmula que recalcularPromedios() en profesor.js: usa el
-    // valor de "nota" tal cual está guardado (sin transformar por
-    // "estado"), agrupado por tipo de casilla.
+    // valor de "nota" agrupado por tipo de casilla, y aplica el MISMO
+    // límite (mínimo 1, máximo 5) que usa formatearNotaFinal() en la
+    // tabla real de edición. Así, si alguna nota quedó mal escrita en la
+    // base de datos (ej. "37" en vez de "3.7"), la planilla muestra
+    // exactamente lo mismo que ve el docente en su tabla, en vez de
+    // inflarse con el valor crudo sin corregir.
+    function limitarNota(valor) {
+        if (valor < 1) return 1;
+        if (valor > 5) return 5;
+        return valor;
+    }
+
     function promedioTrimestre(notasTrimestre) {
         if (!notasTrimestre) return null;
         const porTipo = { apreciacion: [], ejercicio: [], examen: [] };
@@ -232,9 +242,10 @@ async function cargarPlanilla() {
             const tipoNorm = (n.tipo || "").toLowerCase();
             const valor = parseFloat(n.nota);
             if (isNaN(valor)) return;
-            if (tipoNorm === "apreciacion") porTipo.apreciacion.push(valor);
-            else if (tipoNorm === "examen") porTipo.examen.push(valor);
-            else if (tipoNorm === "ejercicio") porTipo.ejercicio.push(valor);
+            const valorLimitado = limitarNota(valor);
+            if (tipoNorm === "apreciacion") porTipo.apreciacion.push(valorLimitado);
+            else if (tipoNorm === "examen") porTipo.examen.push(valorLimitado);
+            else if (tipoNorm === "ejercicio") porTipo.ejercicio.push(valorLimitado);
         });
         const promApr = calcularPromedio(porTipo.apreciacion);
         const promEje = calcularPromedio(porTipo.ejercicio);

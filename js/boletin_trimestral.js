@@ -196,7 +196,17 @@ function calcularPromedio(valores) {
 }
 
 // Promedio final de UNA materia en UN trimestre: promedio de
-// Apreciación / Ejercicio / Examen (igual fórmula que en consulta.js).
+// Apreciación / Ejercicio / Examen. Usa el mismo límite (mínimo 1,
+// máximo 5) que aplica formatearNotaFinal() en la tabla real de
+// edición del docente, para que el boletín SIEMPRE coincida con lo
+// que el docente ve ahí, incluso si alguna nota quedó mal escrita en
+// la base de datos.
+function limitarNota(valor) {
+    if (valor < 1) return 1;
+    if (valor > 5) return 5;
+    return valor;
+}
+
 function promedioMateriaTrimestre(materia, trimestre) {
     const filas = notasCrudas.filter((n) => n.materia === materia && n.trimestre === trimestre);
     if (filas.length === 0) return null;
@@ -205,8 +215,9 @@ function promedioMateriaTrimestre(materia, trimestre) {
     filas.forEach((n) => {
         const tipoNorm = (n.tipo || "").toLowerCase();
         if (tipoNorm !== "apreciacion" && tipoNorm !== "ejercicio" && tipoNorm !== "examen") return;
-        const valor = n.estado === "Intencional" ? 0 : Number(n.nota);
-        porTipo[tipoNorm].push(valor);
+        const valor = Number(n.nota);
+        if (isNaN(valor)) return;
+        porTipo[tipoNorm].push(limitarNota(valor));
     });
 
     const promApr = calcularPromedio(porTipo.apreciacion);
