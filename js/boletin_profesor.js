@@ -45,6 +45,8 @@ const btnImprimirPlanilla = document.getElementById("btnImprimirPlanilla");
 const btnPdfPlanilla = document.getElementById("btnPdfPlanilla");
 const selectColumnaLeer = document.getElementById("selectColumnaLeer");
 const inputPausaSegundos = document.getElementById("inputPausaSegundos");
+const inputVelocidadLectura = document.getElementById("inputVelocidadLectura");
+const valorVelocidadLectura = document.getElementById("valorVelocidadLectura");
 const btnLeer = document.getElementById("btnLeer");
 const btnDetenerLectura = document.getElementById("btnDetenerLectura");
 const estadoLectura = document.getElementById("estadoLectura");
@@ -397,7 +399,7 @@ function leerSiguiente() {
 
     const utterance = new SpeechSynthesisUtterance(item.texto);
     utterance.lang = "es-ES";
-    utterance.rate = 0.82; // un poco más lento, para que se entienda con calma
+    utterance.rate = parseFloat(inputVelocidadLectura?.value) || 0.82; // más rápido o más lento, según el control
     utterance.pitch = 1;
 
     utterance.onend = () => {
@@ -478,6 +480,14 @@ btnLeer?.addEventListener("click", () => {
 });
 
 btnDetenerLectura?.addEventListener("click", detenerLectura);
+
+// Actualiza el número al lado del control de velocidad (ej. "1.20x")
+// cada vez que se mueve el deslizador. No hace falta reiniciar la
+// lectura: el nuevo valor se usa automáticamente desde la próxima
+// persona que toque leer.
+inputVelocidadLectura?.addEventListener("input", () => {
+    if (valorVelocidadLectura) valorVelocidadLectura.textContent = `${parseFloat(inputVelocidadLectura.value).toFixed(2)}x`;
+});
 
 actualizarBotonesLectura();
 
