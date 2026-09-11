@@ -43,6 +43,8 @@ const cuerpoPlanilla = document.getElementById("cuerpoPlanilla");
 const nombreProfesorHeader = document.getElementById("nombreProfesorHeader");
 const btnImprimirPlanilla = document.getElementById("btnImprimirPlanilla");
 const btnPdfPlanilla = document.getElementById("btnPdfPlanilla");
+const btnPdfIndividuales = document.getElementById("btnPdfIndividuales");
+const estadoZip = document.getElementById("estadoZip");
 const selectColumnaLeer = document.getElementById("selectColumnaLeer");
 const inputPausaSegundos = document.getElementById("inputPausaSegundos");
 const inputVelocidadLectura = document.getElementById("inputVelocidadLectura");
@@ -623,7 +625,7 @@ inputBuscar.addEventListener("input", renderPlanilla);
 
 function construirPdfPlanilla() {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: "portrait", format: "letter" });
+    const doc = new jsPDF({ orientation: "landscape", format: "letter" });
     const anchoPagina = doc.internal.pageSize.getWidth();
     const anioLectivo = new Date().getFullYear();
 
@@ -690,21 +692,11 @@ function construirPdfPlanilla() {
         body: cuerpo,
         startY: 39,
         theme: "grid",
-        tableWidth: "wrap",
-        margin: { left: 10, right: 10 },
-        styles: { fontSize: 6.5, halign: "center", valign: "middle", cellPadding: 1.3, lineColor: [30, 58, 138], lineWidth: 0.2 },
-        headStyles: { fillColor: [219, 234, 254], textColor: [30, 58, 138], fontStyle: "bold", halign: "center", valign: "middle", fontSize: 6.5 },
+        styles: { fontSize: 8, halign: "center", valign: "middle", cellPadding: 2, lineColor: [30, 58, 138], lineWidth: 0.2 },
+        headStyles: { fillColor: [219, 234, 254], textColor: [30, 58, 138], fontStyle: "bold", halign: "center", valign: "middle" },
         columnStyles: {
-            0: { cellWidth: 7 },
-            1: { halign: "left", fontStyle: "bold", cellWidth: 42 },
-            2: { cellWidth: 10 },
-            3: { cellWidth: 10 },
-            4: { cellWidth: 10 },
-            5: { cellWidth: 12 },
-            6: { cellWidth: 8 }, 7: { cellWidth: 8 },
-            8: { cellWidth: 8 }, 9: { cellWidth: 8 },
-            10: { cellWidth: 8 }, 11: { cellWidth: 8 },
-            12: { cellWidth: 9 }, 13: { cellWidth: 9 }
+            0: { cellWidth: 10 },
+            1: { halign: "left", fontStyle: "bold", cellWidth: 62 }
         },
         didParseCell: (data) => {
             if (data.section !== "body") return;
@@ -742,6 +734,137 @@ btnPdfPlanilla.addEventListener("click", () => {
     if (filasPlanillaActual.length === 0) return;
     const doc = construirPdfPlanilla();
     doc.save(`Notas_Trimestrales_${salonActual}_${materiaActual}.pdf`.replace(/\s+/g, "_"));
+});
+
+// =====================================================
+// BOLETINES INDIVIDUALES (UN PDF POR ALUMNO, EN UN SOLO ZIP)
+// =====================================================
+// Genera, para cada estudiante de la planilla actual, una hojita
+// individual con sus notas de I/II/III Trimestre, Nota Final y
+// Ausencias/Tardanzas de esta materia — y empaca todos esos PDFs en
+// un único archivo .zip para que salga todo con un solo clic
+// (el navegador no deja descargar 25+ archivos sueltos de golpe sin
+// pedir permiso uno por uno, así que el .zip es la forma limpia).
+
+function construirPdfIndividual(fila, numero) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: "portrait", format: "letter" });
+    const anchoPagina = doc.internal.pageSize.getWidth();
+    const anioLectivo = new Date().getFullYear();
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("MINISTERIO DE EDUCACIÓN", anchoPagina / 2, 20, { align: "center" });
+    doc.setFontSize(11);
+    doc.text(`BOLETÍN DE ${materiaActual.toUpperCase()}`, anchoPagina / 2, 27, { align: "center" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`PLANTEL: C.E.B.G. EL JIRAL`, 20, 38);
+    doc.text(`AÑO LEC. ${anioLectivo}    GRUPO ${nombreVisibleSalon(salonActual)}`, 20, 44);
+    doc.setFont("helvetica", "bold");
+    doc.text(`N°: ${numero}    ALUMNO: ${(fila.nombre || "-").toUpperCase()}`, 20, 52);
+    doc.setFont("helvetica", "normal");
+    doc.text(`CÉDULA: ${fila.cedula || "-"}`, 20, 58);
+
+    doc.autoTable({
+        head: [["", "I Trimestre", "II Trimestre", "III Trimestre", "Nota Final"]],
+        body: [[
+            "Calificación",
+            fila.t1 !== null ? formatearNota(fila.t1) : "-",
+            fila.t2 !== null ? formatearNota(fila.t2) : "-",
+            fila.t3 !== null ? formatearNota(fila.t3) : "-",
+            fila.final !== null ? formatearNota(fila.final) : "-"
+        ]],
+        startY: 66,
+        theme: "grid",
+        styles: { fontSize: 10, halign: "center", cellPadding: 4, lineColor: [30, 58, 138], lineWidth: 0.2 },
+        headStyles: { fillColor: [219, 234, 254], textColor: [30, 58, 138], fontStyle: "bold" },
+        columnStyles: { 0: { halign: "left", fontStyle: "bold" } },
+        didParseCell: (data) => {
+            if (data.section !== "body" || data.column.index === 0) return;
+            const valor = [null, fila.t1, fila.t2, fila.t3, fila.final][data.column.index];
+            if (valor !== null && valor < NOTA_MINIMA_APROBAR) {
+                data.cell.styles.fillColor = [254, 226, 226];
+                data.cell.styles.textColor = [185, 28, 28];
+                data.cell.styles.fontStyle = "bold";
+            }
+        }
+    });
+
+    const yAsistencia = doc.lastAutoTable.finalY + 10;
+    doc.autoTable({
+        head: [["", "I Trimestre", "II Trimestre", "III Trimestre", "Total Anual"]],
+        body: [
+            ["Ausencias", fila.asistencia.t1.ausente, fila.asistencia.t2.ausente, fila.asistencia.t3.ausente, fila.totalAusencias],
+            ["Tardanzas", fila.asistencia.t1.tardanza, fila.asistencia.t2.tardanza, fila.asistencia.t3.tardanza, fila.totalTardanzas]
+        ],
+        startY: yAsistencia,
+        theme: "grid",
+        styles: { fontSize: 10, halign: "center", cellPadding: 4, lineColor: [30, 58, 138], lineWidth: 0.2 },
+        headStyles: { fillColor: [219, 234, 254], textColor: [30, 58, 138], fontStyle: "bold" },
+        columnStyles: { 0: { halign: "left", fontStyle: "bold" } }
+    });
+
+    const finalY = doc.lastAutoTable.finalY + 24;
+    doc.setFontSize(10);
+    doc.text("PROFESOR: ________________________________________", anchoPagina / 2, finalY, { align: "center" });
+    doc.setFont("helvetica", "bold");
+    doc.text(nombreDocenteActual || "", anchoPagina / 2, finalY + 6, { align: "center" });
+
+    return doc;
+}
+
+function nombreArchivoSeguro(texto) {
+    return String(texto || "")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // quita tildes
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+}
+
+btnPdfIndividuales.addEventListener("click", async () => {
+    if (filasPlanillaActual.length === 0) return;
+
+    const filtro = inputBuscar.value.trim().toLowerCase();
+    const filas = filtro
+        ? filasPlanillaActual.filter((f) => (f.nombre || "").toLowerCase().includes(filtro))
+        : filasPlanillaActual;
+
+    if (filas.length === 0) return;
+
+    btnPdfIndividuales.disabled = true;
+    const textoOriginal = btnPdfIndividuales.textContent;
+
+    try {
+        const zip = new JSZip();
+
+        filas.forEach((fila, indice) => {
+            estadoZip.textContent = `Generando boletín ${indice + 1} de ${filas.length}...`;
+            const doc = construirPdfIndividual(fila, indice + 1);
+            const nombreArchivo = `${String(indice + 1).padStart(2, "0")}_${nombreArchivoSeguro(fila.nombre) || "alumno"}.pdf`;
+            zip.file(nombreArchivo, doc.output("blob"));
+        });
+
+        estadoZip.textContent = "Empacando todo en un .zip...";
+        const contenidoZip = await zip.generateAsync({ type: "blob" });
+
+        const url = URL.createObjectURL(contenidoZip);
+        const enlace = document.createElement("a");
+        enlace.href = url;
+        enlace.download = `Boletines_${materiaActual}_${salonActual}`.replace(/\s+/g, "_") + ".zip";
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+        URL.revokeObjectURL(url);
+
+        estadoZip.textContent = `✅ Listo: ${filas.length} boletín(es) individuales descargados en un .zip.`;
+    } catch (error) {
+        console.error("❌ Error al generar los boletines individuales:", error);
+        estadoZip.textContent = "❌ Ocurrió un error generando los boletines. Intenta de nuevo.";
+    } finally {
+        btnPdfIndividuales.disabled = false;
+        btnPdfIndividuales.textContent = textoOriginal;
+    }
 });
 
 // =====================================================
