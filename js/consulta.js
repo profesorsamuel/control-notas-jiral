@@ -82,6 +82,7 @@ const btnRegistrarNotas = document.getElementById("btnRegistrarNotas");
 const bloqueRegistrado = document.getElementById("bloqueRegistrado");
 const btnDatosEstudianteRegistrado = document.getElementById("btnDatosEstudianteRegistrado");
 const btnEditarNotas = document.getElementById("btnEditarNotas");
+const btnBoletin3Trim = document.getElementById("btnBoletin3Trim");
 
 // =====================================================
 // ESTADO
@@ -261,6 +262,10 @@ async function buscar() {
         bloqueRegistrado.style.display = "none";
         bloqueNoRegistrado.style.display = "block";
         btnRegistrarNotas.href = `registro.html?tipo=estudiante&cedula=${encodeURIComponent(cedula)}`;
+    }
+
+    if (btnBoletin3Trim) {
+        btnBoletin3Trim.href = `boletin_trimestral.html?cedula=${encodeURIComponent(cedula)}`;
     }
 
     resultado.style.display = "block";
