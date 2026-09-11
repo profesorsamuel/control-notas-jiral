@@ -35,6 +35,7 @@ function limitarNota(valor) {
     return valor;
 }
 
+const selectSalonFiltro = document.getElementById("selectSalonFiltro");
 const selectMateriaFiltro = document.getElementById("selectMateriaFiltro");
 const inputMetaAprobar = document.getElementById("inputMetaAprobar");
 const inputBuscarRiesgo = document.getElementById("inputBuscarRiesgo");
@@ -111,6 +112,13 @@ function poblarSelectMateria() {
     const materias = [...new Set(misAsignaciones.map((a) => a.materia))].sort();
     selectMateriaFiltro.innerHTML = `<option value="">Todas mis asignaturas</option>` +
         materias.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+}
+
+function poblarSelectSalon() {
+    const salones = [...new Set(misAsignaciones.map((a) => a.salon))]
+        .sort((a, b) => (mapaSalones[a]?.orden ?? 0) - (mapaSalones[b]?.orden ?? 0));
+    selectSalonFiltro.innerHTML = `<option value="">Todos mis salones</option>` +
+        salones.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(nombreVisibleSalon(s))}</option>`).join("");
 }
 
 // =====================================================
@@ -232,6 +240,7 @@ async function cargarTodo() {
 
 function render() {
     const meta = parseFloat(inputMetaAprobar.value) || 3.0;
+    const salonFiltro = selectSalonFiltro.value;
     const materiaFiltro = selectMateriaFiltro.value;
     const filtroNombre = inputBuscarRiesgo.value.trim().toLowerCase();
 
@@ -239,6 +248,7 @@ function render() {
     // Trimestre 2 (para poder calcular qué necesitan en el III).
     let revisados = filasRiesgoTodas.filter((f) => f.t1 !== null && f.t2 !== null);
 
+    if (salonFiltro) revisados = revisados.filter((f) => f.salon === salonFiltro);
     if (materiaFiltro) revisados = revisados.filter((f) => f.materia === materiaFiltro);
     if (filtroNombre) revisados = revisados.filter((f) => (f.nombre || "").toLowerCase().includes(filtroNombre));
 
@@ -300,6 +310,7 @@ function render() {
     }).join("");
 }
 
+selectSalonFiltro.addEventListener("change", render);
 selectMateriaFiltro.addEventListener("change", render);
 inputMetaAprobar.addEventListener("input", render);
 inputBuscarRiesgo.addEventListener("input", render);
@@ -344,6 +355,7 @@ btnPdfRiesgo.addEventListener("click", () => {
     const ok = await verificarSesion();
     if (!ok) return;
     await cargarCatalogoSalones();
+    poblarSelectSalon();
     poblarSelectMateria();
     await cargarTodo();
 })();
