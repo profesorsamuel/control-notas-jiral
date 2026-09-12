@@ -240,6 +240,114 @@
             line-height: 1.4;
         }
 
+        /* ===== Detalle por Clase (Ciencias Naturales) ===== */
+        .detalle-clase-ciencias-contenedor {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px dashed var(--borde);
+        }
+
+        .detalle-clase-titulo-seccion {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            color: var(--gris);
+            margin: 0 0 10px;
+        }
+
+        .tarjeta-clase-ciencias {
+            background: var(--fondo);
+            border: 1px solid var(--borde);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+
+        .tarjeta-clase-ciencias:last-child { margin-bottom: 0; }
+
+        .clase-ciencias-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 2px;
+        }
+
+        .clase-ciencias-nombre {
+            font-weight: 700;
+            color: var(--azul);
+            font-size: 0.95rem;
+        }
+
+        .clase-ciencias-fechas {
+            color: var(--gris);
+            font-size: 0.75rem;
+            margin: 0 0 10px;
+        }
+
+        .clase-ciencias-nota-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            padding: 3px 12px;
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .clase-ciencias-nota-badge.nota-ok { background: #dcfce7; color: var(--verde); }
+        .clase-ciencias-nota-badge.nota-baja { background: #fee2e2; color: var(--rojo); }
+        .clase-ciencias-nota-badge.nota-pendiente { background: #e2e8f0; color: var(--gris); }
+
+        .clase-ciencias-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        @media (max-width: 560px) {
+            .clase-ciencias-grid { grid-template-columns: 1fr; }
+        }
+
+        .clase-ciencias-item {
+            background: #fff;
+            border: 1px solid var(--borde);
+            border-radius: 9px;
+            padding: 9px 10px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .clase-ciencias-item-texto { flex: 1; min-width: 0; }
+
+        .clase-ciencias-item-titulo {
+            font-weight: 700;
+            font-size: 0.78rem;
+            color: var(--azul);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 2px;
+        }
+
+        .clase-ciencias-item-detalle {
+            font-size: 0.72rem;
+            color: var(--gris);
+            line-height: 1.35;
+        }
+
+        .clase-ciencias-item-nota {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--ink, #1e293b);
+            flex-shrink: 0;
+        }
+
         .tarjeta-registro-rapido {
             background: #eff6ff;
             border: 1px solid #bfdbfe;
