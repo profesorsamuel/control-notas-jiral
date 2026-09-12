@@ -121,13 +121,12 @@ const FECHA_CIERRE_POR_CLASE_CIENCIAS = {
     2: "2026-10-08T23:59:59-05:00",
     3: "2026-10-09T23:59:59-05:00",
 };
-// Días de "gracia con penalidad" ANTES del cierre total: en la Clase 1
-// la semana de clase termina el 25 de septiembre pero el cierre total
-// es el 28 (3 días después). Ese mismo patrón de 3 días se aplica
-// automáticamente a cualquier Clase nueva (2, 3, 4...) sin tener que
-// definir una fecha aparte para cada una: quien entregue DESPUÉS de
-// (cierre total - 3 días) pero ANTES del cierre total, entrega tarde.
-const DIAS_GRACIA_CON_PENALIDAD = 3;
+// Días de "gracia con penalidad" ANTES del cierre total: quien entregue
+// DESPUÉS de (cierre total - 2 días) pero ANTES del cierre total,
+// entrega tarde (se le resta 0.5). Se aplica automáticamente a
+// cualquier Clase (1, 2, 3, 4...) sin tener que definir una fecha
+// aparte para cada una.
+const DIAS_GRACIA_CON_PENALIDAD = 2;
 
 function obtenerFechaFinSinPenalidad(fechaCierreTotal) {
     if (!fechaCierreTotal) return null;
@@ -1000,6 +999,40 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
 
     pintarModal(estado_);
     calcularYPintarNotasFinales(estado_);
+
+    // =========================================================
+    // CIERRE AUTOMÁTICO POR FECHA (Ciencias Naturales)
+    // =========================================================
+    // Si ya pasó la fecha de cierre total de esta Clase y la Apreciación
+    // sigue activa (nadie la completó todavía), se calcula y guarda la
+    // nota final de cada estudiante y se avanza sola a la siguiente
+    // Apreciación — sin que el docente tenga que presionar "Guardar" ni
+    // "Marcar como completada". No corre dos veces: en cuanto queda
+    // completada, la próxima vez que se abra ya viene en solo lectura.
+    if (!soloLectura && obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion)) {
+        const fechaCierreClase = FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion];
+        if (fechaCierreClase && new Date() > new Date(fechaCierreClase)) {
+            (async () => {
+                const notasFinalesPorEstudiante = {};
+                estudiantes.forEach((est) => {
+                    notasFinalesPorEstudiante[est.id] = calcularNotaFinalEstudiante(estado_, est.id);
+                });
+                const resultadoNotas = await guardarNotasCalculadasApreciacion({
+                    materia, trimestre, numeroApreciacion, correoProfesor, estudiantes, notasFinalesPorEstudiante,
+                });
+                if (!resultadoNotas.ok) {
+                    console.error("No se pudo autocompletar la Apreciación por fecha de cierre:", resultadoNotas.error);
+                    return;
+                }
+                const seCompleto = await completarApreciacionManual(materia, salon, trimestre, numeroApreciacion);
+                if (seCompleto) {
+                    el.estadoGuardado.textContent = `✅ Esta Apreciación ya cerró por fecha y se completó automáticamente. Apreciación ${numeroApreciacion + 1} ya está activa.`;
+                    el.estadoGuardado.className = "small text-success ms-2";
+                    if (typeof window.__recargarSalonProfesor === "function") window.__recargarSalonProfesor();
+                }
+            })();
+        }
+    }
 
     el.btnGuardar && (el.btnGuardar.style.display = soloLectura ? "none" : "inline-block");
     el.btnCompletarManual && (el.btnCompletarManual.style.display = soloLectura ? "none" : "inline-block");
