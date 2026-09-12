@@ -303,7 +303,10 @@ document.getElementById("btn-revisar-pareo").addEventListener("click", async () 
   // examen de opción múltiple, marcado como "pareo" para distinguirlo
   // en el panel del docente. Si falla (ej. sin conexión), no se le
   // avisa al estudiante ni se bloquea ver su resultado.
-  const { error } = await sb.from(T.intentosPractica).insert({
+  // Solo se conserva el ÚLTIMO intento de este estudiante para este
+  // ejercicio de pareo: si ya hay un registro previo se actualiza (aunque
+  // la nota nueva sea más baja que la anterior); si no hay, se crea uno.
+  const payloadPareo = {
     codigo_examen: CONFIG.codigoExamen,
     tipo_ejercicio: "pareo",
     cedula: estudiante.cedula,
@@ -315,7 +318,22 @@ document.getElementById("btn-revisar-pareo").addEventListener("click", async () 
     tiempo_total_seg: tiempoSeg,
     iniciado_at: new Date(intentoActual.tInicio).toISOString(),
     finalizado_at: new Date().toISOString(),
-  });
+  };
+
+  const { data: intentoPrevioPareo, error: errBuscarPareo } = await sb
+    .from(T.intentosPractica)
+    .select("id")
+    .eq("codigo_examen", CONFIG.codigoExamen)
+    .eq("tipo_ejercicio", "pareo")
+    .eq("cedula", estudiante.cedula)
+    .maybeSingle();
+
+  let error;
+  if (!errBuscarPareo && intentoPrevioPareo && intentoPrevioPareo.id) {
+    ({ error } = await sb.from(T.intentosPractica).update(payloadPareo).eq("id", intentoPrevioPareo.id));
+  } else {
+    ({ error } = await sb.from(T.intentosPractica).insert(payloadPareo));
+  }
   if (error) console.error("No se pudo guardar el intento de pareo:", error);
 
   mostrarVista(vistaResultado);

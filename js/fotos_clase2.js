@@ -272,7 +272,10 @@ document.getElementById("btn-revisar-fotos").addEventListener("click", async () 
     </div>
   `).join("");
 
-  const { error } = await sb.from(T.intentosPractica).insert({
+  // Solo se conserva el ÚLTIMO intento de este estudiante para este
+  // ejercicio de fotos: si ya hay un registro previo se actualiza (aunque
+  // la nota nueva sea más baja que la anterior); si no hay, se crea uno.
+  const payloadFotos = {
     codigo_examen: CONFIG.codigoExamen,
     tipo_ejercicio: "fotos",
     cedula: estudiante.cedula,
@@ -284,7 +287,22 @@ document.getElementById("btn-revisar-fotos").addEventListener("click", async () 
     tiempo_total_seg: tiempoSeg,
     iniciado_at: new Date(intentoActual.tInicio).toISOString(),
     finalizado_at: new Date().toISOString(),
-  });
+  };
+
+  const { data: intentoPrevioFotos, error: errBuscarFotos } = await sb
+    .from(T.intentosPractica)
+    .select("id")
+    .eq("codigo_examen", CONFIG.codigoExamen)
+    .eq("tipo_ejercicio", "fotos")
+    .eq("cedula", estudiante.cedula)
+    .maybeSingle();
+
+  let error;
+  if (!errBuscarFotos && intentoPrevioFotos && intentoPrevioFotos.id) {
+    ({ error } = await sb.from(T.intentosPractica).update(payloadFotos).eq("id", intentoPrevioFotos.id));
+  } else {
+    ({ error } = await sb.from(T.intentosPractica).insert(payloadFotos));
+  }
   if (error) console.error("No se pudo guardar el intento de pareo de fotos:", error);
 
   mostrarVista(vistaResultado);
