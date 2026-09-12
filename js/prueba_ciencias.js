@@ -547,6 +547,8 @@ async function finalizarQuiz() {
       .from(T.intentosPractica)
       .upsert(payloadPractica, { onConflict: "codigo_examen,tipo_ejercicio,cedula" });
     if (errGuardarPractica) console.error("No se pudo guardar el intento de práctica:", errGuardarPractica);
+    if (errGuardarPractica) alert("DEBUG TEMPORAL - no se pudo guardar tu resultado en el servidor: " + JSON.stringify(errGuardarPractica));
+    else alert("DEBUG TEMPORAL - se guardo OK en el servidor");
   }
 
   mostrarResultado({ modo: quizState.modo, correctas, incorrectas, porcentaje, nota, tiempoTotal, respuestas });

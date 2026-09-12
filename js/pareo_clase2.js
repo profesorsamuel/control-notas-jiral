@@ -327,6 +327,8 @@ document.getElementById("btn-revisar-pareo").addEventListener("click", async () 
     .from(T.intentosPractica)
     .upsert(payloadPareo, { onConflict: "codigo_examen,tipo_ejercicio,cedula" });
   if (error) console.error("No se pudo guardar el intento de pareo:", error);
+  if (error) alert("DEBUG TEMPORAL - no se pudo guardar tu resultado en el servidor: " + JSON.stringify(error));
+  else alert("DEBUG TEMPORAL - se guardo OK en el servidor");
 
   mostrarVista(vistaResultado);
 });
