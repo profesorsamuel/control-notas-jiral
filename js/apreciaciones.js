@@ -121,6 +121,20 @@ const FECHA_CIERRE_POR_CLASE_CIENCIAS = {
     2: "2026-10-08T23:59:59-05:00",
     3: "2026-10-09T23:59:59-05:00",
 };
+// Días de "gracia con penalidad" ANTES del cierre total: en la Clase 1
+// la semana de clase termina el 25 de septiembre pero el cierre total
+// es el 28 (3 días después). Ese mismo patrón de 3 días se aplica
+// automáticamente a cualquier Clase nueva (2, 3, 4...) sin tener que
+// definir una fecha aparte para cada una: quien entregue DESPUÉS de
+// (cierre total - 3 días) pero ANTES del cierre total, entrega tarde.
+const DIAS_GRACIA_CON_PENALIDAD = 3;
+
+function obtenerFechaFinSinPenalidad(fechaCierreTotal) {
+    if (!fechaCierreTotal) return null;
+    const fecha = new Date(fechaCierreTotal);
+    fecha.setDate(fecha.getDate() - DIAS_GRACIA_CON_PENALIDAD);
+    return fecha;
+}
 // Nombres fijos (en este orden) de las 3 columnas automáticas de
 // "Actividad en casa". Se usan tal cual para reconocerlas después.
 const NOMBRES_ACTIVIDAD_CASA_CIENCIAS = [
@@ -181,10 +195,11 @@ async function sincronizarActividadesCasaCiencias(materia, salon, trimestre, num
     (filasEstudiantes || []).forEach((f) => { cedulaPorId[f.id] = soloDigitosCedula(f.cedula); });
 
     // 3) Trae el último intento de cada estudiante en esta Clase, para
-    // los 3 tipos de ejercicio, en este salón.
+    // los 3 tipos de ejercicio, en este salón (con la fecha en que lo
+    // entregó, para poder detectar entregas tardías).
     const { data: intentos, error: errIntentos } = await supabase
         .from("prueba_intentos_practica")
-        .select("cedula, tipo_ejercicio, nota_meduca")
+        .select("cedula, tipo_ejercicio, nota_meduca, finalizado_at")
         .eq("codigo_examen", codigoExamen)
         .eq("salon", salon);
 
@@ -194,17 +209,22 @@ async function sincronizarActividadesCasaCiencias(materia, salon, trimestre, num
 
     const notaPorCedulaYTipo = {};
     (intentos || []).forEach((r) => {
-        (notaPorCedulaYTipo[soloDigitosCedula(r.cedula)] ??= {})[r.tipo_ejercicio] = r.nota_meduca;
+        (notaPorCedulaYTipo[soloDigitosCedula(r.cedula)] ??= {})[r.tipo_ejercicio] = {
+            nota: r.nota_meduca,
+            finalizadoAt: r.finalizado_at,
+        };
     });
 
     // 4) Marca las 3 columnas como bloqueadas y guarda (upsert) la nota
-    // de cada estudiante, dejándolo ya listo en memoria para pintar
-    // sin esperar a reabrir el modal. Si ya pasó la fecha límite de esta
-    // Clase y el estudiante NO tiene nota en algún ejercicio, se le
-    // pone 1.0 automáticamente (sin que el docente tenga que cerrar
-    // nada) — igual que ya se explicaba en los comentarios de
-    // prueba_config_claseN.js, pero ahora sí implementado de verdad.
+    // de cada estudiante, dejándolo ya listo en memoria para pintar sin
+    // esperar a reabrir el modal. Reglas de fecha límite de la Clase:
+    //   - Nunca lo hizo Y ya cerró la Clase -> 1.0 fijo (mínimo).
+    //   - Lo hizo, pero DESPUÉS de la fecha límite (entrega tardía) ->
+    //     se le resta 0.5 a la nota que sacó (sin bajar de 1.0).
+    //   - Lo hizo a tiempo, o la Clase todavía no cierra -> nota tal cual.
+    const PENALIZACION_ENTREGA_TARDIA = 0.5;
     const fechaCierre = FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion];
+    const fechaFinSinPenalidad = obtenerFechaFinSinPenalidad(fechaCierre);
     const claseYaCerro = !!(fechaCierre && new Date() > new Date(fechaCierre));
 
     for (let i = 0; i < TIPOS_EJERCICIO_CASA_CIENCIAS.length; i++) {
@@ -215,10 +235,16 @@ async function sincronizarActividadesCasaCiencias(materia, salon, trimestre, num
         act.soloLecturaForzada = true;
         for (const est of estudiantes) {
             const cedula = cedulaPorId[est.id];
-            let nota = cedula ? notaPorCedulaYTipo[cedula]?.[tipo] : undefined;
-            if (nota === undefined || nota === null) {
+            const intento = cedula ? notaPorCedulaYTipo[cedula]?.[tipo] : undefined;
+            let nota;
+            if (!intento) {
                 if (!claseYaCerro) continue; // todavía puede entregar, no se le pone nada
                 nota = 1.0; // ya cerró y nunca lo hizo: mínimo automático
+            } else {
+                const entregoTarde = fechaFinSinPenalidad && new Date(intento.finalizadoAt) > fechaFinSinPenalidad;
+                nota = entregoTarde
+                    ? Math.max(1.0, Math.round((intento.nota - PENALIZACION_ENTREGA_TARDIA) * 10) / 10)
+                    : intento.nota;
             }
             if (act.notas[est.id] === nota) continue; // ya estaba igual, no reescribas de más
             act.notas[est.id] = nota;
@@ -1642,7 +1668,7 @@ function pintarModal(estado_) {
         ${panel("clase", "✏️ Actividades en clase", bloqueActividades(actividadesClase, "clase"))}
         ${panel("casa", "🏠 Actividades para la casa", `
             ${obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion)
-                ? `<p class="small text-muted mb-2">🔒 Estas 3 notas se traen automáticamente del último intento de cada estudiante en los ejercicios de práctica de <strong>Ciencias Naturales · Clase ${numeroApreciacion}</strong>, y no se pueden editar a mano. Se actualizan solas cada vez que abras esta Apreciación. Pasada la fecha límite de esta Clase (${FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion] ? new Date(FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion]).toLocaleDateString("es-PA") : "—"}), a quien no haya hecho un ejercicio se le pone 1.0 automáticamente — no hace falta cerrar ni completar nada para que esto pase.</p>`
+                ? `<p class="small text-muted mb-2">🔒 Estas 3 notas se traen automáticamente del último intento de cada estudiante en los ejercicios de práctica de <strong>Ciencias Naturales · Clase ${numeroApreciacion}</strong>, y no se pueden editar a mano. Se actualizan solas cada vez que abras esta Apreciación. Entregas después de ${obtenerFechaFinSinPenalidad(FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion])?.toLocaleDateString("es-PA") ?? "—"} restan 0.5 por entrega tardía, y a quien nunca la haga se le pone 1.0 a partir del ${FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion] ? new Date(FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion]).toLocaleDateString("es-PA") : "—"} — todo automático, sin que tengas que cerrar ni completar nada.</p>`
                 : ""}
             ${bloqueActividades(actividadesCasa, "casa", !!obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion))}
         `)}
