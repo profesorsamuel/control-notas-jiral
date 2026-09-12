@@ -128,6 +128,15 @@ function obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion) {
     return CODIGO_EXAMEN_POR_CLASE_CIENCIAS[numeroApreciacion] || null;
 }
 
+// Deja solo los dígitos de una cédula (quita guiones, espacios, etc.).
+// Hace falta porque la tabla "estudiantes" guarda la cédula CON
+// guiones (ej. "9-999-9999"), pero "prueba_intentos_practica" la
+// guarda sin guiones (ej. "99999999") — sin esto, el cruce nunca
+// encuentra al estudiante aunque sí tenga la nota guardada.
+function soloDigitosCedula(cedula) {
+    return String(cedula ?? "").replace(/\D/g, "");
+}
+
 // Crea (si faltan) las 3 actividades fijas de "Actividad en casa" para
 // esta Apreciación de Ciencias, y rellena automáticamente la nota de
 // cada estudiante con el resultado de su ÚLTIMO intento en cada uno de
@@ -159,7 +168,7 @@ async function sincronizarActividadesCasaCiencias(materia, salon, trimestre, num
         : { data: [], error: null };
     if (errEstudiantes) console.error("No se pudo leer la cédula de los estudiantes para Act. en casa:", errEstudiantes);
     const cedulaPorId = {};
-    (filasEstudiantes || []).forEach((f) => { cedulaPorId[f.id] = f.cedula; });
+    (filasEstudiantes || []).forEach((f) => { cedulaPorId[f.id] = soloDigitosCedula(f.cedula); });
 
     // 3) Trae el último intento de cada estudiante en esta Clase, para
     // los 3 tipos de ejercicio, en este salón.
@@ -175,7 +184,7 @@ async function sincronizarActividadesCasaCiencias(materia, salon, trimestre, num
 
     const notaPorCedulaYTipo = {};
     (intentos || []).forEach((r) => {
-        (notaPorCedulaYTipo[r.cedula] ??= {})[r.tipo_ejercicio] = r.nota_meduca;
+        (notaPorCedulaYTipo[soloDigitosCedula(r.cedula)] ??= {})[r.tipo_ejercicio] = r.nota_meduca;
     });
 
     // 4) Marca las 3 columnas como bloqueadas y guarda (upsert) la nota
