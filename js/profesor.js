@@ -372,6 +372,15 @@ function aplicarParametrosURL() {
 // =========================================================
 
 let grupoActual = [];
+// Lista SIN filtrar (incluye estudiantes es_prueba) del salón cargado
+// ahora mismo. grupoActual se deriva de esta cada vez que se
+// carga el salón o se cambia el interruptor "Mostrar estudiante(s) de
+// prueba". Los reportes/PDF de este archivo NUNCA usan
+// grupoActualCompleto directamente — siempre vuelven a filtrar
+// es_prueba por su cuenta, así el interruptor de pantalla jamás se
+// cuela en un PDF o reporte exportado.
+let grupoActualCompleto = [];
+let mostrarEstudiantesPrueba = false;
 let historiaPorEstudiante = {};
 let casillasTabla = [];
 let temasCasillasBD = {};
@@ -680,6 +689,25 @@ const btnPapelera = document.getElementById("btnPapelera");
 const panelPapelera = document.getElementById("panelPapelera");
 const listaPapelera = document.getElementById("listaPapelera");
 const estadoPapelera = document.getElementById("estadoPapelera");
+
+// =========================================================
+// INTERRUPTOR "Mostrar estudiante(s) de prueba" — SOLO afecta esta
+// pantalla (tabla de notas + Apreciaciones que se abran desde aquí).
+// Los reportes/PDF de este mismo archivo (construirTablaReporteCompleta,
+// calcularResumenReporte, construirTablaSoloPromFinal,
+// construirTablaNotaMinima) siempre filtran es_prueba por su cuenta,
+// así que jamás se ven afectados por este interruptor.
+// =========================================================
+const chkMostrarEstudiantesPrueba = document.getElementById("chkMostrarEstudiantesPrueba");
+if (chkMostrarEstudiantesPrueba) {
+    chkMostrarEstudiantesPrueba.addEventListener("change", () => {
+        mostrarEstudiantesPrueba = chkMostrarEstudiantesPrueba.checked;
+        grupoActual = grupoActualCompleto.filter((e) => mostrarEstudiantesPrueba || !e.es_prueba);
+        estudiantesOcultos.clear();
+        if (grupoActual.length > 0) renderTabla();
+        if (typeof renderizarListaChecksEstudiantes === "function") renderizarListaChecksEstudiantes();
+    });
+}
 
 function formatearFechaPapelera(iso) {
     if (!iso) return "";
@@ -1710,7 +1738,14 @@ async function cargarSalon() {
         return;
     }
 
-    grupoActual = (estudiantesSalon || []).filter((e) => !e.es_prueba);
+    // El interruptor de "mostrar estudiante(s) de prueba" siempre
+    // vuelve a apagarse al cambiar de salón/materia/trimestre, para que
+    // nunca quede prendido sin querer al pasar a un salón real.
+    mostrarEstudiantesPrueba = false;
+    if (chkMostrarEstudiantesPrueba) chkMostrarEstudiantesPrueba.checked = false;
+
+    grupoActualCompleto = estudiantesSalon || [];
+    grupoActual = grupoActualCompleto.filter((e) => mostrarEstudiantesPrueba || !e.es_prueba);
     estudiantesOcultos.clear();
 
     // A partir de ahora, el "id" del estudiante es la fuente de verdad
@@ -2748,6 +2783,10 @@ const REPORTE_COLOR_BORDE = "#e2e2f0";
 const REPORTE_FUENTE = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 
 function construirTablaReporteCompleta() {
+    // Los reportes/PDF nunca deben incluir estudiantes de prueba, sin
+    // importar si el interruptor "Mostrar estudiante(s) de prueba" está
+    // activado en la pantalla en este momento.
+    const estudiantesReporte = grupoActual.filter((e) => !e.es_prueba);
     const tabla = document.createElement("table");
 
     const estiloThCabecera = `background:${REPORTE_COLOR_OSCURO}; color:#fff; padding:10px 8px; font-size:12.5px; font-weight:600; letter-spacing:.2px;`;
@@ -2781,7 +2820,7 @@ function construirTablaReporteCompleta() {
 
     const tbody = document.createElement("tbody");
 
-    grupoActual.forEach((est, i) => {
+    estudiantesReporte.forEach((est, i) => {
         const sinCuenta = !est.correo;
         const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
         const apr = [], eje = [], exa = [];
@@ -2907,8 +2946,11 @@ function construirTablaReporteCompleta() {
 // cuántos estudiantes están por debajo del mínimo para aprobar), usando
 // exactamente la misma lógica de promedios que la tabla del reporte.
 function calcularResumenReporte() {
+    // Igual que en construirTablaReporteCompleta: nunca cuenta
+    // estudiantes de prueba, sin importar el interruptor de pantalla.
+    const estudiantesReporte = grupoActual.filter((e) => !e.es_prueba);
     let sumaFinales = 0, conFinal = 0, reprobados = 0;
-    grupoActual.forEach((est) => {
+    estudiantesReporte.forEach((est) => {
         const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
         const apr = [], eje = [], exa = [];
         casillasTabla.forEach((c) => {
@@ -2931,7 +2973,7 @@ function calcularResumenReporte() {
         if (promFinal < PROMEDIO_MINIMO_APROBAR) reprobados++;
     });
     return {
-        totalEstudiantes: grupoActual.length,
+        totalEstudiantes: estudiantesReporte.length,
         promedioGeneral: conFinal ? sumaFinales / conFinal : null,
         reprobados,
         aprobados: conFinal - reprobados,
@@ -3051,6 +3093,8 @@ async function generarCanvasReporte() {
 // misma lógica de cálculo que construirTablaReporteCompleta, para que
 // el número mostrado sea siempre idéntico al de la tabla completa.
 function construirTablaSoloPromFinal() {
+    // Igual criterio: nunca incluye estudiantes de prueba en el PDF.
+    const estudiantesReporte = grupoActual.filter((e) => !e.es_prueba);
     const tabla = document.createElement("table");
 
     const estiloThCabecera = `background:${REPORTE_COLOR_OSCURO}; color:#fff; padding:10px 8px; font-size:13px; font-weight:600; letter-spacing:.2px;`;
@@ -3066,7 +3110,7 @@ function construirTablaSoloPromFinal() {
 
     const tbody = document.createElement("tbody");
 
-    grupoActual.forEach((est, i) => {
+    estudiantesReporte.forEach((est, i) => {
         const sinCuenta = !est.correo;
         const historial = historiaPorEstudiante[claveEstudiante(est)] || {};
         const apr = [], eje = [], exa = [];
@@ -3367,6 +3411,8 @@ function calcularNotaMinimaExamenPorEstudiante(est, meta = PROMEDIO_MINIMO_APROB
 const NOTA_MAXIMA_ESCALA = 5;
 
 function construirTablaNotaMinima(meta) {
+    // Igual criterio: nunca incluye estudiantes de prueba en el PDF.
+    const estudiantesReporte = grupoActual.filter((e) => !e.es_prueba);
     const tabla = document.createElement("table");
     const estiloTh = `background:${REPORTE_COLOR_OSCURO}; color:#fff; padding:10px 8px; font-size:12.5px; font-weight:600; letter-spacing:.2px;`;
 
@@ -3383,7 +3429,7 @@ function construirTablaNotaMinima(meta) {
     tabla.appendChild(thead);
 
     const tbody = document.createElement("tbody");
-    grupoActual.forEach((est, i) => {
+    estudiantesReporte.forEach((est, i) => {
         const r = calcularNotaMinimaExamenPorEstudiante(est, meta);
         const tr = document.createElement("tr");
         tr.style.backgroundColor = i % 2 === 0 ? "#ffffff" : "#fafaff";
