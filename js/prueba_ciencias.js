@@ -305,11 +305,21 @@ async function cargarMenu() {
   // Esta página no tiene botón de examen oficial (se quitó del HTML):
   // el examen queda disponible solo en modo práctica.
   if (!btnOficial) {
+    const yaCerro = !MODO_VISTA_PREVIA && CONFIG.fechaCierreTotal && new Date() > new Date(CONFIG.fechaCierreTotal);
     document.getElementById("menu-info").textContent = MODO_VISTA_PREVIA
       ? "Puedes probar la práctica tal como la ve un estudiante. Nada de esto se guarda."
-      : `${estudiante.salon.replace(/(\d+)([A-Z])/, "$1°$2")} · ¡Que tengas una buena práctica!`;
+      : yaCerro
+        ? `${estudiante.salon.replace(/(\d+)([A-Z])/, "$1°$2")} · Esta clase ya cerró.`
+        : `${estudiante.salon.replace(/(\d+)([A-Z])/, "$1°$2")} · ¡Que tengas una buena práctica!`;
     if (aviso) aviso.hidden = true;
-    document.getElementById("btn-practica").onclick = () => iniciarQuiz("practica");
+    const btnPractica = document.getElementById("btn-practica");
+    if (yaCerro) {
+      btnPractica.disabled = true;
+      btnPractica.innerHTML = `🔒 Esta clase ya cerró<br><small>La fecha límite para practicar ya pasó</small>`;
+    } else {
+      btnPractica.disabled = false;
+      btnPractica.onclick = () => iniciarQuiz("practica");
+    }
     return;
   }
 
@@ -362,6 +372,11 @@ async function cargarMenu() {
 // 4) MOTOR DEL QUIZ (práctica y oficial)
 // =========================================================
 async function iniciarQuiz(modo, sesionExistente) {
+  if (modo === "practica" && !MODO_VISTA_PREVIA && CONFIG.fechaCierreTotal && new Date() > new Date(CONFIG.fechaCierreTotal)) {
+    alert("🔒 Esta clase ya cerró. Ya no se pueden hacer más intentos de práctica.");
+    cargarMenu();
+    return;
+  }
   let preguntasIds, respuestasPrevias = [], pregActual = 0, sesionId = null;
 
   if (modo === "oficial" && MODO_VISTA_PREVIA) {

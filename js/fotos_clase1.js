@@ -162,10 +162,25 @@ document.getElementById("btn-cambiar-usuario-fotos").addEventListener("click", (
   cargarSalones();
 });
 
+// Verdadero si ya pasó la fecha límite de esta Clase (CONFIG.fechaCierreTotal).
+// A partir de ese momento nadie más puede empezar ni repetir el ejercicio.
+function claseYaCerro() {
+  return !!(CONFIG.fechaCierreTotal && new Date() > new Date(CONFIG.fechaCierreTotal));
+}
+
 function irAInicio() {
   document.getElementById("fotos-saludo").textContent =
     `Hola, ${estudiante.nombre.split(" ")[0]} 👋 — Relaciona cada foto con su nombre`;
   mostrarVista(vistaInicio);
+
+  const btnComenzar = document.getElementById("btn-comenzar-fotos");
+  if (claseYaCerro()) {
+    btnComenzar.disabled = true;
+    btnComenzar.textContent = "🔒 Esta clase ya cerró";
+  } else {
+    btnComenzar.disabled = false;
+    btnComenzar.textContent = "📷 Comenzar pareo de fotos";
+  }
 }
 
 (function arrancar() {
@@ -187,6 +202,11 @@ function irAInicio() {
 let intentoActual = null;
 
 function iniciarIntento() {
+  if (claseYaCerro()) {
+    alert("🔒 Esta clase ya cerró. Ya no se pueden hacer más intentos de práctica.");
+    irAInicio();
+    return;
+  }
   // Las fotos siempre salen en un orden al azar (aunque se repita el
   // banco completo, el ORDEN de las 8 elegidas cambia cada vez).
   const elegidos = mezclar(BANCO).slice(0, CANTIDAD_POR_INTENTO);

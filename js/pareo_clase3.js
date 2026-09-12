@@ -169,10 +169,25 @@ document.getElementById("btn-cambiar-usuario-pareo").addEventListener("click", (
   cargarSalones();
 });
 
+// Verdadero si ya pasó la fecha límite de esta Clase (CONFIG.fechaCierreTotal).
+// A partir de ese momento nadie más puede empezar ni repetir el ejercicio.
+function claseYaCerro() {
+  return !!(CONFIG.fechaCierreTotal && new Date() > new Date(CONFIG.fechaCierreTotal));
+}
+
 function irAInicio() {
   document.getElementById("pareo-saludo").textContent =
     `Hola, ${estudiante.nombre.split(" ")[0]} 👋 — Relaciona cada término con su definición`;
   mostrarVista(vistaInicio);
+
+  const btnComenzar = document.getElementById("btn-comenzar-pareo");
+  if (claseYaCerro()) {
+    btnComenzar.disabled = true;
+    btnComenzar.textContent = "🔒 Esta clase ya cerró";
+  } else {
+    btnComenzar.disabled = false;
+    btnComenzar.textContent = "🔤 Comenzar pareo";
+  }
 }
 
 // Al cargar la página: si ya hay un estudiante guardado (por ejemplo,
@@ -196,6 +211,11 @@ function irAInicio() {
 let intentoActual = null;
 
 function iniciarIntento() {
+  if (claseYaCerro()) {
+    alert("🔒 Esta clase ya cerró. Ya no se pueden hacer más intentos de práctica.");
+    irAInicio();
+    return;
+  }
   const elegidos = mezclar(BANCO).slice(0, CANTIDAD_POR_INTENTO);
   const ordenTerminos = elegidos.map((t, i) => ({ ...t, numero: i + 1 }));
 
