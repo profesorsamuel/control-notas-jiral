@@ -469,10 +469,10 @@ function render() {
                     </p>
                 ` : ""}
                 ${materia === "Ciencias Naturales" && trimestre !== "todos" ? `
-                    <button type="button" class="btn-detalle-clase-ciencias" data-trimestre="${escapeHtml(trimestre)}">
-                        🔎 Ver detalle por Clase (asistencia, comportamiento, actividades)
-                    </button>
-                    <div class="detalle-clase-ciencias-contenedor" hidden></div>
+                    <div class="detalle-clase-ciencias-contenedor" data-trimestre="${escapeHtml(trimestre)}">
+                        <p class="detalle-clase-titulo-seccion">📚 Detalle por clase — asistencia, comportamiento y actividades</p>
+                        <p class="small" style="color:#64748b;">Cargando detalle por clase…</p>
+                    </div>
                 ` : ""}
             </div>
         `;
@@ -484,8 +484,8 @@ function render() {
 
     contenedorMaterias.innerHTML = html;
 
-    contenedorMaterias.querySelectorAll(".btn-detalle-clase-ciencias").forEach((btn) => {
-        btn.addEventListener("click", () => manejarClicDetalleClaseCiencias(btn), { once: true });
+    contenedorMaterias.querySelectorAll(".detalle-clase-ciencias-contenedor").forEach((contenedor) => {
+        cargarDetalleClaseCiencias(contenedor);
     });
 }
 
@@ -493,21 +493,21 @@ function render() {
 // DETALLE POR CLASE (Ciencias Naturales) — asistencia,
 // comportamiento, actividades en clase y en casa de cada
 // Apreciación (= cada Clase: Apreciación 1 = Clase 1, etc.)
+// Se carga solo, sin que el estudiante tenga que tocar nada.
 // =====================================================
 
 function formatearNotaDetalle(valor) {
     return (valor === null || valor === undefined || isNaN(valor)) ? "–" : Number(valor).toFixed(1);
 }
 
-async function manejarClicDetalleClaseCiencias(btn) {
-    const contenedor = btn.nextElementSibling;
-    btn.disabled = true;
-    btn.textContent = "Cargando...";
-    contenedor.hidden = false;
-    contenedor.innerHTML = `<p class="small" style="color:#64748b;">Cargando detalle por clase…</p>`;
+function claseNotaBadge(valor) {
+    if (valor === null || valor === undefined || isNaN(valor)) return "nota-pendiente";
+    return Number(valor) < NOTA_MINIMA_APROBAR ? "nota-baja" : "nota-ok";
+}
 
+async function cargarDetalleClaseCiencias(contenedor) {
     try {
-        const trimestre = btn.dataset.trimestre;
+        const trimestre = contenedor.dataset.trimestre;
         const detalle = await obtenerDetalleApreciacionesCiencias(
             { id: estudianteActual.id, correo: estudianteActual.correo },
             estudianteActual.salon,
@@ -515,50 +515,73 @@ async function manejarClicDetalleClaseCiencias(btn) {
         );
 
         if (!detalle || detalle.length === 0) {
-            contenedor.innerHTML = `<p class="small" style="color:#64748b;">Todavía no hay clases con detalle registrado en este trimestre.</p>`;
-        } else {
-            contenedor.innerHTML = detalle.map((d) => `
-                <div class="tarjeta-clase-ciencias">
-                    <h4>${escapeHtml(d.claseNombre)}
-                        <span class="nota-final-clase">Nota: ${formatearNotaDetalle(d.notaFinal)}</span>
-                    </h4>
-                    ${d.fechaInicio && d.fechaFin ? `<p class="small" style="color:#64748b; margin:0 0 8px;">Del ${d.fechaInicio} al ${d.fechaFin}</p>` : ""}
-                    <table class="tabla-detalle-clase">
-                        <tbody>
-                            <tr>
-                                <td>📋 Asistencia</td>
-                                <td>${d.asistencia.clasesDadas} clases dadas · ${d.asistencia.presentes} presente(s) · ${d.asistencia.ausencias} ausencia(s) · ${d.asistencia.tardanzas} tardanza(s)${d.asistencia.permisos ? ` · ${d.asistencia.permisos} permiso(s)` : ""}</td>
-                                <td class="celda-nota">${formatearNotaDetalle(d.asistencia.promedio)}</td>
-                            </tr>
-                            <tr>
-                                <td>🙂 Comportamiento</td>
-                                <td>${d.comportamiento.buenos} día(s) bueno(s) · ${d.comportamiento.malos} día(s) con llamado de atención</td>
-                                <td class="celda-nota">${formatearNotaDetalle(d.comportamiento.promedio)}</td>
-                            </tr>
-                            <tr>
-                                <td>✏️ Actividades en clase</td>
-                                <td>${d.actClase.cantidad} actividad(es) registrada(s)</td>
-                                <td class="celda-nota">${formatearNotaDetalle(d.actClase.promedio)}</td>
-                            </tr>
-                            <tr>
-                                <td>🏠 Actividades en casa</td>
-                                <td>
-                                    ${d.actCasa.detalle.length
-                                        ? d.actCasa.detalle.map((a) => `${escapeHtml(a.nombre)}: <strong>${formatearNotaDetalle(a.nota)}</strong>`).join(" · ")
-                                        : "Sin ejercicios registrados todavía"}
-                                </td>
-                                <td class="celda-nota">${formatearNotaDetalle(d.actCasa.promedio)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            `).join("");
+            contenedor.innerHTML = `
+                <p class="detalle-clase-titulo-seccion">📚 Detalle por clase — asistencia, comportamiento y actividades</p>
+                <p class="small" style="color:#64748b;">Todavía no hay clases con detalle registrado en este trimestre.</p>`;
+            return;
         }
+
+        const tarjetas = detalle.map((d) => `
+            <div class="tarjeta-clase-ciencias">
+                <div class="clase-ciencias-header">
+                    <span class="clase-ciencias-nombre">${escapeHtml(d.claseNombre)}</span>
+                    <span class="clase-ciencias-nota-badge ${claseNotaBadge(d.notaFinal)}">Nota final: ${formatearNotaDetalle(d.notaFinal)}</span>
+                </div>
+                ${d.fechaInicio && d.fechaFin ? `<p class="clase-ciencias-fechas">Del ${d.fechaInicio} al ${d.fechaFin}</p>` : ""}
+                <div class="clase-ciencias-grid">
+                    <div class="clase-ciencias-item">
+                        <div class="clase-ciencias-item-texto">
+                            <div class="clase-ciencias-item-titulo">📋 Asistencia</div>
+                            <div class="clase-ciencias-item-detalle">
+                                ${d.asistencia.clasesDadas} clase(s) dada(s) · ${d.asistencia.presentes} presente(s)<br>
+                                ${d.asistencia.ausencias} ausencia(s) · ${d.asistencia.tardanzas} tardanza(s)${d.asistencia.permisos ? ` · ${d.asistencia.permisos} permiso(s)` : ""}
+                            </div>
+                        </div>
+                        <div class="clase-ciencias-item-nota">${formatearNotaDetalle(d.asistencia.promedio)}</div>
+                    </div>
+                    <div class="clase-ciencias-item">
+                        <div class="clase-ciencias-item-texto">
+                            <div class="clase-ciencias-item-titulo">🙂 Comportamiento</div>
+                            <div class="clase-ciencias-item-detalle">
+                                ${d.comportamiento.buenos} día(s) bueno(s)<br>
+                                ${d.comportamiento.malos} día(s) con llamado de atención
+                            </div>
+                        </div>
+                        <div class="clase-ciencias-item-nota">${formatearNotaDetalle(d.comportamiento.promedio)}</div>
+                    </div>
+                    <div class="clase-ciencias-item">
+                        <div class="clase-ciencias-item-texto">
+                            <div class="clase-ciencias-item-titulo">✏️ Participación en clase</div>
+                            <div class="clase-ciencias-item-detalle">
+                                ${d.actClase.cantidad ? `${d.actClase.cantidad} actividad(es) registrada(s)` : "Sin actividades registradas todavía"}
+                            </div>
+                        </div>
+                        <div class="clase-ciencias-item-nota">${formatearNotaDetalle(d.actClase.promedio)}</div>
+                    </div>
+                    <div class="clase-ciencias-item">
+                        <div class="clase-ciencias-item-texto">
+                            <div class="clase-ciencias-item-titulo">🏠 Tarea de la clase</div>
+                            <div class="clase-ciencias-item-detalle">
+                                ${d.actCasa.detalle.length
+                                    ? d.actCasa.detalle.map((a) => `${escapeHtml(a.nombre.replace(/^[^\w]*\s*/, ""))}: <strong>${formatearNotaDetalle(a.nota)}</strong>`).join("<br>")
+                                    : "Sin ejercicios registrados todavía"}
+                            </div>
+                        </div>
+                        <div class="clase-ciencias-item-nota">${formatearNotaDetalle(d.actCasa.promedio)}</div>
+                    </div>
+                </div>
+            </div>
+        `).join("");
+
+        contenedor.innerHTML = `
+            <p class="detalle-clase-titulo-seccion">📚 Detalle por clase — asistencia, comportamiento y actividades</p>
+            ${tarjetas}
+        `;
     } catch (err) {
         console.error("No se pudo cargar el detalle por clase de Ciencias:", err);
-        contenedor.innerHTML = `<p class="small" style="color:#b91c1c;">❌ No se pudo cargar el detalle. Intenta de nuevo más tarde.</p>`;
-    } finally {
-        btn.style.display = "none";
+        contenedor.innerHTML = `
+            <p class="detalle-clase-titulo-seccion">📚 Detalle por clase — asistencia, comportamiento y actividades</p>
+            <p class="small" style="color:#b91c1c;">❌ No se pudo cargar el detalle. Intenta de nuevo más tarde.</p>`;
     }
 }
 
