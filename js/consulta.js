@@ -521,57 +521,74 @@ async function cargarDetalleClaseCiencias(contenedor) {
             return;
         }
 
-        const tarjetas = detalle.map((d) => `
+        const tarjetas = detalle.map((d) => {
+            const pesos = d.pesos || {};
+            const notaFinalClaseValida = (d.notaFinal !== null && d.notaFinal !== undefined);
+            return `
             <div class="tarjeta-clase-ciencias">
                 <div class="clase-ciencias-header">
                     <span class="clase-ciencias-nombre">${escapeHtml(d.claseNombre)}</span>
                     <span class="clase-ciencias-nota-badge ${claseNotaBadge(d.notaFinal)}">Nota final: ${formatearNotaDetalle(d.notaFinal)}</span>
                 </div>
                 ${d.fechaInicio && d.fechaFin ? `<p class="clase-ciencias-fechas">Del ${d.fechaInicio} al ${d.fechaFin}</p>` : ""}
-                <div class="clase-ciencias-grid">
-                    <div class="clase-ciencias-item">
-                        <div class="clase-ciencias-item-texto">
-                            <div class="clase-ciencias-item-titulo">📋 Asistencia</div>
-                            <div class="clase-ciencias-item-detalle">
+                <p class="clase-ciencias-explicacion">
+                    La nota de esta clase se calcula combinando estos 4 componentes según su porcentaje:
+                    Asistencia (${pesos.peso_asistencia ?? "–"}%) + Comportamiento (${pesos.peso_comportamiento ?? "–"}%) +
+                    Participación en clase (${pesos.peso_actividades_clase ?? "–"}%) + Actividad en casa (${pesos.peso_actividades_casa ?? "–"}%) = 100%.
+                </p>
+                <table class="tabla-detalle-clase">
+                    <thead>
+                        <tr>
+                            <th>Componente</th>
+                            <th style="text-align:center;">% de la nota</th>
+                            <th>Detalle</th>
+                            <th style="text-align:center;">Nota</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="col-componente">📋 Asistencia</td>
+                            <td class="col-peso">${pesos.peso_asistencia ?? "–"}%</td>
+                            <td>
                                 ${d.asistencia.clasesDadas} clase(s) dada(s) · ${d.asistencia.presentes} presente(s)<br>
                                 ${d.asistencia.ausencias} ausencia(s) · ${d.asistencia.tardanzas} tardanza(s)${d.asistencia.permisos ? ` · ${d.asistencia.permisos} permiso(s)` : ""}
-                            </div>
-                        </div>
-                        <div class="clase-ciencias-item-nota">${formatearNotaDetalle(d.asistencia.promedio)}</div>
-                    </div>
-                    <div class="clase-ciencias-item">
-                        <div class="clase-ciencias-item-texto">
-                            <div class="clase-ciencias-item-titulo">🙂 Comportamiento</div>
-                            <div class="clase-ciencias-item-detalle">
+                            </td>
+                            <td class="col-nota">${formatearNotaDetalle(d.asistencia.promedio)}</td>
+                        </tr>
+                        <tr>
+                            <td class="col-componente">🙂 Comportamiento</td>
+                            <td class="col-peso">${pesos.peso_comportamiento ?? "–"}%</td>
+                            <td>
                                 ${d.comportamiento.buenos} día(s) bueno(s)<br>
                                 ${d.comportamiento.malos} día(s) con llamado de atención
-                            </div>
-                        </div>
-                        <div class="clase-ciencias-item-nota">${formatearNotaDetalle(d.comportamiento.promedio)}</div>
-                    </div>
-                    <div class="clase-ciencias-item">
-                        <div class="clase-ciencias-item-texto">
-                            <div class="clase-ciencias-item-titulo">✏️ Participación en clase</div>
-                            <div class="clase-ciencias-item-detalle">
-                                ${d.actClase.cantidad ? `${d.actClase.cantidad} actividad(es) registrada(s)` : "Sin actividades registradas todavía"}
-                            </div>
-                        </div>
-                        <div class="clase-ciencias-item-nota">${formatearNotaDetalle(d.actClase.promedio)}</div>
-                    </div>
-                    <div class="clase-ciencias-item">
-                        <div class="clase-ciencias-item-texto">
-                            <div class="clase-ciencias-item-titulo">🏠 Tarea de la clase</div>
-                            <div class="clase-ciencias-item-detalle">
+                            </td>
+                            <td class="col-nota">${formatearNotaDetalle(d.comportamiento.promedio)}</td>
+                        </tr>
+                        <tr>
+                            <td class="col-componente">✏️ Participación en clase</td>
+                            <td class="col-peso">${pesos.peso_actividades_clase ?? "–"}%</td>
+                            <td>${d.actClase.cantidad ? `${d.actClase.cantidad} actividad(es) registrada(s)` : "Sin actividades registradas todavía"}</td>
+                            <td class="col-nota">${formatearNotaDetalle(d.actClase.promedio)}</td>
+                        </tr>
+                        <tr>
+                            <td class="col-componente">🏠 Actividad en casa</td>
+                            <td class="col-peso">${pesos.peso_actividades_casa ?? "–"}%</td>
+                            <td>
                                 ${d.actCasa.detalle.length
                                     ? d.actCasa.detalle.map((a) => `${escapeHtml(a.nombre.replace(/^[^\w]*\s*/, ""))}: <strong>${formatearNotaDetalle(a.nota)}</strong>`).join("<br>")
                                     : "Sin ejercicios registrados todavía"}
-                            </div>
-                        </div>
-                        <div class="clase-ciencias-item-nota">${formatearNotaDetalle(d.actCasa.promedio)}</div>
-                    </div>
-                </div>
+                            </td>
+                            <td class="col-nota">${formatearNotaDetalle(d.actCasa.promedio)}</td>
+                        </tr>
+                        <tr class="fila-nota-final">
+                            <td colspan="3">Nota final de la clase</td>
+                            <td class="col-nota">${notaFinalClaseValida ? formatearNotaDetalle(d.notaFinal) : "Pendiente"}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-        `).join("");
+        `;
+        }).join("");
 
         contenedor.innerHTML = `
             <p class="detalle-clase-titulo-seccion">📚 Detalle por clase — asistencia, comportamiento y actividades</p>
