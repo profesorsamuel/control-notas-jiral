@@ -69,15 +69,15 @@ function formatearPromedioSeccion(valor) {
 
 // Valores fijos pedidos explícitamente en el punto 6 (Comportamiento):
 // buen comportamiento = 5, mal comportamiento = 1.
-const VALOR_COMPORTAMIENTO_BUENO = 5;
-const VALOR_COMPORTAMIENTO_MALO = 1;
+export const VALOR_COMPORTAMIENTO_BUENO = 5;
+export const VALOR_COMPORTAMIENTO_MALO = 1;
 
 // Valores de asistencia (traducen el estado que ya existe en el
 // sistema de asistencia -presente/tardanza/ausente/permiso/fuga- a una
 // nota 1-5). Viven en config_pesos_apreciacion junto a los pesos, así
 // quedan igual de centralizados y editables desde la base de datos.
 // "fuga" vale igual que "ausente" (1).
-const VALOR_ASISTENCIA_DEFECTO = { presente: 5, tardanza: 3, ausente: 1, permiso: 5, fuga: 1 };
+export const VALOR_ASISTENCIA_DEFECTO = { presente: 5, tardanza: 3, ausente: 1, permiso: 5, fuga: 1 };
 
 // Igual que en la cuadrícula del trimestre (historial-asistencia.js): si
 // un día NO tiene fila guardada en asistencia_detalle para un estudiante,
@@ -86,12 +86,120 @@ const VALOR_ASISTENCIA_DEFECTO = { presente: 5, tardanza: 3, ausente: 1, permiso
 // como "—" (vacío) y los excluía del promedio, lo que hacía que la nota
 // y las casillas NO coincidieran con lo que se ve en la cuadrícula de
 // Asistencia. Se deja centralizado aquí para no repetir el criterio.
-const ESTADO_ASISTENCIA_DEFECTO = "presente";
+export const ESTADO_ASISTENCIA_DEFECTO = "presente";
 
 // Ciclo de estados al hacer clic sobre una casilla de asistencia dentro
 // de la Apreciación (igual orden que en la pantalla de Asistencia).
 const CICLO_ASISTENCIA_APR = ["presente", "ausente", "tardanza", "permiso", "fuga"];
 const ETIQUETAS_ASISTENCIA_APR = { presente: "Presente", ausente: "Ausente", tardanza: "Tardanza", permiso: "Permiso", fuga: "Fuga" };
+
+// =========================================================
+// "ACTIVIDAD EN CASA" AUTOMÁTICA PARA CIENCIAS NATURALES
+// =========================================================
+// Para Ciencias Naturales, en los salones 9A/9B/9C, la Apreciación N
+// corresponde exactamente a la Clase N de la Unidad Completa (1
+// Apreciación = 1 Clase, NO una semana suelta). Por ahora hay
+// ejercicios de práctica (opción múltiple + pareo de términos + pareo
+// de fotos) solo para las Clases 1, 2 y 3 — la Clase 4 todavía no
+// tiene esos 3 ejercicios en el portal, así que no se autocompleta.
+// 8A no tiene este mismo set de 4 clases (solo un examen único de
+// recuperación), así que tampoco se autocompleta por ahora.
+const MATERIA_CIENCIAS = "Ciencias Naturales";
+const SALONES_CON_PRACTICA_CIENCIAS = new Set(["9A", "9B", "9C"]);
+const CODIGO_EXAMEN_POR_CLASE_CIENCIAS = {
+    1: "cn9-clase1-universo-2026",
+    2: "cn9-clase2-vida-tierra-2026",
+    3: "cn9-clase3-ondas-2026",
+};
+// Nombres fijos (en este orden) de las 3 columnas automáticas de
+// "Actividad en casa". Se usan tal cual para reconocerlas después.
+const NOMBRES_ACTIVIDAD_CASA_CIENCIAS = [
+    "🧪 Ejercicio 1: Opción múltiple",
+    "🔤 Ejercicio 2: Pareo de términos",
+    "📷 Ejercicio 3: Pareo de fotos",
+];
+const TIPOS_EJERCICIO_CASA_CIENCIAS = ["quiz", "pareo", "fotos"];
+
+// Devuelve el codigo_examen de Ciencias correspondiente a esta
+// Apreciación (o null si esta materia/salón/número no aplica).
+function obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion) {
+    if (materia !== MATERIA_CIENCIAS) return null;
+    if (!SALONES_CON_PRACTICA_CIENCIAS.has(salon)) return null;
+    return CODIGO_EXAMEN_POR_CLASE_CIENCIAS[numeroApreciacion] || null;
+}
+
+// Crea (si faltan) las 3 actividades fijas de "Actividad en casa" para
+// esta Apreciación de Ciencias, y rellena automáticamente la nota de
+// cada estudiante con el resultado de su ÚLTIMO intento en cada uno de
+// los 3 ejercicios de práctica de esa Clase (prueba_intentos_practica
+// ya guarda solo el último intento, así que aquí no hay que elegir
+// entre varios). Estas 3 columnas quedan marcadas como
+// "soloLecturaForzada": no se pueden editar a mano, renombrar ni
+// borrar — se sincronizan solas cada vez que se abre esta Apreciación.
+async function sincronizarActividadesCasaCiencias(materia, salon, trimestre, numeroApreciacion, estudiantes, actividadesCasaActuales) {
+    const codigoExamen = obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion);
+    if (!codigoExamen) return actividadesCasaActuales;
+
+    // 1) Asegura que existan las 3 actividades fijas, en orden 1, 2, 3.
+    const actividades = [...actividadesCasaActuales];
+    for (let i = 0; i < NOMBRES_ACTIVIDAD_CASA_CIENCIAS.length; i++) {
+        const nombreEsperado = NOMBRES_ACTIVIDAD_CASA_CIENCIAS[i];
+        const yaExiste = actividades.some((a) => a.nombre === nombreEsperado);
+        if (!yaExiste) {
+            const nueva = await crearActividad(materia, salon, trimestre, numeroApreciacion, "casa", nombreEsperado, i + 1, null);
+            if (nueva) actividades.push(nueva);
+        }
+    }
+
+    // 2) prueba_intentos_practica identifica al estudiante por cédula,
+    // no por estudiante_id — hay que traer esa correspondencia.
+    const idsEstudiantes = estudiantes.map((e) => e.id).filter(Boolean);
+    const { data: filasEstudiantes, error: errEstudiantes } = idsEstudiantes.length
+        ? await supabase.from("estudiantes").select("id, cedula").in("id", idsEstudiantes)
+        : { data: [], error: null };
+    if (errEstudiantes) console.error("No se pudo leer la cédula de los estudiantes para Act. en casa:", errEstudiantes);
+    const cedulaPorId = {};
+    (filasEstudiantes || []).forEach((f) => { cedulaPorId[f.id] = f.cedula; });
+
+    // 3) Trae el último intento de cada estudiante en esta Clase, para
+    // los 3 tipos de ejercicio, en este salón.
+    const { data: intentos, error: errIntentos } = await supabase
+        .from("prueba_intentos_practica")
+        .select("cedula, tipo_ejercicio, nota_meduca")
+        .eq("codigo_examen", codigoExamen)
+        .eq("salon", salon);
+
+    if (errIntentos) {
+        console.error("No se pudieron cargar los intentos de práctica para Act. en casa:", errIntentos);
+    }
+
+    const notaPorCedulaYTipo = {};
+    (intentos || []).forEach((r) => {
+        (notaPorCedulaYTipo[r.cedula] ??= {})[r.tipo_ejercicio] = r.nota_meduca;
+    });
+
+    // 4) Marca las 3 columnas como bloqueadas y guarda (upsert) la nota
+    // de cada estudiante, dejándolo ya listo en memoria para pintar
+    // sin esperar a reabrir el modal.
+    for (let i = 0; i < TIPOS_EJERCICIO_CASA_CIENCIAS.length; i++) {
+        const tipo = TIPOS_EJERCICIO_CASA_CIENCIAS[i];
+        const nombreEsperado = NOMBRES_ACTIVIDAD_CASA_CIENCIAS[i];
+        const act = actividades.find((a) => a.nombre === nombreEsperado);
+        if (!act) continue;
+        act.soloLecturaForzada = true;
+        for (const est of estudiantes) {
+            const cedula = cedulaPorId[est.id];
+            if (!cedula) continue;
+            const nota = notaPorCedulaYTipo[cedula]?.[tipo];
+            if (nota === undefined || nota === null) continue;
+            if (act.notas[est.id] === nota) continue; // ya estaba igual, no reescribas de más
+            act.notas[est.id] = nota;
+            await guardarCalificacionActividad(act.id, est.id, nota);
+        }
+    }
+
+    return actividades;
+}
 
 // =========================================================
 // 1) ESTADO DE LAS APRECIACIONES (activa / completada / bloqueada)
@@ -514,7 +622,7 @@ export async function guardarCorreccionAsistencia(asistenciaId, estudianteId, es
 // 4) COMPORTAMIENTO — una columna por cada fecha que el docente agregue
 // =========================================================
 
-async function obtenerComportamientoTabla(materia, trimestre, numeroApreciacion) {
+export async function obtenerComportamientoTabla(materia, trimestre, numeroApreciacion) {
     const { data, error } = await supabase
         .from("comportamiento_detalle")
         .select("estudiante_id, fecha, valor")
@@ -545,7 +653,7 @@ async function guardarComportamiento(materia, trimestre, numeroApreciacion, fech
 // 5) ACTIVIDADES (en clase / para la casa)
 // =========================================================
 
-async function obtenerActividades(materia, salon, trimestre, numeroApreciacion, tipoActividad) {
+export async function obtenerActividades(materia, salon, trimestre, numeroApreciacion, tipoActividad) {
     const { data: actividades, error } = await supabase
         .from("actividades_apreciacion")
         .select("id, nombre, orden, fecha")
@@ -777,13 +885,21 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
 
     const rango = await obtenerRangoFechas(materia, salon, trimestre, numeroApreciacion);
 
-    const [pesos, asistenciaTabla, comportamientoTabla, actividadesClase, actividadesCasa] = await Promise.all([
+    const [pesos, asistenciaTabla, comportamientoTabla, actividadesClase, actividadesCasaBase] = await Promise.all([
         obtenerConfigPesos(materia, salon, trimestre),
         obtenerAsistenciaPorRango(materia, salon, rango.fecha_inicio, rango.fecha_fin, correoProfesor),
         obtenerComportamientoTabla(materia, trimestre, numeroApreciacion),
         obtenerActividades(materia, salon, trimestre, numeroApreciacion, "clase"),
         obtenerActividades(materia, salon, trimestre, numeroApreciacion, "casa"),
     ]);
+
+    // Ciencias Naturales (9A/9B/9C): "Actividad en casa" se autocompleta
+    // sola con las notas de los 3 ejercicios de práctica de esta Clase.
+    // Para cualquier otra materia/salón/Apreciación, esto no hace nada
+    // y actividadesCasa queda exactamente igual que antes.
+    const actividadesCasa = await sincronizarActividadesCasaCiencias(
+        materia, salon, trimestre, numeroApreciacion, estudiantes, actividadesCasaBase
+    );
 
     // Notas ya guardadas para esta apreciación (si se está reabriendo
     // una que ya estaba completada, o si se guardó parcialmente antes).
@@ -1346,27 +1462,31 @@ function pintarModal(estado_) {
     // actividades "de clase" llevan fecha automática (se puede repetir
     // el mismo día varias veces) y su casilla se bloquea si ese día el
     // estudiante estuvo Ausente/Fuga/Permiso. ---
-    const bloqueActividades = (lista, tipoActividad) => {
+    const bloqueActividades = (lista, tipoActividad, casaAutomatica = false) => {
         const selector = bloqueSelectorColumnas(tipoActividad, lista.map((a) => ({ clave: a.id, etiqueta: a.nombre })));
         const listaVisible = lista.filter((a) => !columnasOcultas[tipoActividad].has(a.id));
 
-        const encabezado = listaVisible.map((a) => `
+        const encabezado = listaVisible.map((a) => {
+            const bloqueada = casaAutomatica && a.soloLecturaForzada;
+            return `
             <th style="min-width:120px;">
-                ${soloLectura
-                    ? `<div class="text-center small fw-bold">${escapeHtml(a.nombre)}</div>`
+                ${(soloLectura || bloqueada)
+                    ? `<div class="text-center small fw-bold">${escapeHtml(a.nombre)}${bloqueada ? ` <span class="badge bg-secondary" title="Se autocompleta con la nota del ejercicio de práctica. No es editable a mano.">🔒 Auto</span>` : ""}</div>`
                     : `<input type="text" class="form-control form-control-sm input-nombre-actividad text-center fw-bold"
                         data-actividad-id="${a.id}" value="${escapeHtml(a.nombre)}" style="font-size:12px;">`}
                 ${a.fecha ? `<div class="text-muted text-center" style="font-weight:normal; font-size:10px;">${escapeHtml(a.fecha)}</div>` : ""}
-                ${soloLectura ? "" : `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-actividad" data-actividad-id="${a.id}" title="Eliminar esta actividad">🗑️</button>`}
-            </th>`).join("");
+                ${(soloLectura || bloqueada) ? "" : `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-eliminar-actividad" data-actividad-id="${a.id}" title="Eliminar esta actividad">🗑️</button>`}
+            </th>`;
+        }).join("");
 
-        const columnaAgregar = soloLectura ? "" : `
+        const columnaAgregar = (soloLectura || (tipoActividad === "casa" && casaAutomatica)) ? "" : `
             <th class="text-center" style="width:44px;">
                 <button type="button" class="btn btn-link btn-sm p-0 text-success btn-agregar-actividad" data-tipo="${tipoActividad}" title="Agregar otra actividad">➕</button>
             </th>`;
 
         const filas = estudiantes.map((est) => {
             const celdas = listaVisible.map((a) => {
+                const bloqueada = casaAutomatica && a.soloLecturaForzada;
                 if (actividadBloqueadaParaEstudiante(a, est.id, asistenciaPorFecha)) {
                     return `<td class="text-center text-muted bg-light" title="Este día el estudiante estuvo Ausente o con Permiso: no aplica nota.">—</td>`;
                 }
@@ -1375,7 +1495,7 @@ function pintarModal(estado_) {
                 }
                 const crudo = a.notas[est.id];
                 const valor = (crudo === null || crudo === undefined) ? "" : formatearNotaFinal(String(crudo));
-                if (soloLectura) return `<td class="text-center">${valor === "" ? "–" : valor}</td>`;
+                if (soloLectura || bloqueada) return `<td class="text-center">${valor === "" ? "–" : valor}</td>`;
                 return `<td>
                     <input type="text" inputmode="decimal" class="form-control form-control-sm input-nota-actividad"
                         data-actividad-id="${a.id}" data-estudiante-id="${est.id}" value="${valor}" style="width:60px; margin:auto;">
@@ -1387,7 +1507,7 @@ function pintarModal(estado_) {
         }).join("");
 
         const mensajeVacio = lista.length === 0
-            ? "Todavía no hay actividades. Usa el ➕ de arriba para agregar la primera."
+            ? (casaAutomatica ? "Todavía no hay notas de práctica registradas para esta Clase." : "Todavía no hay actividades. Usa el ➕ de arriba para agregar la primera.")
             : "Ocultaste todas las actividades. Marca \"Ver todas\" arriba para volver a verlas.";
 
         return `
@@ -1492,7 +1612,12 @@ function pintarModal(estado_) {
         ${panel("asistencia", "📋 Asistencia", bloqueAsistencia())}
         ${panel("comportamiento", `🙂 Comportamiento <span class="small text-muted fw-normal">(agrega una columna por cada día)</span>`, bloqueComportamiento())}
         ${panel("clase", "✏️ Actividades en clase", bloqueActividades(actividadesClase, "clase"))}
-        ${panel("casa", "🏠 Actividades para la casa", bloqueActividades(actividadesCasa, "casa"))}
+        ${panel("casa", "🏠 Actividades para la casa", `
+            ${obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion)
+                ? `<p class="small text-muted mb-2">🔒 Estas 3 notas se traen automáticamente del último intento de cada estudiante en los ejercicios de práctica de <strong>Ciencias Naturales · Clase ${numeroApreciacion}</strong>, y no se pueden editar a mano. Se actualizan solas cada vez que abras esta Apreciación.</p>`
+                : ""}
+            ${bloqueActividades(actividadesCasa, "casa", !!obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion))}
+        `)}
         ${panel("final", `🏁 Nota final de Apreciación ${numeroApreciacion}`, `
             <table class="table table-sm table-bordered mb-0">
                 <thead><tr><th class="small">Estudiante</th><th class="small text-center">Nota final</th></tr></thead>
