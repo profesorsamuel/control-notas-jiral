@@ -288,20 +288,12 @@ document.getElementById("btn-revisar-fotos").addEventListener("click", async () 
     finalizado_at: new Date().toISOString(),
   };
 
-  const { data: intentoPrevioFotos, error: errBuscarFotos } = await sb
+  // upsert: inserta si es el primer intento, o actualiza si ya había uno
+  // (resuelto por la base de datos misma vía la restricción única
+  // codigo_examen + tipo_ejercicio + cedula — no hace falta leer nada antes).
+  const { error } = await sb
     .from(T.intentosPractica)
-    .select("id")
-    .eq("codigo_examen", CONFIG.codigoExamen)
-    .eq("tipo_ejercicio", "fotos")
-    .eq("cedula", estudiante.cedula)
-    .maybeSingle();
-
-  let error;
-  if (!errBuscarFotos && intentoPrevioFotos && intentoPrevioFotos.id) {
-    ({ error } = await sb.from(T.intentosPractica).update(payloadFotos).eq("id", intentoPrevioFotos.id));
-  } else {
-    ({ error } = await sb.from(T.intentosPractica).insert(payloadFotos));
-  }
+    .upsert(payloadFotos, { onConflict: "codigo_examen,tipo_ejercicio,cedula" });
   if (error) console.error("No se pudo guardar el intento de pareo de fotos:", error);
 
   mostrarVista(vistaResultado);

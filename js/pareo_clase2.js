@@ -320,20 +320,12 @@ document.getElementById("btn-revisar-pareo").addEventListener("click", async () 
     finalizado_at: new Date().toISOString(),
   };
 
-  const { data: intentoPrevioPareo, error: errBuscarPareo } = await sb
+  // upsert: inserta si es el primer intento, o actualiza si ya había uno
+  // (resuelto por la base de datos misma vía la restricción única
+  // codigo_examen + tipo_ejercicio + cedula — no hace falta leer nada antes).
+  const { error } = await sb
     .from(T.intentosPractica)
-    .select("id")
-    .eq("codigo_examen", CONFIG.codigoExamen)
-    .eq("tipo_ejercicio", "pareo")
-    .eq("cedula", estudiante.cedula)
-    .maybeSingle();
-
-  let error;
-  if (!errBuscarPareo && intentoPrevioPareo && intentoPrevioPareo.id) {
-    ({ error } = await sb.from(T.intentosPractica).update(payloadPareo).eq("id", intentoPrevioPareo.id));
-  } else {
-    ({ error } = await sb.from(T.intentosPractica).insert(payloadPareo));
-  }
+    .upsert(payloadPareo, { onConflict: "codigo_examen,tipo_ejercicio,cedula" });
   if (error) console.error("No se pudo guardar el intento de pareo:", error);
 
   mostrarVista(vistaResultado);

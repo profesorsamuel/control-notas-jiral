@@ -522,17 +522,16 @@ async function finalizarQuiz() {
       finalizado_at: new Date().toISOString(),
     }).eq("id", quizState.sesionId);
   } else if (quizState.modo === "practica" && !MODO_VISTA_PREVIA) {
-    // Cada práctica se guarda como una fila NUEVA e independiente en su
-    // propia tabla (prueba_intentos_practica) — nunca en "prueba_sesiones",
-    // que es solo para el examen oficial de un único intento. Así el
-    // estudiante puede practicar todas las veces que quiera ("intentos
-    // ilimitados") sin chocar entre intentos, y el docente ve, para cada
-    // uno: fecha, hora de inicio, duración y resultado. Si por algún
-    // motivo falla el guardado (ej. sin conexión), no se le avisa al
-    // estudiante ni se le bloquea ver su resultado — solo queda sin
-    // registrar ese intento puntual para el docente.
-    const { error: errGuardarPractica } = await sb.from(T.intentosPractica).insert({
+    // La práctica tiene intentos ilimitados, pero solo se conserva el
+    // ÚLTIMO intento de cada estudiante por examen (no se acumulan filas):
+    // upsert inserta si no existía, o actualiza (aunque la nota nueva sea
+    // más baja que la anterior) si ya había un intento previo con el mismo
+    // codigo_examen + tipo_ejercicio + cedula. Esto lo resuelve la base de
+    // datos directamente — no hace falta leer nada antes (los estudiantes
+    // no tienen permiso de ver intentos ajenos ni propios, por privacidad).
+    const payloadPractica = {
       codigo_examen: CONFIG.codigoExamen,
+      tipo_ejercicio: "quiz",
       cedula: estudiante.cedula,
       nombre: estudiante.nombre,
       salon: estudiante.salon,
@@ -542,7 +541,11 @@ async function finalizarQuiz() {
       tiempo_total_seg: tiempoTotal,
       iniciado_at: new Date(quizState.tInicio).toISOString(),
       finalizado_at: new Date().toISOString(),
-    });
+    };
+
+    const { error: errGuardarPractica } = await sb
+      .from(T.intentosPractica)
+      .upsert(payloadPractica, { onConflict: "codigo_examen,tipo_ejercicio,cedula" });
     if (errGuardarPractica) console.error("No se pudo guardar el intento de práctica:", errGuardarPractica);
   }
 
