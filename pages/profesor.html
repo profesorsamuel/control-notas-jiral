@@ -519,7 +519,11 @@ body {
     <!-- ================= REGISTRAR / EDITAR NOTAS ================= -->
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
         <h2 style="margin:0;">📝 Registrar notas</h2>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; position:relative;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; position:relative; align-items:center;">
+            <label class="form-check small" style="display:flex; align-items:center; gap:5px; margin:0; color:#92400e; background:#fef3c7; padding:5px 10px; border-radius:8px; border:1px solid #fde68a;" title="Muestra los estudiantes marcados como 'es_prueba' en esta pantalla y en las Apreciaciones, SOLO para que tú los pruebes. Nunca aparecen en Boletín, Cuadro, Riesgo ni en los PDF/reportes de aquí mismo, sin importar este interruptor.">
+                <input type="checkbox" id="chkMostrarEstudiantesPrueba" class="form-check-input" style="margin:0;">
+                🧪 Mostrar estudiante(s) de prueba aquí
+            </label>
             <button type="button" id="btnPapelera" class="btn btn-outline-secondary btn-sm">🗑️ Papelera</button>
             <button type="button" id="btnAbrirEnviarNotas" class="btn btn-outline-primary btn-sm">📧 Enviar notas por correo ▾</button>
             <span id="estadoEnviarRespaldo" class="small" style="align-self:center;"></span>
