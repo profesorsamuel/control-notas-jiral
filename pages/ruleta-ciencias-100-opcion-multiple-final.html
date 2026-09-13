@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ruleta de Ciencias · Clase 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep: #10122b;
+    --bg-deep-2: #171a3d;
+    --panel: #1c1f47;
+    --ink: #eef0fb;
+    --ink-dim: #9ea3cf;
+    --t1: #e8a33d; /* Universo / Big Bang */
+    --t2: #5fd3c4; /* Sistema solar */
+    --t3: #c77dff; /* Nebulosa moderna / RCF */
+    --t4: #c7cee6; /* Luna */
+    --line: rgba(238,240,251,0.12);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background: radial-gradient(ellipse at 20% 15%, var(--bg-deep-2), var(--bg-deep) 60%);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    overflow:hidden;
+  }
+  .stars{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+  }
+  .stage{
+    position:relative; z-index:1;
+    width:100vw; height:100vh;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ---------- IDLE / RULETA ---------- */
+  #idle{
+    width:100%; height:100%;
+    display:flex; flex-direction:row; align-items:center; justify-content:center;
+    gap: 6vw;
+    padding: 3vh 4vw;
+  }
+  .brand{
+    position:absolute; top:3.5vh; left:4vw;
+    display:flex; flex-direction:column; gap:2px;
+  }
+  .brand .eyebrow{ font-size:0.78rem; color:var(--ink-dim); letter-spacing:0.02em; }
+  .brand h1{
+    font-family:'Fraunces', serif; font-weight:600; font-size:1.6rem; margin:0;
+    color:var(--ink);
+  }
+
+  .wheel-wrap{
+    position:relative;
+    width: min(46vh, 40vw);
+    height: min(46vh, 40vw);
+    flex-shrink:0;
+  }
+  #wheel{
+    width:100%; height:100%;
+    transition: transform 3.2s cubic-bezier(.15,.85,.15,1);
+    filter: drop-shadow(0 12px 40px rgba(0,0,0,0.45));
+  }
+  .needle{
+    position:absolute; top:-2%; left:50%; transform:translateX(-50%);
+    width:0; height:0;
+    border-left: 1.1vh solid transparent;
+    border-right: 1.1vh solid transparent;
+    border-top: 2.4vh solid var(--ink);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    z-index:3;
+  }
+  .hub{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:22%; height:22%; border-radius:50%;
+    background: var(--panel);
+    border: 2px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    text-align:center;
+    z-index:4;
+  }
+  .hub span{ font-size:0.68rem; color:var(--ink-dim); line-height:1.2; }
+
+  .panel{
+    width: min(30vw, 460px);
+    display:flex; flex-direction:column; gap:2.2vh;
+  }
+  .panel h2{
+    font-family:'Fraunces', serif; font-weight:600; font-size:1.35rem;
+    margin:0 0 0.2rem 0;
+  }
+  .field label{
+    display:block; font-size:0.8rem; color:var(--ink-dim); margin-bottom:0.4rem;
+  }
+  .field input{
+    width:100%; padding:0.75rem 0.9rem; border-radius:10px;
+    border:1px solid var(--line); background: var(--panel); color:var(--ink);
+    font-family:'Inter'; font-size:0.95rem;
+  }
+  .field input:focus{ outline:2px solid var(--t2); outline-offset:1px; }
+
+  .legend{ display:flex; flex-direction:column; gap:0.55rem; }
+  .legend-item{
+    display:flex; align-items:center; gap:0.6rem;
+    font-size:0.82rem; color:var(--ink-dim);
+  }
+  .dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .legend-item b{ color:var(--ink); font-weight:600; }
+  .legend-count{ margin-left:auto; font-variant-numeric: tabular-nums; }
+
+  .spin-btn{
+    margin-top:0.4rem;
+    padding: 1rem 1.4rem;
+    border:none; border-radius:14px;
+    background: linear-gradient(135deg, var(--t2), #3fa89a);
+    color:#0b1026; font-weight:700; font-size:1.05rem;
+    font-family:'Inter';
+    cursor:pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 8px 24px rgba(95,211,196,0.25);
+  }
+  .spin-btn:hover{ transform: translateY(-2px); box-shadow: 0 12px 28px rgba(95,211,196,0.35); }
+  .spin-btn:disabled{ opacity:0.45; cursor:not-allowed; transform:none; box-shadow:none; }
+
+  .progress-row{ display:flex; align-items:center; justify-content:space-between; }
+  .progress-track{
+    flex:1; height:6px; border-radius:3px; background:var(--line); overflow:hidden; margin-right:0.8rem;
+  }
+  .progress-fill{ height:100%; background: var(--t2); width:0%; transition: width 0.4s ease; }
+  .progress-label{ font-size:0.78rem; color:var(--ink-dim); white-space:nowrap; }
+
+  .ghost-btn{
+    background:none; border:1px solid var(--line); color:var(--ink-dim);
+    padding:0.55rem 0.9rem; border-radius:10px; font-family:'Inter'; font-size:0.78rem;
+    cursor:pointer; align-self:flex-start;
+  }
+  .ghost-btn:hover{ color:var(--ink); border-color:var(--ink-dim); }
+
+  .fs-toggle{
+    position:absolute; top:3.5vh; right:4vw;
+    background:none; border:1px solid var(--line); color:var(--ink-dim);
+    padding:0.55rem 0.9rem; border-radius:10px; font-family:'Inter'; font-size:0.78rem;
+    cursor:pointer;
+  }
+  .fs-toggle:hover{ color:var(--ink); border-color:var(--ink-dim); }
+
+  /* ---------- REVEAL (pantalla completa) ---------- */
+  #reveal{
+    position:fixed; inset:0; z-index:5;
+    display:none;
+    align-items:center; justify-content:center;
+    flex-direction:column;
+    padding: 3vh 5vw;
+    text-align:center;
+    background:radial-gradient(ellipse at 50% 20%, #1b1f4b 0%, #10122b 62%);
+    overflow-y:auto;
+  }
+  #reveal.show{ display:flex; }
+  body.question-open #idle{ display:none; }
+  .reveal-topic{
+    font-size:1.05rem; font-weight:600; letter-spacing:0.01em;
+    margin-bottom:1.8vh;
+    padding: 0.5rem 1.3rem; border-radius:999px;
+    border:1px solid var(--line);
+  }
+  .reveal-question{
+    font-family:'Fraunces', serif; font-weight:600;
+    font-size: clamp(1.45rem, 2.8vw, 2.55rem);
+    line-height:1.18; max-width:1000px;
+  }
+  .reveal-meta{
+    margin-top:1.5vh; display:flex; align-items:center; gap:1.2rem;
+    color:var(--ink-dim); font-size:0.9rem;
+  }
+  .reveal-options{
+    width:min(850px,90vw); margin-top:2.3vh;
+    display:grid; grid-template-columns:1fr; gap:0.65rem;
+    text-align:left;
+  }
+  .option{
+    padding:0.8rem 1rem; border:1px solid var(--line); border-radius:12px;
+    background:#1c1f47; color:var(--ink); font-size:clamp(0.95rem,1.5vw,1.12rem);
+    cursor:pointer; transition:transform .12s ease,border-color .12s ease;
+  }
+  .option:hover{ transform:translateY(-1px); border-color:var(--ink-dim); }
+  .option.correct{ border-color:#66e3a4; background:rgba(60,180,120,0.2); }
+  .option.wrong{ border-color:#ff7070; background:rgba(210,70,70,0.18); }
+  .option.locked{ cursor:default; pointer-events:none; }
+  .answer-box{ min-height:1.5rem; margin-top:1.4vh; color:#66e3a4; font-weight:700; }
+  .reveal-actions{
+    position:static; margin-top:2vh;
+    display:flex; align-items:center; justify-content:center; gap:1rem;
+  }
+  .reveal-actions button{
+    font-family:'Inter'; font-weight:600; font-size:0.95rem;
+    padding:0.85rem 1.6rem; border-radius:12px; cursor:pointer; border:none;
+  }
+  .btn-next{ background:var(--ink); color:#10122b; }
+  .btn-back{ background:transparent; color:var(--ink-dim); border:1px solid var(--line) !important; }
+
+  .done-card{
+    max-width:34vw;
+  }
+  .done-card .reveal-question{ font-size:1.8rem; }
+
+  @media (max-width: 900px){
+    #idle{ flex-direction:column; gap:3vh; padding-top:8vh;}
+    .panel{ width:82vw; }
+    #reveal{ justify-content:flex-start; padding-top:3vh; }
+  }
+</style>
+</head>
+<body>
+
+<canvas class="stars" id="stars"></canvas>
+
+<div class="stage">
+  <!-- PANTALLA DE RULETA -->
+  <div id="idle">
+    <div class="brand">
+      <span class="eyebrow">Ciencias Naturales · Salón 9</span>
+      <h1>Ruleta de repaso — Clase 1</h1>
+    </div>
+    <button class="fs-toggle" id="fsBtn">Pantalla completa</button>
+
+    <div class="wheel-wrap">
+      <div class="needle"></div>
+      <svg id="wheel" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="98" fill="#12142f" stroke="rgba(238,240,251,0.15)" stroke-width="1"/>
+        <path d="M100,100 L100,2 A98,98 0 0,1 198,100 Z" fill="var(--t1)" opacity="0.85"/>
+        <path d="M100,100 L198,100 A98,98 0 0,1 100,198 Z" fill="var(--t2)" opacity="0.85"/>
+        <path d="M100,100 L100,198 A98,98 0 0,1 2,100 Z" fill="var(--t3)" opacity="0.85"/>
+        <path d="M100,100 L2,100 A98,98 0 0,1 100,2 Z" fill="var(--t4)" opacity="0.85"/>
+        <text x="150" y="55" fill="#10122b" font-size="9" font-weight="700" text-anchor="middle" font-family="Inter">BIG BANG</text>
+        <text x="150" y="150" fill="#10122b" font-size="9" font-weight="700" text-anchor="middle" font-family="Inter">SISTEMA SOLAR</text>
+        <text x="50" y="150" fill="#10122b" font-size="9" font-weight="700" text-anchor="middle" font-family="Inter">NEBULOSA / RCF</text>
+        <text x="50" y="55" fill="#10122b" font-size="9" font-weight="700" text-anchor="middle" font-family="Inter">LA LUNA</text>
+      </svg>
+      <div class="hub"><span id="hubLabel">Listo para<br>girar</span></div>
+    </div>
+
+    <div class="panel">
+      <div>
+        <h2>Turno del estudiante</h2>
+        <div class="field">
+          <label for="studentName">Nombre (se irá completando con la lista más adelante)</label>
+          <input type="text" id="studentName" placeholder="Escribe el nombre aquí…">
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><span class="dot" style="background:var(--t1)"></span><b>Big Bang y origen del universo</b><span class="legend-count" id="count1">13</span></div>
+        <div class="legend-item"><span class="dot" style="background:var(--t2)"></span><b>Formación del sistema solar</b><span class="legend-count" id="count2">13</span></div>
+        <div class="legend-item"><span class="dot" style="background:var(--t3)"></span><b>Teoría moderna de la nebulosa / RCF</b><span class="legend-count" id="count3">12</span></div>
+        <div class="legend-item"><span class="dot" style="background:var(--t4)"></span><b>Origen de la Luna</b><span class="legend-count" id="count4">12</span></div>
+      </div>
+
+      <div>
+        <div class="progress-row">
+          <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-label" id="progressLabel">0 / 50 usadas</div>
+        </div>
+      </div>
+
+      <button class="spin-btn" id="spinBtn">Girar la ruleta</button>
+      <button class="ghost-btn" id="resetBtn">Reiniciar mazo de preguntas</button>
+    </div>
+  </div>
+
+  <!-- PANTALLA DE PREGUNTA A PANTALLA COMPLETA -->
+  <div id="reveal">
+    <div class="reveal-topic" id="revealTopic">Tema</div>
+    <div class="reveal-question" id="revealQuestion">Pregunta</div>
+    <div class="reveal-options" id="revealOptions"></div>
+    <div class="answer-box" id="answerBox"></div>
+    <div class="reveal-meta">
+      <span id="revealStudent"></span>
+      <span id="revealCounter"></span>
+    </div>
+    <div class="reveal-actions">
+      <button class="btn-back" id="answerBtn">Mostrar respuesta correcta</button>
+      <button class="btn-back" id="backBtn">Volver a la ruleta</button>
+      <button class="btn-next" id="nextBtn">Siguiente pregunta</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------- Fondo estrellado sutil ---------------- */
+(function(){
+  const c = document.getElementById('stars');
+  const ctx = c.getContext('2d');
+  function resize(){ c.width = innerWidth; c.height = innerHeight; }
+  resize(); addEventListener('resize', resize);
+  const stars = Array.from({length:160}, () => ({
+    x: Math.random()*innerWidth, y: Math.random()*innerHeight,
+    r: Math.random()*1.3 + 0.2, a: Math.random()*0.6+0.2, s: Math.random()*0.015+0.003
+  }));
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    for(const s of stars){
+      s.a += s.s;
+      const alpha = 0.4 + Math.sin(s.a)*0.4;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(238,240,251,${Math.max(0,alpha)})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ---------------- Banco de 100 preguntas ---------------- */
+const TOPICS = {
+  t1: { label: "Big Bang y origen del universo", color: "var(--t1)", angleStart: 0 },
+  t2: { label: "Formación del sistema solar",     color: "var(--t2)", angleStart: 90 },
+  t3: { label: "Teoría moderna de la nebulosa / RCF", color: "var(--t3)", angleStart: 180 },
+  t4: { label: "Origen de la Luna",               color: "var(--t4)", angleStart: 270 }
+};
+
+const QUESTIONS = [
+  // Tema 1 — Big Bang y origen del universo (13)
+  {t:"t1", q:"¿Qué es el sistema solar y qué elementos lo componen?"},
+  {t:"t1", q:"¿Cómo explicaban las culturas antiguas el origen del universo antes de la ciencia moderna?"},
+  {t:"t1", q:"¿Cuál es la visión actual del universo según la ciencia?"},
+  {t:"t1", q:"¿Qué es la teoría del Big Bang?"},
+  {t:"t1", q:"¿Qué es una singularidad según la teoría del Big Bang?"},
+  {t:"t1", q:"¿Hace cuántos años se estima que ocurrió el Big Bang?"},
+  {t:"t1", q:"¿Qué proceso experimentó la singularidad para dar origen al universo?"},
+  {t:"t1", q:"Menciona una de las tres evidencias que respaldan la teoría del Big Bang."},
+  {t:"t1", q:"¿Qué demuestra el hecho de que las galaxias se alejan entre sí?"},
+  {t:"t1", q:"¿Qué es la radiación cósmica de fondo y por qué es evidencia del Big Bang?"},
+  {t:"t1", q:"¿Qué elementos se formaron primero en el universo y cómo se formaron los más pesados?"},
+  {t:"t1", q:"¿Quién formuló la primera hipótesis sobre el origen del sistema solar y en qué siglo?"},
+  {t:"t1", q:"¿Qué científicos del siglo XVIII contribuyeron a las teorías del origen del sistema solar?"},
+
+  // Tema 2 — Formación del sistema solar (13)
+  {t:"t2", q:"¿Cuál es la teoría más aceptada sobre la formación del sistema solar?"},
+  {t:"t2", q:"Según la teoría de la acreción, ¿cómo se forman los planetas?"},
+  {t:"t2", q:"¿Qué papel jugó una segunda estrella en la teoría de la acreción?"},
+  {t:"t2", q:"¿Qué es el protosol según la teoría de los planetesimales?"},
+  {t:"t2", q:"¿Qué son los planetesimales y qué tamaño pueden tener?"},
+  {t:"t2", q:"Según la teoría de los planetesimales, ¿dónde se ubican los planetas rocosos y dónde los gaseosos?"},
+  {t:"t2", q:"Describe brevemente los cuatro pasos de la formación de planetas según la teoría de los planetesimales."},
+  {t:"t2", q:"¿Qué propone la teoría de Laplace sobre el origen del Sol y los planetas?"},
+  {t:"t2", q:"¿Qué limitación tiene la teoría de los protoplanetas (discos protoplanetarios)?"},
+  {t:"t2", q:"¿Qué explica la teoría de la captura sobre la velocidad de rotación del Sol?"},
+  {t:"t2", q:"Según la teoría de la captura, ¿cómo se formaron los planetas terrestres?"},
+  {t:"t2", q:"Nombra las cinco teorías que intentan explicar el origen del sistema solar."},
+  {t:"t2", q:"¿Por qué la existencia de tantas teorías no significa que los científicos \"no saben\" la respuesta?"},
+
+  // Tema 3 — Teoría moderna de la nebulosa / RCF (12)
+  {t:"t3", q:"¿En qué descubrimiento se basa la teoría moderna de la nebulosa?"},
+  {t:"t3", q:"¿Qué características tienen los discos de polvo alrededor de estrellas jóvenes como Beta Pictoris?"},
+  {t:"t3", q:"¿Cuántos años de edad se le calcula al sistema solar según la teoría moderna?"},
+  {t:"t3", q:"¿Qué evento pudo haber desencadenado la formación del Sol?"},
+  {t:"t3", q:"¿Qué formó la mayor parte de la masa de la nebulosa gigante y qué dio origen?"},
+  {t:"t3", q:"¿Cómo se formaron los planetas según la teoría moderna de la nebulosa?"},
+  {t:"t3", q:"¿Qué es una nebulosa?"},
+  {t:"t3", q:"¿Qué es una protoestrella?"},
+  {t:"t3", q:"¿Qué es una supernova?"},
+  {t:"t3", q:"¿Cuál es la diferencia entre astronomía y astrofísica?"},
+  {t:"t3", q:"¿Qué es la radiación cósmica de fondo (RCF) y cuándo fue descubierta?"},
+  {t:"t3", q:"¿Quiénes descubrieron la radiación cósmica de fondo y de qué forma la hallaron?"},
+
+  // Tema 4 — Origen de la Luna (12)
+  {t:"t4", q:"¿Cuáles son las cinco teorías sobre el origen de la Luna?"},
+  {t:"t4", q:"Según la teoría de la captura, ¿cómo llegó la Luna a orbitar la Tierra?"},
+  {t:"t4", q:"¿Qué propone la teoría de la fisión sobre el origen de la Luna?"},
+  {t:"t4", q:"¿Qué plantea la teoría de la conformación lunar?"},
+  {t:"t4", q:"¿Qué explica la teoría de las colisiones planetesimales sobre el origen de la Luna?"},
+  {t:"t4", q:"¿Cuál es la teoría más aceptada actualmente sobre el origen de la Luna?"},
+  {t:"t4", q:"¿Qué es \"Tea\" según la teoría del gran impacto?"},
+  {t:"t4", q:"Describe el proceso mediante el cual se formó la Luna según la teoría del gran impacto."},
+  {t:"t4", q:"¿Hace cuántos años se estima que se formó la Luna?"},
+  {t:"t4", q:"¿Qué agencias espaciales han liderado la exploración de la Luna?"},
+  {t:"t4", q:"¿Qué hallazgo de las expediciones lunares apoya la teoría del gran impacto?"},
+  {t:"t4", q:"¿Por qué la similitud geológica entre la Luna y la Tierra no encaja bien con la teoría de la captura?"}
+
+  ,// 50 preguntas adicionales de respuesta múltiple
+  {t:"t1",q:"¿Cuál es la estrella central del sistema solar?",o:["La Luna","El Sol","Marte","La Vía Láctea"],a:1},
+  {t:"t1",q:"¿Cuántos planetas orbitan alrededor del Sol?",o:["Siete","Ocho","Nueve","Diez"],a:1},
+  {t:"t1",q:"¿Cuál de estos es un cuerpo celeste del sistema solar?",o:["Un cometa","Una nube terrestre","Un relámpago","Una montaña"],a:0},
+  {t:"t1",q:"Las primeras explicaciones del cosmos fueron principalmente...",o:["Industriales","Mitológicas o religiosas","Matemáticas modernas","Espaciales"],a:1},
+  {t:"t1",q:"Según la ciencia actual, el universo está...",o:["Inmóvil","En continua evolución","Dentro de la Tierra","Completamente vacío"],a:1},
+  {t:"t1",q:"¿Cuál es el modelo científico más aceptado sobre el origen del universo?",o:["La captura","La fisión","El Big Bang","La acreción"],a:2},
+  {t:"t1",q:"¿Hace aproximadamente cuánto ocurrió el Big Bang?",o:["4 568 millones de años","13 800 millones de años","460 millones de años","1965 años"],a:1},
+  {t:"t1",q:"¿Cómo se llama el estado inicial de densidad infinita propuesto por el Big Bang?",o:["Nebulosa","Singularidad","Planetesimal","Protoestrella"],a:1},
+  {t:"t1",q:"¿Qué ocurrió con la singularidad según el Big Bang?",o:["Se congeló","Experimentó una rápida expansión","Formó solo la Tierra","Fue capturada por el Sol"],a:1},
+  {t:"t1",q:"¿Qué observación demuestra que el universo continúa expandiéndose?",o:["Las galaxias distantes se alejan","La Luna gira alrededor de la Tierra","Los cometas tienen cola","El Sol produce luz"],a:0},
+  {t:"t1",q:"¿Cuál de estas es una evidencia del Big Bang?",o:["Las estaciones del año","La radiación cósmica de fondo","Los eclipses solares","Las mareas"],a:1},
+  {t:"t1",q:"¿Qué elementos se formaron en las primeras etapas del universo?",o:["Oro y plata","Hierro y cobre","Hidrógeno y helio","Carbono y calcio"],a:2},
+  {t:"t1",q:"¿Quién formuló en el siglo XVII la primera hipótesis sobre el origen del sistema solar?",o:["René Descartes","Arno Penzias","Robert Wilson","Charles Darwin"],a:0},
+
+  {t:"t2",q:"¿Cuál es actualmente la explicación más aceptada sobre la formación del sistema solar?",o:["Teoría de la nebulosa","Teoría de la fisión lunar","Teoría del Big Bang","Teoría geocéntrica"],a:0},
+  {t:"t2",q:"Según la acreción, las partículas de polvo se unen atraídas por...",o:["El sonido","La gravedad","La lluvia","La electricidad terrestre"],a:1},
+  {t:"t2",q:"¿Qué forma tenía la nube de gas y polvo que rodeaba al Sol?",o:["Cubo","Disco","Pirámide","Cilindro sólido"],a:1},
+  {t:"t2",q:"En la teoría de la acreción, una estrella cercana ayudó al Sol a...",o:["Apagarse","Capturar materia","Perder gravedad","Crear la Luna directamente"],a:1},
+  {t:"t2",q:"¿Qué se formó en el centro de la nebulosa solar?",o:["El protosol","La Luna","Un cometa","Un agujero oceánico"],a:0},
+  {t:"t2",q:"¿Qué tamaño podían alcanzar los planetesimales mencionados en la lectura?",o:["Hasta 1 metro","Hasta 10 metros","Hasta 1 kilómetro","Hasta 1000 kilómetros"],a:2},
+  {t:"t2",q:"¿Cómo crecieron los planetesimales hasta formar planetas?",o:["Por evaporación","Por choques y atracción gravitacional","Por luz solar solamente","Por separación de anillos terrestres"],a:1},
+  {t:"t2",q:"¿Dónde se formaron los planetas rocosos?",o:["Cerca del Sol","Más allá de todas las estrellas","Fuera de la galaxia","Dentro de la Tierra"],a:0},
+  {t:"t2",q:"¿Dónde se formaron los gigantes gaseosos según la lectura?",o:["A menos de 1 UA","Más allá de 3 UA","Dentro del Sol","En la órbita lunar"],a:1},
+  {t:"t2",q:"Según Laplace, al enfriarse la nebulosa en rotación se condensó en...",o:["Océanos","Anillos","Montañas","Satélites artificiales"],a:1},
+  {t:"t2",q:"En la teoría de Laplace, la masa central se convirtió en...",o:["El Sol","La Luna","Marte","Un asteroide"],a:0},
+  {t:"t2",q:"¿Qué teoría propone que el Sol extrajo materia de una protoestrella cercana?",o:["Captura","Fisión","Big Bang","Conformación lunar"],a:0},
+  {t:"t2",q:"¿Qué teoría explica los planetas mediante cuerpos pequeños que chocan y se acumulan?",o:["Planetesimales","Fisión","Captura lunar","Big Bang"],a:0},
+
+  {t:"t3",q:"¿Qué sistema planetario se menciona como apoyo de la teoría moderna de la nebulosa?",o:["Beta Pictoris","Andrómeda","Orión terrestre","Tea"],a:0},
+  {t:"t3",q:"¿Qué rodea a muchas estrellas jóvenes observadas?",o:["Discos densos de polvo","Océanos líquidos","Capas de hielo terrestre","Solo espacio vacío"],a:0},
+  {t:"t3",q:"¿Cuál es la edad estimada del sistema solar?",o:["13 800 millones de años","4 568 millones de años","1 965 millones de años","460 millones de años"],a:1},
+  {t:"t3",q:"¿Qué inició la formación del sistema solar según la teoría moderna?",o:["El colapso gravitacional de una nebulosa","La fisión de la Luna","La lluvia cósmica","La rotación de la Tierra"],a:0},
+  {t:"t3",q:"¿Qué pudo detonar el colapso de la nebulosa?",o:["Una onda de choque de una supernova","Un eclipse","Una tormenta terrestre","El choque de la Luna"],a:0},
+  {t:"t3",q:"La mayor parte de la masa de la nebulosa formó...",o:["Un protosol","Un cometa","La Luna","Un océano"],a:0},
+  {t:"t3",q:"El resto de la materia se aplanó y formó...",o:["Un disco protoplanetario","Una montaña","Una galaxia completa","Una nube de lluvia"],a:0},
+  {t:"t3",q:"¿Qué objetos se originaron en el disco protoplanetario?",o:["Planetas, lunas y asteroides","Solo la Tierra","Solo estrellas","Nubes y relámpagos"],a:0},
+  {t:"t3",q:"¿Qué es una protoestrella?",o:["Una estrella en su fase temprana","Un planeta destruido","Un satélite artificial","Una galaxia antigua"],a:0},
+  {t:"t3",q:"¿Qué es una supernova?",o:["La explosión de una estrella","El nacimiento de un océano","Una fase lunar","Un planeta pequeño"],a:0},
+  {t:"t3",q:"¿En qué año fue descubierta la radiación cósmica de fondo?",o:["1492","1965","2001","4568"],a:1},
+  {t:"t3",q:"¿Cómo descubrieron Penzias y Wilson la radiación cósmica de fondo?",o:["Accidentalmente","Durante un viaje lunar","Con un microscopio","Al estudiar fósiles"],a:0},
+
+  {t:"t4",q:"¿Cuál es la teoría más aceptada sobre el origen de la Luna?",o:["Gran impacto","Captura","Fisión","Conformación lunar"],a:0},
+  {t:"t4",q:"Según la captura, la Luna...",o:["Se formó en otro lugar y fue atraída por la Tierra","Salió del Sol","Fue fabricada por humanos","Se separó de Marte"],a:0},
+  {t:"t4",q:"Según la fisión, ¿qué expulsó material desde la Tierra primitiva?",o:["Su rápida rotación","Una lluvia intensa","La radiación solar","El viento terrestre"],a:0},
+  {t:"t4",q:"La conformación lunar propone que la Tierra y la Luna...",o:["Se formaron juntas del mismo material","Nunca estuvieron cerca","Nacieron en galaxias distintas","Son dos estrellas"],a:0},
+  {t:"t4",q:"¿Qué propone la teoría de las colisiones planetesimales?",o:["Múltiples impactos formaron la Luna","La Luna salió del Sol","La Luna siempre existió","Una estrella capturó la Tierra"],a:0},
+  {t:"t4",q:"¿Cómo se llamaba el protoplaneta del tamaño de Marte?",o:["Tea","Beta Pictoris","Laplace","Penzias"],a:0},
+  {t:"t4",q:"¿Contra qué cuerpo chocó Tea?",o:["La Tierra primitiva","El Sol","Júpiter","Una galaxia"],a:0},
+  {t:"t4",q:"¿Qué proyectó al espacio la colisión del gran impacto?",o:["Enormes cantidades de rocas","Agua de los océanos actuales","Solo gases terrestres","Satélites artificiales"],a:0},
+  {t:"t4",q:"¿Qué ocurrió con la masa fundida que orbitaba la Tierra?",o:["Se solidificó y formó la Luna","Cayó toda dentro del Sol","Desapareció inmediatamente","Formó otra galaxia"],a:0},
+  {t:"t4",q:"¿Cuál es la antigüedad aproximada de la Luna?",o:["4 600 millones de años","13 800 millones de años","1 965 años","460 mil años"],a:0},
+  {t:"t4",q:"¿Qué hallazgo apoya la teoría del gran impacto?",o:["La composición lunar es similar a la terrestre","La Luna tiene luz propia","La Luna es una estrella","La Tierra no tiene gravedad"],a:0},
+  {t:"t4",q:"¿Qué organizaciones se mencionan en la exploración lunar?",o:["NASA, ESA, Roscosmos, China e India","Solo la NASA","UNESCO y OMS","OEA y ONU"],a:0}
+];
+
+/* Convierte las 50 preguntas originales en opción múltiple. */
+const ORIGINAL_OPTIONS = [
+  {o:["El Sol y ocho planetas, con satélites y otros cuerpos celestes","Solo la Tierra y la Luna","Todas las galaxias del universo","El Sol y siete planetas sin satélites"],a:0},
+  {o:["Con explicaciones mitológicas o religiosas","Mediante fotografías de satélites","Con viajes espaciales","Usando telescopios electrónicos"],a:0},
+  {o:["Es infinito, ordenado y está en continua evolución","Es pequeño y permanece inmóvil","Solo contiene la Vía Láctea","Gira completamente alrededor de la Tierra"],a:0},
+  {o:["El modelo científico sobre el origen, evolución y expansión del universo","Una teoría exclusiva sobre la Luna","Una explicación sobre las estaciones","Un modelo de formación de océanos"],a:0},
+  {o:["Un punto donde materia, energía y espacio estaban muy concentrados","Una nube de lluvia","Una estrella joven","Un planeta rocoso"],a:0},
+  {o:["Hace unos 13 800 millones de años","Hace 4 568 millones de años","En 1965","Hace 460 millones de años"],a:0},
+  {o:["Una rápida expansión","Una congelación inmediata","Una captura gravitacional terrestre","Una división en dos lunas"],a:0},
+  {o:["La expansión de las galaxias","Las fases de la Luna","La rotación terrestre","Los eclipses"],a:0},
+  {o:["Que el universo continúa expandiéndose","Que las galaxias están inmóviles","Que la Tierra es el centro del universo","Que el Sol se está enfriando"],a:0},
+  {o:["Es calor residual del Big Bang detectable en todas direcciones","Es luz reflejada por la Luna","Es calor producido por la Tierra","Es energía exclusiva del Sol"],a:0},
+  {o:["Primero hidrógeno y helio; los más pesados surgieron en estrellas","Primero oro y plata; luego hidrógeno","Todos aparecieron al mismo tiempo en la Tierra","Solo se formó oxígeno"],a:0},
+  {o:["René Descartes, en el siglo XVII","Laplace, en el siglo XX","Penzias, en el siglo XVIII","Tea, en el siglo XVII"],a:0},
+  {o:["Swedenborg, Kant y Laplace","Penzias, Wilson y Tea","Darwin, Newton y Einstein","NASA, ESA y Roscosmos"],a:0},
+
+  {o:["La teoría de la nebulosa","La teoría de la fisión","La teoría geocéntrica","La teoría de las mareas"],a:0},
+  {o:["Por condensación y unión de partículas de polvo atraídas por gravedad","Por la división de una estrella","Por enfriamiento de los océanos","Por expulsión desde la Tierra"],a:0},
+  {o:["Ayudó al Sol a capturar gas y polvo de una nebulosa","Hizo desaparecer el protosol","Formó directamente la Luna","Detuvo toda la gravedad"],a:0},
+  {o:["El centro joven de la nebulosa que después originó el Sol","Un satélite de la Tierra","Un planeta gaseoso","Un cometa de hielo"],a:0},
+  {o:["Cuerpos pequeños de hasta 1 km de diámetro","Estrellas de millones de kilómetros","Nubes sin materia","Planetas completamente formados"],a:0},
+  {o:["Rocosos cerca del Sol y gaseosos más allá de 3 UA","Gaseosos cerca del Sol y rocosos lejos","Todos a la misma distancia","Rocosos fuera del sistema solar"],a:0},
+  {o:["Nube y protosol; cúmulos; choques; formación gradual de planetas","Sol; océanos; continentes; planetas","Anillos; Luna; Tierra; galaxias","Supernova; cometa; eclipse; planeta"],a:0},
+  {o:["Una nebulosa giratoria se enfrió, formó anillos y una masa central solar","La Luna fue capturada por la Tierra","El universo comenzó en una singularidad","Una estrella expulsó directamente ocho planetas"],a:0},
+  {o:["No explica bien algunas órbitas alargadas o inversas","No incluye la existencia del Sol","Afirma que no existe gravedad","Solo explica la formación de la Luna"],a:0},
+  {o:["Explica su baja velocidad mediante la interacción con una protoestrella","Afirma que el Sol no rota","La atribuye a la Luna","Dice que el Sol gira más rápido que todo"],a:0},
+  {o:["Por colisiones de la materia extraída de una protoestrella","Por la fisión de la Tierra","Por agua congelada","Por radiación cósmica únicamente"],a:0},
+  {o:["Nebulosa, acreción, planetesimales, Laplace y captura","Big Bang, fisión, evolución, gravedad y mareas","Captura lunar, eclipse, rotación, traslación y fusión","Astronomía, astrofísica, química, física y biología"],a:0},
+  {o:["Porque la ciencia compara evidencias y mejora sus modelos con nuevos hallazgos","Porque todas las teorías son falsas","Porque los científicos eligen al azar","Porque ninguna teoría puede comprobarse"],a:0},
+
+  {o:["En el descubrimiento de sistemas planetarios como Beta Pictoris","En el estudio de los océanos","En las fases lunares","En la teoría de la evolución biológica"],a:0},
+  {o:["Están rodeadas por densos discos de polvo con distintas velocidades","No tienen materia alrededor","Están rodeadas solo por agua","Poseen planetas completamente inmóviles"],a:0},
+  {o:["4 568 millones de años","13 800 millones de años","1 965 millones de años","460 mil años"],a:0},
+  {o:["La onda de choque de una supernova cercana","Un eclipse solar","La caída de un cometa en la Tierra","La rotación de la Luna"],a:0},
+  {o:["Formó un protosol que dio origen al Sol","Formó directamente la Luna","Se convirtió en un océano","Originó únicamente asteroides"],a:0},
+  {o:["Granos de polvo chocaron y se aglutinaron durante millones de años","Aparecieron completamente formados","Se desprendieron de la Luna","Fueron expulsados desde la Tierra"],a:0},
+  {o:["Una extensa nube interestelar de gas y polvo","Una estrella que ya explotó","Un planeta sin atmósfera","Una agrupación de satélites"],a:0},
+  {o:["La fase temprana de una estrella antes de la fusión nuclear","Una estrella que dejó de existir","Un planeta recién formado","Una luna capturada"],a:0},
+  {o:["La explosión de una estrella que libera energía y materia","La formación de un planeta rocoso","Una nube fría sin energía","El movimiento de una galaxia"],a:0},
+  {o:["La astronomía estudia los astros; la astrofísica estudia sus fenómenos físicos","Son exactamente ciencias opuestas","La astronomía estudia plantas y la astrofísica animales","La astrofísica solo estudia la Tierra"],a:0},
+  {o:["Un remanente del Big Bang descubierto en 1965","Luz lunar descubierta en 1492","Calor terrestre descubierto en 2001","Radiación solar descubierta hace 4 568 millones de años"],a:0},
+  {o:["Arno Penzias y Robert Wilson, de forma accidental","Kant y Laplace, durante un eclipse","Descartes y Newton, con una nave","China e India, en la Luna"],a:0},
+
+  {o:["Captura, fisión, conformación, colisiones y gran impacto","Nebulosa, Big Bang, acreción, Laplace y evolución","Rotación, traslación, eclipse, mareas y gravedad","Astronomía, astrofísica, geología, química y física"],a:0},
+  {o:["Se formó en otro lugar y la gravedad terrestre la capturó","Fue expulsada por el Sol","Se creó dentro de la Tierra","Se formó de un océano"],a:0},
+  {o:["La rápida rotación terrestre expulsó material que formó la Luna","La Luna capturó a la Tierra","Una supernova creó la Luna completa","El Sol se dividió en dos"],a:0},
+  {o:["La Tierra y la Luna se formaron juntas del mismo material","La Luna se formó fuera del sistema solar","Tea se convirtió directamente en la Luna","La Luna nació del Sol"],a:0},
+  {o:["Múltiples choques con planetesimales formaron la Luna","La gravedad solar dividió la Tierra","La Luna apareció antes que el universo","Un cometa se convirtió en la Luna"],a:0},
+  {o:["La teoría del gran impacto","La teoría de la captura","La teoría de la fisión","La teoría de Laplace"],a:0},
+  {o:["Un protoplaneta del tamaño de Marte que chocó con la Tierra","Una estrella joven","Un satélite artificial","Una galaxia cercana"],a:0},
+  {o:["El choque expulsó rocas; estas orbitaron, se unieron y se solidificaron","La Luna fue expulsada completa desde el Sol","Un cometa se congeló junto a la Tierra","La Tierra capturó una estrella"],a:0},
+  {o:["Hace unos 4 600 millones de años","Hace 13 800 millones de años","En 1965","Hace 460 mil años"],a:0},
+  {o:["NASA, ESA, Roscosmos, China e India","Solo la NASA","ONU, OEA y OMS","Kant, Laplace y Descartes"],a:0},
+  {o:["La composición geológica lunar es similar a la terrestre","La Luna produce luz propia","La Luna tiene océanos iguales a los terrestres","La Luna es más grande que el Sol"],a:0},
+  {o:["Porque si se formó lejos sería menos probable que tuviera composición tan similar","Porque la captura afirma que la Luna no tiene rocas","Porque la Tierra carece de gravedad","Porque la Luna es una estrella"],a:0}
+];
+
+ORIGINAL_OPTIONS.forEach((data,index)=>Object.assign(QUESTIONS[index],data));
+
+/* Solo entran al juego las preguntas que tienen cuatro opciones. */
+const PLAYABLE_QUESTIONS = QUESTIONS
+  .map((question,index)=>({question,index}))
+  .filter(item=>Array.isArray(item.question.o) && item.question.o.length===4)
+  .map(item=>item.index);
+const PLAYABLE_TOTAL = PLAYABLE_QUESTIONS.length;
+
+/* ---------------- Estado del juego ---------------- */
+let queue = [];        // índices de QUESTIONS en orden aleatorio, sin repetir
+let used = 0;
+let totalRotation = 0;
+let current = null;
+let currentChoices = [];
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function newDeck(){
+  queue = shuffle(PLAYABLE_QUESTIONS);
+  used = 0;
+  updateHUD();
+  document.getElementById('spinBtn').disabled = false;
+  document.getElementById('hubLabel').innerHTML = "Listo para<br>girar";
+}
+
+function remainingByTopic(){
+  const counts = {t1:0,t2:0,t3:0,t4:0};
+  for(const idx of queue){ counts[QUESTIONS[idx].t]++; }
+  return counts;
+}
+
+function updateHUD(){
+  const counts = remainingByTopic();
+  document.getElementById('count1').textContent = counts.t1;
+  document.getElementById('count2').textContent = counts.t2;
+  document.getElementById('count3').textContent = counts.t3;
+  document.getElementById('count4').textContent = counts.t4;
+  document.getElementById('progressLabel').textContent = `${used} / ${PLAYABLE_TOTAL} usadas`;
+  document.getElementById('progressFill').style.width = (used/PLAYABLE_TOTAL*100) + '%';
+}
+
+function angleForTopic(t){
+  const arcMid = { t1:45, t2:135, t3:225, t4:315 }[t];
+  const jitter = (Math.random()*50 - 25); // variación dentro del arco de 90°
+  return arcMid + jitter;
+}
+
+function spin(){
+  if(queue.length === 0) return;
+  document.getElementById('spinBtn').disabled = true;
+
+  const idx = queue.shift();
+  current = QUESTIONS[idx];
+  used++;
+
+  const targetAngle = angleForTopic(current.t);
+  const cur = totalRotation % 360;
+  const delta = (360 - cur + targetAngle) % 360;
+  totalRotation += delta + 360*4;
+  document.getElementById('wheel').style.transform = `rotate(${totalRotation}deg)`;
+  document.getElementById('hubLabel').innerHTML = "Girando…";
+
+  setTimeout(()=>{
+    updateHUD();
+    showReveal();
+    document.getElementById('spinBtn').disabled = queue.length === 0;
+    document.getElementById('hubLabel').innerHTML = queue.length ? "Listo para<br>girar" : "Mazo<br>agotado";
+  }, 3300);
+}
+
+function showReveal(){
+  const topicInfo = TOPICS[current.t];
+  const reveal = document.getElementById('reveal');
+  const topicEl = document.getElementById('revealTopic');
+  topicEl.textContent = topicInfo.label;
+  topicEl.style.borderColor = topicInfo.color;
+  topicEl.style.color = topicInfo.color;
+  document.getElementById('revealQuestion').textContent = current.q;
+  const optionsEl = document.getElementById('revealOptions');
+  const answerBox = document.getElementById('answerBox');
+  const answerBtn = document.getElementById('answerBtn');
+  optionsEl.innerHTML = '';
+  answerBox.textContent = '';
+  if(current.o){
+    currentChoices = shuffle(current.o.map((text,i)=>({text,correct:i===current.a})));
+    currentChoices.forEach((choice,i)=>{
+      const item=document.createElement('div');
+      item.className='option'; item.dataset.index=i;
+      item.textContent=`${String.fromCharCode(65+i)}. ${choice.text}`;
+      item.addEventListener('click',()=>selectAnswer(i));
+      optionsEl.appendChild(item);
+    });
+    answerBtn.style.display='none';
+    document.getElementById('backBtn').style.display='none';
+  }else{
+    answerBtn.style.display='none';
+    const back=document.getElementById('backBtn');
+    back.style.display='inline-block';
+    back.textContent='Ya respondí - volver a la ruleta';
+  }
+  const name = document.getElementById('studentName').value.trim();
+  document.getElementById('revealStudent').textContent = name ? `Responde: ${name}` : '';
+  document.getElementById('revealCounter').textContent = `Pregunta ${used} de ${PLAYABLE_TOTAL}`;
+  document.getElementById('nextBtn').style.display = 'none';
+  reveal.classList.add('show');
+  document.body.classList.add('question-open');
+}
+
+function selectAnswer(selected){
+  if(!current || !current.o) return;
+  const correctIndex=currentChoices.findIndex(choice=>choice.correct);
+  document.querySelectorAll('#revealOptions .option').forEach((el,i)=>{
+    el.classList.add('locked');
+    if(i===correctIndex) el.classList.add('correct');
+    if(i===selected && i!==correctIndex) el.classList.add('wrong');
+  });
+  const correct=selected===correctIndex;
+  document.getElementById('answerBox').textContent=correct
+    ? '¡Respuesta correcta!'
+    : `Respuesta correcta: ${String.fromCharCode(65+correctIndex)}. ${currentChoices[correctIndex].text}`;
+  const back=document.getElementById('backBtn');
+  back.textContent='Continuar - volver a la ruleta';
+  back.style.display='inline-block';
+}
+
+function hideReveal(){
+  document.getElementById('reveal').classList.remove('show');
+  document.body.classList.remove('question-open');
+}
+
+/* ---------------- Eventos ---------------- */
+document.getElementById('spinBtn').addEventListener('click', spin);
+document.getElementById('nextBtn').addEventListener('click', ()=>{ hideReveal(); spin(); });
+document.getElementById('backBtn').addEventListener('click', hideReveal);
+document.getElementById('answerBtn').addEventListener('click', ()=>{
+  if(!current || !current.o) return;
+  const letter=String.fromCharCode(65+current.a);
+  document.querySelectorAll('#revealOptions .option').forEach((el,i)=>el.classList.toggle('correct',i===current.a));
+  document.getElementById('answerBox').textContent=`Respuesta correcta: ${letter}. ${current.o[current.a]}`;
+});
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  if(confirm('¿Reiniciar el mazo? Todas las preguntas volverán a estar disponibles.')){
+    newDeck();
+    hideReveal();
+  }
+});
+document.getElementById('fsBtn').addEventListener('click', ()=>{
+  if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+  else { document.exitFullscreen(); }
+});
+
+newDeck();
+</script>
+</body>
+</html>
