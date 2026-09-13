@@ -105,8 +105,18 @@ export async function obtenerDetalleApreciacionesCiencias(estudiante, salon, tri
         .match(filtroId)
         .is("eliminado_en", null);
     if (errNotas) console.error("No se pudieron leer las notas finales de Ciencias:", errNotas);
+    // Igual que en consulta.js: la nota final de una Apreciación no se
+    // muestra como "oficial" (aquí, como "Nota final" de la Clase)
+    // hasta que esa Apreciación esté "completada" — mientras siga
+    // activa/en curso se ve "Pendiente", aunque el docente ya haya
+    // presionado "Guardar apreciación" (que guarda un avance, no un
+    // cierre). Si se reabre por error, vuelve a verse "Pendiente" sola.
+    const estadoPorNumero = {};
+    estadoApreciaciones.forEach((e) => { estadoPorNumero[e.numero] = e.estado; });
     const notaFinalPorNumero = {};
-    (notasFinales || []).forEach((n) => { notaFinalPorNumero[n.numero] = n.nota; });
+    (notasFinales || []).forEach((n) => {
+        if (estadoPorNumero[n.numero] === "completada") notaFinalPorNumero[n.numero] = n.nota;
+    });
 
     const resultado = [];
 

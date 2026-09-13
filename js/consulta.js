@@ -228,6 +228,7 @@ async function buscar() {
 
     estudianteActual = estudiante;
     notasCrudas = await quitarNotasOcultasParaEstudiante(notas || [], estudiante.salon);
+    notasCrudas = await ocultarApreciacionesNoCompletadas(notasCrudas, estudiante.salon);
     cedulaConsultada = cedula;
 
     nombreEstudianteEl.textContent = estudiante.nombre || "Estudiante";
@@ -314,6 +315,55 @@ async function quitarNotasOcultasParaEstudiante(notas, salon) {
     return notas.filter((n) => {
         const clave = `${n.materia}|${n.trimestre}|${(n.tipo || "").toLowerCase()}|${n.numero}`;
         return !clavesOcultas.has(clave);
+    });
+}
+
+// =====================================================
+// NO MOSTRAR LA NOTA DE "APRECIACIÓN" HASTA QUE ESTÉ COMPLETADA
+// =====================================================
+//
+// "Guardar apreciación" (y el cierre automático por fecha) publican en
+// "notas" la nota YA CALCULADA con lo que haya hasta el momento, para
+// que nunca quede una columna en blanco. Pero eso significa que, si el
+// docente todavía sigue trabajando esa Apreciación (no la ha marcado
+// como completada), esa nota "de avance" no debería verse todavía como
+// nota oficial en "buscar notas" — sino solo cuando el docente la
+// cierre con "Marcar como completada" (o se cierre sola por fecha).
+//
+// Por eso, aquí se tapa cualquier nota de tipo "apreciacion" cuya
+// Apreciación (en apreciaciones_estado) exista pero todavía NO esté
+// "completada". Si el docente la reabre por error con "↩️ Reabrir para
+// editar" (que solo cambia el estado, sin borrar la nota vieja), esta
+// misma función la vuelve a tapar automáticamente — no hace falta
+// borrar nada a mano para "corregir" una Apreciación completada por
+// error: basta con reabrirla.
+//
+// Ojo: las Apreciaciones "clásicas" (Aprec. 1/2/3 escritas a mano
+// desde la tabla de siempre, en materias que nunca usaron este modal)
+// NO tienen fila en apreciaciones_estado — esas se muestran igual que
+// siempre, sin ningún cambio.
+async function ocultarApreciacionesNoCompletadas(notas, salon) {
+    const tieneApreciaciones = notas.some((n) => (n.tipo || "").toLowerCase() === "apreciacion");
+    if (!tieneApreciaciones || !salon) return notas;
+
+    const { data: estados, error } = await supabase
+        .from("apreciaciones_estado")
+        .select("materia, trimestre, numero, estado")
+        .eq("salon", salon);
+
+    if (error) {
+        console.warn("⚠️ No se pudo consultar el estado de las Apreciaciones:", error);
+        return notas;
+    }
+    if (!estados || estados.length === 0) return notas;
+
+    const estadoPorClave = {};
+    estados.forEach((e) => { estadoPorClave[`${e.materia}|${e.trimestre}|${e.numero}`] = e.estado; });
+
+    return notas.filter((n) => {
+        if ((n.tipo || "").toLowerCase() !== "apreciacion") return true;
+        const estado = estadoPorClave[`${n.materia}|${n.trimestre}|${n.numero}`];
+        return estado === undefined || estado === "completada";
     });
 }
 
