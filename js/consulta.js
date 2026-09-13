@@ -34,6 +34,13 @@ const MATERIAS_BASE = [
 // Nota mínima para aprobar (igual que en el panel del estudiante)
 const NOTA_MINIMA_APROBAR = 3;
 
+// Materias que tienen el sistema de Apreciaciones (asistencia +
+// comportamiento + actividades) con detalle por clase en vivo. Por
+// ahora Ciencias Naturales (9A/9B/9C y 8A) e Informática (8A/8B).
+// Agregar una materia aquí es lo único que hace falta para que su
+// "control de nota" en vivo aparezca también en esta pantalla.
+const MATERIAS_CON_DETALLE_APRECIACION = new Set(["Ciencias Naturales", "Informática"]);
+
 // Frases de felicitación para materias que van bien (promedio >= 3).
 // Se elige una al azar cada vez que se genera el PDF, así que si se
 // imprime varias veces no siempre sale la misma frase.
@@ -375,7 +382,7 @@ function calcularResumenMaterias(filas, { incluirCienciasVacia = false } = {}) {
     materias.forEach((materia) => {
         const datos = porMateria[materia] || { apreciacion: [], ejercicio: [], examen: [] };
         const sinNotas = datos.apreciacion.length === 0 && datos.ejercicio.length === 0 && datos.examen.length === 0;
-        const esCienciasVaciaPermitida = sinNotas && incluirCienciasVacia && materia === "Ciencias Naturales";
+        const esCienciasVaciaPermitida = sinNotas && incluirCienciasVacia && MATERIAS_CON_DETALLE_APRECIACION.has(materia);
         if (sinNotas && !esCienciasVaciaPermitida) return;
 
         const promApr = calcularPromedio(datos.apreciacion.map((x) => x.valor));
@@ -480,8 +487,8 @@ function render() {
                         ℹ️ ${escapeHtml(leyendasPorMateria[`${estudianteActual?.salon}|${materia}`]).replace(/\n/g, "<br>")}
                     </p>
                 ` : ""}
-                ${materia === "Ciencias Naturales" && trimestre !== "todos" ? `
-                    <div class="detalle-clase-ciencias-contenedor" data-trimestre="${escapeHtml(trimestre)}">
+                ${MATERIAS_CON_DETALLE_APRECIACION.has(materia) && trimestre !== "todos" ? `
+                    <div class="detalle-clase-ciencias-contenedor" data-trimestre="${escapeHtml(trimestre)}" data-materia="${escapeHtml(materia)}">
                         <p class="detalle-clase-titulo-seccion">📚 Detalle por clase — asistencia, comportamiento y actividades</p>
                         <p class="small" style="color:#64748b;">Cargando detalle por clase…</p>
                     </div>
@@ -520,10 +527,12 @@ function claseNotaBadge(valor) {
 async function cargarDetalleClaseCiencias(contenedor) {
     try {
         const trimestre = contenedor.dataset.trimestre;
+        const materia = contenedor.dataset.materia || "Ciencias Naturales";
         const detalle = await obtenerDetalleApreciacionesCiencias(
             { id: estudianteActual.id, correo: estudianteActual.correo },
             estudianteActual.salon,
-            trimestre
+            trimestre,
+            materia
         );
 
         if (!detalle || detalle.length === 0) {

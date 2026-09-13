@@ -1,5 +1,5 @@
 // =========================================================
-// DETALLE DE APRECIACIONES DE CIENCIAS NATURALES (vista del estudiante)
+// DETALLE DE APRECIACIONES (vista del estudiante)
 // =========================================================
 // Este módulo es de SOLO LECTURA: nunca inserta, actualiza ni borra
 // nada. Arma, para un estudiante puntual, el mismo desglose que ve el
@@ -8,9 +8,10 @@
 // las funciones de lectura ya existentes en apreciaciones.js para no
 // duplicar la lógica de cálculo.
 //
-// Para Ciencias Naturales, cada "Apreciación N" corresponde
-// exactamente a la "Clase N" del portal de clase (Apreciación 1 =
-// Clase 1, etc.) — no es una semana suelta.
+// Sirve para cualquier materia que use el sistema de Apreciaciones —
+// hoy Ciencias Naturales e Informática. Para Ciencias Naturales, cada
+// "Apreciación N" corresponde exactamente a la "Clase N" del portal de
+// clase (Apreciación 1 = Clase 1, etc.) — no es una semana suelta.
 
 import { supabase } from "./supabase.js";
 import {
@@ -42,7 +43,8 @@ const NOMBRES_CLASE_CIENCIAS_8A = {
     3: "Clase 3 · Inclinación terrestre, vida y exploración del universo",
     4: "Clase 4 · Tecnología e historia de la exploración espacial",
 };
-function obtenerNombresClaseCiencias(salon) {
+function obtenerNombresClaseCiencias(materia, salon) {
+    if (materia !== "Ciencias Naturales") return {}; // otras materias: usa el nombre genérico "Apreciación N"
     return salon === "8A" ? NOMBRES_CLASE_CIENCIAS_8A : NOMBRES_CLASE_CIENCIAS_9;
 }
 
@@ -69,18 +71,20 @@ async function obtenerCorreoProfesor(materia, salon) {
 }
 
 /**
- * Devuelve el detalle de cada Apreciación (= Clase) de Ciencias
- * Naturales para un estudiante, en el trimestre indicado. Solo
- * incluye Apreciaciones que ya existen (tienen fila en
- * apreciaciones_estado) — nunca inventa clases que no han empezado.
+ * Devuelve el detalle de cada Apreciación (= Clase) de una materia
+ * para un estudiante, en el trimestre indicado. Solo incluye
+ * Apreciaciones que ya existen (tienen fila en apreciaciones_estado)
+ * — nunca inventa clases que no han empezado. Por defecto es Ciencias
+ * Naturales (así no rompe a quien ya llamaba esta función sin el
+ * último parámetro), pero sirve para cualquier materia que use el
+ * mismo sistema de Apreciaciones (por ahora también Informática).
  *
  * @param {{id:string, correo:string|null}} estudiante
  * @param {string} salon
  * @param {string} trimestre
+ * @param {string} materia
  */
-export async function obtenerDetalleApreciacionesCiencias(estudiante, salon, trimestre) {
-    const materia = "Ciencias Naturales";
-
+export async function obtenerDetalleApreciacionesCiencias(estudiante, salon, trimestre, materia = "Ciencias Naturales") {
     const [estadoApreciaciones, correoProfesor, pesos] = await Promise.all([
         obtenerEstadoApreciaciones(materia, salon, trimestre),
         obtenerCorreoProfesor(materia, salon),
@@ -156,7 +160,7 @@ export async function obtenerDetalleApreciacionesCiencias(estudiante, salon, tri
 
         resultado.push({
             numero: numeroApreciacion,
-            claseNombre: obtenerNombresClaseCiencias(salon)[numeroApreciacion] || `Apreciación ${numeroApreciacion}`,
+            claseNombre: obtenerNombresClaseCiencias(materia, salon)[numeroApreciacion] || `Apreciación ${numeroApreciacion}`,
             estado: estadoApreciaciones.find((e) => e.numero === numeroApreciacion)?.estado || "activa",
             fechaInicio: rango.fecha_inicio,
             fechaFin: rango.fecha_fin,
