@@ -26,12 +26,25 @@ import {
     VALOR_COMPORTAMIENTO_MALO,
 } from "./apreciaciones.js";
 
-const NOMBRES_CLASE_CIENCIAS = {
+// Los temas de cada Clase son distintos según el salón (9A/9B/9C
+// siguen la Unidad Completa de 9°; 8A sigue su propia Unidad, ver
+// ejercicios_ciencias_8.html). Solo es texto para mostrar al
+// estudiante — no afecta el cálculo de ninguna nota.
+const NOMBRES_CLASE_CIENCIAS_9 = {
     1: "Clase 1 · El origen del universo y del sistema solar",
     2: "Clase 2 · La vida en la Tierra y la exploración del universo",
     3: "Clase 3 · El movimiento ondulatorio",
     4: "Clase 4",
 };
+const NOMBRES_CLASE_CIENCIAS_8A = {
+    1: "Clase 1 · Transformaciones y reacciones químicas",
+    2: "Clase 2 · Leyes de Kepler y movimientos de la Tierra",
+    3: "Clase 3 · Inclinación terrestre, vida y exploración del universo",
+    4: "Clase 4 · Tecnología e historia de la exploración espacial",
+};
+function obtenerNombresClaseCiencias(salon) {
+    return salon === "8A" ? NOMBRES_CLASE_CIENCIAS_8A : NOMBRES_CLASE_CIENCIAS_9;
+}
 
 function promedio(valores) {
     const nums = valores.filter((v) => v !== null && v !== undefined && !isNaN(v));
@@ -143,7 +156,7 @@ export async function obtenerDetalleApreciacionesCiencias(estudiante, salon, tri
 
         resultado.push({
             numero: numeroApreciacion,
-            claseNombre: NOMBRES_CLASE_CIENCIAS[numeroApreciacion] || `Apreciación ${numeroApreciacion}`,
+            claseNombre: obtenerNombresClaseCiencias(salon)[numeroApreciacion] || `Apreciación ${numeroApreciacion}`,
             estado: estadoApreciaciones.find((e) => e.numero === numeroApreciacion)?.estado || "activa",
             fechaInicio: rango.fecha_inicio,
             fechaFin: rango.fecha_fin,

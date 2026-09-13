@@ -96,31 +96,49 @@ const ETIQUETAS_ASISTENCIA_APR = { presente: "Presente", ausente: "Ausente", tar
 // =========================================================
 // "ACTIVIDAD EN CASA" AUTOMÁTICA PARA CIENCIAS NATURALES
 // =========================================================
-// Para Ciencias Naturales, en los salones 9A/9B/9C, la Apreciación N
-// corresponde exactamente a la Clase N de la Unidad Completa (1
-// Apreciación = 1 Clase, NO una semana suelta). Por ahora hay
-// ejercicios de práctica (opción múltiple + pareo de términos + pareo
-// de fotos) solo para las Clases 1, 2 y 3 — la Clase 4 todavía no
-// tiene esos 3 ejercicios en el portal, así que no se autocompleta.
-// 8A no tiene este mismo set de 4 clases (solo un examen único de
-// recuperación), así que tampoco se autocompleta por ahora.
+// Para Ciencias Naturales, la Apreciación N corresponde exactamente a
+// la Clase N de la Unidad Completa de cada salón (1 Apreciación = 1
+// Clase, NO una semana suelta). Cada grupo de salones tiene su propio
+// examen de práctica en el portal del estudiante (mismos 3 ejercicios:
+// opción múltiple + pareo de términos + pareo de fotos), identificado
+// por su propio "codigo_examen" en prueba_intentos_practica:
+//   - 9A/9B/9C: Clases 1, 2 y 3 (prueba_clase1/2/3_ciencias_9.html,
+//     pareo_claseN...html, fotos_claseN...html), codigo "cn9-claseN-...".
+//   - 8A: Clases 1 a 4 (ejercicios_ciencias_8.html?clase=N&tipo=...),
+//     codigo "cn8a-claseN-2026". Ese ejercicio no tiene fecha límite
+//     propia todavía, así que para 8A nunca se fuerza 1.0 por cierre
+//     de Clase ni se penaliza por tardanza (fechaCierrePorClase vacío).
 const MATERIA_CIENCIAS = "Ciencias Naturales";
-const SALONES_CON_PRACTICA_CIENCIAS = new Set(["9A", "9B", "9C"]);
-const CODIGO_EXAMEN_POR_CLASE_CIENCIAS = {
-    1: "cn9-clase1-universo-2026",
-    2: "cn9-clase2-vida-tierra-2026",
-    3: "cn9-clase3-ondas-2026",
-};
-// Fecha límite de cada Clase (igual que "fechaCierreTotal" en los
-// archivos prueba_config_claseN.js del portal del estudiante). Pasada
-// esta fecha, cualquier ejercicio que el estudiante NO haya hecho
-// queda automáticamente en 1.0 — no hace falta que el docente cierre
-// ni complete la Apreciación para que esto pase.
-const FECHA_CIERRE_POR_CLASE_CIENCIAS = {
-    1: "2026-09-28T23:59:59-05:00",
-    2: "2026-10-08T23:59:59-05:00",
-    3: "2026-10-09T23:59:59-05:00",
-};
+const GRUPOS_PRACTICA_CIENCIAS = [
+    {
+        salones: new Set(["9A", "9B", "9C"]),
+        codigoPorClase: {
+            1: "cn9-clase1-universo-2026",
+            2: "cn9-clase2-vida-tierra-2026",
+            3: "cn9-clase3-ondas-2026",
+        },
+        // Fecha límite de cada Clase (igual que "fechaCierreTotal" en
+        // los archivos prueba_config_claseN.js del portal del
+        // estudiante). Pasada esta fecha, cualquier ejercicio que el
+        // estudiante NO haya hecho queda automáticamente en 1.0 — no
+        // hace falta que el docente cierre ni complete la Apreciación.
+        fechaCierrePorClase: {
+            1: "2026-09-28T23:59:59-05:00",
+            2: "2026-10-08T23:59:59-05:00",
+            3: "2026-10-09T23:59:59-05:00",
+        },
+    },
+    {
+        salones: new Set(["8A"]),
+        codigoPorClase: {
+            1: "cn8a-clase1-2026",
+            2: "cn8a-clase2-2026",
+            3: "cn8a-clase3-2026",
+            4: "cn8a-clase4-2026",
+        },
+        fechaCierrePorClase: {},
+    },
+];
 // Días de "gracia con penalidad" ANTES del cierre total: quien entregue
 // DESPUÉS de (cierre total - 2 días) pero ANTES del cierre total,
 // entrega tarde (se le resta 0.5). Se aplica automáticamente a
@@ -143,12 +161,19 @@ const NOMBRES_ACTIVIDAD_CASA_CIENCIAS = [
 ];
 const TIPOS_EJERCICIO_CASA_CIENCIAS = ["quiz", "pareo", "fotos"];
 
+// Devuelve el grupo de práctica (códigos + fechas) al que pertenece
+// este salón, o null si el salón no tiene práctica automática todavía.
+function obtenerGrupoPracticaCiencias(salon) {
+    return GRUPOS_PRACTICA_CIENCIAS.find((g) => g.salones.has(salon)) || null;
+}
+
 // Devuelve el codigo_examen de Ciencias correspondiente a esta
 // Apreciación (o null si esta materia/salón/número no aplica).
 function obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion) {
     if (materia !== MATERIA_CIENCIAS) return null;
-    if (!SALONES_CON_PRACTICA_CIENCIAS.has(salon)) return null;
-    return CODIGO_EXAMEN_POR_CLASE_CIENCIAS[numeroApreciacion] || null;
+    const grupo = obtenerGrupoPracticaCiencias(salon);
+    if (!grupo) return null;
+    return grupo.codigoPorClase[numeroApreciacion] || null;
 }
 
 // Deja solo los dígitos de una cédula (quita guiones, espacios, etc.).
@@ -222,7 +247,8 @@ async function sincronizarActividadesCasaCiencias(materia, salon, trimestre, num
     //     se le resta 0.5 a la nota que sacó (sin bajar de 1.0).
     //   - Lo hizo a tiempo, o la Clase todavía no cierra -> nota tal cual.
     const PENALIZACION_ENTREGA_TARDIA = 0.5;
-    const fechaCierre = FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion];
+    const grupoPractica = obtenerGrupoPracticaCiencias(salon);
+    const fechaCierre = grupoPractica?.fechaCierrePorClase?.[numeroApreciacion];
     const fechaFinSinPenalidad = obtenerFechaFinSinPenalidad(fechaCierre);
     const claseYaCerro = !!(fechaCierre && new Date() > new Date(fechaCierre));
 
@@ -1010,7 +1036,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
     // "Marcar como completada". No corre dos veces: en cuanto queda
     // completada, la próxima vez que se abra ya viene en solo lectura.
     if (!soloLectura && obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion)) {
-        const fechaCierreClase = FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion];
+        const fechaCierreClase = obtenerGrupoPracticaCiencias(salon)?.fechaCierrePorClase?.[numeroApreciacion];
         if (fechaCierreClase && new Date() > new Date(fechaCierreClase)) {
             (async () => {
                 const notasFinalesPorEstudiante = {};
@@ -1701,7 +1727,13 @@ function pintarModal(estado_) {
         ${panel("clase", "✏️ Actividades en clase", bloqueActividades(actividadesClase, "clase"))}
         ${panel("casa", "🏠 Actividades para la casa", `
             ${obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion)
-                ? `<p class="small text-muted mb-2">🔒 Estas 3 notas se traen automáticamente del último intento de cada estudiante en los ejercicios de práctica de <strong>Ciencias Naturales · Clase ${numeroApreciacion}</strong>, y no se pueden editar a mano. Se actualizan solas cada vez que abras esta Apreciación. Entregas después de ${obtenerFechaFinSinPenalidad(FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion])?.toLocaleDateString("es-PA") ?? "—"} restan 0.5 por entrega tardía, y a quien nunca la haga se le pone 1.0 a partir del ${FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion] ? new Date(FECHA_CIERRE_POR_CLASE_CIENCIAS[numeroApreciacion]).toLocaleDateString("es-PA") : "—"} — todo automático, sin que tengas que cerrar ni completar nada.</p>`
+                ? (() => {
+                    const fechaCierreClase = obtenerGrupoPracticaCiencias(salon)?.fechaCierrePorClase?.[numeroApreciacion];
+                    const avisoFecha = fechaCierreClase
+                        ? ` Entregas después de ${obtenerFechaFinSinPenalidad(fechaCierreClase)?.toLocaleDateString("es-PA") ?? "—"} restan 0.5 por entrega tardía, y a quien nunca la haga se le pone 1.0 a partir del ${new Date(fechaCierreClase).toLocaleDateString("es-PA")}.`
+                        : "";
+                    return `<p class="small text-muted mb-2">🔒 Estas 3 notas se traen automáticamente del último intento de cada estudiante en los ejercicios de práctica de <strong>Ciencias Naturales · Clase ${numeroApreciacion}</strong>, y no se pueden editar a mano. Se actualizan solas cada vez que abras esta Apreciación.${avisoFecha} Todo automático, sin que tengas que cerrar ni completar nada.</p>`;
+                })()
                 : ""}
             ${bloqueActividades(actividadesCasa, "casa", !!obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion))}
         `)}
