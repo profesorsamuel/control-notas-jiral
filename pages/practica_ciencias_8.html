@@ -334,7 +334,7 @@
       <input type="text" class="grupo-input" placeholder="Integrante 4">
     </div>
     <label style="display:block;margin:12px 0;font-weight:700;">Grupo
-      <select id="grupo-seccion" style="margin-left:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;"><option value="">Seleccione</option><option>8A</option><option>8B</option><option>8C</option></select>
+      <select id="grupo-seccion" style="margin-left:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;"><option value="">Seleccione</option><option>8A</option></select>
     </label>
     <button class="btn ghost" id="grupo-add">➕ Agregar integrante</button>
   </div>
@@ -978,7 +978,7 @@ document.getElementById('finalizar-ejercicio').addEventListener('click', ()=>{
     return;
   }
   if(!grupo){
-    msg.textContent = 'Selecciona el grupo 8A, 8B o 8C antes de finalizar.';
+    msg.textContent = 'Selecciona el grupo 8A antes de finalizar.';
     msg.className = 'result-msg bad';
     return;
   }
