@@ -65,5 +65,6 @@ document.querySelectorAll('.grade').forEach(b=>b.onclick=()=>{const box=b.closes
 document.addEventListener('click',e=>{if(e.target.matches('.gallery img')){const m=document.querySelector('#modal');m.querySelector('img').src=e.target.src;m.classList.add('open')}if(e.target.matches('.close')||e.target.id==='modal')document.querySelector('#modal').classList.remove('open')});
 const hash=location.hash.match(/clase([1-4])/);if(hash)openTab(hash[1]);
 </script>
+<script src="../js/visor_imagenes_zoom.js"></script>
 </body>
 </html>
