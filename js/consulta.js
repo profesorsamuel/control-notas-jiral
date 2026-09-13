@@ -357,14 +357,26 @@ function materiasParaMostrar(porMateria) {
 // Reúne, para un conjunto de filas ya filtradas por trimestre, el
 // promedio de apreciación/ejercicio/final de cada materia con notas.
 // Se usa tanto para pintar la pantalla como para armar el PDF.
-function calcularResumenMaterias(filas) {
+//
+// "incluirCienciasVacia": SOLO la usa render() (nunca el PDF). Cuando
+// está en true, Ciencias Naturales aparece aunque todavía no tenga
+// NINGUNA nota oficial guardada (Apreciación/Ejercicio/Examen) — así
+// el estudiante puede ver su "control de nota" en vivo (asistencia,
+// comportamiento, actividades) mientras la Apreciación sigue abierta,
+// sin que el/la docente tenga que guardarla ni completarla todavía.
+// La nota OFICIAL de la tabla de arriba sigue en "-" hasta que sí se
+// guarde — esto solo destapa la tarjeta para que el detalle de abajo
+// pueda cargar.
+function calcularResumenMaterias(filas, { incluirCienciasVacia = false } = {}) {
     const porMateria = agruparPorMateria(filas);
     const materias = materiasParaMostrar(porMateria);
     const resumen = [];
 
     materias.forEach((materia) => {
         const datos = porMateria[materia] || { apreciacion: [], ejercicio: [], examen: [] };
-        if (datos.apreciacion.length === 0 && datos.ejercicio.length === 0 && datos.examen.length === 0) return;
+        const sinNotas = datos.apreciacion.length === 0 && datos.ejercicio.length === 0 && datos.examen.length === 0;
+        const esCienciasVaciaPermitida = sinNotas && incluirCienciasVacia && materia === "Ciencias Naturales";
+        if (sinNotas && !esCienciasVaciaPermitida) return;
 
         const promApr = calcularPromedio(datos.apreciacion.map((x) => x.valor));
         const promEje = calcularPromedio(datos.ejercicio.map((x) => x.valor));
@@ -396,7 +408,7 @@ function calcularResumenMaterias(filas) {
 function render() {
     const trimestre = filtroTrimestre.value;
     const filas = filasParaTrimestre(trimestre);
-    const resumen = calcularResumenMaterias(filas);
+    const resumen = calcularResumenMaterias(filas, { incluirCienciasVacia: trimestre !== "todos" });
 
     let html = "";
 
