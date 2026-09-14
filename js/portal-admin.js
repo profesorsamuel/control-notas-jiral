@@ -373,12 +373,15 @@ function renderListaClases(clases) {
     </label>
   `).join('');
 
-  // Paso 3 — clases (grupos) que pertenecen EXACTAMENTE a la combinación de
-  // salones marcada arriba. Si marcas solo 8A, solo ves las clases de 8A
-  // (que son distintas a las de 9A+9B+9C, aunque sean de la misma materia).
-  const claveSeleccion = claveDeSalones(salonesSeleccionados);
+  // Paso 3 — clases (grupos) que TOCAN alguno de los salones marcados
+  // arriba (antes exigía que la combinación fuera IDÉNTICA: si una clase
+  // se creó para 9A+9B+9C y luego marcabas solo 9A, desaparecía del
+  // panel aunque 9A sí la recibiera — eso llevaba a crear la "misma"
+  // clase por segunda vez sin darse cuenta). Ahora, si el salón marcado
+  // aparece en la clase, la clase se muestra.
+  const comparteSalonListado = (gradosA, gradosB) => gradosA.some((g) => gradosB.includes(g));
   const gruposDeLaMateria = (window.__gruposAdmin || [])
-    .filter((g) => g.materia === materiaSeleccionada && claveDeSalones(g.filas.map((f) => f.grado)) === claveSeleccion)
+    .filter((g) => g.materia === materiaSeleccionada && comparteSalonListado(g.filas.map((f) => f.grado), Array.from(salonesSeleccionados)))
     .sort((a, b) => (a.numero || 0) - (b.numero || 0));
 
   const claseTabsHtml = gruposDeLaMateria.map((g) => `
