@@ -129,7 +129,7 @@ function cargarAccesoGuardado() {
     }
 }
 
-formAcceso.addEventListener("submit", (evento) => {
+formAcceso.addEventListener("submit", async (evento) => {
     evento.preventDefault();
     const docente = docenteAcceso.value;
     const clave = claveAcceso.value.trim().toLowerCase();
@@ -151,6 +151,7 @@ formAcceso.addEventListener("submit", (evento) => {
     accesoDocente = { docente, clave };
     sessionStorage.setItem(CLAVE_STORAGE_KEY, JSON.stringify(accesoDocente));
     revelarFormulariosDocente();
+    await cargarFotos();
 });
 
 // =========================================================
@@ -185,8 +186,9 @@ async function cargarFotos() {
     if (!reina) return;
     const { data, error } = await supabase
         .from("campesino_fotos")
-        .select("id, ruta_storage, subido_por, descripcion, creado_en")
+        .select("id, ruta_storage, subido_por, descripcion, creado_en, orden")
         .eq("reina_slug", reina.slug)
+        .order("orden", { ascending: true, nullsFirst: false })
         .order("creado_en", { ascending: false })
         .limit(16);
 
@@ -209,10 +211,12 @@ async function cargarFotos() {
         const partesCredito = [];
         if (foto.descripcion) partesCredito.push(`<span class="obs">${escaparHTML(foto.descripcion)}</span>`);
         if (foto.subido_por) partesCredito.push(`Subida por ${escaparHTML(foto.subido_por)}`);
+        const reordenable = puedeReordenar();
         return `
-        <div class="foto" data-id="${foto.id}" data-ruta="${foto.ruta_storage}">
+        <div class="foto" data-id="${foto.id}" data-ruta="${foto.ruta_storage}" ${reordenable ? 'draggable="true"' : ""}>
             <div class="foto-img">
                 <img src="${pub.publicUrl}" alt="Foto de la reina de ${escaparHTML(reina.nombre)}" loading="lazy">
+                ${reordenable ? `<button type="button" class="manija" title="Arrastra para reordenar">⠿</button>` : ""}
                 ${esAdmin ? `<button class="borrar" title="Borrar foto (solo administrador)">&times;</button>` : ""}
             </div>
             ${partesCredito.length ? `<span class="credito">${partesCredito.join("")}</span>` : ""}
@@ -393,6 +397,71 @@ cerrarVisor.addEventListener("click", () => visor.classList.remove("abierto"));
 visor.addEventListener("click", (e) => {
     if (e.target === visor) visor.classList.remove("abierto");
 });
+
+// =========================================================
+// Reordenar fotos arrastrando — solo disponible para quien tiene
+// acceso de docente o es administrador (quien puede reordenar también
+// puede subir/borrar, así que reutiliza el mismo criterio).
+// =========================================================
+function puedeReordenar() {
+    return !!(accesoDocente || esAdmin);
+}
+
+let elementoArrastrado = null;
+
+galeria.addEventListener("dragstart", (evento) => {
+    const tarjeta = evento.target.closest(".foto");
+    if (!tarjeta || !tarjeta.draggable) return;
+    elementoArrastrado = tarjeta;
+    tarjeta.classList.add("arrastrando");
+    evento.dataTransfer.effectAllowed = "move";
+});
+
+galeria.addEventListener("dragend", () => {
+    if (elementoArrastrado) elementoArrastrado.classList.remove("arrastrando");
+    galeria.querySelectorAll(".destino-arrastre").forEach((el) => el.classList.remove("destino-arrastre"));
+    elementoArrastrado = null;
+});
+
+galeria.addEventListener("dragover", (evento) => {
+    if (!elementoArrastrado) return;
+    evento.preventDefault();
+    const tarjeta = evento.target.closest(".foto");
+    if (!tarjeta || tarjeta === elementoArrastrado) return;
+    galeria.querySelectorAll(".destino-arrastre").forEach((el) => el.classList.remove("destino-arrastre"));
+    tarjeta.classList.add("destino-arrastre");
+});
+
+galeria.addEventListener("drop", async (evento) => {
+    evento.preventDefault();
+    const destino = evento.target.closest(".foto");
+    galeria.querySelectorAll(".destino-arrastre").forEach((el) => el.classList.remove("destino-arrastre"));
+    if (!elementoArrastrado || !destino || destino === elementoArrastrado) return;
+
+    const tarjetas = Array.from(galeria.children);
+    const indiceArrastrado = tarjetas.indexOf(elementoArrastrado);
+    const indiceDestino = tarjetas.indexOf(destino);
+    if (indiceArrastrado < indiceDestino) {
+        destino.after(elementoArrastrado);
+    } else {
+        destino.before(elementoArrastrado);
+    }
+
+    await guardarNuevoOrden();
+});
+
+async function guardarNuevoOrden() {
+    const tarjetas = Array.from(galeria.querySelectorAll(".foto"));
+    const actualizaciones = tarjetas.map((tarjeta, indice) =>
+        supabase.from("campesino_fotos").update({ orden: indice }).eq("id", tarjeta.dataset.id)
+    );
+    try {
+        await Promise.all(actualizaciones);
+        await registrarBitacora("fotos_reordenadas", "Cambió el orden de las fotos de la galería");
+    } catch (err) {
+        console.error("No se pudo guardar el nuevo orden:", err);
+    }
+}
 
 // =========================================================
 // Foto de portada: la foto principal que aparece al frente.
