@@ -253,9 +253,14 @@ nav.tabs a:hover, nav.tabs a:focus-visible{
   background:var(--green-deep);
   color:#F2E6C8;
 }
+nav.tabs a.active{
+  background:var(--green-deep);
+  color:#F2E6C8;
+}
 
 /* ---------- SECTIONS ---------- */
-section{padding:56px 0;}
+section{padding:56px 0; display:none;}
+section#reinas{display:block;}
 section.alt{background:var(--parchment-deep);}
 .section-head{margin-bottom:30px;}
 .section-head .num{
@@ -1217,5 +1222,36 @@ footer .school{
 </footer>
 
 <script type="module" src="../js/campesino-mini-fotos.js"></script>
+<script>
+(function(){
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('nav.tabs a'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('section[id]'));
+
+  function showSection(id){
+    sections.forEach(function(sec){
+      sec.style.display = (sec.id === id) ? 'block' : 'none';
+    });
+    tabs.forEach(function(tab){
+      var isActive = tab.getAttribute('href') === '#' + id;
+      tab.classList.toggle('active', isActive);
+    });
+  }
+
+  tabs.forEach(function(tab){
+    tab.addEventListener('click', function(e){
+      e.preventDefault();
+      var id = tab.getAttribute('href').slice(1);
+      showSection(id);
+      var nav = document.querySelector('nav.tabs');
+      window.scrollTo({top: nav.offsetTop, behavior:'smooth'});
+      history.replaceState(null, '', '#' + id);
+    });
+  });
+
+  var initial = window.location.hash ? window.location.hash.slice(1) : 'reinas';
+  if(!document.getElementById(initial)) initial = 'reinas';
+  showSection(initial);
+})();
+</script>
 </body>
 </html>
