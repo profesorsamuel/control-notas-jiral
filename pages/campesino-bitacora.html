@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bitácora · Día del Campesino 2026 · C.E.B.G. El Jiral</title>
+
+<link rel="icon" type="image/x-icon" href="../img/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../img/apple-touch-icon.png">
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+:root{
+  --parchment:#F2E6C8;
+  --parchment-deep:#E8D8AE;
+  --card:#FBF5E4;
+  --ink:#20301D;
+  --ink-soft:#4E5B44;
+  --green-deep:#1F3B24;
+  --green-mid:#3E6B3F;
+  --clay:#B5622E;
+  --clay-dark:#8A4423;
+  --gold:#D19A1F;
+  --red:#C23B22;
+  --line: rgba(32,48,29,0.18);
+  --shadow: 0 6px 18px rgba(32,26,10,0.12);
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background: radial-gradient(ellipse at top left, rgba(255,255,255,0.35), transparent 55%), var(--parchment);
+  color:var(--ink);
+  font-family:'Work Sans', sans-serif;
+  line-height:1.5;
+}
+.wrap{max-width:1000px;margin:0 auto;padding:0 20px;}
+h1,h2{font-family:'Fraunces', serif; margin:0; color:var(--green-deep);}
+
+header.hero{
+  background: linear-gradient(180deg, var(--green-deep) 0%, #274A2B 100%);
+  color:#F2E6C8;
+  padding:36px 0 26px;
+}
+.volver{
+  display:inline-flex; align-items:center; gap:6px;
+  color:#D9CFAE; text-decoration:none; font-family:'Space Mono', monospace;
+  font-size:12.5px; margin-bottom:16px;
+}
+.volver:hover{color:var(--gold);}
+header.hero h1{color:#FBF5E4; font-size:clamp(24px,5vw,32px);}
+header.hero p{max-width:600px; color:#D9CFAE; margin-top:8px; font-size:14.5px;}
+
+section{padding:28px 0 60px;}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+}
+
+.aviso{padding:24px; font-size:14.5px; color:var(--ink-soft);}
+.aviso a{color:var(--clay-dark); font-weight:600;}
+
+.filtros{
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+  margin-bottom:16px;
+}
+.filtros select, .filtros input{
+  padding:8px 12px; border-radius:10px; border:1px solid var(--line);
+  background:var(--card); font-family:'Work Sans', sans-serif; font-size:13.5px;
+}
+.contador{font-size:12.5px; color:var(--ink-soft);}
+
+table.bitacora{
+  width:100%;
+  border-collapse:collapse;
+  background:var(--card);
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+}
+table.bitacora th{
+  text-align:left;
+  font-family:'Space Mono', monospace;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  color:#F2E6C8;
+  background:var(--green-deep);
+  padding:10px 14px;
+}
+table.bitacora td{
+  padding:10px 14px;
+  border-top:1px solid var(--line);
+  font-size:13.5px;
+  vertical-align:top;
+}
+table.bitacora tr:nth-child(even) td{background:rgba(181,98,46,0.05);}
+.accion-chip{
+  font-family:'Space Mono', monospace; font-size:10.5px; text-transform:uppercase;
+  padding:3px 9px; border-radius:999px; white-space:nowrap;
+}
+.accion-chip.foto{color:var(--green-mid); background:rgba(62,107,63,0.13);}
+.accion-chip.perfil_creado{color:var(--clay-dark); background:rgba(181,98,46,0.13);}
+.accion-chip.perfil_editado{color:var(--gold); background:rgba(209,154,31,0.15);}
+
+@media(max-width:680px){
+  table.bitacora thead{display:none;}
+  table.bitacora, table.bitacora tbody, table.bitacora tr, table.bitacora td{display:block; width:100%;}
+  table.bitacora tr{border-top:1px solid var(--line); padding:12px 14px;}
+  table.bitacora tr:first-child{border-top:none;}
+  table.bitacora td{padding:3px 0; border:none;}
+  table.bitacora td::before{
+    content: attr(data-label);
+    display:block; font-family:'Space Mono', monospace; font-size:10px;
+    text-transform:uppercase; letter-spacing:0.06em; color:var(--green-mid); margin-bottom:2px;
+  }
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <a class="volver" href="campesino-reinas.html">&larr; Galería de Reinas</a>
+    <h1>🛡️ Bitácora de cambios</h1>
+    <p>Registro de quién subió cada foto o completó/editó cada perfil, en qué reina y cuándo. Solo visible para administradores.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap" id="contenido">
+    <div class="card aviso" id="avisoAcceso">Revisando acceso…</div>
+  </div>
+</section>
+
+<script type="module" src="../js/campesino-bitacora.js"></script>
+</body>
+</html>

@@ -79,7 +79,6 @@ section{padding:30px 0 60px;}
 }
 .fila-acceso select{flex:1 1 240px;}
 .fila-acceso input[type="text"]{flex:0 1 130px; text-transform:lowercase;}
-.pista-clave{font-size:12px; color:var(--ink-soft); margin:10px 0 0;}
 .badge-acceso{
   display:inline-flex; align-items:center; gap:6px;
   background:rgba(62,107,63,0.12); color:var(--green-mid);
@@ -281,11 +280,10 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
         <select id="docenteAcceso" required>
           <option value="" disabled selected>Elige el nombre del/de la docente...</option>
         </select>
-        <input type="text" id="claveAcceso" placeholder="Clave (2 letras)" maxlength="2" required autocomplete="off">
+        <input type="text" id="claveAcceso" placeholder="Clave" maxlength="2" required autocomplete="off">
         <button type="submit" class="btn-subir">Entrar</button>
       </form>
       <p class="estado-subida" id="estadoAcceso"></p>
-      <p class="pista-clave">La clave es la primera letra del nombre + la última letra del apellido. Ej. Samuel Ortega → <strong>sa</strong>.</p>
     </div>
 
     <div class="card subir-card oculto" id="subirCard">
