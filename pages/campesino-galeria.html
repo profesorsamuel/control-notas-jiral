@@ -42,10 +42,14 @@ header.hero{
   color:#F2E6C8;
   padding:36px 0 26px;
 }
+header.hero .wrap{
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+}
 .volver{
   display:inline-flex; align-items:center; gap:6px;
   color:#D9CFAE; text-decoration:none; font-family:'Space Mono', monospace;
   font-size:12.5px; margin-bottom:16px;
+  align-self:flex-start;
 }
 .volver:hover{color:var(--gold);}
 .lvl-chip{
@@ -55,14 +59,30 @@ header.hero{
   color:var(--gold); border:1px solid rgba(209,154,31,.5);
   padding:4px 12px; border-radius:999px; margin-bottom:10px;
 }
-header.hero h1{color:#FBF5E4; font-size:clamp(26px,5vw,36px);}
-header.hero p.detalle{color:#D9CFAE; margin-top:6px; font-size:14.5px;}
+header.hero h1{color:#FBF5E4; font-size:clamp(30px,6vw,46px); text-align:center;}
+header.hero p.detalle{color:#D9CFAE; margin-top:6px; font-size:14.5px; text-align:center;}
 .portada-hero{
-  width:110px; height:110px; border-radius:50%;
-  object-fit:cover; border:3px solid var(--gold);
-  box-shadow:0 8px 20px rgba(0,0,0,.35);
-  margin-bottom:14px; display:block;
+  width:180px; height:180px; border-radius:50%;
+  object-fit:cover; border:4px solid var(--gold);
+  box-shadow:0 10px 26px rgba(0,0,0,.4);
+  margin:6px auto 16px; display:block;
   background:rgba(255,255,255,.08);
+}
+.docentes-strip{
+  display:flex; flex-wrap:wrap; justify-content:center; gap:8px;
+  margin-top:14px;
+}
+.docentes-strip .chip-docente{
+  font-family:'Space Mono', monospace; font-size:11.5px;
+  color:#F2E6C8; background:rgba(251,245,228,0.1);
+  border:1px solid rgba(251,245,228,0.25);
+  padding:5px 12px; border-radius:999px; white-space:nowrap;
+}
+.docentes-strip .etiqueta{
+  width:100%; text-align:center;
+  font-family:'Space Mono', monospace; font-size:11px;
+  text-transform:uppercase; letter-spacing:.06em;
+  color:var(--gold); margin-bottom:2px;
 }
 
 section{padding:30px 0 60px;}
@@ -160,6 +180,12 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
   width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line);
   background:#fff; font-family:'Work Sans', sans-serif; font-size:14px; resize:vertical;
 }
+.form-perfil input[readonly]{
+  background:var(--parchment-deep); color:var(--ink-soft); cursor:not-allowed;
+}
+.nota-bloqueo{
+  font-size:12px; color:var(--clay-dark); margin:5px 0 0;
+}
 .form-perfil textarea{min-height:56px;}
 .btn-guardar-perfil{
   background: linear-gradient(135deg, var(--green-mid), var(--green-deep));
@@ -205,21 +231,32 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
 .estado-subida{font-size:13px; color:var(--green-mid); margin-top:10px; min-height:18px;}
 .estado-subida.error{color:var(--red);}
 
+.galeria-card{padding:20px 22px; margin-top:26px;}
+.galeria-card h2{font-size:17px; margin-bottom:4px;}
+.galeria-card p.ayuda{font-size:13px; color:var(--ink-soft); margin:0 0 16px;}
+
 .galeria{
   display:grid;
-  grid-template-columns:repeat(auto-fill, minmax(160px,1fr));
-  gap:10px;
+  grid-template-columns:repeat(2, 1fr);
+  gap:14px;
 }
 .foto{
   position:relative;
+  display:flex;
+  flex-direction:column;
   border-radius:12px;
   overflow:hidden;
-  aspect-ratio:1/1;
-  background:var(--parchment-deep);
+  background:var(--card);
+  border:1px solid var(--line);
   box-shadow:var(--shadow);
   cursor:pointer;
 }
-.foto img{width:100%; height:100%; object-fit:cover; display:block;}
+.foto .foto-img{
+  aspect-ratio:1/1;
+  overflow:hidden;
+  background:var(--parchment-deep);
+}
+.foto .foto-img img{width:100%; height:100%; object-fit:cover; display:block;}
 .foto .borrar{
   position:absolute; top:6px; right:6px;
   width:26px; height:26px; border-radius:50%;
@@ -227,13 +264,15 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
   border:none; font-size:14px; line-height:1;
   display:flex; align-items:center; justify-content:center;
   cursor:pointer;
+  z-index:2;
 }
 .foto .credito{
-  position:absolute; left:0; right:0; bottom:0;
-  background:linear-gradient(0deg, rgba(31,59,36,.75), transparent);
-  color:#FBF5E4; font-size:10.5px; padding:16px 8px 6px;
+  padding:8px 10px 9px;
+  font-size:11px;
+  color:var(--ink-soft);
+  line-height:1.4;
 }
-.foto .credito .obs{display:block; font-weight:600; margin-bottom:1px;}
+.foto .credito .obs{display:block; font-weight:600; color:var(--ink); margin-bottom:2px; font-size:12px;}
 .vacio{
   text-align:center; padding:50px 20px; color:var(--ink-soft);
   font-size:14.5px;
@@ -276,6 +315,7 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
     <span class="lvl-chip" id="chipNivel">Reinado</span>
     <h1 id="tituloReina">Cargando…</h1>
     <p class="detalle" id="detalleReina"></p>
+    <div class="docentes-strip" id="docentesStrip"></div>
   </div>
 </header>
 
@@ -322,8 +362,12 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
       <p class="estado-subida" id="estadoSubida"></p>
     </div>
 
-    <div class="galeria" id="galeria"></div>
-    <p class="vacio" id="vacioAviso" style="display:none;">Todavía no hay fotos de esta reina. ¡Pide a tu profesor(a) guía que suba la primera! 🌼</p>
+    <div class="card galeria-card">
+      <h2>🖼️ Fotos adicionales</h2>
+      <p class="ayuda">Fotos subidas por los docentes, con su observación. Se muestran las 16 más recientes.</p>
+      <div class="galeria" id="galeria"></div>
+      <p class="vacio" id="vacioAviso" style="display:none;">Todavía no hay fotos de esta reina. ¡Pide a tu profesor(a) guía que suba la primera! 🌼</p>
+    </div>
 
     <div class="card perfil-card" style="margin-top:26px;">
       <h2>👑 Conoce a la reina</h2>
@@ -337,6 +381,7 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
           <div>
             <label for="pNombreReina">Nombre de la reina</label>
             <input type="text" id="pNombreReina" maxlength="80" placeholder="Nombre completo de la candidata" required>
+            <p class="nota-bloqueo oculto" id="notaNombreBloqueado">🔒 Ya fue registrada. El nombre no se puede cambiar aquí — solo se pueden agregar fotos o completar su historia abajo.</p>
           </div>
           <div>
             <label for="pFechaNacimiento">¿Cuándo nació?</label>
