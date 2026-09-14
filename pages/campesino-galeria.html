@@ -33,6 +33,7 @@ body{
   color:var(--ink);
   font-family:'Work Sans', sans-serif;
   line-height:1.5;
+  font-size:16.5px;
 }
 .wrap{max-width:1000px;margin:0 auto;padding:0 20px;}
 h1,h2{font-family:'Fraunces', serif; margin:0; color:var(--green-deep);}
@@ -48,19 +49,19 @@ header.hero .wrap{
 .volver{
   display:inline-flex; align-items:center; gap:6px;
   color:#D9CFAE; text-decoration:none; font-family:'Space Mono', monospace;
-  font-size:12.5px; margin-bottom:16px;
+  font-size:14px; margin-bottom:16px;
   align-self:flex-start;
 }
 .volver:hover{color:var(--gold);}
 .lvl-chip{
   display:inline-block;
   font-family:'Space Mono', monospace;
-  font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase;
+  font-size:13px; letter-spacing:0.08em; text-transform:uppercase;
   color:var(--gold); border:1px solid rgba(209,154,31,.5);
   padding:4px 12px; border-radius:999px; margin-bottom:10px;
 }
 header.hero h1{color:#FBF5E4; font-size:clamp(30px,6vw,46px); text-align:center;}
-header.hero p.detalle{color:#D9CFAE; margin-top:6px; font-size:14.5px; text-align:center;}
+header.hero p.detalle{color:#D9CFAE; margin-top:6px; font-size:16px; text-align:center;}
 .portada-hero{
   width:180px; height:180px; border-radius:50%;
   object-fit:cover; border:4px solid var(--gold);
@@ -73,19 +74,29 @@ header.hero p.detalle{color:#D9CFAE; margin-top:6px; font-size:14.5px; text-alig
   margin-top:14px;
 }
 .docentes-strip .chip-docente{
-  font-family:'Space Mono', monospace; font-size:11.5px;
+  font-family:'Space Mono', monospace; font-size:13px;
   color:#F2E6C8; background:rgba(251,245,228,0.1);
   border:1px solid rgba(251,245,228,0.25);
   padding:5px 12px; border-radius:999px; white-space:nowrap;
 }
 .docentes-strip .etiqueta{
   width:100%; text-align:center;
-  font-family:'Space Mono', monospace; font-size:11px;
+  font-family:'Space Mono', monospace; font-size:12.5px;
   text-transform:uppercase; letter-spacing:.06em;
   color:var(--gold); margin-bottom:2px;
 }
 
 section{padding:30px 0 60px;}
+
+/* Zona fija: agrupa el encabezado con el nombre/foto de la reina y las
+   tarjetas de acceso/portada/subir. El encabezado queda "pegado" arriba
+   mientras se recorre esta zona, y se suelta apenas se llega a la
+   galería de fotos (no se queda pegado en el resto de la página). */
+.zona-fija{position:relative;}
+header.hero{position:sticky; top:0; z-index:60; box-shadow:0 4px 14px rgba(0,0,0,.18);}
+.seccion-acceso{padding:24px 0 0;}
+.seccion-galeria{padding:26px 0 0;}
+.seccion-resto{padding:26px 0 60px;}
 
 .card{
   background:var(--card);
@@ -97,12 +108,12 @@ section{padding:30px 0 60px;}
 .oculto{display:none !important;}
 
 .acceso-card{padding:20px 22px; margin-bottom:26px; border:1px dashed var(--clay);}
-.acceso-card h2{font-size:17px; margin-bottom:6px;}
-.acceso-card p.ayuda{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+.acceso-card h2{font-size:19px; margin-bottom:6px;}
+.acceso-card p.ayuda{font-size:15px; color:var(--ink-soft); margin:0 0 14px;}
 .fila-acceso{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
 .fila-acceso select, .fila-acceso input[type="text"]{
   padding:10px 12px; border-radius:10px; border:1px solid var(--line);
-  background:#fff; font-family:'Work Sans', sans-serif; font-size:14px;
+  background:#fff; font-family:'Work Sans', sans-serif; font-size:16px;
 }
 .fila-acceso select{flex:1 1 240px;}
 .fila-acceso input[type="text"]{flex:0 1 130px; text-transform:lowercase;}
@@ -110,20 +121,20 @@ section{padding:30px 0 60px;}
   display:inline-flex; align-items:center; gap:6px;
   background:rgba(62,107,63,0.12); color:var(--green-mid);
   border:1px solid rgba(62,107,63,0.3);
-  padding:4px 12px; border-radius:999px; font-weight:600; font-size:12.5px;
+  padding:4px 12px; border-radius:999px; font-weight:600; font-size:14px;
 }
 .badge-acceso button{
   background:none; border:none; color:var(--green-mid); text-decoration:underline;
-  font-size:12px; cursor:pointer; padding:0; margin-left:4px;
+  font-size:13.5px; cursor:pointer; padding:0; margin-left:4px;
 }
 
 .subir-card{padding:20px 22px; margin-bottom:26px;}
-.subir-card h2{font-size:17px; margin-bottom:6px;}
-.subir-card p.ayuda{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+.subir-card h2{font-size:19px; margin-bottom:6px;}
+.subir-card p.ayuda{font-size:15px; color:var(--ink-soft); margin:0 0 14px;}
 
 .portada-card{padding:20px 22px; margin-bottom:26px;}
-.portada-card h2{font-size:17px; margin-bottom:6px;}
-.portada-card p.ayuda{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+.portada-card h2{font-size:19px; margin-bottom:6px;}
+.portada-card p.ayuda{font-size:15px; color:var(--ink-soft); margin:0 0 14px;}
 .portada-actual{
   display:flex; align-items:center; gap:14px; margin-bottom:14px;
 }
@@ -138,17 +149,17 @@ section{padding:30px 0 60px;}
   font-size:26px; opacity:.6;
 }
 .fila-portada{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
-.fila-portada input[type="file"]{flex:1 1 220px; font-size:13.5px;}
+.fila-portada input[type="file"]{flex:1 1 220px; font-size:15px;}
 
 .perfil-card{padding:22px 24px; margin-bottom:26px;}
-.perfil-card h2{font-size:18px; margin-bottom:4px;}
+.perfil-card h2{font-size:20px; margin-bottom:4px;}
 .perfil-nombre{
-  font-family:'Fraunces', serif; font-weight:700; font-size:24px;
+  font-family:'Fraunces', serif; font-weight:700; font-size:26px;
   color:var(--clay-dark); margin:2px 0 14px;
 }
-.perfil-vacio{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+.perfil-vacio{font-size:15px; color:var(--ink-soft); margin:0 0 14px;}
 .perfil-parrafo{
-  font-size:15px; color:var(--ink); line-height:1.7;
+  font-size:16.5px; color:var(--ink); line-height:1.7;
   background:var(--parchment-deep); border-radius:12px; padding:14px 16px;
   margin:0 0 6px;
 }
@@ -157,44 +168,44 @@ section{padding:30px 0 60px;}
   background:var(--parchment-deep); border-radius:12px; padding:12px 14px;
 }
 .perfil-preguntas .pregunta .q{
-  font-family:'Space Mono', monospace; font-size:11.5px; text-transform:uppercase;
+  font-family:'Space Mono', monospace; font-size:13px; text-transform:uppercase;
   letter-spacing:.05em; color:var(--clay-dark); font-weight:700; margin-bottom:4px;
 }
-.perfil-preguntas .pregunta .a{font-size:14.5px; color:var(--ink);}
-.perfil-credito{font-size:12px; color:var(--ink-soft); margin-top:10px;}
+.perfil-preguntas .pregunta .a{font-size:16px; color:var(--ink);}
+.perfil-credito{font-size:13.5px; color:var(--ink-soft); margin-top:10px;}
 
 details.perfil-editar{
   margin-top:16px; border:1px dashed var(--clay); border-radius:14px; overflow:hidden;
 }
 details.perfil-editar summary{
   cursor:pointer; list-style:none; padding:12px 16px;
-  font-family:'Fraunces', serif; font-weight:600; font-size:15px; color:var(--green-deep);
+  font-family:'Fraunces', serif; font-weight:600; font-size:16.5px; color:var(--green-deep);
 }
 details.perfil-editar summary::-webkit-details-marker{display:none;}
 .form-perfil{padding:4px 16px 18px; display:grid; gap:12px;}
 .form-perfil label{
-  display:block; font-family:'Space Mono', monospace; font-size:11px; text-transform:uppercase;
+  display:block; font-family:'Space Mono', monospace; font-size:12.5px; text-transform:uppercase;
   letter-spacing:.05em; color:var(--ink-soft); margin-bottom:4px;
 }
 .form-perfil input[type="text"], .form-perfil textarea{
   width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line);
-  background:#fff; font-family:'Work Sans', sans-serif; font-size:14px; resize:vertical;
+  background:#fff; font-family:'Work Sans', sans-serif; font-size:16px; resize:vertical;
 }
 .form-perfil input[readonly]{
   background:var(--parchment-deep); color:var(--ink-soft); cursor:not-allowed;
 }
 .nota-bloqueo{
-  font-size:12px; color:var(--clay-dark); margin:5px 0 0;
+  font-size:13.5px; color:var(--clay-dark); margin:5px 0 0;
 }
 .form-perfil textarea{min-height:56px;}
 .btn-guardar-perfil{
   background: linear-gradient(135deg, var(--green-mid), var(--green-deep));
   color:#FBF5E4; border:none; border-radius:999px;
-  padding:10px 22px; font-weight:600; font-size:14px; cursor:pointer;
+  padding:10px 22px; font-weight:600; font-size:16px; cursor:pointer;
   justify-self:start;
 }
 .btn-guardar-perfil:disabled{opacity:.6; cursor:progress;}
-.estado-perfil{font-size:13px; color:var(--green-mid); min-height:18px;}
+.estado-perfil{font-size:14.5px; color:var(--green-mid); min-height:18px;}
 .estado-perfil.error{color:var(--red);}
 .fila-subir{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
 .fila-subir input[type="text"]{
@@ -204,7 +215,7 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
   border:1px solid var(--line);
   background:#fff;
   font-family:'Work Sans', sans-serif;
-  font-size:14px;
+  font-size:16px;
 }
 .fila-subir textarea{
   flex:1 1 100%;
@@ -213,27 +224,27 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
   border:1px solid var(--line);
   background:#fff;
   font-family:'Work Sans', sans-serif;
-  font-size:14px;
+  font-size:16px;
   resize:vertical;
   min-height:50px;
 }
 .fila-subir input[type="file"]{
   flex:1 1 220px;
-  font-size:13.5px;
+  font-size:15px;
 }
 .btn-subir{
   background: linear-gradient(135deg, var(--clay), var(--clay-dark));
   color:#FBF5E4; border:none; border-radius:999px;
-  padding:10px 20px; font-weight:600; font-size:14px; cursor:pointer;
+  padding:10px 20px; font-weight:600; font-size:16px; cursor:pointer;
   white-space:nowrap;
 }
 .btn-subir:disabled{opacity:.6; cursor:progress;}
-.estado-subida{font-size:13px; color:var(--green-mid); margin-top:10px; min-height:18px;}
+.estado-subida{font-size:14.5px; color:var(--green-mid); margin-top:10px; min-height:18px;}
 .estado-subida.error{color:var(--red);}
 
 .galeria-card{padding:20px 22px; margin-top:26px;}
-.galeria-card h2{font-size:17px; margin-bottom:4px;}
-.galeria-card p.ayuda{font-size:13px; color:var(--ink-soft); margin:0 0 16px;}
+.galeria-card h2{font-size:19px; margin-bottom:4px;}
+.galeria-card p.ayuda{font-size:15px; color:var(--ink-soft); margin:0 0 16px;}
 
 .galeria{
   display:grid;
@@ -261,27 +272,27 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
   position:absolute; top:6px; right:6px;
   width:26px; height:26px; border-radius:50%;
   background:rgba(194,59,34,0.9); color:#fff;
-  border:none; font-size:14px; line-height:1;
+  border:none; font-size:16px; line-height:1;
   display:flex; align-items:center; justify-content:center;
   cursor:pointer;
   z-index:2;
 }
 .foto .credito{
   padding:8px 10px 9px;
-  font-size:11px;
+  font-size:13px;
   color:var(--ink-soft);
   line-height:1.4;
 }
-.foto .credito .obs{display:block; font-weight:600; color:var(--ink); margin-bottom:2px; font-size:12px;}
+.foto .credito .obs{display:block; font-weight:600; color:var(--ink); margin-bottom:2px; font-size:14px;}
 .vacio{
   text-align:center; padding:50px 20px; color:var(--ink-soft);
-  font-size:14.5px;
+  font-size:16px;
 }
 
 .admin-strip{
   margin-top:22px; display:flex; align-items:center; justify-content:space-between;
   gap:10px; flex-wrap:wrap;
-  font-size:12.5px; color:var(--ink-soft);
+  font-size:14px; color:var(--ink-soft);
 }
 .admin-strip a{color:var(--clay-dark); text-decoration:none; font-weight:600;}
 .admin-strip a:hover{text-decoration:underline;}
@@ -308,6 +319,7 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
 </head>
 <body>
 
+<div class="zona-fija">
 <header class="hero">
   <div class="wrap">
     <a class="volver" href="campesino-reinas.html">&larr; Todas las reinas</a>
@@ -319,7 +331,7 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
   </div>
 </header>
 
-<section>
+<section class="seccion-acceso">
   <div class="wrap">
 
     <div class="card acceso-card" id="accesoCard">
@@ -341,7 +353,7 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
       <div class="portada-actual">
         <img id="portadaActualImg" class="oculto" src="" alt="Foto de portada actual">
         <span id="portadaActualVacio" class="sin-portada">👑</span>
-        <span id="portadaActualTexto" style="font-size:13px; color:var(--ink-soft);">Todavía no hay foto de portada.</span>
+        <span id="portadaActualTexto" style="font-size:15px; color:var(--ink-soft);">Todavía no hay foto de portada.</span>
       </div>
       <form id="formPortada" class="fila-portada">
         <input type="file" id="archivoPortada" accept="image/*" required>
@@ -362,12 +374,25 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
       <p class="estado-subida" id="estadoSubida"></p>
     </div>
 
+  </div>
+</section>
+</div><!-- /zona-fija -->
+
+<section class="seccion-galeria">
+  <div class="wrap">
+
     <div class="card galeria-card">
       <h2>🖼️ Fotos adicionales</h2>
       <p class="ayuda">Fotos subidas por los docentes, con su observación. Se muestran las 16 más recientes.</p>
       <div class="galeria" id="galeria"></div>
       <p class="vacio" id="vacioAviso" style="display:none;">Todavía no hay fotos de esta reina. ¡Pide a tu profesor(a) guía que suba la primera! 🌼</p>
     </div>
+
+  </div>
+</section>
+
+<section class="seccion-resto">
+  <div class="wrap">
 
     <div class="card perfil-card" style="margin-top:26px;">
       <h2>👑 Conoce a la reina</h2>
