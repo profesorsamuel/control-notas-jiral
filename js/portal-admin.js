@@ -250,11 +250,17 @@ async function crearClase(nombreClase, fechaInicio, fechaFin, msgEl) {
   }
 
   try {
-    const claveSeleccion = claveDeSalones(salones);
-    const gruposMismaCombinacion = (window.__gruposAdmin || [])
-      .filter((g) => g.materia === materia && claveDeSalones(g.filas.map((f) => f.grado)) === claveSeleccion);
-    const siguienteNumero = gruposMismaCombinacion.length
-      ? Math.max(...gruposMismaCombinacion.map((g) => g.numero || 0)) + 1
+    // Antes esto comparaba la combinación EXACTA de salones, así que si
+    // una "Clase 1" se creaba para 9A+9B+9C y luego otra solo para 9A,
+    // el contador arrancaba de nuevo en 1 y un mismo salón terminaba
+    // viendo dos clases con el mismo número. Ahora se compara si
+    // COMPARTEN al menos un salón, para que el número nunca se repita
+    // en la vista de un mismo salón.
+    const comparteSalon = (gradosA, gradosB) => gradosA.some((g) => gradosB.includes(g));
+    const gruposQueComparten = (window.__gruposAdmin || [])
+      .filter((g) => g.materia === materia && comparteSalon(g.filas.map((f) => f.grado), salones));
+    const siguienteNumero = gruposQueComparten.length
+      ? Math.max(...gruposQueComparten.map((g) => g.numero || 0)) + 1
       : 1;
 
     const grupoId = generarId();
