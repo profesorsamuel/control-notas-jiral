@@ -621,71 +621,10 @@ async function renderPanelClase(grupoKey) {
         }).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay lecciones en esta clase.</p>'}
       </div>
 
-      <hr class="seccion-divisoria">
-
-      <div class="bloque-tareas">
-        <div class="bloque-tareas-titulo">
-          <span class="bloque-tareas-badge">🛠️ Administrador</span>
-          <div>
-            <h4>📚 Tareas de esta clase</h4>
-            <p style="font-size:11px; color:var(--muted); margin:2px 0 0;">Se publican a la vez en: ${gradosTexto}</p>
-          </div>
-        </div>
-
-        <p style="font-size:12px; color:var(--ink); font-weight:600; margin:0 0 6px;">📎 Explicación general de las tareas (opcional)</p>
-        <p style="font-size:11px; color:var(--muted); margin:-2px 0 10px;">Un solo archivo o enlace con las instrucciones de todas las tareas de esta clase.</p>
-        <div class="explicacion-tareas" data-explicacion="${grupoKey}">
-          ${grupo.archivo_url ? `
-            <div class="item-mini">
-              <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                ${grupo.archivo_nombre ? escapeHtml(grupo.archivo_nombre) : (grupo.tipo === 'enlace' ? 'Enlace' : 'Archivo')}
-                ${botonVerAdjunto(grupo.archivo_url, grupo.tipo === 'enlace', grupo.archivo_nombre)}
-              </span>
-              <button type="button" class="btn-borrar btn-quitar-explicacion" data-grupo="${grupoKey}">Quitar</button>
-            </div>
-          ` : `
-            <form class="sub-form" data-form-explicacion="${grupoKey}">
-              <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp">
-              <input type="url" name="enlace" placeholder="O pega un enlace">
-              <button type="submit">Adjuntar explicación</button>
-              <p class="sub-form-msg"></p>
-            </form>
-          `}
-        </div>
-
-        <hr class="seccion-divisoria">
-
-        <p style="font-size:12px; color:var(--ink); font-weight:600; margin:0 0 8px;">✏️ Agregar tarea individual (Tarea 1, Tarea 2...)</p>
-        <form class="sub-form form-tarea-nueva" data-form-tarea-clase="${grupoKey}">
-          <input type="text" name="titulo" placeholder="Título de la tarea" required style="flex-basis:100%;">
-          <textarea name="descripcion" rows="2" placeholder="Descripción / instrucciones (opcional)"></textarea>
-          <input type="date" name="entrega" title="Fecha de entrega (opcional)">
-          <input type="file" name="archivo">
-          <input type="url" name="enlace" placeholder="O pega un enlace">
-          <button type="submit">+ Agregar tarea</button>
-          <p class="sub-form-msg"></p>
-        </form>
-        <div class="sub-lista">
-          ${tareasAgrupadas.length ? tareasAgrupadas.map((g) => {
-            const t = g.muestra;
-            return `
-            <div class="item-mini item-mini-tarea" data-key="${g.key}">
-              <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <span class="item-mini-tarea-icono">📌</span>
-                ${escapeHtml(t.titulo)} ${t.fecha_entrega ? `<span class="item-mini-meta">· entrega ${formatearFechaCorta(t.fecha_entrega)}</span>` : ''}
-                ${botonVerAdjunto(t.archivo_url, !t.archivo_nombre && !!t.archivo_url, t.archivo_nombre)}
-              </span>
-              <button class="btn-borrar btn-borrar-tarea-clase" data-key="${g.key}" data-grupo="${grupoKey}">Borrar</button>
-            </div>
-          `;
-          }).join('') : '<p class="estado-vacio" style="padding:8px 0;">Aún no hay tareas en esta clase.</p>'}
-        </div>
-      </div>
     </div>
   `;
 
   panelClaseSeleccionada.querySelector(`[data-form-leccion="${grupoKey}"]`).addEventListener('submit', (e) => manejarNuevaLeccion(e, grupoKey));
-  panelClaseSeleccionada.querySelector(`[data-form-tarea-clase="${grupoKey}"]`).addEventListener('submit', (e) => manejarNuevaTareaDeClase(e, grupoKey));
 
   // Botón "✎ Editar" de la clase: muestra/oculta el formulario para
   // corregir número, nombre y fechas.
