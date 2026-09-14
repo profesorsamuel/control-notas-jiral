@@ -233,28 +233,22 @@ async function cargarListaClases(materia, grado) {
   }
 
   const idsClases = listaClasesData.map(c => c.id);
-  const [{ data: leccionesData }, { data: tareasData }] = await Promise.all([
-    idsClases.length ? sb.from('lecciones').select('id, clase_id').in('clase_id', idsClases) : Promise.resolve({ data: [] }),
-    sb.from('tareas').select('id, clase_id, clase_numero').eq('materia', materia).eq('grado', grado),
-  ]);
+  const { data: leccionesData } = idsClases.length
+    ? await sb.from('lecciones').select('id, clase_id').in('clase_id', idsClases)
+    : { data: [] };
 
   const contarLecciones = (claseId) => (leccionesData || []).filter(l => l.clase_id === claseId).length;
-  // Igual que en cargarTareas(): solo por clase_id, sin "plan B" por
-  // número — si no, las tareas huérfanas (de una clase ya borrada)
-  // se cuentan de más en la tarjeta que reutilice ese mismo número.
-  const contarTareas = (c) => (tareasData || []).filter(t => t.clase_id === c.id).length;
 
   const accent = ACCENTOS[materia] || 'var(--ciencias)';
 
   const tarjetasClases = listaClasesData.map(c => {
     const nLecciones = contarLecciones(c.id);
-    const nTareas = contarTareas(c);
     return `
       <button type="button" class="clase-card" style="--accent:${accent}" data-clase-id="${c.id}">
         <span class="clase-card-num">Clase ${c.numero}</span>
         <p class="clase-card-nombre">${c.nombre ? escapeHtml(c.nombre) : `Clase ${c.numero}`}</p>
         ${(c.fecha_inicio || c.fecha_fin) ? `<p class="clase-card-fechas">${formatearFecha(c.fecha_inicio) || '?'} — ${formatearFecha(c.fecha_fin) || '?'}</p>` : ''}
-        <p class="clase-card-conteo">${nLecciones ? `${nLecciones} lección${nLecciones === 1 ? '' : 'es'}` : 'sin lecciones'} · ${nTareas ? `${nTareas} tarea${nTareas === 1 ? '' : 's'}` : 'sin tareas'}</p>
+        <p class="clase-card-conteo">${nLecciones ? `${nLecciones} lección${nLecciones === 1 ? '' : 'es'}` : 'sin lecciones'}</p>
       </button>
     `;
   }).join('');
@@ -277,7 +271,7 @@ async function cargarListaClases(materia, grado) {
   });
 }
 
-// ---------- Paso 3: detalle de una clase (lecciones + tareas) ----------
+// ---------- Paso 3: detalle de una clase (solo lecciones; las tareas están desactivadas) ----------
 async function abrirDetalleClase(materia, grado, clase) {
   claseActual = clase;
   mostrarDetalleClase();
@@ -287,7 +281,15 @@ async function abrirDetalleClase(materia, grado, clase) {
   const tituloTareas = document.getElementById('titulo-tareas');
   const accent = ACCENTOS[materia] || 'var(--ciencias)';
 
-  // Examen final: solo el archivo/enlace, sin lecciones ni tareas.
+  // La sección de "Tareas" (título, separador, inicio de sesión y lista)
+  // está desactivada en todo el portal: siempre queda oculta y vacía.
+  if (separadorTareas) separadorTareas.style.display = 'none';
+  if (tituloTareas) tituloTareas.style.display = 'none';
+  const selectorEstudianteEl = document.getElementById('selector-estudiante');
+  if (selectorEstudianteEl) selectorEstudianteEl.innerHTML = '';
+  listaTareas.innerHTML = '';
+
+  // Examen final: solo el archivo/enlace, sin lecciones.
   if (clase.es_examen_final) {
     contenedor.innerHTML = `
       <article class="tarea-item" style="--accent:var(--coral); border-color:var(--coral);">
@@ -295,16 +297,10 @@ async function abrirDetalleClase(materia, grado, clase) {
         ${clase.archivo_url ? `<a class="btn-descargar" href="${clase.archivo_url}" target="_blank" rel="noopener">${clase.tipo === 'archivo' ? '↓ Descargar examen' : '↗ Abrir enlace'}</a>` : ''}
       </article>
     `;
-    if (separadorTareas) separadorTareas.style.display = 'none';
-    if (tituloTareas) tituloTareas.style.display = 'none';
-    document.getElementById('selector-estudiante').innerHTML = '';
-    listaTareas.innerHTML = '';
     return;
   }
 
   contenedor.innerHTML = '<p class="estado-cargando">Cargando…</p>';
-  if (separadorTareas) separadorTareas.style.display = '';
-  if (tituloTareas) tituloTareas.style.display = '';
 
   const { data: lecciones, error: errLecciones } = await sb
     .from('lecciones').select('*').eq('clase_id', clase.id).order('creado_en', { ascending: true });
@@ -335,26 +331,10 @@ async function abrirDetalleClase(materia, grado, clase) {
       </article>
     ` : ''}
   `;
-
-  await renderIdentidadWidget(materia, grado);
-  await cargarTareas(materia, grado);
 }
 
-async function cargarConteos() {
-  const { data, error } = await sb.from('tareas').select('materia, grado, clase_id');
-  if (error) { console.error(error); return; }
-  // Solo cuenta tareas vinculadas de verdad a una clase (clase_id no
-  // vacío) — las huérfanas (de una clase ya borrada) no deben sumar
-  // aquí, igual que ya no suman en las tarjetas de "Clase N".
-  const dataValida = data.filter(t => t.clase_id != null);
-  document.querySelectorAll('.folder-card').forEach(card => {
-    const materia = card.dataset.materia;
-    const grado = card.dataset.grado;
-    const total = dataValida.filter(t => t.materia === materia && t.grado === grado).length;
-    const el = card.querySelector('[data-conteo]');
-    el.textContent = total === 0 ? 'sin tareas' : (total === 1 ? '1 tarea' : `${total} tareas`);
-  });
-}
+// (La función que contaba tareas para las tarjetas de materia se quitó:
+// esta escuela no usa tareas en el portal.)
 
 // ---------- Abrir una materia+grado (paso 1 → paso 2) ----------
 async function abrirClase(materia, grado) {
@@ -882,8 +862,6 @@ btnVolver.addEventListener('click', () => {
 btnVolverClase.addEventListener('click', () => {
   mostrarListaClases();
 });
-
-cargarConteos();
 
 // ---------- Enlaces directos por URL ----------
 // Para compartir un link que abra directo en un salón (y opcionalmente
