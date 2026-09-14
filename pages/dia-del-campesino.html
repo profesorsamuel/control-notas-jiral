@@ -168,6 +168,34 @@ header.hero::before{
   .big-date{padding:14px 18px; gap:6px;}
 }
 
+.btn-galeria-reinas{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-top:18px;
+  background: linear-gradient(135deg, var(--gold), #b9800f);
+  color: var(--green-deep);
+  font-weight:700;
+  font-size:14.5px;
+  text-decoration:none;
+  padding:12px 22px;
+  border-radius:999px;
+  box-shadow:0 10px 22px rgba(0,0,0,0.28);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.btn-galeria-reinas:hover{
+  transform:translateY(-2px);
+  box-shadow:0 14px 28px rgba(0,0,0,0.35);
+  color: var(--green-deep);
+}
+.btn-galeria-reinas .flecha{font-weight:400;}
+.galeria-reinas-sub{
+  max-width:560px;
+  font-size:13px;
+  color:#D9CFAE;
+  margin:8px 0 0;
+}
+
 /* ---------- NAV ---------- */
 nav.tabs{
   position:sticky; top:0; z-index:50;
@@ -614,6 +642,9 @@ footer .school{
       <div class="pill"><span class="k">Montaje de ranchos</span><span class="v">Jueves previo, 3:00 p.m.</span></div>
       <div class="pill"><span class="k">Clausura</span><span class="v">2:00 p.m. con fuegos artificiales*</span></div>
     </div>
+    <br>
+    <a href="campesino-reinas.html" class="btn-galeria-reinas">📷 Ver galería de fotos de las reinas <span class="flecha">→</span></a>
+    <p class="galeria-reinas-sub">Cada una de las 19 reinas (10 de Primaria + 9 de Premedia) tiene su propia página de fotos, desde el inicio hasta el final del reinado.</p>
   </div>
 </header>
 
@@ -636,14 +667,6 @@ footer .school{
       <span class="num">01 · Reinado</span>
       <h2>Topones de Reinas</h2>
       <p>Durante los recreos se enfrentarán dos provincias por día. La presentación oficial de provincias y reinas será el lunes 14 de septiembre.</p>
-    </div>
-
-    <div class="info-strip" style="margin-top:0;">
-      <div class="card" style="grid-column:1/-1;">
-        <h4>📷 Galería de fotos de cada reina</h4>
-        <p>Cada una de las 19 reinas (10 de Primaria + 9 de Premedia) tiene su propia página de fotos, desde el inicio hasta el final del reinado. Cualquiera puede subir fotos, sin necesidad de iniciar sesión.
-        <br><a href="campesino-reinas.html" style="font-weight:600;">Ver todas las galerías →</a></p>
-      </div>
     </div>
 
     <div class="topones">
