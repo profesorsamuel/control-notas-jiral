@@ -576,6 +576,52 @@ section.alt{background:var(--parchment-deep);}
   box-shadow:0 0 0 2px rgba(209,154,31,0.15);
 }
 .color-input:not(:disabled):focus{outline:none; border-color:var(--clay);}
+.subtabs{
+  display:flex;
+  gap:8px;
+  margin:20px 0 14px;
+}
+.subtab-btn{
+  font-family:'Space Mono', monospace;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:0.03em;
+  padding:9px 18px;
+  border:1px solid var(--gold);
+  border-radius:999px;
+  background:transparent;
+  color:var(--ink);
+  cursor:pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.subtab-btn .subtab-count{
+  font-weight:400;
+  opacity:.65;
+}
+.subtab-btn.active{
+  background:var(--gold);
+  color:#fff;
+}
+.subtab-panel{ margin-bottom:8px; }
+.num-cell{
+  font-family:'Space Mono', monospace;
+  font-size:13px;
+  color:var(--ink-soft);
+  width:36px;
+}
+.materia-sub{
+  display:block;
+  font-size:12px;
+  color:var(--ink-soft);
+  font-style:italic;
+  margin-top:2px;
+}
+.materia-badge{
+  display:inline-block;
+  font-size:12.5px;
+  color:var(--clay);
+  font-weight:600;
+}
 .platos-estado{
   font-family:'Space Mono', monospace;
   font-size:11.5px;
@@ -999,155 +1045,398 @@ footer .school{
       <div id="platos-estado" class="platos-estado"></div>
     </div>
 
-    <table class="rtable" id="tabla-platos">
-      <thead>
-        <tr><th>Salón</th><th>Docente</th><th>Apoyo de Premedia</th><th>Plato de comida / Actividad</th><th>Color a traer</th></tr>
-      </thead>
-      <tbody>
+    <div class="subtabs" role="tablist" aria-label="Nivel">
+      <button type="button" class="subtab-btn active" data-target="platos-primaria" role="tab" aria-selected="true">Primaria <span class="subtab-count">(33)</span></button>
+      <button type="button" class="subtab-btn" data-target="platos-premedia" role="tab" aria-selected="false">Premedia <span class="subtab-count">(17)</span></button>
+    </div>
+
+    <div id="platos-primaria" class="subtab-panel">
+      <table class="rtable" id="tabla-platos-primaria">
+        <thead>
+          <tr><th>N°</th><th>Salón</th><th>Docente</th><th>Plato de comida / Actividad</th><th>Color a traer</th></tr>
+        </thead>
+        <tbody>
         <tr>
-          <td data-label="Salón">Prejardín A</td><td data-label="Docente">Lesbia Muñoz</td>
-          <td data-label="Apoyo de Premedia" rowspan="2">VII-A · Leticia de Palacios</td>
+          <td class="num-cell" data-label="N°">1</td>
+          <td data-label="Salón">Prejardín A</td>
+          <td data-label="Docente">Lesbia Muñoz</td>
           <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Prejardín A" type="text" disabled placeholder="Pronto se asignará"></td>
           <td data-label="Color a traer"><input class="color-input" data-salon="Prejardín A" type="text" disabled placeholder="Pronto se asignará"></td>
         </tr>
         <tr>
-          <td data-label="Salón">V-B</td><td data-label="Docente">Yessenia Clark</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="V-B" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="V-B" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">Prejardín B</td><td data-label="Docente">Milvia Ortega</td>
-          <td data-label="Apoyo de Premedia" rowspan="2">VII-B · Erika Pimentel</td>
+          <td class="num-cell" data-label="N°">2</td>
+          <td data-label="Salón">Prejardín B</td>
+          <td data-label="Docente">Milvia Ortega</td>
           <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Prejardín B" type="text" disabled placeholder="Pronto se asignará"></td>
           <td data-label="Color a traer"><input class="color-input" data-salon="Prejardín B" type="text" disabled placeholder="Pronto se asignará"></td>
         </tr>
         <tr>
-          <td data-label="Salón">V-A</td><td data-label="Docente">Geraldine Magallón</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="V-A" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="V-A" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">Jardín A</td><td data-label="Docente">Albertina Ortiz</td>
-          <td data-label="Apoyo de Premedia" rowspan="2">VII-C · Ronald González</td>
+          <td class="num-cell" data-label="N°">3</td>
+          <td data-label="Salón">Jardín A</td>
+          <td data-label="Docente">Albertina Ortiz</td>
           <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Jardín A" type="text" disabled placeholder="Pronto se asignará"></td>
           <td data-label="Color a traer"><input class="color-input" data-salon="Jardín A" type="text" disabled placeholder="Pronto se asignará"></td>
         </tr>
         <tr>
-          <td data-label="Salón">IV-C</td><td data-label="Docente">Anabelis Gallardo</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IV-C" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="IV-C" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">Jardín C</td><td data-label="Docente">Tilsa Garibaldi</td>
-          <td data-label="Apoyo de Premedia" rowspan="2">VIII-A · Juana Brown</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Jardín C" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="Jardín C" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">I-A</td><td data-label="Docente">Heidi De León</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="I-A" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="I-A" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">I-B</td><td data-label="Docente">Zulma Becerra</td>
-          <td data-label="Apoyo de Premedia" rowspan="2">VIII-B · Leonela Rivera</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="I-B" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="I-B" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">V-C</td><td data-label="Docente">Elaisa Jaramillo</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="V-C" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="V-C" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">I-C</td><td data-label="Docente">Ananías Benítes</td>
-          <td data-label="Apoyo de Premedia" rowspan="2">VIII-C · Nairobys Sáenz</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="I-C" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="I-C" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">VI-A</td><td data-label="Docente">Viodelka Goitía</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VI-A" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="VI-A" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">II-A</td><td data-label="Docente">Telma Grenald</td>
-          <td data-label="Apoyo de Premedia" rowspan="2">IX-A · Miriam Valencia</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="II-A" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="II-A" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">II-B</td><td data-label="Docente">Ana Grenard</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="II-B" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="II-B" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">III-B</td><td data-label="Docente">Jenifer Dean</td>
-          <td data-label="Apoyo de Premedia" rowspan="2">IX-B · Wendy Harren</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="III-B" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="III-B" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">III-C</td><td data-label="Docente">Telma Escobar</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="III-C" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="III-C" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">IV-A</td><td data-label="Docente">Angélica Jiménez</td>
-          <td data-label="Apoyo de Premedia" rowspan="2">IX-C · Samuel Ortega</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IV-A" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="IV-A" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">IV-B</td><td data-label="Docente">Rosa Perea</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IV-B" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="IV-B" type="text" disabled placeholder="Pronto se asignará"></td>
-        </tr>
-        <tr>
-          <td data-label="Salón">Jardín B</td><td data-label="Docente">Ángela Hall</td>
-          <td data-label="Apoyo de Premedia" rowspan="2">VII-A (compartido) · Leticia de Palacios</td>
+          <td class="num-cell" data-label="N°">4</td>
+          <td data-label="Salón">Jardín B</td>
+          <td data-label="Docente">Ángela Hall</td>
           <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Jardín B" type="text" disabled placeholder="Pronto se asignará"></td>
           <td data-label="Color a traer"><input class="color-input" data-salon="Jardín B" type="text" disabled placeholder="Pronto se asignará"></td>
         </tr>
         <tr>
-          <td data-label="Salón">VI-B</td><td data-label="Docente">Alejandrina Salazar</td>
-          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VI-B" type="text" disabled placeholder="Pronto se asignará"></td>
-          <td data-label="Color a traer"><input class="color-input" data-salon="VI-B" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td class="num-cell" data-label="N°">5</td>
+          <td data-label="Salón">Jardín C</td>
+          <td data-label="Docente">Tilsa Garibaldi</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Jardín C" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Jardín C" type="text" disabled placeholder="Pronto se asignará"></td>
         </tr>
         <tr>
-          <td data-label="Salón">II-C</td><td data-label="Docente">Carmen Gaitán</td>
-          <td data-label="Apoyo de Premedia" rowspan="2">VIII-A (compartido) · Juana Brown</td>
+          <td class="num-cell" data-label="N°">6</td>
+          <td data-label="Salón">I-A</td>
+          <td data-label="Docente">Heidi De León</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="I-A" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="I-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">7</td>
+          <td data-label="Salón">I-B</td>
+          <td data-label="Docente">Zulma Becerra</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="I-B" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="I-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">8</td>
+          <td data-label="Salón">I-C</td>
+          <td data-label="Docente">Ananías Benítes</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="I-C" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="I-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">9</td>
+          <td data-label="Salón">II-A</td>
+          <td data-label="Docente">Telma Grenald</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="II-A" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="II-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">10</td>
+          <td data-label="Salón">II-B</td>
+          <td data-label="Docente">Ana Grenard</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="II-B" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="II-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">11</td>
+          <td data-label="Salón">II-C</td>
+          <td data-label="Docente">Carmen Gaitán</td>
           <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="II-C" type="text" disabled placeholder="Pronto se asignará"></td>
           <td data-label="Color a traer"><input class="color-input" data-salon="II-C" type="text" disabled placeholder="Pronto se asignará"></td>
         </tr>
         <tr>
-          <td data-label="Salón">III-A</td><td data-label="Docente">Betzaida Rodríguez</td>
+          <td class="num-cell" data-label="N°">12</td>
+          <td data-label="Salón">III-A</td>
+          <td data-label="Docente">Betzaida Rodríguez</td>
           <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="III-A" type="text" disabled placeholder="Pronto se asignará"></td>
           <td data-label="Color a traer"><input class="color-input" data-salon="III-A" type="text" disabled placeholder="Pronto se asignará"></td>
         </tr>
-      </tbody>
-    </table>
-
-    <div class="section-head" style="margin-top:36px;">
-      <span class="num">Docentes de Premedia guía por materia</span>
-      <h2 style="font-size:20px;">Salones VII, VIII y IX — Docente que acompaña cada rancho de apoyo</h2>
+        <tr>
+          <td class="num-cell" data-label="N°">13</td>
+          <td data-label="Salón">III-B</td>
+          <td data-label="Docente">Jenifer Dean</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="III-B" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="III-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">14</td>
+          <td data-label="Salón">III-C</td>
+          <td data-label="Docente">Telma Escobar</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="III-C" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="III-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">15</td>
+          <td data-label="Salón">IV-A</td>
+          <td data-label="Docente">Angélica Jiménez</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IV-A" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="IV-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">16</td>
+          <td data-label="Salón">IV-B</td>
+          <td data-label="Docente">Rosa Perea</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IV-B" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="IV-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">17</td>
+          <td data-label="Salón">IV-C</td>
+          <td data-label="Docente">Anabelis Gallardo</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IV-C" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="IV-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">18</td>
+          <td data-label="Salón">V-A</td>
+          <td data-label="Docente">Geraldine Magallón</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="V-A" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="V-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">19</td>
+          <td data-label="Salón">V-B</td>
+          <td data-label="Docente">Yessenia Clark</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="V-B" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="V-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">20</td>
+          <td data-label="Salón">V-C</td>
+          <td data-label="Docente">Elaisa Jaramillo</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="V-C" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="V-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">21</td>
+          <td data-label="Salón">VI-A</td>
+          <td data-label="Docente">Viodelka Goitía</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VI-A" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="VI-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">22</td>
+          <td data-label="Salón">VI-B</td>
+          <td data-label="Docente">Alejandrina Salazar</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VI-B" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="VI-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">23</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Educación Física</span></td>
+          <td data-label="Docente">Beto Correa</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Beto Correa" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Beto Correa" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">24</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Educación Física</span></td>
+          <td data-label="Docente">Isaura Góndolo</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Isaura Góndolo" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Isaura Góndolo" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">25</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Familia y Desarrollo</span></td>
+          <td data-label="Docente">Berta Barreno</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Berta Barreno" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Berta Barreno" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">26</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Inglés</span></td>
+          <td data-label="Docente">Patricia Reyes</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Patricia Reyes" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Patricia Reyes" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">27</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Inglés</span></td>
+          <td data-label="Docente">Arline Henry</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Arline Henry" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Arline Henry" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">28</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Inglés</span></td>
+          <td data-label="Docente">Danisue Valdés</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Danisue Valdés" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Danisue Valdés" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">29</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Inglés</span></td>
+          <td data-label="Docente">Yitzuri Vargas</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Yitzuri Vargas" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Yitzuri Vargas" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">30</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Inglés</span></td>
+          <td data-label="Docente">Laura Rodríguez</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Laura Rodríguez" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Laura Rodríguez" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">31</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Educación Especial</span></td>
+          <td data-label="Docente">Claribel Camargo</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Claribel Camargo" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Claribel Camargo" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">32</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Educación Especial</span></td>
+          <td data-label="Docente">Magalis Rodríguez</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Magalis Rodríguez" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Magalis Rodríguez" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">33</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Informática</span></td>
+          <td data-label="Docente">Doris Andrión</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Doris Andrión" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Doris Andrión" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        </tbody>
+      </table>
     </div>
-    <table class="rtable">
-      <thead>
-        <tr><th>Salón</th><th>Docente</th><th>Materia</th></tr>
-      </thead>
-      <tbody>
-        <tr><td class="prov" data-label="Salón">VII-A</td><td data-label="Docente">Leticia de Palacios</td><td data-label="Materia">Español</td></tr>
-        <tr><td class="prov" data-label="Salón">VII-B</td><td data-label="Docente">Erika Pimentel</td><td data-label="Materia">Familia y Desarrollo</td></tr>
-        <tr><td class="prov" data-label="Salón">VII-C</td><td data-label="Docente">Ronald González</td><td data-label="Materia">Teacher / Música</td></tr>
-        <tr><td class="prov" data-label="Salón">VIII-A</td><td data-label="Docente">Juana Brown</td><td data-label="Materia">Matemática</td></tr>
-        <tr><td class="prov" data-label="Salón">VIII-B</td><td data-label="Docente">Leonela Rivera</td><td data-label="Materia">Matemática</td></tr>
-        <tr><td class="prov" data-label="Salón">VIII-C</td><td data-label="Docente">Nairobys Sáenz</td><td data-label="Materia">Ciencias Naturales</td></tr>
-        <tr><td class="prov" data-label="Salón">IX-A</td><td data-label="Docente">Miriam Valencia</td><td data-label="Materia">Expresión Artística</td></tr>
-        <tr><td class="prov" data-label="Salón">IX-B</td><td data-label="Docente">Wendy Harren</td><td data-label="Materia">Inglés</td></tr>
-        <tr><td class="prov" data-label="Salón">IX-C</td><td data-label="Docente">Samuel Ortega</td><td data-label="Materia">Ciencias Naturales</td></tr>
-      </tbody>
-    </table>
+
+    <div id="platos-premedia" class="subtab-panel" style="display:none;">
+      <table class="rtable" id="tabla-platos-premedia">
+        <thead>
+          <tr><th>N°</th><th>Salón</th><th>Docente</th><th>Plato de comida / Actividad</th><th>Color a traer</th></tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td class="num-cell" data-label="N°">1</td>
+          <td data-label="Salón">VII-A</td>
+          <td data-label="Docente">Leticia de Palacios<span class="materia-sub">Español</span></td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VII-A" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="VII-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">2</td>
+          <td data-label="Salón">VII-B</td>
+          <td data-label="Docente">Erika Pimentel<span class="materia-sub">Familia y Desarrollo</span></td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VII-B" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="VII-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">3</td>
+          <td data-label="Salón">VII-C</td>
+          <td data-label="Docente">Ronald González<span class="materia-sub">Teacher / Música</span></td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VII-C" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="VII-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">4</td>
+          <td data-label="Salón">VIII-A</td>
+          <td data-label="Docente">Juana Brown<span class="materia-sub">Matemática</span></td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VIII-A" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="VIII-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">5</td>
+          <td data-label="Salón">VIII-B</td>
+          <td data-label="Docente">Leonela Rivera<span class="materia-sub">Matemática</span></td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VIII-B" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="VIII-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">6</td>
+          <td data-label="Salón">VIII-C</td>
+          <td data-label="Docente">Nairobys Sáenz<span class="materia-sub">Ciencias Naturales</span></td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VIII-C" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="VIII-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">7</td>
+          <td data-label="Salón">IX-A</td>
+          <td data-label="Docente">Miriam Valencia<span class="materia-sub">Expresión Artística</span></td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IX-A" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="IX-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">8</td>
+          <td data-label="Salón">IX-B</td>
+          <td data-label="Docente">Wendy Harren<span class="materia-sub">Inglés</span></td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IX-B" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="IX-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">9</td>
+          <td data-label="Salón">IX-C</td>
+          <td data-label="Docente">Samuel Ortega<span class="materia-sub">Ciencias Naturales</span></td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IX-C" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="IX-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">10</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Agropecuaria</span></td>
+          <td data-label="Docente">Alexis Del Mar</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Alexis Del Mar" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Alexis Del Mar" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">11</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Orientación</span></td>
+          <td data-label="Docente">Nitzi Williams</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Nitzi Williams" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Nitzi Williams" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">12</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Español</span></td>
+          <td data-label="Docente">Yadira de Gracia</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Yadira de Gracia" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Yadira de Gracia" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">13</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Religión–Música</span></td>
+          <td data-label="Docente">Encelma Álvarez</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Encelma Álvarez" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Encelma Álvarez" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">14</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Geografía</span></td>
+          <td data-label="Docente">Faustina Rodríguez</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Faustina Rodríguez" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Faustina Rodríguez" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">15</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Educación Física</span></td>
+          <td data-label="Docente">Gillian Barría</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Gillian Barría" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Gillian Barría" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">16</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Educación Especial</span></td>
+          <td data-label="Docente">Yetzagelis Batista</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Yetzagelis Batista" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Yetzagelis Batista" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td class="num-cell" data-label="N°">17</td>
+          <td data-label="Salón / Materia"><span class="materia-badge">Inglés–Religión</span></td>
+          <td data-label="Docente">Ayllen Nieto</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Ayllen Nieto" type="text" disabled placeholder="Pronto se asignará"></td>
+          <td data-label="Color a traer"><input class="color-input" data-salon="Ayllen Nieto" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+    (function(){
+      var btns = Array.prototype.slice.call(document.querySelectorAll('.subtab-btn'));
+      var panels = Array.prototype.slice.call(document.querySelectorAll('.subtab-panel'));
+      btns.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var target = btn.getAttribute('data-target');
+          panels.forEach(function(p){ p.style.display = (p.id === target) ? '' : 'none'; });
+          btns.forEach(function(b){
+            var active = (b === btn);
+            b.classList.toggle('active', active);
+            b.setAttribute('aria-selected', active ? 'true' : 'false');
+          });
+        });
+      });
+    })();
+    </script>
 
     <div class="section-head" style="margin-top:36px;">
       <span class="num">Docentes especialistas</span>
