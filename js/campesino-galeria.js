@@ -143,7 +143,7 @@ async function revisarSiEsAdmin() {
 
     esAdmin = !!(perfil && perfil.rol === "admin");
     estadoAdmin.innerHTML = esAdmin
-        ? `<span class="insignia-admin">🛡️ Modo administrador activo</span>`
+        ? `<span class="insignia-admin">🛡️ Modo administrador activo</span> · <a href="campesino-bitacora.html">Ver bitácora</a>`
         : `Sesión iniciada, pero esta cuenta no es de administrador.`;
 }
 
@@ -188,6 +188,25 @@ function escaparHTML(texto) {
     const div = document.createElement("div");
     div.textContent = texto;
     return div.innerHTML;
+}
+
+// =========================================================
+// Bitácora: deja constancia de quién hizo cada cambio, dónde y cuándo.
+// Solo la puede consultar el administrador (campesino-bitacora.html).
+// =========================================================
+async function registrarBitacora(accion, detalle) {
+    if (!reina || !accesoDocente) return;
+    try {
+        await supabase.from("campesino_bitacora").insert({
+            docente_nombre: accesoDocente.docente,
+            accion,
+            reina_slug: reina.slug,
+            reina_nombre: reina.nombre,
+            detalle: (detalle || "").slice(0, 200),
+        });
+    } catch (err) {
+        console.error("No se pudo registrar en la bitácora:", err);
+    }
 }
 
 // =========================================================
@@ -277,6 +296,10 @@ formSubir.addEventListener("submit", async (evento) => {
 
     btnSubir.disabled = false;
     archivosFoto.value = "";
+
+    if (subidas > 0) {
+        await registrarBitacora("foto", `Subió ${subidas} foto${subidas === 1 ? "" : "s"}${nombreSube ? ` (crédito: ${nombreSube})` : ""}`);
+    }
 
     if (subidas === archivos.length) {
         estadoSubida.textContent = `¡Listo! Se subieron ${subidas} foto${subidas === 1 ? "" : "s"}. 🌼`;
@@ -415,7 +438,8 @@ formPerfil.addEventListener("submit", async (evento) => {
     };
 
     // Un solo perfil por reina: si ya existe, se actualiza; si no, se crea.
-    const { error } = perfilActual
+    const yaExistia = !!perfilActual;
+    const { error } = yaExistia
         ? await supabase.from("campesino_perfiles_reinas").update(filaPerfil).eq("reina_slug", reina.slug)
         : await supabase.from("campesino_perfiles_reinas").insert(filaPerfil);
 
@@ -426,6 +450,8 @@ formPerfil.addEventListener("submit", async (evento) => {
         estadoPerfil.classList.add("error");
         return;
     }
+
+    await registrarBitacora(yaExistia ? "perfil_editado" : "perfil_creado", `Nombre de la reina: ${nombre}`);
 
     estadoPerfil.textContent = "¡Perfil guardado! 🌼";
     await cargarPerfil();
