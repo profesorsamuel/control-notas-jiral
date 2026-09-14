@@ -1,25 +1,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
 
 :root {
-  --paper: #f5f7ff;
+  --paper: #f2f4ff;
   --ink: #16182b;
   --ink-soft: #565b7a;
-  --ciencias: #16a34a;
-  --ciencias-light: #d9f7e2;
-  --ciencias-dark: #0e7a38;
-  --informatica: #6d28d9;
-  --informatica-light: #ece2ff;
-  --informatica-dark: #4c1d95;
-  --coral: #f43f5e;
-  --coral-light: #ffe1e7;
-  --sun: #fbbf24;
-  --sun-dark: #b45309;
-  --cyan: #06b6d4;
+  --ciencias: #16c46a;
+  --ciencias-light: #d2fbe4;
+  --ciencias-dark: #0e8a4a;
+  --informatica: #8b3ff6;
+  --informatica-light: #efe1ff;
+  --informatica-dark: #6d21d1;
+  --coral: #ff3d68;
+  --coral-light: #ffe1e9;
+  --sun: #ffc93c;
+  --sun-dark: #d97e00;
+  --cyan: #00c2e0;
+  --pink: #ff6fb5;
   --muted: #767ba0;
   --card-bg: #ffffff;
   --line: #e3e6f7;
-  --radius: 14px;
-  --radius-sm: 9px;
+  --radius: 20px;
+  --radius-sm: 14px;
 }
 
 * { box-sizing: border-box; }
@@ -28,8 +29,13 @@ body {
   margin: 0;
   background-color: var(--paper);
   background-image:
+    radial-gradient(circle at 8% 4%, rgba(139,63,246,.16), transparent 32%),
+    radial-gradient(circle at 92% 8%, rgba(255,61,104,.14), transparent 34%),
+    radial-gradient(circle at 20% 90%, rgba(22,196,106,.16), transparent 36%),
+    radial-gradient(circle at 85% 85%, rgba(0,194,224,.14), transparent 34%),
     radial-gradient(circle, #dfe3fa 1.4px, transparent 1.4px);
-  background-size: 26px 26px;
+  background-size: auto, auto, auto, auto, 26px 26px;
+  background-attachment: fixed;
   color: var(--ink);
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -61,9 +67,9 @@ body {
   content: '';
   position: absolute;
   left: 0; right: 0; bottom: 0;
-  height: 6px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, var(--ciencias) 0%, var(--cyan) 35%, var(--informatica) 65%, var(--coral) 100%);
+  height: 8px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--ciencias) 0%, var(--cyan) 25%, var(--informatica) 50%, var(--pink) 75%, var(--coral) 100%);
 }
 
 .escuela-linea {
@@ -112,22 +118,26 @@ body {
   margin: 0;
   line-height: 1.05;
   letter-spacing: -0.01em;
+  background: linear-gradient(100deg, var(--informatica-dark), var(--coral) 60%, var(--sun-dark));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .portal-header a.volver-index {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 13px;
-  color: var(--ink);
+  color: var(--informatica-dark);
   text-decoration: none;
-  border: 2px solid var(--ink);
+  border: 2.5px solid var(--informatica);
   padding: 9px 16px;
   border-radius: 999px;
   white-space: nowrap;
-  transition: transform .15s ease, background .15s ease, color .15s ease;
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), background .15s ease, color .15s ease;
   display: inline-block;
 }
-.portal-header a.volver-index:hover { background: var(--ink); color: #fff; transform: translateY(-2px); }
+.portal-header a.volver-index:hover { background: var(--informatica); color: #fff; transform: translateY(-2px) scale(1.03); }
 
 .header-botones {
   display: flex;
@@ -138,14 +148,15 @@ body {
 
 .badge-trimestre {
   font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 12.5px;
-  color: var(--informatica-dark);
-  background: var(--informatica-light);
-  border: 2px solid var(--informatica);
-  padding: 8px 14px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--informatica), var(--pink));
+  border: none;
+  padding: 9px 15px;
   border-radius: 999px;
   white-space: nowrap;
+  box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--informatica) 60%, transparent);
 }
 
 /* ---------- Días libres del trimestre ---------- */
@@ -222,23 +233,23 @@ body {
   align-items: center;
   gap: 8px;
   font-family: 'Space Grotesk', sans-serif;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 13px;
   color: var(--ink);
   text-decoration: none;
   background: var(--card-bg);
-  border: 2px solid var(--line);
+  border: 2.5px solid var(--line);
   border-radius: 999px;
-  padding: 9px 16px 9px 12px;
+  padding: 10px 18px 10px 14px;
   cursor: pointer;
-  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), border-color .15s ease, box-shadow .15s ease;
 }
 .acceso-btn:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px) scale(1.03);
   border-color: var(--informatica);
-  box-shadow: 0 8px 18px -12px color-mix(in srgb, var(--informatica) 55%, transparent);
+  box-shadow: 0 10px 20px -12px color-mix(in srgb, var(--informatica) 60%, transparent);
 }
-.acceso-icono { font-size: 15px; line-height: 1; flex-shrink: 0; }
+.acceso-icono { font-size: 16px; line-height: 1; flex-shrink: 0; }
 
 /* ---------- Acceso destacado: "Ver mis notas" (con subtítulo) ---------- */
 .acceso-btn-activo {
@@ -313,16 +324,16 @@ body {
   gap: 16px;
   text-decoration: none;
   color: #fff;
-  background: linear-gradient(135deg, var(--sun-dark), var(--coral));
+  background: linear-gradient(120deg, var(--pink), var(--coral) 45%, var(--sun-dark));
   border-radius: var(--radius);
-  padding: 18px 20px;
+  padding: 20px 22px;
   margin-bottom: 40px;
-  box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--coral) 60%, transparent);
-  transition: transform .15s ease, box-shadow .15s ease;
+  box-shadow: 0 14px 28px -14px color-mix(in srgb, var(--coral) 65%, transparent);
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s ease;
 }
 .tarea-especial-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 14px 30px -14px color-mix(in srgb, var(--coral) 70%, transparent);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 18px 34px -14px color-mix(in srgb, var(--coral) 75%, transparent);
 }
 .tarea-especial-icono {
   font-size: 30px;
@@ -390,15 +401,20 @@ body {
 .materia-group h2::before {
   content: '🧪';
   font-size: 18px;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  background: var(--ciencias-light);
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--ciencias), var(--ciencias-dark));
+  box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--ciencias) 70%, transparent);
 }
-.materia-group[data-materia="Informática"] h2::before { content: '💻'; background: var(--informatica-light); }
+.materia-group[data-materia="Informática"] h2::before {
+  content: '💻';
+  background: linear-gradient(135deg, var(--informatica), var(--informatica-dark));
+  box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--informatica) 70%, transparent);
+}
 
 .grid {
   display: grid;
@@ -409,22 +425,23 @@ body {
 /* ---------- Tarjeta tipo "carpeta" ---------- */
 .folder-card {
   position: relative;
-  background: var(--card-bg);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--accent, var(--ciencias)) 10%, #fff) 0%, #fff 55%);
   border: 2px solid var(--line);
   border-radius: var(--radius);
-  padding: 26px 18px 20px;
+  padding: 28px 18px 20px;
   text-align: left;
   cursor: pointer;
   font: inherit;
   color: inherit;
   transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease, border-color .18s ease;
-  border-top: 6px solid var(--accent, var(--ciencias));
+  border-top: 7px solid var(--accent, var(--ciencias));
 }
 
 .folder-card:hover,
 .folder-card:focus-visible {
-  transform: translateY(-5px) rotate(-0.6deg);
-  box-shadow: 0 14px 28px -12px color-mix(in srgb, var(--accent, var(--ciencias)) 55%, transparent);
+  transform: translateY(-6px) rotate(-1.2deg) scale(1.02);
+  box-shadow: 0 18px 32px -12px color-mix(in srgb, var(--accent, var(--ciencias)) 60%, transparent);
   border-color: var(--accent, var(--ciencias));
   outline: none;
 }
@@ -433,18 +450,18 @@ body {
 
 .folder-card .tab {
   position: absolute;
-  top: -14px;
+  top: -16px;
   right: 14px;
-  background: var(--accent, var(--ciencias));
+  background: linear-gradient(135deg, var(--accent, var(--ciencias)), color-mix(in srgb, var(--accent, var(--ciencias)) 70%, #000 10%));
   color: #fff;
   font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
-  font-size: 13px;
-  padding: 5px 12px;
+  font-weight: 800;
+  font-size: 13.5px;
+  padding: 6px 13px;
   border-radius: 999px;
   letter-spacing: 0.02em;
-  transform: rotate(4deg);
-  box-shadow: 0 3px 0 rgba(0,0,0,0.12);
+  transform: rotate(5deg);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.15);
 }
 
 .folder-card .materia-nombre {
@@ -493,8 +510,8 @@ body {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 5px;
-  background: linear-gradient(90deg, var(--ciencias), var(--cyan), var(--informatica));
+  height: 6px;
+  background: linear-gradient(90deg, var(--ciencias), var(--cyan), var(--informatica), var(--pink));
 }
 
 .ficha-escuela {
@@ -597,11 +614,12 @@ body {
 
 .clase-card {
   position: relative;
-  background: var(--card-bg);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--accent, var(--ciencias)) 9%, #fff) 0%, #fff 60%);
   border: 2px solid var(--line);
-  border-top: 6px solid var(--accent, var(--ciencias));
+  border-top: 7px solid var(--accent, var(--ciencias));
   border-radius: var(--radius);
-  padding: 18px 16px 16px;
+  padding: 20px 16px 16px;
   text-align: left;
   cursor: pointer;
   font: inherit;
@@ -611,8 +629,8 @@ body {
 
 .clase-card:hover,
 .clase-card:focus-visible {
-  transform: translateY(-5px) rotate(0.6deg);
-  box-shadow: 0 14px 28px -12px color-mix(in srgb, var(--accent, var(--ciencias)) 55%, transparent);
+  transform: translateY(-6px) rotate(1.1deg) scale(1.02);
+  box-shadow: 0 18px 32px -12px color-mix(in srgb, var(--accent, var(--ciencias)) 60%, transparent);
   border-color: var(--accent, var(--ciencias));
   outline: none;
 }
@@ -622,16 +640,17 @@ body {
 .clase-card-num {
   display: inline-block;
   font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
-  font-size: 12px;
+  font-weight: 800;
+  font-size: 12.5px;
   color: #fff;
-  background: var(--accent, var(--ciencias));
-  padding: 3px 10px;
+  background: linear-gradient(135deg, var(--accent, var(--ciencias)), color-mix(in srgb, var(--accent, var(--ciencias)) 70%, #000 10%));
+  padding: 4px 11px;
   border-radius: 999px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.12);
 }
-.clase-card.examen .clase-card-num { background: var(--coral); }
+.clase-card.examen .clase-card-num { background: linear-gradient(135deg, var(--coral), #c81e46); }
 
 .clase-card-nombre {
   font-family: 'Space Grotesk', sans-serif;
