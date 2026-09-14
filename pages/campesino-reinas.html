@@ -41,6 +41,7 @@ header.hero{
   background: linear-gradient(180deg, var(--green-deep) 0%, #274A2B 100%);
   color:#F2E6C8;
   padding:40px 0 30px;
+  text-align:center;
 }
 .volver{
   display:inline-flex; align-items:center; gap:6px;
@@ -49,7 +50,22 @@ header.hero{
 }
 .volver:hover{color:var(--gold);}
 header.hero h1{color:#FBF5E4; font-size:clamp(26px,5vw,38px);}
-header.hero p{max-width:600px; color:#D9CFAE; margin-top:10px; font-size:15px;}
+header.hero p{max-width:600px; color:#D9CFAE; margin:10px auto 0; font-size:15px;}
+.btn-compartir{
+  display:inline-flex; align-items:center; gap:8px;
+  background:var(--gold); color:#2A1B06;
+  border:none; border-radius:999px;
+  padding:11px 22px; margin-top:22px;
+  font-family:'Work Sans', sans-serif; font-weight:700; font-size:14.5px;
+  cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,0.25);
+  transition:transform .15s ease, background .15s ease;
+}
+.btn-compartir:hover{transform:translateY(-2px); background:#E3AE33;}
+.btn-compartir:active{transform:translateY(0);}
+.compartir-msg{
+  font-family:'Space Mono', monospace; font-size:11.5px;
+  color:var(--gold); margin-top:10px; min-height:16px;
+}
 
 section{padding:36px 0 64px;}
 .nivel-title{
@@ -143,8 +159,12 @@ footer p{font-size:12.5px; color:var(--ink-soft);}
 <header class="hero">
   <div class="wrap">
     <a class="volver" href="dia-del-campesino.html">&larr; Programa del Día del Campesino</a>
-    <h1>❤️ La Reina del Me Gusta</h1>
-    <p>Cada reina tiene su propia página de fotos. Toca su foto para verla en grande, o dale <strong>❤️ Me gusta</strong> a la que más te guste — solo se puede votar una vez por teléfono o computadora, ¡así que elige bien!</p>
+    <h1>❤️ La Reina del Me Gusta 👑</h1>
+    <p>¡20 candidatas, un solo corazón! Descubre a las reinas de Primaria y Premedia, mira sus fotos en grande y dale <strong>❤️ Me gusta</strong> a la que más te conquiste. Solo se puede votar una vez por teléfono o computadora, así que elige con cariño. ¡Comparte esta página para que tu familia y amigos también voten! 🎉</p>
+    <button type="button" class="btn-compartir" id="btnCompartir">
+      <span>📤</span> Compartir con mis amistades
+    </button>
+    <div class="compartir-msg" id="compartirMsg"></div>
   </div>
 </header>
 
@@ -176,5 +196,35 @@ footer p{font-size:12.5px; color:var(--ink-soft);}
 </div>
 
 <script type="module" src="../js/campesino-reinas.js"></script>
+<script>
+(function(){
+  var btn = document.getElementById('btnCompartir');
+  var msg = document.getElementById('compartirMsg');
+  if (!btn) return;
+
+  btn.addEventListener('click', async function(){
+    var datos = {
+      title: 'La Reina del Me Gusta · Día del Campesino 2026',
+      text: '¡Vota por tu reina favorita del Día del Campesino! ❤️👑',
+      url: window.location.href
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(datos);
+      } catch (err) {
+        // El usuario canceló el compartir, no hacemos nada.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(datos.url);
+      msg.textContent = '✅ Enlace copiado. ¡Pégalo donde quieras compartirlo!';
+    } catch (err) {
+      msg.textContent = datos.url;
+    }
+    setTimeout(function(){ msg.textContent = ''; }, 6000);
+  });
+})();
+</script>
 </body>
 </html>

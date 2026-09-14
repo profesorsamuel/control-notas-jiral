@@ -760,6 +760,14 @@ details .d-body p{color:var(--ink-soft); font-size:14.5px; margin:0 0 10px;}
 .comida-note h4{font-family:'Fraunces', serif; margin:0 0 8px; font-size:16px; color:var(--clay-dark);}
 .comida-note ul{margin:0; padding-left:18px; color:var(--ink-soft); font-size:14px;}
 .comida-note li{margin-bottom:4px;}
+.comida-note-aside{
+  margin:10px 0 0;
+  padding-top:10px;
+  border-top:1px solid var(--line);
+  font-size:13px;
+  font-style:italic;
+  color:var(--ink-soft);
+}
 
 /* ---------- FOOTER ---------- */
 footer{
@@ -822,8 +830,6 @@ footer .school{
     <a href="#agenda">Agenda del evento</a>
     <a href="#ranchos">Ranchos</a>
     <a href="#comida">Comida</a>
-    <a href="#lineamientos">Lineamientos</a>
-    <a href="#evaluacion">Evaluación</a>
     <a href="#comisiones">Comisiones</a>
   </div>
 </nav>
@@ -991,6 +997,14 @@ footer .school{
 <!-- ================= RANCHOS ================= -->
 <section id="ranchos">
   <div class="wrap">
+    <div class="subtab-group" data-group="ranchos">
+      <div class="subtabs" role="tablist" aria-label="Ranchos">
+        <button type="button" class="subtab-btn active" data-target="ranchos-asignaciones" role="tab" aria-selected="true">Asignaciones</button>
+        <button type="button" class="subtab-btn" data-target="ranchos-lineamientos" role="tab" aria-selected="false">Lineamientos</button>
+        <button type="button" class="subtab-btn" data-target="ranchos-evaluacion" role="tab" aria-selected="false">Evaluación</button>
+      </div>
+
+      <div id="ranchos-asignaciones" class="subtab-panel">
     <div class="section-head">
       <span class="num">03 · Asignaciones</span>
       <h2>Ranchos por Provincia y Comarca</h2>
@@ -1004,15 +1018,15 @@ footer .school{
       <tbody>
         <tr><td class="prov" data-label="Provincia / Comarca">Bocas del Toro</td><td data-label="Salones de Primaria">Prejardín A · Lesbia Muñoz + V-B · Yessenia Clark</td><td data-label="Apoyo de Premedia">VII-A · Leticia de Palacios</td><td data-label="Apoyo en Construcción">Beto Correa · Alexis Del Mar</td></tr>
         <tr><td class="prov" data-label="Provincia / Comarca">Coclé</td><td data-label="Salones de Primaria">Prejardín B · Milvia Ortega + V-A · Geraldine Magallón</td><td data-label="Apoyo de Premedia">VII-B · Erika Pimentel</td><td data-label="Apoyo en Construcción">Isaura Góndolo · Nitzi Williams</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Colón</td><td data-label="Salones de Primaria">Jardín A · Albertina Ortiz + IV-C · Anabelis Gallardo</td><td data-label="Apoyo de Premedia">VII-C · Ronald González</td><td data-label="Apoyo en Construcción">Berta Barreno · Yadira de Gracia</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Colón</td><td data-label="Salones de Primaria">Jardín A · Albertina Ortiz + IV-C · Anabelis Gallardo</td><td data-label="Apoyo de Premedia">VII-C · Ronald González</td><td data-label="Apoyo en Construcción">Berta Barreno</td></tr>
         <tr><td class="prov" data-label="Provincia / Comarca">Chiriquí</td><td data-label="Salones de Primaria">Jardín C · Tilsa Garibaldi + I-A · Heidi De León</td><td data-label="Apoyo de Premedia">VIII-A · Juana Brown</td><td data-label="Apoyo en Construcción">Patricia Reyes · Encelma Álvarez</td></tr>
         <tr><td class="prov" data-label="Provincia / Comarca">Herrera</td><td data-label="Salones de Primaria">I-B · Zulma Becerra + V-C · Elaisa Jaramillo</td><td data-label="Apoyo de Premedia">VIII-B · Leonela Rivera</td><td data-label="Apoyo en Construcción">Arline Henry · Faustina Rodríguez</td></tr>
         <tr><td class="prov" data-label="Provincia / Comarca">Los Santos</td><td data-label="Salones de Primaria">I-C · Ananías Benítes + VI-A · Viodelka Goitía</td><td data-label="Apoyo de Premedia">VIII-C · Nairobys Sáenz</td><td data-label="Apoyo en Construcción">Danisue Valdés · Gillian Barría</td></tr>
         <tr><td class="prov" data-label="Provincia / Comarca">Panamá</td><td data-label="Salones de Primaria">II-A · Telma Grenald + II-B · Ana Grenard</td><td data-label="Apoyo de Premedia">IX-A · Miriam Valencia</td><td data-label="Apoyo en Construcción">Yitzuri Vargas · Yetzagelis Batista</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Panamá Oeste</td><td data-label="Salones de Primaria">III-B · Jenifer Dean + III-C · Telma Escobar</td><td data-label="Apoyo de Premedia">IX-B · Wendy Harren</td><td data-label="Apoyo en Construcción">Laura Rodríguez · Ayllen Nieto</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Panamá Oeste</td><td data-label="Salones de Primaria">III-B · Jenifer Dean + III-C · Telma Escobar</td><td data-label="Apoyo de Premedia">IX-B · Wendy Harren</td><td data-label="Apoyo en Construcción">Laura Rodríguez</td></tr>
         <tr><td class="prov" data-label="Provincia / Comarca">Veraguas</td><td data-label="Salones de Primaria">IV-A · Angélica Jiménez + IV-B · Rosa Perea</td><td data-label="Apoyo de Premedia">IX-C · Samuel Ortega</td><td data-label="Apoyo en Construcción">Claribel Camargo</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Darién</td><td data-label="Salones de Primaria">Jardín B · Ángela Hall + VI-B · Alejandrina Salazar</td><td data-label="Apoyo de Premedia">VII-A (compartido) · Leticia de Palacios</td><td data-label="Apoyo en Construcción">Magalis Rodríguez</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Comarcas Indígenas</td><td data-label="Salones de Primaria">II-C · Carmen Gaitán + III-A · Betzaida Rodríguez</td><td data-label="Apoyo de Premedia">VIII-A (compartido) · Juana Brown</td><td data-label="Apoyo en Construcción">Doris Andrión</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Darién</td><td data-label="Salones de Primaria">Jardín B · Ángela Hall + VI-B · Alejandrina Salazar</td><td data-label="Apoyo de Premedia">Yadira de Gracia · Español</td><td data-label="Apoyo en Construcción">Magalis Rodríguez</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Comarcas Indígenas</td><td data-label="Salones de Primaria">II-C · Carmen Gaitán + III-A · Betzaida Rodríguez</td><td data-label="Apoyo de Premedia">Ayllen Nieto · Inglés–Religión</td><td data-label="Apoyo en Construcción">Doris Andrión</td></tr>
       </tbody>
     </table>
 
@@ -1057,6 +1071,165 @@ footer .school{
       <span class="chip">Magalis Rodríguez — Educación Especial · Darién</span>
       <span class="chip">Doris Andrión — Informática · Comarcas Indígenas</span>
     </div>
+      </div>
+
+      <div id="ranchos-lineamientos" class="subtab-panel" style="display:none;">
+    <div class="section-head">
+      <span class="num">04 · Semana de la Ciencia 2026</span>
+      <h2>Lineamientos de los Ranchos Interactivos</h2>
+      <p>Cada rancho debe integrar cultura, historia, ciencia, creatividad y trabajo colaborativo.</p>
+    </div>
+
+    <details open>
+      <summary>Elementos obligatorios del rancho</summary>
+      <div class="d-body">
+        <div class="chip-grid">
+          <span class="chip">Decoración alusiva</span>
+          <span class="chip">Nombre visible</span>
+          <span class="chip">Bandera de Panamá y de la provincia</span>
+          <span class="chip">Mapa de ubicación</span>
+          <span class="chip">Información histórica</span>
+          <span class="chip">Costumbres y tradiciones</span>
+          <span class="chip">Vestimenta típica</span>
+          <span class="chip">Música y bailes</span>
+          <span class="chip">Flora y fauna</span>
+          <span class="chip">Actividades económicas</span>
+          <span class="chip">Sitios turísticos</span>
+          <span class="chip">Artesanías</span>
+          <span class="chip">Personajes destacados</span>
+          <span class="chip">Gastronomía típica</span>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Propuesta del rancho: qué debe incluir</summary>
+      <div class="d-body">
+        <div class="chip-grid">
+          <span class="chip gold">Provincia o comarca asignada</span>
+          <span class="chip gold">Integrantes responsables</span>
+          <span class="chip gold">Docente guía</span>
+          <span class="chip gold">Diseño o boceto</span>
+          <span class="chip gold">Lista de materiales</span>
+          <span class="chip gold">Decoración propuesta</span>
+          <span class="chip gold">Juegos interactivos</span>
+          <span class="chip gold">Actividades del recorrido</span>
+          <span class="chip gold">Muestra gastronómica (si aplica)</span>
+          <span class="chip gold">Necesidades especiales</span>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Juegos tipo feria (mínimo 2 por rancho)</summary>
+      <div class="d-body">
+        <p>Deben estar relacionados con la provincia o comarca representada.</p>
+        <div class="chip-grid">
+          <span class="chip">Trivia sobre la provincia</span>
+          <span class="chip">Ruleta de preguntas</span>
+          <span class="chip">Pesca de premios</span>
+          <span class="chip">Lanzamiento de aros</span>
+          <span class="chip">Tiro al blanco</span>
+          <span class="chip">Memoria cultural</span>
+          <span class="chip">Rompecabezas del mapa</span>
+          <span class="chip">Carrera de relevos</span>
+          <span class="chip">¿Quién sabe más?</span>
+          <span class="chip">Adivina el lugar</span>
+          <span class="chip">Bingo cultural</span>
+          <span class="chip">Preguntas y respuestas</span>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Premios sugeridos para los juegos</summary>
+      <div class="d-body">
+        <div class="chip-grid">
+          <span class="chip">Dulces</span><span class="chip">Chocolates</span><span class="chip">Galletas</span>
+          <span class="chip">Lápices</span><span class="chip">Calcomanías</span><span class="chip">Pulseras</span>
+          <span class="chip">Separadores de libros</span><span class="chip">Recuerdos elaborados por estudiantes</span>
+          <span class="chip">Certificados de participación</span><span class="chip">Otros obsequios sencillos</span>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Presentaciones folclóricas por grado</summary>
+      <div class="d-body">
+        <p>Cada salón realiza una sola presentación (baile, canto, dramatización u otra manifestación cultural), relacionada con su provincia o comarca. Duración máxima: 6 minutos.</p>
+        <p><strong>Orden de presentación:</strong> Prekínder → Kínder → 1.° → 2.° → 3.° → 4.° → 5.° → 6.° → 7.° → 8.° → 9.° grado.</p>
+        <p>Los estudiantes deben asistir con vestuario y materiales listos, y retirar todo al finalizar su participación.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Elección de la Reina de Primaria y la Reina de Premedia</summary>
+      <div class="d-body">
+        <p>Cada candidata se presenta individualmente con un recorrido al ritmo de una tonada, mostrando vestuario y elegancia, seguido de un breve saludo alusivo a las tradiciones panameñas.</p>
+        <p>Son dos elecciones separadas el mismo día: la <strong>Reina de Primaria</strong> en la mañana (una candidata por provincia) y la <strong>Reina de Premedia</strong> en la tarde (una candidata por salón, con provincia asignada al azar). En ambas, la ganadora se elige con el <strong>juego de la flor más larga</strong>: se colocan todas las flores (una por candidata) y cada una escoge la suya al azar frente al público; la candidata cuya flor resulte ser la más larga es la ganadora.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Recorrido de carros de las reinas</summary>
+      <div class="d-body">
+        <p>Cada reina puede contar con uno o varios carros decorados, gestionados por familiares y amigos, para un recorrido por la comunidad. Ruta y detalles se coordinan posteriormente; los carros deben estar organizados y ubicados con antelación el día del evento.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Organización del gimnasio</summary>
+      <div class="d-body">
+        <p>Se señalizarán entradas y salidas con cintas, se distribuirán espacios para evitar aglomeraciones, se reforzará el sistema de sonido y se organizará el ingreso/salida de la murga si participa.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Limpieza y clausura</summary>
+      <div class="d-body">
+        <p>Cada grado recoge sus desechos y desmonta por completo su rancho — ningún rancho puede quedar armado después del cierre. Se coordinará con <strong>Aguaseo</strong> la recolección de basura. La clausura incluye palabras de agradecimiento a estudiantes, docentes, padres y colaboradores, y un posible espectáculo de fuegos artificiales según permisos y seguridad.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Recomendaciones generales</summary>
+      <div class="d-body">
+        <div class="chip-grid">
+          <span class="chip">Usar materiales reciclables</span>
+          <span class="chip">Mantener el espacio limpio</span>
+          <span class="chip">Evitar materiales peligrosos</span>
+          <span class="chip">Fomentar el trabajo en equipo</span>
+          <span class="chip">Todos deben participar</span>
+          <span class="chip">Juegos seguros y educativos</span>
+          <span class="chip">Docente responsable presente</span>
+          <span class="chip">Atuendo típico recomendado</span>
+        </div>
+      </div>
+    </details>
+      </div>
+
+      <div id="ranchos-evaluacion" class="subtab-panel" style="display:none;">
+    <div class="section-head">
+      <span class="num">05 · Rúbrica</span>
+      <h2>Evaluación de los Ranchos</h2>
+      <p>Cada criterio aporta puntos hasta un total de 100.</p>
+    </div>
+
+    <div class="eval-list">
+      <div class="eval-row"><span class="name">Ambientación y decoración del rancho</span><span class="eval-pts">15</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:15%"></div></div></div>
+      <div class="eval-row"><span class="name">Creatividad e innovación</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
+      <div class="eval-row"><span class="name">Información correcta y dominio del tema</span><span class="eval-pts">15</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:15%"></div></div></div>
+      <div class="eval-row"><span class="name">Organización y presentación</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
+      <div class="eval-row"><span class="name">Juegos interactivos tipo feria</span><span class="eval-pts">15</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:15%"></div></div></div>
+      <div class="eval-row"><span class="name">Participación de todos los integrantes</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
+      <div class="eval-row"><span class="name">Atención y trato a los visitantes</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
+      <div class="eval-row"><span class="name">Gastronomía típica (cuando aplique)</span><span class="eval-pts">5</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:5%"></div></div></div>
+      <div class="eval-row"><span class="name">Limpieza y orden del espacio</span><span class="eval-pts">5</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:5%"></div></div></div>
+      <div class="eval-row"><span class="name">Puntualidad y cumplimiento de lineamientos</span><span class="eval-pts">5</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:5%"></div></div></div>
+    </div>
+    <div class="eval-total"><span>Total</span><span>100 puntos</span></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -1080,6 +1253,7 @@ footer .school{
       <div id="platos-estado" class="platos-estado"></div>
     </div>
 
+    <div class="subtab-group" data-group="comida">
     <div class="subtabs" role="tablist" aria-label="Nivel">
       <button type="button" class="subtab-btn active" data-target="platos-primaria" role="tab" aria-selected="true">Primaria <span class="subtab-count">(33)</span></button>
       <button type="button" class="subtab-btn" data-target="platos-premedia" role="tab" aria-selected="false">Premedia <span class="subtab-count">(17)</span></button>
@@ -1454,188 +1628,28 @@ footer .school{
         </tbody>
       </table>
     </div>
+    </div>
 
     <script>
     (function(){
-      var btns = Array.prototype.slice.call(document.querySelectorAll('.subtab-btn'));
-      var panels = Array.prototype.slice.call(document.querySelectorAll('.subtab-panel'));
-      btns.forEach(function(btn){
-        btn.addEventListener('click', function(){
-          var target = btn.getAttribute('data-target');
-          panels.forEach(function(p){ p.style.display = (p.id === target) ? '' : 'none'; });
-          btns.forEach(function(b){
-            var active = (b === btn);
-            b.classList.toggle('active', active);
-            b.setAttribute('aria-selected', active ? 'true' : 'false');
+      var groups = Array.prototype.slice.call(document.querySelectorAll('.subtab-group'));
+      groups.forEach(function(group){
+        var btns = Array.prototype.slice.call(group.querySelectorAll('.subtab-btn'));
+        var panels = Array.prototype.slice.call(group.querySelectorAll('.subtab-panel'));
+        btns.forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var target = btn.getAttribute('data-target');
+            panels.forEach(function(p){ p.style.display = (p.id === target) ? '' : 'none'; });
+            btns.forEach(function(b){
+              var active = (b === btn);
+              b.classList.toggle('active', active);
+              b.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
           });
         });
       });
     })();
     </script>
-  </div>
-</section>
-
-<section id="lineamientos" class="alt">
-  <div class="wrap">
-    <div class="section-head">
-      <span class="num">04 · Semana de la Ciencia 2026</span>
-      <h2>Lineamientos de los Ranchos Interactivos</h2>
-      <p>Cada rancho debe integrar cultura, historia, ciencia, creatividad y trabajo colaborativo.</p>
-    </div>
-
-    <details open>
-      <summary>Elementos obligatorios del rancho</summary>
-      <div class="d-body">
-        <div class="chip-grid">
-          <span class="chip">Decoración alusiva</span>
-          <span class="chip">Nombre visible</span>
-          <span class="chip">Bandera de Panamá y de la provincia</span>
-          <span class="chip">Mapa de ubicación</span>
-          <span class="chip">Información histórica</span>
-          <span class="chip">Costumbres y tradiciones</span>
-          <span class="chip">Vestimenta típica</span>
-          <span class="chip">Música y bailes</span>
-          <span class="chip">Flora y fauna</span>
-          <span class="chip">Actividades económicas</span>
-          <span class="chip">Sitios turísticos</span>
-          <span class="chip">Artesanías</span>
-          <span class="chip">Personajes destacados</span>
-          <span class="chip">Gastronomía típica</span>
-        </div>
-      </div>
-    </details>
-
-    <details>
-      <summary>Propuesta del rancho: qué debe incluir</summary>
-      <div class="d-body">
-        <div class="chip-grid">
-          <span class="chip gold">Provincia o comarca asignada</span>
-          <span class="chip gold">Integrantes responsables</span>
-          <span class="chip gold">Docente guía</span>
-          <span class="chip gold">Diseño o boceto</span>
-          <span class="chip gold">Lista de materiales</span>
-          <span class="chip gold">Decoración propuesta</span>
-          <span class="chip gold">Juegos interactivos</span>
-          <span class="chip gold">Actividades del recorrido</span>
-          <span class="chip gold">Muestra gastronómica (si aplica)</span>
-          <span class="chip gold">Necesidades especiales</span>
-        </div>
-      </div>
-    </details>
-
-    <details>
-      <summary>Juegos tipo feria (mínimo 2 por rancho)</summary>
-      <div class="d-body">
-        <p>Deben estar relacionados con la provincia o comarca representada.</p>
-        <div class="chip-grid">
-          <span class="chip">Trivia sobre la provincia</span>
-          <span class="chip">Ruleta de preguntas</span>
-          <span class="chip">Pesca de premios</span>
-          <span class="chip">Lanzamiento de aros</span>
-          <span class="chip">Tiro al blanco</span>
-          <span class="chip">Memoria cultural</span>
-          <span class="chip">Rompecabezas del mapa</span>
-          <span class="chip">Carrera de relevos</span>
-          <span class="chip">¿Quién sabe más?</span>
-          <span class="chip">Adivina el lugar</span>
-          <span class="chip">Bingo cultural</span>
-          <span class="chip">Preguntas y respuestas</span>
-        </div>
-      </div>
-    </details>
-
-    <details>
-      <summary>Premios sugeridos para los juegos</summary>
-      <div class="d-body">
-        <div class="chip-grid">
-          <span class="chip">Dulces</span><span class="chip">Chocolates</span><span class="chip">Galletas</span>
-          <span class="chip">Lápices</span><span class="chip">Calcomanías</span><span class="chip">Pulseras</span>
-          <span class="chip">Separadores de libros</span><span class="chip">Recuerdos elaborados por estudiantes</span>
-          <span class="chip">Certificados de participación</span><span class="chip">Otros obsequios sencillos</span>
-        </div>
-      </div>
-    </details>
-
-    <details>
-      <summary>Presentaciones folclóricas por grado</summary>
-      <div class="d-body">
-        <p>Cada salón realiza una sola presentación (baile, canto, dramatización u otra manifestación cultural), relacionada con su provincia o comarca. Duración máxima: 6 minutos.</p>
-        <p><strong>Orden de presentación:</strong> Prekínder → Kínder → 1.° → 2.° → 3.° → 4.° → 5.° → 6.° → 7.° → 8.° → 9.° grado.</p>
-        <p>Los estudiantes deben asistir con vestuario y materiales listos, y retirar todo al finalizar su participación.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>Elección de la Reina de Primaria y la Reina de Premedia</summary>
-      <div class="d-body">
-        <p>Cada candidata se presenta individualmente con un recorrido al ritmo de una tonada, mostrando vestuario y elegancia, seguido de un breve saludo alusivo a las tradiciones panameñas.</p>
-        <p>Son dos elecciones separadas el mismo día: la <strong>Reina de Primaria</strong> en la mañana (una candidata por provincia) y la <strong>Reina de Premedia</strong> en la tarde (una candidata por salón, con provincia asignada al azar). En ambas, la ganadora se elige con el <strong>juego de la flor más larga</strong>: se colocan todas las flores (una por candidata) y cada una escoge la suya al azar frente al público; la candidata cuya flor resulte ser la más larga es la ganadora.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>Recorrido de carros de las reinas</summary>
-      <div class="d-body">
-        <p>Cada reina puede contar con uno o varios carros decorados, gestionados por familiares y amigos, para un recorrido por la comunidad. Ruta y detalles se coordinan posteriormente; los carros deben estar organizados y ubicados con antelación el día del evento.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>Organización del gimnasio</summary>
-      <div class="d-body">
-        <p>Se señalizarán entradas y salidas con cintas, se distribuirán espacios para evitar aglomeraciones, se reforzará el sistema de sonido y se organizará el ingreso/salida de la murga si participa.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>Limpieza y clausura</summary>
-      <div class="d-body">
-        <p>Cada grado recoge sus desechos y desmonta por completo su rancho — ningún rancho puede quedar armado después del cierre. Se coordinará con <strong>Aguaseo</strong> la recolección de basura. La clausura incluye palabras de agradecimiento a estudiantes, docentes, padres y colaboradores, y un posible espectáculo de fuegos artificiales según permisos y seguridad.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>Recomendaciones generales</summary>
-      <div class="d-body">
-        <div class="chip-grid">
-          <span class="chip">Usar materiales reciclables</span>
-          <span class="chip">Mantener el espacio limpio</span>
-          <span class="chip">Evitar materiales peligrosos</span>
-          <span class="chip">Fomentar el trabajo en equipo</span>
-          <span class="chip">Todos deben participar</span>
-          <span class="chip">Juegos seguros y educativos</span>
-          <span class="chip">Docente responsable presente</span>
-          <span class="chip">Atuendo típico recomendado</span>
-        </div>
-      </div>
-    </details>
-  </div>
-</section>
-
-<div class="rope"></div>
-
-<!-- ================= EVALUACIÓN ================= -->
-<section id="evaluacion">
-  <div class="wrap">
-    <div class="section-head">
-      <span class="num">05 · Rúbrica</span>
-      <h2>Evaluación de los Ranchos</h2>
-      <p>Cada criterio aporta puntos hasta un total de 100.</p>
-    </div>
-
-    <div class="eval-list">
-      <div class="eval-row"><span class="name">Ambientación y decoración del rancho</span><span class="eval-pts">15</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:15%"></div></div></div>
-      <div class="eval-row"><span class="name">Creatividad e innovación</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
-      <div class="eval-row"><span class="name">Información correcta y dominio del tema</span><span class="eval-pts">15</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:15%"></div></div></div>
-      <div class="eval-row"><span class="name">Organización y presentación</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
-      <div class="eval-row"><span class="name">Juegos interactivos tipo feria</span><span class="eval-pts">15</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:15%"></div></div></div>
-      <div class="eval-row"><span class="name">Participación de todos los integrantes</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
-      <div class="eval-row"><span class="name">Atención y trato a los visitantes</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
-      <div class="eval-row"><span class="name">Gastronomía típica (cuando aplique)</span><span class="eval-pts">5</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:5%"></div></div></div>
-      <div class="eval-row"><span class="name">Limpieza y orden del espacio</span><span class="eval-pts">5</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:5%"></div></div></div>
-      <div class="eval-row"><span class="name">Puntualidad y cumplimiento de lineamientos</span><span class="eval-pts">5</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:5%"></div></div></div>
-    </div>
-    <div class="eval-total"><span>Total</span><span>100 puntos</span></div>
   </div>
 </section>
 
@@ -1660,20 +1674,21 @@ footer .school{
       <li><span class="cn">7</span>Comisión de Audio</li>
       <li><span class="cn">8</span>Comisión del Reinado</li>
       <li><span class="cn">9</span>Comisión de Limpieza y Orden</li>
-      <li class="highlight"><span class="cn">10</span>Comisión de Comida por Salones</li>
+      <li class="highlight"><span class="cn">10</span>Comisión de Comida por Salones — Samuel Ortega, Miriam Valencia y Elaisa Jaramillo</li>
       <li><span class="cn">11</span>Comisión de Graduación — +507 6349-5116</li>
       <li><span class="cn">12</span>Comisión de Banda — Samuel Ortega, 6010-3047</li>
       <li><span class="cn">13</span>Comisión de Típico — Elaisa, +507 6803-7126</li>
     </ul>
 
     <div class="comida-note">
-      <h4>🍲 Comisión de Comida por Salones — funciones clave</h4>
+      <h4>🍲 Comisión de Comida por Salones — funciones clave (Samuel Ortega, Miriam Valencia y Elaisa Jaramillo)</h4>
       <ul>
         <li>Coordinar con cada salón la preparación y venta de platos, evitando repeticiones.</li>
         <li>Definir cantidad estimada, ingredientes, materiales y precio de cada plato.</li>
         <li>Colocar un cartel visible con nombre del plato, precio y salón responsable.</li>
         <li>Supervisar higiene, manipulación de alimentos y limpieza de cada puesto.</li>
       </ul>
+      <p class="comida-note-aside">Esta comisión será liderada por los tres profesores encargados. Más adelante se indicará en cuál tarea específica participará cada uno.</p>
     </div>
 
     <div class="comida-note">
