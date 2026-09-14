@@ -248,7 +248,7 @@ async function registrarBitacora(accion, detalle) {
 // =========================================================
 // Reducir una imagen en el navegador antes de subirla (portada o galería)
 // =========================================================
-async function reducirImagen(archivo, maxLado = 1600, calidad = 0.85) {
+async function reducirImagen(archivo, maxLado = 1000, calidad = 0.72) {
     return new Promise((resolve) => {
         const lector = new FileReader();
         lector.onload = (e) => {
@@ -430,7 +430,7 @@ formPortada.addEventListener("submit", async (evento) => {
     estadoPortada.textContent = "Subiendo...";
 
     try {
-        const imagenLista = await reducirImagen(archivo, 1000, 0.85);
+        const imagenLista = await reducirImagen(archivo, 500, 0.75);
         const nombreArchivo = `portada-${Date.now()}.jpg`;
         const ruta = `${reina.slug}/portada/${nombreArchivo}`;
 
