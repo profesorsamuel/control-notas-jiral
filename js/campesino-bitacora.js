@@ -6,6 +6,7 @@ const NOMBRES_ACCION = {
     foto: "Foto",
     perfil_creado: "Perfil creado",
     perfil_editado: "Perfil editado",
+    portada: "Foto de portada",
 };
 
 function escaparHTML(texto) {

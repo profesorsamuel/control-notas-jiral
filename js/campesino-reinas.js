@@ -27,9 +27,10 @@ async function cargarCubiertas() {
     // por reina en el navegador, para no hacer 19 consultas separadas.
     const [{ data: fotos, error: errorFotos }, { data: perfiles }] = await Promise.all([
         supabase.from("campesino_fotos").select("reina_slug, ruta_storage, creado_en").order("creado_en", { ascending: true }),
-        supabase.from("campesino_perfiles_reinas").select("reina_slug, nombre_reina"),
+        supabase.from("campesino_perfiles_reinas").select("reina_slug, nombre_reina, foto_portada_ruta"),
     ]);
 
+    const portadaPorReina = new Map();
     if (Array.isArray(perfiles)) {
         for (const perfil of perfiles) {
             const nombreReal = document.getElementById(`nombre-real-${perfil.reina_slug}`);
@@ -37,7 +38,16 @@ async function cargarCubiertas() {
                 nombreReal.textContent = perfil.nombre_reina;
                 nombreReal.style.display = "block";
             }
+            if (perfil.foto_portada_ruta) portadaPorReina.set(perfil.reina_slug, perfil.foto_portada_ruta);
         }
+    }
+
+    // La foto de portada (si existe) manda sobre la primera foto de la galería.
+    for (const [slug, ruta] of portadaPorReina) {
+        const contenedor = document.getElementById(`cubierta-${slug}`);
+        if (!contenedor) continue;
+        const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(ruta);
+        contenedor.innerHTML = `<img src="${pub.publicUrl}" alt="" loading="lazy">`;
     }
 
     if (errorFotos || !fotos) return;
@@ -51,11 +61,15 @@ async function cargarCubiertas() {
     for (const [slug, fotosReina] of porReina) {
         const contenedor = document.getElementById(`cubierta-${slug}`);
         if (!contenedor || fotosReina.length === 0) continue;
+        const conteoHTML = `<span class="conteo">${fotosReina.length} foto${fotosReina.length === 1 ? "" : "s"}</span>`;
+        if (portadaPorReina.has(slug)) {
+            // Ya se pintó la foto de portada arriba: solo se agrega el contador.
+            contenedor.insertAdjacentHTML("beforeend", conteoHTML);
+            continue;
+        }
         const primera = fotosReina[0];
         const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(primera.ruta_storage);
-        contenedor.innerHTML = `
-            <img src="${pub.publicUrl}" alt="" loading="lazy">
-            <span class="conteo">${fotosReina.length} foto${fotosReina.length === 1 ? "" : "s"}</span>`;
+        contenedor.innerHTML = `<img src="${pub.publicUrl}" alt="" loading="lazy">${conteoHTML}`;
     }
 }
 

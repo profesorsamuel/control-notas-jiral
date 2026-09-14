@@ -12,11 +12,13 @@ const reina = buscarReina(slug);
 const chipNivel = document.getElementById("chipNivel");
 const tituloReina = document.getElementById("tituloReina");
 const detalleReina = document.getElementById("detalleReina");
+const portadaHero = document.getElementById("portadaHero");
 const galeria = document.getElementById("galeria");
 const vacioAviso = document.getElementById("vacioAviso");
 const formSubir = document.getElementById("formSubir");
 const archivosFoto = document.getElementById("archivosFoto");
 const nombreQuienSube = document.getElementById("nombreQuienSube");
+const observacionFoto = document.getElementById("observacionFoto");
 const btnSubir = document.getElementById("btnSubir");
 const estadoSubida = document.getElementById("estadoSubida");
 const estadoAdmin = document.getElementById("estadoAdmin");
@@ -25,11 +27,23 @@ const visor = document.getElementById("visor");
 const imgVisor = document.getElementById("imgVisor");
 const cerrarVisor = document.getElementById("cerrarVisor");
 
+const portadaCard = document.getElementById("portadaCard");
+const portadaActualImg = document.getElementById("portadaActualImg");
+const portadaActualVacio = document.getElementById("portadaActualVacio");
+const portadaActualTexto = document.getElementById("portadaActualTexto");
+const formPortada = document.getElementById("formPortada");
+const archivoPortada = document.getElementById("archivoPortada");
+const btnPortada = document.getElementById("btnPortada");
+const estadoPortada = document.getElementById("estadoPortada");
+
 const perfilContenido = document.getElementById("perfilContenido");
 const perfilEditarDetalle = document.getElementById("perfilEditarDetalle");
 const formPerfil = document.getElementById("formPerfil");
 const pNombreReina = document.getElementById("pNombreReina");
+const pFechaNacimiento = document.getElementById("pFechaNacimiento");
 const pComida = document.getElementById("pComida");
+const pColor = document.getElementById("pColor");
+const pMateria = document.getElementById("pMateria");
 const pCurioso = document.getElementById("pCurioso");
 const pRisa = document.getElementById("pRisa");
 const pSiGana = document.getElementById("pSiGana");
@@ -70,12 +84,14 @@ docenteAcceso.insertAdjacentHTML(
 );
 
 // =========================================================
-// Acceso de docente: hace falta para subir fotos o tocar el perfil.
-// Se valida aquí para dar una respuesta inmediata, y de nuevo en
-// Supabase (RLS) al guardar, que es lo que realmente protege los datos.
+// Acceso de docente: hace falta para subir fotos, la portada o tocar
+// el perfil. Se valida aquí para dar una respuesta inmediata, y de
+// nuevo en Supabase (RLS) al guardar, que es lo que realmente protege
+// los datos.
 // =========================================================
 function revelarFormulariosDocente() {
     accesoCard.classList.add("oculto");
+    portadaCard.classList.remove("oculto");
     subirCard.classList.remove("oculto");
     perfilEditarDetalle.classList.remove("oculto");
     estadoAcceso2.innerHTML = `<span class="badge-acceso">🔑 ${escaparHTML(accesoDocente.docente)} <button type="button" id="btnSalirAcceso">Salir</button></span>`;
@@ -154,7 +170,7 @@ async function cargarFotos() {
     if (!reina) return;
     const { data, error } = await supabase
         .from("campesino_fotos")
-        .select("id, ruta_storage, subido_por, creado_en")
+        .select("id, ruta_storage, subido_por, descripcion, creado_en")
         .eq("reina_slug", reina.slug)
         .order("creado_en", { ascending: false });
 
@@ -174,11 +190,13 @@ async function cargarFotos() {
     vacioAviso.style.display = "none";
     galeria.innerHTML = data.map((foto) => {
         const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(foto.ruta_storage);
-        const credito = foto.subido_por ? `Subida por ${escaparHTML(foto.subido_por)}` : "";
+        const partesCredito = [];
+        if (foto.descripcion) partesCredito.push(`<span class="obs">${escaparHTML(foto.descripcion)}</span>`);
+        if (foto.subido_por) partesCredito.push(`Subida por ${escaparHTML(foto.subido_por)}`);
         return `
         <div class="foto" data-id="${foto.id}" data-ruta="${foto.ruta_storage}">
             <img src="${pub.publicUrl}" alt="Foto de la reina de ${escaparHTML(reina.nombre)}" loading="lazy">
-            ${credito ? `<span class="credito">${credito}</span>` : ""}
+            ${partesCredito.length ? `<span class="credito">${partesCredito.join("")}</span>` : ""}
             ${esAdmin ? `<button class="borrar" title="Borrar foto (solo administrador)">&times;</button>` : ""}
         </div>`;
     }).join("");
@@ -186,7 +204,7 @@ async function cargarFotos() {
 
 function escaparHTML(texto) {
     const div = document.createElement("div");
-    div.textContent = texto;
+    div.textContent = texto || "";
     return div.innerHTML;
 }
 
@@ -210,8 +228,7 @@ async function registrarBitacora(accion, detalle) {
 }
 
 // =========================================================
-// Subir foto(s) — requiere haber pasado el acceso de docente
-// (y Supabase vuelve a exigir la misma clave al guardar la fila).
+// Reducir una imagen en el navegador antes de subirla (portada o galería)
 // =========================================================
 async function reducirImagen(archivo, maxLado = 1600, calidad = 0.85) {
     return new Promise((resolve) => {
@@ -243,6 +260,10 @@ async function reducirImagen(archivo, maxLado = 1600, calidad = 0.85) {
     });
 }
 
+// =========================================================
+// Subir foto(s) de la galería — requiere haber pasado el acceso de
+// docente (y Supabase vuelve a exigir la misma clave al guardar la fila).
+// =========================================================
 formSubir.addEventListener("submit", async (evento) => {
     evento.preventDefault();
     if (!reina || !accesoDocente) return;
@@ -258,6 +279,7 @@ formSubir.addEventListener("submit", async (evento) => {
     estadoSubida.classList.remove("error");
 
     const nombreSube = nombreQuienSube.value.trim().slice(0, 60);
+    const descripcion = observacionFoto.value.trim().slice(0, 200);
     let subidas = 0;
 
     for (const archivo of archivos) {
@@ -283,6 +305,7 @@ formSubir.addEventListener("submit", async (evento) => {
                 mime_type: "image/jpeg",
                 peso_bytes: imagenLista.size || null,
                 subido_por: nombreSube || null,
+                descripcion: descripcion || null,
                 docente_nombre: accesoDocente.docente,
                 clave_ingresada: accesoDocente.clave,
             });
@@ -298,11 +321,12 @@ formSubir.addEventListener("submit", async (evento) => {
     archivosFoto.value = "";
 
     if (subidas > 0) {
-        await registrarBitacora("foto", `Subió ${subidas} foto${subidas === 1 ? "" : "s"}${nombreSube ? ` (crédito: ${nombreSube})` : ""}`);
+        await registrarBitacora("foto", `Subió ${subidas} foto${subidas === 1 ? "" : "s"}${descripcion ? `: "${descripcion}"` : ""}`);
     }
 
     if (subidas === archivos.length) {
         estadoSubida.textContent = `¡Listo! Se subieron ${subidas} foto${subidas === 1 ? "" : "s"}. 🌼`;
+        observacionFoto.value = "";
     } else if (subidas > 0) {
         estadoSubida.textContent = `Se subieron ${subidas} de ${archivos.length} fotos. Algunas fallaron, intenta de nuevo.`;
         estadoSubida.classList.add("error");
@@ -353,32 +377,106 @@ visor.addEventListener("click", (e) => {
 });
 
 // =========================================================
-// Perfil de la reina: nombre real + preguntas curiosas.
-// Verlo es libre; crearlo o editarlo requiere el acceso de docente.
+// Foto de portada: la foto principal que aparece al frente.
 // =========================================================
+function pintarPortada(rutaStorage) {
+    if (!rutaStorage) {
+        portadaHero.classList.add("oculto");
+        portadaActualImg.classList.add("oculto");
+        portadaActualVacio.classList.remove("oculto");
+        portadaActualTexto.textContent = "Todavía no hay foto de portada.";
+        return;
+    }
+    const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(rutaStorage);
+    portadaHero.src = pub.publicUrl;
+    portadaHero.classList.remove("oculto");
+    portadaActualImg.src = pub.publicUrl;
+    portadaActualImg.classList.remove("oculto");
+    portadaActualVacio.classList.add("oculto");
+    portadaActualTexto.textContent = "Foto de portada actual.";
+}
+
+formPortada.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    if (!reina || !accesoDocente) return;
+
+    const archivo = archivoPortada.files && archivoPortada.files[0];
+    if (!archivo || !archivo.type.startsWith("image/")) {
+        estadoPortada.textContent = "Elige una foto.";
+        estadoPortada.classList.add("error");
+        return;
+    }
+
+    btnPortada.disabled = true;
+    estadoPortada.classList.remove("error");
+    estadoPortada.textContent = "Subiendo...";
+
+    try {
+        const imagenLista = await reducirImagen(archivo, 1000, 0.85);
+        const nombreArchivo = `portada-${Date.now()}.jpg`;
+        const ruta = `${reina.slug}/portada/${nombreArchivo}`;
+
+        const { error: errorSubida } = await supabase.storage
+            .from(BUCKET)
+            .upload(ruta, imagenLista, { contentType: "image/jpeg", upsert: false });
+        if (errorSubida) throw errorSubida;
+
+        const filaPortada = {
+            reina_slug: reina.slug,
+            foto_portada_ruta: ruta,
+            docente_nombre: accesoDocente.docente,
+            clave_ingresada: accesoDocente.clave,
+        };
+
+        const { error: errorFila } = perfilActual
+            ? await supabase.from("campesino_perfiles_reinas").update(filaPortada).eq("reina_slug", reina.slug)
+            : await supabase.from("campesino_perfiles_reinas").insert(filaPortada);
+        if (errorFila) throw errorFila;
+
+        await registrarBitacora("portada", "Actualizó la foto de portada");
+        estadoPortada.textContent = "¡Foto de portada guardada! 🌼";
+        archivoPortada.value = "";
+        await cargarPerfil();
+    } catch (err) {
+        console.error("Error guardando portada:", err);
+        estadoPortada.textContent = "No se pudo guardar la foto de portada.";
+        estadoPortada.classList.add("error");
+    }
+
+    btnPortada.disabled = false;
+});
+
+// =========================================================
+// Perfil de la reina: nombre real + preguntas curiosas, mostradas
+// como un párrafo. Verlo es libre; crearlo o editarlo requiere el
+// acceso de docente.
+// =========================================================
+function construirParrafo(perfil) {
+    const frases = [];
+    if (perfil.fecha_nacimiento) frases.push(`Nació el ${perfil.fecha_nacimiento}.`);
+    if (perfil.comida_favorita) frases.push(`Le gusta comer ${perfil.comida_favorita}.`);
+    if (perfil.color_favorito) frases.push(`Su color favorito es el ${perfil.color_favorito}.`);
+    if (perfil.materia_favorita) frases.push(`Su materia favorita es ${perfil.materia_favorita}.`);
+    if (perfil.dato_curioso) frases.push(perfil.dato_curioso.trim().replace(/\.?$/, "."));
+    if (perfil.algo_que_da_risa) frases.push(perfil.algo_que_da_risa.trim().replace(/\.?$/, "."));
+    if (perfil.que_hara_si_gana) frases.push(`Si gana el reinado, ${perfil.que_hara_si_gana.trim().replace(/^./, (c) => c.toLowerCase())}${/[.!?]$/.test(perfil.que_hara_si_gana.trim()) ? "" : "."}`);
+    return frases.join(" ");
+}
+
 function pintarPerfil(perfil) {
-    if (!perfil) {
+    if (!perfil || !perfil.nombre_reina) {
         perfilContenido.innerHTML = `<p class="perfil-vacio">Todavía nadie ha completado el perfil de esta reina. El salón o su profesor(a) guía puede hacerlo con la clave de acceso. 👇</p>`;
         return;
     }
 
     // Si ya hay un nombre real, se usa en el encabezado de la página.
-    if (perfil.nombre_reina) {
-        tituloReina.textContent = `${perfil.nombre_reina} · Reina de ${reina.nombre}`;
-    }
+    tituloReina.textContent = `${perfil.nombre_reina} · Reina de ${reina.nombre}`;
 
-    const preguntas = [
-        ["🍽️ Le gusta comer", perfil.comida_favorita],
-        ["✨ Dato curioso", perfil.dato_curioso],
-        ["😂 Algo que da risa", perfil.algo_que_da_risa],
-        ["👑 Si gana el reinado hará", perfil.que_hara_si_gana],
-    ].filter(([, valor]) => valor && valor.trim() !== "");
+    const parrafo = construirParrafo(perfil);
 
     perfilContenido.innerHTML = `
         <p class="perfil-nombre">${escaparHTML(perfil.nombre_reina)}</p>
-        ${preguntas.length ? `<div class="perfil-preguntas">${preguntas.map(([pregunta, valor]) => `
-            <div class="pregunta"><div class="q">${pregunta}</div><div class="a">${escaparHTML(valor)}</div></div>
-        `).join("")}</div>` : `<p class="perfil-vacio">Aún faltan las preguntas curiosas.</p>`}
+        ${parrafo ? `<p class="perfil-parrafo">${escaparHTML(parrafo)}</p>` : `<p class="perfil-vacio">Aún faltan las preguntas curiosas.</p>`}
         ${perfil.docente_nombre ? `<p class="perfil-credito">Completado por ${escaparHTML(perfil.docente_nombre)}</p>` : ""}
     `;
 }
@@ -400,10 +498,14 @@ async function cargarPerfil() {
 
     perfilActual = data || null;
     pintarPerfil(perfilActual);
+    pintarPortada(perfilActual ? perfilActual.foto_portada_ruta : null);
 
     if (perfilActual) {
         pNombreReina.value = perfilActual.nombre_reina || "";
+        pFechaNacimiento.value = perfilActual.fecha_nacimiento || "";
         pComida.value = perfilActual.comida_favorita || "";
+        pColor.value = perfilActual.color_favorito || "";
+        pMateria.value = perfilActual.materia_favorita || "";
         pCurioso.value = perfilActual.dato_curioso || "";
         pRisa.value = perfilActual.algo_que_da_risa || "";
         pSiGana.value = perfilActual.que_hara_si_gana || "";
@@ -428,7 +530,10 @@ formPerfil.addEventListener("submit", async (evento) => {
     const filaPerfil = {
         reina_slug: reina.slug,
         nombre_reina: nombre,
+        fecha_nacimiento: pFechaNacimiento.value.trim() || null,
         comida_favorita: pComida.value.trim() || null,
+        color_favorito: pColor.value.trim() || null,
+        materia_favorita: pMateria.value.trim() || null,
         dato_curioso: pCurioso.value.trim() || null,
         algo_que_da_risa: pRisa.value.trim() || null,
         que_hara_si_gana: pSiGana.value.trim() || null,
@@ -438,8 +543,8 @@ formPerfil.addEventListener("submit", async (evento) => {
     };
 
     // Un solo perfil por reina: si ya existe, se actualiza; si no, se crea.
-    const yaExistia = !!perfilActual;
-    const { error } = yaExistia
+    const yaExistia = !!(perfilActual && perfilActual.nombre_reina);
+    const { error } = perfilActual
         ? await supabase.from("campesino_perfiles_reinas").update(filaPerfil).eq("reina_slug", reina.slug)
         : await supabase.from("campesino_perfiles_reinas").insert(filaPerfil);
 
