@@ -490,6 +490,78 @@ section.alt{background:var(--parchment-deep);}
   .toponi .lvl{justify-self:start; margin-top:4px;}
 }
 
+/* ---------- EDICIÓN PLATOS (protegida por contraseña) ---------- */
+.platos-head-row{
+  display:flex; align-items:flex-end; justify-content:space-between;
+  gap:16px; flex-wrap:wrap;
+}
+.btn-lock{
+  display:inline-flex; align-items:center; gap:7px;
+  background:var(--card);
+  border:1px solid var(--line);
+  color:var(--green-deep);
+  font-family:'Space Mono', monospace;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:0.04em;
+  padding:9px 16px;
+  border-radius:999px;
+  cursor:pointer;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+  white-space:nowrap;
+}
+.btn-lock:hover{border-color:var(--gold); transform:translateY(-1px);}
+.btn-lock.desbloqueado{
+  background:linear-gradient(135deg, var(--gold), #b9800f);
+  color:var(--green-deep);
+  border-color:transparent;
+}
+.btn-guardar-platos{
+  display:none;
+  align-items:center; gap:7px;
+  background:var(--green-deep);
+  color:#F2E6C8;
+  font-family:'Space Mono', monospace;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:0.04em;
+  padding:9px 16px;
+  border:none;
+  border-radius:999px;
+  cursor:pointer;
+  margin-left:8px;
+}
+.btn-guardar-platos.visible{display:inline-flex;}
+.plato-input{
+  width:100%;
+  min-width:140px;
+  border:1px solid transparent;
+  background:transparent;
+  font-family:'Work Sans', sans-serif;
+  font-size:14.5px;
+  color:var(--ink);
+  padding:6px 8px;
+  border-radius:8px;
+  transition: background .15s ease, border-color .15s ease;
+}
+.plato-input:disabled{
+  color:var(--ink-soft);
+  cursor:default;
+}
+.plato-input:not(:disabled){
+  background:#fff;
+  border-color:var(--gold);
+  box-shadow:0 0 0 2px rgba(209,154,31,0.15);
+}
+.plato-input:not(:disabled):focus{outline:none; border-color:var(--clay);}
+.platos-estado{
+  font-family:'Space Mono', monospace;
+  font-size:11.5px;
+  color:var(--green-mid);
+  margin-top:10px;
+  min-height:16px;
+}
+
 /* ---------- CHECKLIST GRID ---------- */
 .chip-grid{
   display:flex; flex-wrap:wrap; gap:8px;
@@ -892,37 +964,123 @@ footer .school{
 
     <div class="section-head" style="margin-top:44px;">
       <span class="num">03 · Detalle por docente</span>
-      <h2>Docente, Salón, Provincia y Plato de Comida</h2>
-      <p>Cada docente puede ver de un vistazo qué salón le corresponde, qué provincia o comarca representa, qué rancho de Premedia lo apoya, y el plato de comida asignado (columna por completar).</p>
+      <div class="platos-head-row">
+        <div>
+          <h2>Docente, Salón y Plato de Comida / Actividad</h2>
+          <p>Cada docente puede ver de un vistazo qué salón le corresponde, qué rancho de Premedia lo apoya, y el plato o actividad distinta que le fue asignada.</p>
+        </div>
+        <div>
+          <button type="button" id="btn-editar-platos" class="btn-lock">🔒 Editar (encargada)</button>
+          <button type="button" id="btn-guardar-platos" class="btn-guardar-platos">💾 Guardar</button>
+        </div>
+      </div>
+      <div id="platos-estado" class="platos-estado"></div>
     </div>
 
-    <table class="rtable">
+    <table class="rtable" id="tabla-platos">
       <thead>
-        <tr><th>Provincia / Comarca</th><th>Salón</th><th>Docente</th><th>Apoyo de Premedia</th><th>Plato de comida</th></tr>
+        <tr><th>Salón</th><th>Docente</th><th>Apoyo de Premedia</th><th>Plato de comida / Actividad</th></tr>
       </thead>
       <tbody>
-        <tr><td class="prov" data-label="Provincia / Comarca">Bocas del Toro</td><td data-label="Salón">Prejardín A</td><td data-label="Docente">Lesbia Muñoz</td><td data-label="Apoyo de Premedia">VII-A · Leticia de Palacios</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Bocas del Toro</td><td data-label="Salón">V-B</td><td data-label="Docente">Yessenia Clark</td><td data-label="Apoyo de Premedia">VII-A · Leticia de Palacios</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Coclé</td><td data-label="Salón">Prejardín B</td><td data-label="Docente">Milvia Ortega</td><td data-label="Apoyo de Premedia">VII-B · Erika Pimentel</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Coclé</td><td data-label="Salón">V-A</td><td data-label="Docente">Geraldine Magallón</td><td data-label="Apoyo de Premedia">VII-B · Erika Pimentel</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Colón</td><td data-label="Salón">Jardín A</td><td data-label="Docente">Albertina Ortiz</td><td data-label="Apoyo de Premedia">VII-C · Ronald González</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Colón</td><td data-label="Salón">IV-C</td><td data-label="Docente">Anabelis Gallardo</td><td data-label="Apoyo de Premedia">VII-C · Ronald González</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Chiriquí</td><td data-label="Salón">Jardín C</td><td data-label="Docente">Tilsa Garibaldi</td><td data-label="Apoyo de Premedia">VIII-A · Juana Brown</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Chiriquí</td><td data-label="Salón">I-A</td><td data-label="Docente">Heidi De León</td><td data-label="Apoyo de Premedia">VIII-A · Juana Brown</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Herrera</td><td data-label="Salón">I-B</td><td data-label="Docente">Zulma Becerra</td><td data-label="Apoyo de Premedia">VIII-B · Leonela Rivera</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Herrera</td><td data-label="Salón">V-C</td><td data-label="Docente">Elaisa Jaramillo</td><td data-label="Apoyo de Premedia">VIII-B · Leonela Rivera</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Los Santos</td><td data-label="Salón">I-C</td><td data-label="Docente">Ananías Benítes</td><td data-label="Apoyo de Premedia">VIII-C · Nairobys Sáenz</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Los Santos</td><td data-label="Salón">VI-A</td><td data-label="Docente">Viodelka Goitía</td><td data-label="Apoyo de Premedia">VIII-C · Nairobys Sáenz</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Panamá</td><td data-label="Salón">II-A</td><td data-label="Docente">Telma Grenald</td><td data-label="Apoyo de Premedia">IX-A · Miriam Valencia</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Panamá</td><td data-label="Salón">II-B</td><td data-label="Docente">Ana Grenard</td><td data-label="Apoyo de Premedia">IX-A · Miriam Valencia</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Panamá Oeste</td><td data-label="Salón">III-B</td><td data-label="Docente">Jenifer Dean</td><td data-label="Apoyo de Premedia">IX-B · Wendy Harren</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Panamá Oeste</td><td data-label="Salón">III-C</td><td data-label="Docente">Telma Escobar</td><td data-label="Apoyo de Premedia">IX-B · Wendy Harren</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Veraguas</td><td data-label="Salón">IV-A</td><td data-label="Docente">Angélica Jiménez</td><td data-label="Apoyo de Premedia">IX-C · Samuel Ortega</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Veraguas</td><td data-label="Salón">IV-B</td><td data-label="Docente">Rosa Perea</td><td data-label="Apoyo de Premedia">IX-C · Samuel Ortega</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Darién</td><td data-label="Salón">Jardín B</td><td data-label="Docente">Ángela Hall</td><td data-label="Apoyo de Premedia">VII-A (compartido) · Leticia de Palacios</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Darién</td><td data-label="Salón">VI-B</td><td data-label="Docente">Alejandrina Salazar</td><td data-label="Apoyo de Premedia">VII-A (compartido) · Leticia de Palacios</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Comarcas Indígenas</td><td data-label="Salón">II-C</td><td data-label="Docente">Carmen Gaitán</td><td data-label="Apoyo de Premedia">VIII-A (compartido) · Juana Brown</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Comarcas Indígenas</td><td data-label="Salón">III-A</td><td data-label="Docente">Betzaida Rodríguez</td><td data-label="Apoyo de Premedia">VIII-A (compartido) · Juana Brown</td><td data-label="Plato de comida">Pronto se asignará</td></tr>
+        <tr>
+          <td data-label="Salón">Prejardín A</td><td data-label="Docente">Lesbia Muñoz</td>
+          <td data-label="Apoyo de Premedia" rowspan="2">VII-A · Leticia de Palacios</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Prejardín A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">V-B</td><td data-label="Docente">Yessenia Clark</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="V-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">Prejardín B</td><td data-label="Docente">Milvia Ortega</td>
+          <td data-label="Apoyo de Premedia" rowspan="2">VII-B · Erika Pimentel</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Prejardín B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">V-A</td><td data-label="Docente">Geraldine Magallón</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="V-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">Jardín A</td><td data-label="Docente">Albertina Ortiz</td>
+          <td data-label="Apoyo de Premedia" rowspan="2">VII-C · Ronald González</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Jardín A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">IV-C</td><td data-label="Docente">Anabelis Gallardo</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IV-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">Jardín C</td><td data-label="Docente">Tilsa Garibaldi</td>
+          <td data-label="Apoyo de Premedia" rowspan="2">VIII-A · Juana Brown</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Jardín C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">I-A</td><td data-label="Docente">Heidi De León</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="I-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">I-B</td><td data-label="Docente">Zulma Becerra</td>
+          <td data-label="Apoyo de Premedia" rowspan="2">VIII-B · Leonela Rivera</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="I-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">V-C</td><td data-label="Docente">Elaisa Jaramillo</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="V-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">I-C</td><td data-label="Docente">Ananías Benítes</td>
+          <td data-label="Apoyo de Premedia" rowspan="2">VIII-C · Nairobys Sáenz</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="I-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">VI-A</td><td data-label="Docente">Viodelka Goitía</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VI-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">II-A</td><td data-label="Docente">Telma Grenald</td>
+          <td data-label="Apoyo de Premedia" rowspan="2">IX-A · Miriam Valencia</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="II-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">II-B</td><td data-label="Docente">Ana Grenard</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="II-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">III-B</td><td data-label="Docente">Jenifer Dean</td>
+          <td data-label="Apoyo de Premedia" rowspan="2">IX-B · Wendy Harren</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="III-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">III-C</td><td data-label="Docente">Telma Escobar</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="III-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">IV-A</td><td data-label="Docente">Angélica Jiménez</td>
+          <td data-label="Apoyo de Premedia" rowspan="2">IX-C · Samuel Ortega</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IV-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">IV-B</td><td data-label="Docente">Rosa Perea</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="IV-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">Jardín B</td><td data-label="Docente">Ángela Hall</td>
+          <td data-label="Apoyo de Premedia" rowspan="2">VII-A (compartido) · Leticia de Palacios</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="Jardín B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">VI-B</td><td data-label="Docente">Alejandrina Salazar</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="VI-B" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">II-C</td><td data-label="Docente">Carmen Gaitán</td>
+          <td data-label="Apoyo de Premedia" rowspan="2">VIII-A (compartido) · Juana Brown</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="II-C" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
+        <tr>
+          <td data-label="Salón">III-A</td><td data-label="Docente">Betzaida Rodríguez</td>
+          <td data-label="Plato de comida / Actividad"><input class="plato-input" data-salon="III-A" type="text" disabled placeholder="Pronto se asignará"></td>
+        </tr>
       </tbody>
     </table>
 
@@ -1222,6 +1380,7 @@ footer .school{
 </footer>
 
 <script type="module" src="../js/campesino-mini-fotos.js"></script>
+<script type="module" src="../js/campesino-platos.js"></script>
 <script>
 (function(){
   var tabs = Array.prototype.slice.call(document.querySelectorAll('nav.tabs a'));
