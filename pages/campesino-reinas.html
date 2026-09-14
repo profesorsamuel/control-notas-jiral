@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Galería de Reinas · Día del Campesino 2026 · C.E.B.G. El Jiral</title>
+<title>La Reina del Me Gusta · Día del Campesino 2026 · C.E.B.G. El Jiral</title>
 
 <link rel="icon" type="image/x-icon" href="../img/favicon.ico">
 <link rel="apple-touch-icon" sizes="180x180" href="../img/apple-touch-icon.png">
@@ -70,18 +70,19 @@ section{padding:36px 0 64px;}
   border-radius:16px;
   box-shadow:var(--shadow);
   padding:18px 18px 16px;
-  text-decoration:none;
   color:var(--ink);
   display:block;
   transition:transform .15s ease, box-shadow .15s ease;
 }
-.reina-card:hover{transform:translateY(-3px); box-shadow:0 14px 28px rgba(32,26,10,0.18); color:var(--ink);}
+.reina-card:hover{transform:translateY(-3px); box-shadow:0 14px 28px rgba(32,26,10,0.18);}
 .reina-card .cubierta{
   width:100%; aspect-ratio:4/3; border-radius:12px; overflow:hidden;
   background: linear-gradient(135deg, var(--parchment-deep), var(--card));
   display:flex; align-items:center; justify-content:center;
   margin-bottom:12px; position:relative;
+  border:none; padding:0; font:inherit; cursor:default;
 }
+.reina-card .cubierta.con-foto{cursor:zoom-in;}
 .reina-card .cubierta img{width:100%; height:100%; object-fit:cover; display:block;}
 .reina-card .cubierta .placeholder{font-size:30px; opacity:.5;}
 .reina-card .conteo{
@@ -97,6 +98,40 @@ section{padding:36px 0 64px;}
 }
 .reina-card p{margin:0; font-size:12.5px; color:var(--ink-soft);}
 
+.acciones-card{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  margin-top:12px;
+}
+.btn-me-gusta{
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--parchment-deep); color:var(--clay-dark);
+  border:1px solid rgba(138,68,35,0.3); border-radius:999px;
+  padding:7px 13px; font-family:'Work Sans', sans-serif; font-weight:600;
+  font-size:13px; cursor:pointer; transition:transform .1s ease, background .15s ease;
+}
+.btn-me-gusta:hover{transform:translateY(-1px); background:#F1E3C0;}
+.btn-me-gusta .conteo-votos{font-family:'Space Mono', monospace; font-weight:700;}
+.btn-me-gusta.votada{background:var(--red); color:#FBF5E4; border-color:var(--red);}
+.btn-me-gusta:disabled{cursor:not-allowed;}
+.btn-me-gusta:disabled:not(.votada){opacity:.45; transform:none;}
+.ver-galeria{
+  font-family:'Space Mono', monospace; font-size:11.5px;
+  color:var(--green-mid); text-decoration:none; white-space:nowrap;
+}
+.ver-galeria:hover{text-decoration:underline;}
+
+.visor{
+  position:fixed; inset:0; background:rgba(20,24,15,0.92);
+  display:none; align-items:center; justify-content:center;
+  z-index:200; padding:20px;
+}
+.visor.abierto{display:flex;}
+.visor img{max-width:100%; max-height:88vh; border-radius:10px; box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.visor .cerrar{
+  position:absolute; top:18px; right:22px;
+  background:none; border:none; color:#FBF5E4; font-size:28px; cursor:pointer;
+}
+
 footer{padding:20px 0 40px; text-align:center;}
 footer p{font-size:12.5px; color:var(--ink-soft);}
 </style>
@@ -106,8 +141,8 @@ footer p{font-size:12.5px; color:var(--ink-soft);}
 <header class="hero">
   <div class="wrap">
     <a class="volver" href="dia-del-campesino.html">&larr; Programa del Día del Campesino</a>
-    <h1>📷 Galería de las Reinas</h1>
-    <p>Cada reina tiene su propia página de fotos, desde la presentación de candidatas hasta la elección final. Cualquiera puede subir fotos; toca una tarjeta para ver o compartir las suyas.</p>
+    <h1>❤️ La Reina del Me Gusta</h1>
+    <p>Cada reina tiene su propia página de fotos. Toca su foto para verla en grande, o dale <strong>❤️ Me gusta</strong> a la que más te guste — solo se puede votar una vez por teléfono o computadora, ¡así que elige bien!</p>
   </div>
 </header>
 
@@ -125,6 +160,11 @@ footer p{font-size:12.5px; color:var(--ink-soft);}
   <p>C.E.B.G. El Jiral · Día del Campesino 2026</p>
   <p><a href="campesino-bitacora.html" style="color:var(--clay-dark);">🛡️ Bitácora de cambios (solo administrador)</a></p>
 </footer>
+
+<div class="visor" id="visor">
+  <button class="cerrar" id="cerrarVisor">&times;</button>
+  <img id="imgVisor" src="" alt="">
+</div>
 
 <script type="module" src="../js/campesino-reinas.js"></script>
 </body>
