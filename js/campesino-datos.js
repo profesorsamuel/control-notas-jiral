@@ -1,7 +1,7 @@
 // =====================================================
 // campesino-datos.js
-// Lista fija de las 19 "reinas" del Día del Campesino 2026:
-// 10 provincias/comarca de Primaria + 9 salones de Premedia.
+// Lista fija de las 20 "reinas" del Día del Campesino 2026:
+// 11 provincias/comarca de Primaria + 9 salones de Premedia.
 // La usan campesino-reinas.html (índice) y campesino-galeria.html
 // (galería de fotos de una reina), para no repetir esta lista.
 //
