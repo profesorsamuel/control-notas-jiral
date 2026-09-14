@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galería de la Reina · Día del Campesino 2026 · C.E.B.G. El Jiral</title>
+
+<link rel="icon" type="image/x-icon" href="../img/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../img/apple-touch-icon.png">
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+:root{
+  --parchment:#F2E6C8;
+  --parchment-deep:#E8D8AE;
+  --card:#FBF5E4;
+  --ink:#20301D;
+  --ink-soft:#4E5B44;
+  --green-deep:#1F3B24;
+  --green-mid:#3E6B3F;
+  --clay:#B5622E;
+  --clay-dark:#8A4423;
+  --gold:#D19A1F;
+  --red:#C23B22;
+  --line: rgba(32,48,29,0.18);
+  --shadow: 0 6px 18px rgba(32,26,10,0.12);
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background: radial-gradient(ellipse at top left, rgba(255,255,255,0.35), transparent 55%), var(--parchment);
+  color:var(--ink);
+  font-family:'Work Sans', sans-serif;
+  line-height:1.5;
+}
+.wrap{max-width:1000px;margin:0 auto;padding:0 20px;}
+h1,h2{font-family:'Fraunces', serif; margin:0; color:var(--green-deep);}
+
+header.hero{
+  background: linear-gradient(180deg, var(--green-deep) 0%, #274A2B 100%);
+  color:#F2E6C8;
+  padding:36px 0 26px;
+}
+.volver{
+  display:inline-flex; align-items:center; gap:6px;
+  color:#D9CFAE; text-decoration:none; font-family:'Space Mono', monospace;
+  font-size:12.5px; margin-bottom:16px;
+}
+.volver:hover{color:var(--gold);}
+.lvl-chip{
+  display:inline-block;
+  font-family:'Space Mono', monospace;
+  font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase;
+  color:var(--gold); border:1px solid rgba(209,154,31,.5);
+  padding:4px 12px; border-radius:999px; margin-bottom:10px;
+}
+header.hero h1{color:#FBF5E4; font-size:clamp(26px,5vw,36px);}
+header.hero p.detalle{color:#D9CFAE; margin-top:6px; font-size:14.5px;}
+
+section{padding:30px 0 60px;}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+}
+
+.oculto{display:none !important;}
+
+.acceso-card{padding:20px 22px; margin-bottom:26px; border:1px dashed var(--clay);}
+.acceso-card h2{font-size:17px; margin-bottom:6px;}
+.acceso-card p.ayuda{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+.fila-acceso{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+.fila-acceso select, .fila-acceso input[type="text"]{
+  padding:10px 12px; border-radius:10px; border:1px solid var(--line);
+  background:#fff; font-family:'Work Sans', sans-serif; font-size:14px;
+}
+.fila-acceso select{flex:1 1 240px;}
+.fila-acceso input[type="text"]{flex:0 1 130px; text-transform:lowercase;}
+.pista-clave{font-size:12px; color:var(--ink-soft); margin:10px 0 0;}
+.badge-acceso{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(62,107,63,0.12); color:var(--green-mid);
+  border:1px solid rgba(62,107,63,0.3);
+  padding:4px 12px; border-radius:999px; font-weight:600; font-size:12.5px;
+}
+.badge-acceso button{
+  background:none; border:none; color:var(--green-mid); text-decoration:underline;
+  font-size:12px; cursor:pointer; padding:0; margin-left:4px;
+}
+
+.subir-card{padding:20px 22px; margin-bottom:26px;}
+.subir-card h2{font-size:17px; margin-bottom:6px;}
+.subir-card p.ayuda{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+
+.perfil-card{padding:22px 24px; margin-bottom:26px;}
+.perfil-card h2{font-size:18px; margin-bottom:4px;}
+.perfil-nombre{
+  font-family:'Fraunces', serif; font-weight:700; font-size:24px;
+  color:var(--clay-dark); margin:2px 0 14px;
+}
+.perfil-vacio{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+.perfil-preguntas{display:grid; gap:12px; margin-bottom:6px;}
+.perfil-preguntas .pregunta{
+  background:var(--parchment-deep); border-radius:12px; padding:12px 14px;
+}
+.perfil-preguntas .pregunta .q{
+  font-family:'Space Mono', monospace; font-size:11.5px; text-transform:uppercase;
+  letter-spacing:.05em; color:var(--clay-dark); font-weight:700; margin-bottom:4px;
+}
+.perfil-preguntas .pregunta .a{font-size:14.5px; color:var(--ink);}
+.perfil-credito{font-size:12px; color:var(--ink-soft); margin-top:10px;}
+
+details.perfil-editar{
+  margin-top:16px; border:1px dashed var(--clay); border-radius:14px; overflow:hidden;
+}
+details.perfil-editar summary{
+  cursor:pointer; list-style:none; padding:12px 16px;
+  font-family:'Fraunces', serif; font-weight:600; font-size:15px; color:var(--green-deep);
+}
+details.perfil-editar summary::-webkit-details-marker{display:none;}
+.form-perfil{padding:4px 16px 18px; display:grid; gap:12px;}
+.form-perfil label{
+  display:block; font-family:'Space Mono', monospace; font-size:11px; text-transform:uppercase;
+  letter-spacing:.05em; color:var(--ink-soft); margin-bottom:4px;
+}
+.form-perfil input[type="text"], .form-perfil textarea{
+  width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line);
+  background:#fff; font-family:'Work Sans', sans-serif; font-size:14px; resize:vertical;
+}
+.form-perfil textarea{min-height:56px;}
+.btn-guardar-perfil{
+  background: linear-gradient(135deg, var(--green-mid), var(--green-deep));
+  color:#FBF5E4; border:none; border-radius:999px;
+  padding:10px 22px; font-weight:600; font-size:14px; cursor:pointer;
+  justify-self:start;
+}
+.btn-guardar-perfil:disabled{opacity:.6; cursor:progress;}
+.estado-perfil{font-size:13px; color:var(--green-mid); min-height:18px;}
+.estado-perfil.error{color:var(--red);}
+.fila-subir{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+.fila-subir input[type="text"]{
+  flex:1 1 200px;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:#fff;
+  font-family:'Work Sans', sans-serif;
+  font-size:14px;
+}
+.fila-subir input[type="file"]{
+  flex:1 1 220px;
+  font-size:13.5px;
+}
+.btn-subir{
+  background: linear-gradient(135deg, var(--clay), var(--clay-dark));
+  color:#FBF5E4; border:none; border-radius:999px;
+  padding:10px 20px; font-weight:600; font-size:14px; cursor:pointer;
+  white-space:nowrap;
+}
+.btn-subir:disabled{opacity:.6; cursor:progress;}
+.estado-subida{font-size:13px; color:var(--green-mid); margin-top:10px; min-height:18px;}
+.estado-subida.error{color:var(--red);}
+
+.galeria{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(160px,1fr));
+  gap:10px;
+}
+.foto{
+  position:relative;
+  border-radius:12px;
+  overflow:hidden;
+  aspect-ratio:1/1;
+  background:var(--parchment-deep);
+  box-shadow:var(--shadow);
+  cursor:pointer;
+}
+.foto img{width:100%; height:100%; object-fit:cover; display:block;}
+.foto .borrar{
+  position:absolute; top:6px; right:6px;
+  width:26px; height:26px; border-radius:50%;
+  background:rgba(194,59,34,0.9); color:#fff;
+  border:none; font-size:14px; line-height:1;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+}
+.foto .credito{
+  position:absolute; left:0; right:0; bottom:0;
+  background:linear-gradient(0deg, rgba(31,59,36,.75), transparent);
+  color:#FBF5E4; font-size:10.5px; padding:12px 8px 6px;
+}
+.vacio{
+  text-align:center; padding:50px 20px; color:var(--ink-soft);
+  font-size:14.5px;
+}
+
+.admin-strip{
+  margin-top:22px; display:flex; align-items:center; justify-content:space-between;
+  gap:10px; flex-wrap:wrap;
+  font-size:12.5px; color:var(--ink-soft);
+}
+.admin-strip a{color:var(--clay-dark); text-decoration:none; font-weight:600;}
+.admin-strip a:hover{text-decoration:underline;}
+.insignia-admin{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(62,107,63,0.12); color:var(--green-mid);
+  border:1px solid rgba(62,107,63,0.3);
+  padding:4px 12px; border-radius:999px; font-weight:600;
+}
+
+/* Visor de foto a pantalla completa */
+.visor{
+  position:fixed; inset:0; background:rgba(20,24,15,0.92);
+  display:none; align-items:center; justify-content:center;
+  z-index:200; padding:20px;
+}
+.visor.abierto{display:flex;}
+.visor img{max-width:100%; max-height:88vh; border-radius:10px; box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.visor .cerrar{
+  position:absolute; top:18px; right:22px;
+  background:none; border:none; color:#FBF5E4; font-size:28px; cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <a class="volver" href="campesino-reinas.html">&larr; Todas las reinas</a>
+    <span class="lvl-chip" id="chipNivel">Reinado</span>
+    <h1 id="tituloReina">Cargando…</h1>
+    <p class="detalle" id="detalleReina"></p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+
+    <div class="card perfil-card">
+      <h2>👑 Conoce a la reina</h2>
+      <div id="perfilContenido">
+        <p class="perfil-vacio">Cargando perfil…</p>
+      </div>
+
+      <details class="perfil-editar oculto" id="perfilEditarDetalle">
+        <summary>✏️ Completar o editar el perfil de esta reina</summary>
+        <form class="form-perfil" id="formPerfil">
+          <div>
+            <label for="pNombreReina">Nombre de la reina</label>
+            <input type="text" id="pNombreReina" maxlength="80" placeholder="Nombre completo de la candidata" required>
+          </div>
+          <div>
+            <label for="pComida">¿Qué le gusta comer?</label>
+            <input type="text" id="pComida" maxlength="200" placeholder="Su comida favorita">
+          </div>
+          <div>
+            <label for="pCurioso">Un dato curioso sobre ella</label>
+            <textarea id="pCurioso" maxlength="300" placeholder="Algo que pocos saben de ella..."></textarea>
+          </div>
+          <div>
+            <label for="pRisa">Algo de ella que da risa / es gracioso</label>
+            <textarea id="pRisa" maxlength="300" placeholder="Una anécdota chistosa, una costumbre curiosa..."></textarea>
+          </div>
+          <div>
+            <label for="pSiGana">¿Qué hará si gana el reinado?</label>
+            <textarea id="pSiGana" maxlength="400" placeholder="Su promesa o plan si es elegida reina"></textarea>
+          </div>
+          <button type="submit" class="btn-guardar-perfil" id="btnGuardarPerfil">Guardar perfil</button>
+          <p class="estado-perfil" id="estadoPerfil"></p>
+        </form>
+      </details>
+    </div>
+
+    <div class="card acceso-card" id="accesoCard">
+      <h2>🔑 Acceso de docente</h2>
+      <p class="ayuda">Para evitar contenido indebido, subir fotos o completar el perfil de la reina requiere el nombre de un(a) docente del plantel y su clave. Pídesela a tu profesor(a) guía si no la tienes.</p>
+      <form id="formAcceso" class="fila-acceso">
+        <select id="docenteAcceso" required>
+          <option value="" disabled selected>Elige el nombre del/de la docente...</option>
+        </select>
+        <input type="text" id="claveAcceso" placeholder="Clave (2 letras)" maxlength="2" required autocomplete="off">
+        <button type="submit" class="btn-subir">Entrar</button>
+      </form>
+      <p class="estado-subida" id="estadoAcceso"></p>
+      <p class="pista-clave">La clave es la primera letra del nombre + la última letra del apellido. Ej. Samuel Ortega → <strong>sa</strong>.</p>
+    </div>
+
+    <div class="card subir-card oculto" id="subirCard">
+      <h2>📤 Subir una foto</h2>
+      <p class="ayuda">Ya identificado(a) como docente, puedes subir fotos de esta reina. Puedes seleccionar varias a la vez.</p>
+      <form id="formSubir" class="fila-subir">
+        <input type="text" id="nombreQuienSube" placeholder="Tu nombre (opcional, para el crédito de la foto)" maxlength="60">
+        <input type="file" id="archivosFoto" accept="image/*" multiple required>
+        <button type="submit" class="btn-subir" id="btnSubir">Subir foto(s)</button>
+      </form>
+      <p class="estado-subida" id="estadoSubida"></p>
+    </div>
+
+    <div class="galeria" id="galeria"></div>
+    <p class="vacio" id="vacioAviso" style="display:none;">Todavía no hay fotos de esta reina. ¡Pide a tu profesor(a) guía que suba la primera! 🌼</p>
+
+    <div class="admin-strip">
+      <span id="estadoAcceso2"></span>
+      <span id="estadoAdmin">¿Eres administrador? <a href="login.html">Inicia sesión</a> para poder borrar fotos.</span>
+    </div>
+
+  </div>
+</section>
+
+<div class="visor" id="visor">
+  <button class="cerrar" id="cerrarVisor">&times;</button>
+  <img id="imgVisor" src="" alt="">
+</div>
+
+<script type="module" src="../js/campesino-galeria.js"></script>
+</body>
+</html>

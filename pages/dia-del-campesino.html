@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Día del Campesino 2026 · C.E.B.G. El Jiral</title>
+<link rel="icon" type="image/x-icon" href="../img/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../img/apple-touch-icon.png">
+<style>
+.volver-inicio{
+  display:inline-flex; align-items:center; gap:6px;
+  color:#D9CFAE; text-decoration:none; font-family:'Space Mono', monospace;
+  font-size:12px; margin-bottom:16px;
+}
+.volver-inicio:hover{color:var(--gold);}
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+:root{
+  --parchment:#F2E6C8;
+  --parchment-deep:#E8D8AE;
+  --card:#FBF5E4;
+  --ink:#20301D;
+  --ink-soft:#4E5B44;
+  --green-deep:#1F3B24;
+  --green-mid:#3E6B3F;
+  --clay:#B5622E;
+  --clay-dark:#8A4423;
+  --gold:#D19A1F;
+  --red:#C23B22;
+  --line: rgba(32,48,29,0.18);
+  --shadow: 0 6px 18px rgba(32,26,10,0.12);
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:
+    radial-gradient(ellipse at top left, rgba(255,255,255,0.35), transparent 55%),
+    var(--parchment);
+  color:var(--ink);
+  font-family:'Work Sans', sans-serif;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+
+.wrap{max-width:1000px;margin:0 auto;padding:0 20px;}
+
+h1,h2,h3{font-family:'Fraunces', serif; margin:0; color:var(--green-deep);}
+
+/* ---------- rope divider ---------- */
+.rope{
+  height:14px;
+  background-image: repeating-linear-gradient(135deg, var(--clay) 0 6px, transparent 6px 12px),
+                     repeating-linear-gradient(45deg, var(--clay-dark) 0 6px, transparent 6px 12px);
+  background-size: 24px 14px;
+  background-position: 0 0, 0 7px;
+  opacity:0.55;
+  margin: 0;
+}
+
+/* ---------- HERO ---------- */
+header.hero{
+  position:relative;
+  background: linear-gradient(180deg, var(--green-deep) 0%, #274A2B 100%);
+  color:#F2E6C8;
+  padding:64px 0 48px;
+  overflow:hidden;
+}
+header.hero::before{
+  content:"";
+  position:absolute; inset:0;
+  background-image: radial-gradient(circle at 15% 20%, rgba(255,255,255,0.06) 0, transparent 40%),
+                     radial-gradient(circle at 85% 80%, rgba(255,255,255,0.05) 0, transparent 45%);
+  pointer-events:none;
+}
+.eyebrow{
+  display:inline-block;
+  font-family:'Space Mono', monospace;
+  font-size:12.5px;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:var(--gold);
+  border:1px solid rgba(209,154,31,0.5);
+  padding:5px 12px;
+  border-radius:999px;
+  margin-bottom:22px;
+}
+.hero h1{
+  color:#FBF5E4;
+  font-size:clamp(34px,6vw,58px);
+  font-weight:700;
+  line-height:1.05;
+  max-width:780px;
+}
+.hero h1 em{
+  font-style:italic;
+  color:var(--gold);
+}
+.hero p.sub{
+  max-width:600px;
+  font-size:17px;
+  color:#D9CFAE;
+  margin-top:18px;
+}
+.hero-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:14px;
+  margin-top:34px;
+}
+.hero-meta .pill{
+  background:rgba(251,245,228,0.08);
+  border:1px solid rgba(251,245,228,0.22);
+  border-radius:12px;
+  padding:12px 16px;
+  min-width:150px;
+}
+.hero-meta .pill .k{
+  font-family:'Space Mono', monospace;
+  font-size:11px;
+  color:var(--gold);
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  display:block;
+  margin-bottom:4px;
+}
+.hero-meta .pill .v{
+  font-size:15px;
+  color:#FBF5E4;
+  font-weight:600;
+}
+
+/* ---------- BIG DATE CALLOUT ---------- */
+.big-date{
+  display:flex;
+  align-items:center;
+  gap:20px;
+  flex-wrap:wrap;
+  background:linear-gradient(135deg, var(--gold), #b9800f);
+  border-radius:18px;
+  padding:18px 26px;
+  margin:26px 0 8px;
+  box-shadow:0 10px 26px rgba(0,0,0,0.28);
+  animation:pulseDate 2.4s ease-in-out infinite;
+}
+.big-date .bd-label{
+  font-family:'Space Mono', monospace;
+  font-size:13px;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:var(--green-deep);
+  font-weight:700;
+}
+.big-date .bd-date{
+  font-family:'Fraunces', serif;
+  font-weight:700;
+  font-size:clamp(30px,5.5vw,52px);
+  line-height:1;
+  color:var(--green-deep);
+  white-space:nowrap;
+}
+@keyframes pulseDate{
+  0%,100%{ transform:scale(1); box-shadow:0 10px 26px rgba(0,0,0,0.28); }
+  50%{ transform:scale(1.02); box-shadow:0 14px 34px rgba(0,0,0,0.35); }
+}
+@media (max-width:520px){
+  .big-date{padding:14px 18px; gap:6px;}
+}
+
+/* ---------- NAV ---------- */
+nav.tabs{
+  position:sticky; top:0; z-index:50;
+  background:rgba(242,230,200,0.92);
+  backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line);
+}
+nav.tabs .wrap{
+  display:flex;
+  gap:4px;
+  overflow-x:auto;
+  padding-top:10px;
+  padding-bottom:10px;
+  scrollbar-width:none;
+}
+nav.tabs .wrap::-webkit-scrollbar{display:none;}
+nav.tabs a{
+  flex:0 0 auto;
+  font-family:'Space Mono', monospace;
+  font-size:12.5px;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  text-decoration:none;
+  color:var(--ink-soft);
+  background:transparent;
+  padding:8px 14px;
+  border-radius:999px;
+  white-space:nowrap;
+  transition:background .15s, color .15s;
+}
+nav.tabs a:hover, nav.tabs a:focus-visible{
+  background:var(--green-deep);
+  color:#F2E6C8;
+}
+
+/* ---------- SECTIONS ---------- */
+section{padding:56px 0;}
+section.alt{background:var(--parchment-deep);}
+.section-head{margin-bottom:30px;}
+.section-head .num{
+  font-family:'Space Mono', monospace;
+  font-size:12px;
+  color:var(--clay-dark);
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  display:block;
+  margin-bottom:8px;
+}
+.section-head h2{font-size:clamp(24px,3.4vw,32px);}
+.section-head p{color:var(--ink-soft); max-width:640px; margin-top:8px; font-size:15px;}
+
+/* ---------- CARD ---------- */
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+}
+
+/* ---------- TOPONES ---------- */
+.topones{display:grid; gap:12px;}
+.toponi{
+  display:grid;
+  grid-template-columns:120px 1fr auto;
+  gap:16px;
+  align-items:center;
+  padding:16px 18px;
+}
+.toponi .lvl{
+  font-family:'Space Mono', monospace;
+  font-size:10.5px;
+  text-transform:uppercase;
+  letter-spacing:0.07em;
+  font-weight:700;
+  padding:5px 12px;
+  border-radius:999px;
+  white-space:nowrap;
+  justify-self:end;
+}
+.toponi .lvl.primaria{ color:var(--green-mid); background:rgba(62,107,63,0.13); border:1px solid rgba(62,107,63,0.3);}
+.toponi .lvl.premedia{ color:var(--clay-dark); background:rgba(181,98,46,0.13); border:1px solid rgba(181,98,46,0.35);}
+.toponi .date{
+  font-family:'Space Mono', monospace;
+  font-size:12.5px;
+  color:var(--clay-dark);
+  line-height:1.35;
+}
+.toponi .match{
+  display:flex; align-items:center; gap:10px;
+  font-family:'Fraunces', serif;
+  font-weight:600;
+  font-size:18px;
+  color:var(--green-deep);
+  flex-wrap:wrap;
+}
+.toponi .vs{
+  font-family:'Space Mono', monospace;
+  font-size:11px;
+  color:var(--red);
+  background:rgba(194,59,34,0.09);
+  padding:2px 8px;
+  border-radius:999px;
+}
+.toponi .salones{
+  display:block;
+  flex-basis:100%;
+  font-family:'Space Mono', monospace;
+  font-size:11.5px;
+  font-weight:400;
+  color:var(--ink-soft);
+  margin-top:3px;
+}
+.toponi .fotos{
+  display:flex;
+  flex-basis:100%;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:8px;
+}
+.toponi .fotos a{
+  font-family:'Space Mono', monospace;
+  font-size:11px;
+  text-decoration:none;
+  color:var(--clay-dark);
+  background:rgba(181,98,46,0.1);
+  border:1px solid rgba(181,98,46,0.3);
+  padding:4px 10px;
+  border-radius:999px;
+  white-space:nowrap;
+}
+.toponi .fotos a:hover{
+  background:var(--clay);
+  color:#FBF5E4;
+}
+
+.info-strip{
+  margin-top:22px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:14px;
+}
+.info-strip .card{padding:18px 18px;}
+.info-strip .card h4{
+  font-family:'Fraunces', serif;
+  font-size:15px;
+  margin:0 0 6px;
+  color:var(--clay-dark);
+}
+.info-strip .card p{margin:0; font-size:14px; color:var(--ink-soft);}
+
+/* ---------- TIMELINE ---------- */
+.timeline{position:relative; padding-left:26px;}
+.timeline::before{
+  content:"";
+  position:absolute; left:6px; top:6px; bottom:6px;
+  width:2px;
+  background-image: repeating-linear-gradient(180deg, var(--clay) 0 8px, transparent 8px 14px);
+}
+.tl-item{position:relative; padding:0 0 26px 20px;}
+.tl-item:last-child{padding-bottom:0;}
+.tl-item::before{
+  content:"";
+  position:absolute; left:-26px; top:4px;
+  width:11px; height:11px; border-radius:50%;
+  background:var(--gold);
+  border:2px solid var(--green-deep);
+}
+.tl-time{
+  font-family:'Space Mono', monospace;
+  font-size:12.5px;
+  color:var(--clay-dark);
+  font-weight:700;
+  letter-spacing:0.03em;
+}
+.tl-title{
+  font-family:'Fraunces', serif;
+  font-weight:600;
+  font-size:17px;
+  color:var(--green-deep);
+  margin:2px 0 4px;
+}
+.tl-desc{font-size:14.5px; color:var(--ink-soft); max-width:560px;}
+.tl-tag{
+  display:inline-block;
+  margin-top:6px;
+  font-family:'Space Mono', monospace;
+  font-size:10.5px;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  color:var(--green-mid);
+  background:rgba(62,107,63,0.1);
+  padding:2px 8px;
+  border-radius:6px;
+}
+
+/* ---------- RANCHOS TABLE / CARDS ---------- */
+.rtable{
+  width:100%;
+  border-collapse:collapse;
+  background:var(--card);
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.rtable th{
+  text-align:left;
+  font-family:'Space Mono', monospace;
+  font-size:11.5px;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  color:#F2E6C8;
+  background:var(--green-deep);
+  padding:12px 16px;
+}
+.rtable td{
+  padding:12px 16px;
+  border-top:1px solid var(--line);
+  font-size:14.5px;
+  vertical-align:top;
+}
+.rtable tr:nth-child(even) td{background:rgba(181,98,46,0.05);}
+.rtable td.prov{font-family:'Fraunces', serif; font-weight:600; color:var(--clay-dark);}
+
+@media(max-width:680px){
+  .rtable thead{display:none;}
+  .rtable, .rtable tbody, .rtable tr, .rtable td{display:block; width:100%;}
+  .rtable tr{
+    border-top:1px solid var(--line);
+    padding:14px 16px;
+  }
+  .rtable tr:first-child{border-top:none;}
+  .rtable td{
+    padding:4px 0;
+    border:none;
+  }
+  .rtable tr:nth-child(even){background:rgba(181,98,46,0.05);}
+  .rtable td::before{
+    content: attr(data-label);
+    display:block;
+    font-family:'Space Mono', monospace;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--green-mid);
+    margin-bottom:2px;
+  }
+  .toponi{grid-template-columns:1fr;}
+  .toponi .lvl{justify-self:start; margin-top:4px;}
+}
+
+/* ---------- CHECKLIST GRID ---------- */
+.chip-grid{
+  display:flex; flex-wrap:wrap; gap:8px;
+  margin-top:12px;
+}
+.chip{
+  font-size:13px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:6px 13px;
+  color:var(--ink-soft);
+}
+.chip.gold{border-color:rgba(209,154,31,0.5); color:var(--clay-dark); background:rgba(209,154,31,0.1);}
+
+/* ---------- DETAILS/ACCORDION ---------- */
+details{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:14px;
+  margin-bottom:12px;
+  overflow:hidden;
+}
+details summary{
+  cursor:pointer;
+  list-style:none;
+  padding:16px 18px;
+  font-family:'Fraunces', serif;
+  font-weight:600;
+  font-size:16.5px;
+  color:var(--green-deep);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{
+  content:"+";
+  font-family:'Space Mono', monospace;
+  font-size:20px;
+  color:var(--clay);
+  transition:transform .2s;
+}
+details[open] summary::after{transform:rotate(45deg);}
+details .d-body{padding:0 18px 18px;}
+details .d-body p{color:var(--ink-soft); font-size:14.5px; margin:0 0 10px;}
+
+/* ---------- EVAL BARS ---------- */
+.eval-list{display:grid; gap:10px;}
+.eval-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:center;
+  gap:14px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:12px 16px;
+}
+.eval-row .name{font-size:14.5px; font-weight:600; color:var(--ink);}
+.eval-bar-track{
+  grid-column:1/-1;
+  height:8px;
+  background:rgba(32,48,29,0.08);
+  border-radius:999px;
+  overflow:hidden;
+  margin-top:2px;
+}
+.eval-bar-fill{
+  height:100%;
+  background:linear-gradient(90deg, var(--clay), var(--gold));
+  border-radius:999px;
+}
+.eval-pts{
+  font-family:'Space Mono', monospace;
+  font-weight:700;
+  color:var(--clay-dark);
+  font-size:15px;
+}
+.eval-total{
+  margin-top:8px;
+  display:flex; justify-content:space-between; align-items:center;
+  background:var(--green-deep);
+  color:#F2E6C8;
+  padding:14px 18px;
+  border-radius:12px;
+  font-family:'Fraunces', serif;
+  font-weight:700;
+  font-size:17px;
+}
+
+/* ---------- COMISIONES ---------- */
+.com-list{
+  list-style:none;
+  margin:0; padding:0;
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(230px,1fr));
+  gap:10px;
+}
+.com-list li{
+  display:flex; align-items:center; gap:12px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:12px 14px;
+  font-size:14px;
+}
+.com-list li .cn{
+  font-family:'Space Mono', monospace;
+  font-weight:700;
+  font-size:13px;
+  color:#FBF5E4;
+  background:var(--clay);
+  width:26px; height:26px;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  flex:0 0 auto;
+}
+.com-list li.highlight{border-color:var(--gold); background:rgba(209,154,31,0.09);}
+
+.comida-note{
+  margin-top:20px;
+  background:var(--card);
+  border:1px dashed var(--clay);
+  border-radius:14px;
+  padding:18px 20px;
+}
+.comida-note h4{font-family:'Fraunces', serif; margin:0 0 8px; font-size:16px; color:var(--clay-dark);}
+.comida-note ul{margin:0; padding-left:18px; color:var(--ink-soft); font-size:14px;}
+.comida-note li{margin-bottom:4px;}
+
+/* ---------- FOOTER ---------- */
+footer{
+  background:var(--green-deep);
+  color:#D9CFAE;
+  padding:48px 0 34px;
+  text-align:center;
+}
+footer blockquote{
+  font-family:'Fraunces', serif;
+  font-style:italic;
+  font-size:clamp(18px,2.6vw,24px);
+  color:#FBF5E4;
+  max-width:640px;
+  margin:0 auto 18px;
+  line-height:1.45;
+}
+footer .school{
+  font-family:'Space Mono', monospace;
+  font-size:12px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--gold);
+}
+
+@media(max-width:640px){
+  header.hero{padding:44px 0 34px;}
+  section{padding:40px 0;}
+  .hero-meta .pill{min-width:130px;}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <a class="volver-inicio" href="inicio.html">&larr; Volver al inicio</a><br>
+    <span class="eyebrow">C.E.B.G. General El Jiral</span>
+    <h1>Día del <em>Campesino</em> 2026</h1>
+    <p class="sub">Programa oficial de actividades: topones de reinas, jornada cultural, ranchos interactivos por provincia y comarca, y el cierre con la Feria Campesina.</p>
+    <div class="big-date">
+      <span class="bd-label">🌽 Jornada principal</span>
+      <span class="bd-date">2 de octubre</span>
+    </div>
+    <div class="hero-meta">
+      <div class="pill"><span class="k">Jornada principal</span><span class="v">Viernes 2 de octubre</span></div>
+      <div class="pill"><span class="k">Presentación de reinas</span><span class="v">Lunes 14 de septiembre</span></div>
+      <div class="pill"><span class="k">Montaje de ranchos</span><span class="v">Jueves previo, 3:00 p.m.</span></div>
+      <div class="pill"><span class="k">Clausura</span><span class="v">2:00 p.m. con fuegos artificiales*</span></div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="wrap">
+    <a href="#reinas">Reinas</a>
+    <a href="campesino-reinas.html">📷 Fotos de Reinas</a>
+    <a href="#agenda">Agenda del evento</a>
+    <a href="#ranchos">Ranchos</a>
+    <a href="#lineamientos">Lineamientos</a>
+    <a href="#evaluacion">Evaluación</a>
+    <a href="#comisiones">Comisiones</a>
+  </div>
+</nav>
+
+<!-- ================= REINAS ================= -->
+<section id="reinas">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="num">01 · Reinado</span>
+      <h2>Topones de Reinas</h2>
+      <p>Durante los recreos se enfrentarán dos provincias por día. La presentación oficial de provincias y reinas será el lunes 14 de septiembre.</p>
+    </div>
+
+    <div class="info-strip" style="margin-top:0;">
+      <div class="card" style="grid-column:1/-1;">
+        <h4>📷 Galería de fotos de cada reina</h4>
+        <p>Cada una de las 19 reinas (10 de Primaria + 9 de Premedia) tiene su propia página de fotos, desde el inicio hasta el final del reinado. Cualquiera puede subir fotos, sin necesidad de iniciar sesión.
+        <br><a href="campesino-reinas.html" style="font-weight:600;">Ver todas las galerías →</a></p>
+      </div>
+    </div>
+
+    <div class="topones">
+      <div class="card toponi"><span class="date">Lunes<br>21 de septiembre</span><span class="match">Panamá <span class="vs">VS</span> Colón<span class="salones">Salones: Panamá → II-A + II-B · Colón → Jardín A + IV-C</span><span class="fotos"><a href="campesino-galeria.html?reina=primaria-panama">📷 Fotos Panamá</a><a href="campesino-galeria.html?reina=primaria-colon">📷 Fotos Colón</a></span></span><span class="lvl primaria">Primaria</span></div>
+      <div class="card toponi"><span class="date">Miércoles<br>23 de septiembre</span><span class="match">Chiriquí <span class="vs">VS</span> Los Santos<span class="salones">Salones: Chiriquí → Jardín C + I-A · Los Santos → I-C + VI-A</span><span class="fotos"><a href="campesino-galeria.html?reina=primaria-chiriqui">📷 Fotos Chiriquí</a><a href="campesino-galeria.html?reina=primaria-los-santos">📷 Fotos Los Santos</a></span></span><span class="lvl primaria">Primaria</span></div>
+      <div class="card toponi"><span class="date">Viernes<br>25 de septiembre</span><span class="match">Veraguas <span class="vs">VS</span> Coclé<span class="salones">Salones: Veraguas → IV-A + IV-B · Coclé → Prejardín B + V-A</span><span class="fotos"><a href="campesino-galeria.html?reina=primaria-veraguas">📷 Fotos Veraguas</a><a href="campesino-galeria.html?reina=primaria-cocle">📷 Fotos Coclé</a></span></span><span class="lvl primaria">Primaria</span></div>
+      <div class="card toponi"><span class="date">Lunes<br>28 de septiembre</span><span class="match">Herrera <span class="vs">VS</span> Darién<span class="salones">Salones: Herrera → I-B + V-C · Darién → Jardín B + VI-B</span><span class="fotos"><a href="campesino-galeria.html?reina=primaria-herrera">📷 Fotos Herrera</a><a href="campesino-galeria.html?reina=primaria-darien">📷 Fotos Darién</a></span></span><span class="lvl primaria">Primaria</span></div>
+      <div class="card toponi"><span class="date">Miércoles<br>30 de septiembre</span><span class="match">Bocas del Toro <span class="vs">VS</span> Panamá Oeste<span class="salones">Salones: Bocas del Toro → Prejardín A + V-B · Panamá Oeste → III-B + III-C</span><span class="fotos"><a href="campesino-galeria.html?reina=primaria-bocas-del-toro">📷 Fotos Bocas del Toro</a><a href="campesino-galeria.html?reina=primaria-panama-oeste">📷 Fotos Panamá Oeste</a></span></span><span class="lvl primaria">Primaria</span></div>
+    </div>
+
+    <div class="section-head" style="margin-top:36px;">
+      <span class="num">Premedia · 9 salones</span>
+      <h3>Topones de Premedia</h3>
+      <p>Como Premedia tiene 9 salones (número impar), no se pueden formar solo parejas: un grupo se enfrenta en trío y el resto en duelos de dos. Son encuentros amistosos durante los recreos y no afectan la elección final de la reina.</p>
+    </div>
+    <div class="topones">
+      <div class="card toponi"><span class="date">Martes<br>22 de septiembre</span><span class="match">7° A <span class="vs">VS</span> 7° B <span class="vs">VS</span> 7° C<span class="salones">Provincia: 7°A → Bocas del Toro · 7°B → Coclé · 7°C → Colón</span><span class="fotos"><a href="campesino-galeria.html?reina=premedia-7a">📷 Fotos 7°A</a><a href="campesino-galeria.html?reina=premedia-7b">📷 Fotos 7°B</a><a href="campesino-galeria.html?reina=premedia-7c">📷 Fotos 7°C</a></span></span><span class="lvl premedia">Premedia</span></div>
+      <div class="card toponi"><span class="date">Jueves<br>24 de septiembre</span><span class="match">8° A <span class="vs">VS</span> 8° B<span class="salones">Provincia: 8°A → Chiriquí · 8°B → Herrera</span><span class="fotos"><a href="campesino-galeria.html?reina=premedia-8a">📷 Fotos 8°A</a><a href="campesino-galeria.html?reina=premedia-8b">📷 Fotos 8°B</a></span></span><span class="lvl premedia">Premedia</span></div>
+      <div class="card toponi"><span class="date">Martes<br>29 de septiembre</span><span class="match">8° C <span class="vs">VS</span> 9° A<span class="salones">Provincia: 8°C → Los Santos · 9°A → Panamá</span><span class="fotos"><a href="campesino-galeria.html?reina=premedia-8c">📷 Fotos 8°C</a><a href="campesino-galeria.html?reina=premedia-9a">📷 Fotos 9°A</a></span></span><span class="lvl premedia">Premedia</span></div>
+      <div class="card toponi"><span class="date">Miércoles<br>30 de septiembre</span><span class="match">9° B <span class="vs">VS</span> 9° C<span class="salones">Provincia: 9°B → Panamá Oeste · 9°C → Veraguas</span><span class="fotos"><a href="campesino-galeria.html?reina=premedia-9b">📷 Fotos 9°B</a><a href="campesino-galeria.html?reina=premedia-9c">📷 Fotos 9°C</a></span></span><span class="lvl premedia">Premedia</span></div>
+    </div>
+
+    <div class="section-head" style="margin-top:36px;">
+      <span class="num">Dos reinados, un mismo día</span>
+      <h3>Reina de Primaria (mañana) y Reina de Premedia (tarde)</h3>
+      <p>El viernes 2 de octubre se celebran dos topones y elecciones de reina — uno en la mañana y otro en la tarde. El rancho, la venta de comida y la limpieza son actividades conjuntas que se desarrollan durante toda la jornada, mañana y tarde.</p>
+    </div>
+    <div class="info-strip">
+      <div class="card">
+        <h4>🌅 Reina de Primaria — mañana</h4>
+        <p>Se saca por sorteo una candidata por cada provincia. Topón y elección en la mañana.</p>
+      </div>
+      <div class="card">
+        <h4>🌇 Reina de Premedia — tarde</h4>
+        <p>Una candidata por salón de Premedia. A cada salón se le asigna su provincia al azar, mediante sorteo. Topón y elección en la tarde.</p>
+      </div>
+    </div>
+
+    <div class="info-strip">
+      <div class="card">
+        <h4>📸 Reina de las Redes Escolares</h4>
+        <p>Foto oficial el lunes 14 de septiembre, obligatoriamente frente al fondo campesino instalado en el gimnasio.</p>
+      </div>
+      <div class="card">
+        <h4>❤️ Votación por redes</h4>
+        <p>Gana la fotografía con más reacciones "Me gusta" en las redes del centro educativo.</p>
+      </div>
+      <div class="card">
+        <h4>🗳️ Cierre de votación</h4>
+        <p>Jueves 1 de octubre de 2026 — última oportunidad para votar antes de la jornada final.</p>
+      </div>
+      <div class="card">
+        <h4>🌼 Elección final — Reina de Primaria</h4>
+        <p>El viernes 2 de octubre, entre 10:30–11:00 a.m., se elige a la Reina de Primaria con el juego de <strong>la flor más larga</strong>: cada candidata escoge una flor al azar y gana quien saque la de mayor longitud.</p>
+      </div>
+      <div class="card">
+        <h4>🌼 Elección final — Reina de Premedia</h4>
+        <p>El viernes 2 de octubre, en la tarde (hora por confirmar), se elige a la Reina de Premedia con el mismo juego: cada candidata escoge su flor y gana la que saque la más larga.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="rope"></div>
+
+<!-- ================= AGENDA ================= -->
+<section id="agenda" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="num">02 · ¡Viernes 2 de octubre!</span>
+      <h2>Jornada Cultural y Recreativa</h2>
+      <p>Programa completo del día, diseñado para finalizar puntualmente a las 2:00 p.m.</p>
+    </div>
+
+    <div class="card" style="padding:26px 24px;">
+      <div class="timeline">
+        <div class="tl-item">
+          <span class="tl-time">8:00 – 8:30 a.m.</span>
+          <div class="tl-title">Acto de apertura</div>
+          <div class="tl-desc">Desfile de las delegaciones representando las 10 provincias y las 7 comarcas indígenas. Himno Nacional, palabras de bienvenida y apertura oficial.</div>
+          <span class="tl-tag">Gimnasio</span>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">8:30 a.m.</span>
+          <div class="tl-title">Apertura de la Feria Campesina</div>
+          <div class="tl-desc">Inicia la venta de comidas típicas.</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">8:30 – 9:00 a.m.</span>
+          <div class="tl-title">Recorrido por los ranchos</div>
+          <div class="tl-desc">Estudiantes, padres de familia e invitados conocen las exposiciones de cada provincia y comarca.</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">9:00 – 10:30 a.m.</span>
+          <div class="tl-title">Presentaciones folclóricas de Premedia</div>
+          <div class="tl-desc">Cada salón presenta un baile, canto, dramatización o manifestación cultural de su provincia o comarca.</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">10:30 – 11:00 a.m.</span>
+          <div class="tl-title">Topón y elección por flor de la Reina de Primaria</div>
+          <div class="tl-desc">Una candidata por provincia. Presentación de tonadas con el apoyo de los estudiantes de Premedia. Gana quien saque la flor más larga.</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">11:00 – 11:30 a.m.</span>
+          <div class="tl-title">Tiempo libre</div>
+          <div class="tl-desc">Para visitar nuevamente los ranchos y disfrutar de la feria gastronómica.</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">11:30 a.m.</span>
+          <div class="tl-title">Palo encebado</div>
+          <div class="tl-desc">Patrocinado por la Asociación de Padres de Familia.</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">12:00 m.d.</span>
+          <div class="tl-title">Concurso de pared de barro</div>
+          <div class="tl-desc">Construcción con técnicas tradicionales del campo panameño.</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">12:30 p.m.</span>
+          <div class="tl-title">Concurso de atrapar el puerco encebado</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">1:00 p.m.</span>
+          <div class="tl-title">Concurso de salomas</div>
+          <div class="tl-desc">Categorías masculina y femenina.</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">1:10 p.m. <span style="font-weight:400;">(hora por confirmar)</span></span>
+          <div class="tl-title">Topón y elección por flor de la Reina de Premedia</div>
+          <div class="tl-desc">Una candidata por salón de Premedia, con provincia asignada al azar mediante sorteo. Gana quien saque la flor más larga.</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">1:20 p.m.</span>
+          <div class="tl-title">Sorteo de primicias y premiación</div>
+          <div class="tl-desc">Premiación de los concursos y reconocimientos.</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">1:40 p.m.</span>
+          <div class="tl-title">Jornada de limpieza</div>
+          <div class="tl-desc">Cada grado recoge sus desechos y deja completamente limpio el espacio de su rancho.</div>
+        </div>
+        <div class="tl-item">
+          <span class="tl-time">2:00 p.m.</span>
+          <div class="tl-title">Clausura oficial</div>
+          <div class="tl-desc">Palabras de agradecimiento y espectáculo de fuegos artificiales, sujeto a permisos y condiciones de seguridad.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="rope"></div>
+
+<!-- ================= RANCHOS ================= -->
+<section id="ranchos">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="num">03 · Asignaciones</span>
+      <h2>Ranchos por Provincia y Comarca</h2>
+      <p>Cada salón de primaria representa una provincia o comarca, con el apoyo de un grupo de Premedia.</p>
+    </div>
+
+    <table class="rtable">
+      <thead>
+        <tr><th>Provincia / Comarca</th><th>Salones de Primaria</th><th>Apoyo de Premedia</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="prov" data-label="Provincia / Comarca">Bocas del Toro</td><td data-label="Salones de Primaria">Prejardín A + V-B</td><td data-label="Apoyo de Premedia">VII-A</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Coclé</td><td data-label="Salones de Primaria">Prejardín B + V-A</td><td data-label="Apoyo de Premedia">VII-B</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Colón</td><td data-label="Salones de Primaria">Jardín A + IV-C</td><td data-label="Apoyo de Premedia">VII-C</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Chiriquí</td><td data-label="Salones de Primaria">Jardín C + I-A</td><td data-label="Apoyo de Premedia">VIII-A</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Herrera</td><td data-label="Salones de Primaria">I-B + V-C</td><td data-label="Apoyo de Premedia">VIII-B</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Los Santos</td><td data-label="Salones de Primaria">I-C + VI-A</td><td data-label="Apoyo de Premedia">VIII-C</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Panamá</td><td data-label="Salones de Primaria">II-A + II-B</td><td data-label="Apoyo de Premedia">IX-A</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Panamá Oeste</td><td data-label="Salones de Primaria">III-B + III-C</td><td data-label="Apoyo de Premedia">IX-B</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Veraguas</td><td data-label="Salones de Primaria">IV-A + IV-B</td><td data-label="Apoyo de Premedia">IX-C</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Darién</td><td data-label="Salones de Primaria">Jardín B + VI-B</td><td data-label="Apoyo de Premedia">VII-A (compartido)</td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Comarcas Indígenas</td><td data-label="Salones de Primaria">II-C + III-A</td><td data-label="Apoyo de Premedia">VIII-A (compartido)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="info-strip" style="margin-top:22px;">
+      <div class="card">
+        <h4>📋 Entrega de propuesta</h4>
+        <p>Cada salón entrega su propuesta de rancho al profesor encargado, a más tardar el <strong>viernes 25 de septiembre</strong>.</p>
+      </div>
+      <div class="card">
+        <h4>🧱 Construcción</h4>
+        <p>Los ranchos deben quedar armados desde el <strong>jueves previo</strong> al evento. La escuela abre de 3:00 p.m. hasta la noche para el montaje.</p>
+      </div>
+      <div class="card">
+        <h4>🎨 El viernes del evento</h4>
+        <p>Solo quedan pendientes los últimos detalles de decoración y preparación de actividades.</p>
+      </div>
+    </div>
+
+    <div class="section-head" style="margin-top:44px;">
+      <span class="num">03 · Detalle por docente</span>
+      <h2>Docente, Salón, Provincia y Plato de Comida</h2>
+      <p>Cada docente puede ver de un vistazo qué salón le corresponde, qué provincia o comarca representa, qué rancho de Premedia lo apoya, y el plato de comida asignado (columna por completar).</p>
+    </div>
+
+    <table class="rtable">
+      <thead>
+        <tr><th>Provincia / Comarca</th><th>Salón</th><th>Docente</th><th>Apoyo de Premedia</th><th>Plato de comida</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="prov" data-label="Provincia / Comarca">Bocas del Toro</td><td data-label="Salón">Prejardín A</td><td data-label="Docente">Lesbia Muñoz</td><td data-label="Apoyo de Premedia">VII-A · Leticia de Palacios</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Bocas del Toro</td><td data-label="Salón">V-B</td><td data-label="Docente">Yessenia Clark</td><td data-label="Apoyo de Premedia">VII-A · Leticia de Palacios</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Coclé</td><td data-label="Salón">Prejardín B</td><td data-label="Docente">Milvia Ortega</td><td data-label="Apoyo de Premedia">VII-B · Erika Pimentel</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Coclé</td><td data-label="Salón">V-A</td><td data-label="Docente">Geraldine Magallón</td><td data-label="Apoyo de Premedia">VII-B · Erika Pimentel</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Colón</td><td data-label="Salón">Jardín A</td><td data-label="Docente">Albertina Ortiz</td><td data-label="Apoyo de Premedia">VII-C · Ronald González</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Colón</td><td data-label="Salón">IV-C</td><td data-label="Docente">Anabelis Gallardo</td><td data-label="Apoyo de Premedia">VII-C · Ronald González</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Chiriquí</td><td data-label="Salón">Jardín C</td><td data-label="Docente">Tilsa Garibaldi</td><td data-label="Apoyo de Premedia">VIII-A · Juana Brown</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Chiriquí</td><td data-label="Salón">I-A</td><td data-label="Docente">Heidi De León</td><td data-label="Apoyo de Premedia">VIII-A · Juana Brown</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Herrera</td><td data-label="Salón">I-B</td><td data-label="Docente">Zulma Becerra</td><td data-label="Apoyo de Premedia">VIII-B · Leonela Rivera</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Herrera</td><td data-label="Salón">V-C</td><td data-label="Docente">Elaisa Jaramillo</td><td data-label="Apoyo de Premedia">VIII-B · Leonela Rivera</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Los Santos</td><td data-label="Salón">I-C</td><td data-label="Docente">Ananías Benítes</td><td data-label="Apoyo de Premedia">VIII-C · Nairobys Sáenz</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Los Santos</td><td data-label="Salón">VI-A</td><td data-label="Docente">Viodelka Goitía</td><td data-label="Apoyo de Premedia">VIII-C · Nairobys Sáenz</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Panamá</td><td data-label="Salón">II-A</td><td data-label="Docente">Telma Grenald</td><td data-label="Apoyo de Premedia">IX-A · Miriam Valencia</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Panamá</td><td data-label="Salón">II-B</td><td data-label="Docente">Ana Grenard</td><td data-label="Apoyo de Premedia">IX-A · Miriam Valencia</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Panamá Oeste</td><td data-label="Salón">III-B</td><td data-label="Docente">Jenifer Dean</td><td data-label="Apoyo de Premedia">IX-B · Wendy Harren</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Panamá Oeste</td><td data-label="Salón">III-C</td><td data-label="Docente">Telma Escobar</td><td data-label="Apoyo de Premedia">IX-B · Wendy Harren</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Veraguas</td><td data-label="Salón">IV-A</td><td data-label="Docente">Angélica Jiménez</td><td data-label="Apoyo de Premedia">IX-C · Samuel Ortega</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Veraguas</td><td data-label="Salón">IV-B</td><td data-label="Docente">Rosa Perea</td><td data-label="Apoyo de Premedia">IX-C · Samuel Ortega</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Darién</td><td data-label="Salón">Jardín B</td><td data-label="Docente">Ángela Hall</td><td data-label="Apoyo de Premedia">VII-A (compartido) · Leticia de Palacios</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Darién</td><td data-label="Salón">VI-B</td><td data-label="Docente">Alejandrina Salazar</td><td data-label="Apoyo de Premedia">VII-A (compartido) · Leticia de Palacios</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Comarcas Indígenas</td><td data-label="Salón">II-C</td><td data-label="Docente">Carmen Gaitán</td><td data-label="Apoyo de Premedia">VIII-A (compartido) · Juana Brown</td><td data-label="Plato de comida"></td></tr>
+        <tr><td class="prov" data-label="Provincia / Comarca">Comarcas Indígenas</td><td data-label="Salón">III-A</td><td data-label="Docente">Betzaida Rodríguez</td><td data-label="Apoyo de Premedia">VIII-A (compartido) · Juana Brown</td><td data-label="Plato de comida"></td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-head" style="margin-top:36px;">
+      <span class="num">Docentes de Premedia guía por materia</span>
+      <h2 style="font-size:20px;">Salones VII, VIII y IX — Docente que acompaña cada rancho de apoyo</h2>
+    </div>
+    <table class="rtable">
+      <thead>
+        <tr><th>Salón</th><th>Docente</th><th>Materia</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="prov" data-label="Salón">VII-A</td><td data-label="Docente">Leticia de Palacios</td><td data-label="Materia">Español</td></tr>
+        <tr><td class="prov" data-label="Salón">VII-B</td><td data-label="Docente">Erika Pimentel</td><td data-label="Materia">Familia y Desarrollo</td></tr>
+        <tr><td class="prov" data-label="Salón">VII-C</td><td data-label="Docente">Ronald González</td><td data-label="Materia">Teacher / Música</td></tr>
+        <tr><td class="prov" data-label="Salón">VIII-A</td><td data-label="Docente">Juana Brown</td><td data-label="Materia">Matemática</td></tr>
+        <tr><td class="prov" data-label="Salón">VIII-B</td><td data-label="Docente">Leonela Rivera</td><td data-label="Materia">Matemática</td></tr>
+        <tr><td class="prov" data-label="Salón">VIII-C</td><td data-label="Docente">Nairobys Sáenz</td><td data-label="Materia">Ciencias Naturales</td></tr>
+        <tr><td class="prov" data-label="Salón">IX-A</td><td data-label="Docente">Miriam Valencia</td><td data-label="Materia">Expresión Artística</td></tr>
+        <tr><td class="prov" data-label="Salón">IX-B</td><td data-label="Docente">Wendy Harren</td><td data-label="Materia">Inglés</td></tr>
+        <tr><td class="prov" data-label="Salón">IX-C</td><td data-label="Docente">Samuel Ortega</td><td data-label="Materia">Ciencias Naturales</td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-head" style="margin-top:36px;">
+      <span class="num">Docentes especialistas</span>
+      <h2 style="font-size:20px;">Apoyo general — no atados a un rancho fijo</h2>
+      <p>Disponibles para reforzar cualquier rancho o comisión el día del evento, según se necesite.</p>
+    </div>
+    <div class="chip-grid">
+      <span class="chip">Beto Correa — Educación Física</span>
+      <span class="chip">Isaura Góndolo — Educación Física</span>
+      <span class="chip">Berta Barreno — Familia y Desarrollo</span>
+      <span class="chip">Patricia Reyes — Inglés</span>
+      <span class="chip">Arline Henry — Inglés</span>
+      <span class="chip">Danisue Valdés — Inglés</span>
+      <span class="chip">Yitzuri Vargas — Inglés</span>
+      <span class="chip">Laura Rodríguez — Inglés</span>
+      <span class="chip">Claribel Camargo — Educación Especial</span>
+      <span class="chip">Magalis Rodríguez — Educación Especial</span>
+      <span class="chip">Doris Andrión — Informática</span>
+      <span class="chip">Alexis Del Mar — Agropecuaria</span>
+      <span class="chip">Nitzi Williams — Orientación</span>
+      <span class="chip">Yadira de Gracia — Español</span>
+      <span class="chip">Encelma Álvarez — Religión–Música</span>
+      <span class="chip">Faustina Rodríguez — Geografía</span>
+      <span class="chip">Gillian Barría — Educación Física</span>
+      <span class="chip">Yetzagelis Batista — Educación Especial</span>
+      <span class="chip">Ayllen Nieto — Inglés–Religión</span>
+    </div>
+  </div>
+</section>
+
+<div class="rope"></div>
+
+<!-- ================= LINEAMIENTOS ================= -->
+<section id="lineamientos" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="num">04 · Semana de la Ciencia 2026</span>
+      <h2>Lineamientos de los Ranchos Interactivos</h2>
+      <p>Cada rancho debe integrar cultura, historia, ciencia, creatividad y trabajo colaborativo.</p>
+    </div>
+
+    <details open>
+      <summary>Elementos obligatorios del rancho</summary>
+      <div class="d-body">
+        <div class="chip-grid">
+          <span class="chip">Decoración alusiva</span>
+          <span class="chip">Nombre visible</span>
+          <span class="chip">Bandera de Panamá y de la provincia</span>
+          <span class="chip">Mapa de ubicación</span>
+          <span class="chip">Información histórica</span>
+          <span class="chip">Costumbres y tradiciones</span>
+          <span class="chip">Vestimenta típica</span>
+          <span class="chip">Música y bailes</span>
+          <span class="chip">Flora y fauna</span>
+          <span class="chip">Actividades económicas</span>
+          <span class="chip">Sitios turísticos</span>
+          <span class="chip">Artesanías</span>
+          <span class="chip">Personajes destacados</span>
+          <span class="chip">Gastronomía típica</span>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Propuesta del rancho: qué debe incluir</summary>
+      <div class="d-body">
+        <div class="chip-grid">
+          <span class="chip gold">Provincia o comarca asignada</span>
+          <span class="chip gold">Integrantes responsables</span>
+          <span class="chip gold">Docente guía</span>
+          <span class="chip gold">Diseño o boceto</span>
+          <span class="chip gold">Lista de materiales</span>
+          <span class="chip gold">Decoración propuesta</span>
+          <span class="chip gold">Juegos interactivos</span>
+          <span class="chip gold">Actividades del recorrido</span>
+          <span class="chip gold">Muestra gastronómica (si aplica)</span>
+          <span class="chip gold">Necesidades especiales</span>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Juegos tipo feria (mínimo 2 por rancho)</summary>
+      <div class="d-body">
+        <p>Deben estar relacionados con la provincia o comarca representada.</p>
+        <div class="chip-grid">
+          <span class="chip">Trivia sobre la provincia</span>
+          <span class="chip">Ruleta de preguntas</span>
+          <span class="chip">Pesca de premios</span>
+          <span class="chip">Lanzamiento de aros</span>
+          <span class="chip">Tiro al blanco</span>
+          <span class="chip">Memoria cultural</span>
+          <span class="chip">Rompecabezas del mapa</span>
+          <span class="chip">Carrera de relevos</span>
+          <span class="chip">¿Quién sabe más?</span>
+          <span class="chip">Adivina el lugar</span>
+          <span class="chip">Bingo cultural</span>
+          <span class="chip">Preguntas y respuestas</span>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Premios sugeridos para los juegos</summary>
+      <div class="d-body">
+        <div class="chip-grid">
+          <span class="chip">Dulces</span><span class="chip">Chocolates</span><span class="chip">Galletas</span>
+          <span class="chip">Lápices</span><span class="chip">Calcomanías</span><span class="chip">Pulseras</span>
+          <span class="chip">Separadores de libros</span><span class="chip">Recuerdos elaborados por estudiantes</span>
+          <span class="chip">Certificados de participación</span><span class="chip">Otros obsequios sencillos</span>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Presentaciones folclóricas por grado</summary>
+      <div class="d-body">
+        <p>Cada salón realiza una sola presentación (baile, canto, dramatización u otra manifestación cultural), relacionada con su provincia o comarca. Duración máxima: 6 minutos.</p>
+        <p><strong>Orden de presentación:</strong> Prekínder → Kínder → 1.° → 2.° → 3.° → 4.° → 5.° → 6.° → 7.° → 8.° → 9.° grado.</p>
+        <p>Los estudiantes deben asistir con vestuario y materiales listos, y retirar todo al finalizar su participación.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Elección de la Reina de Primaria y la Reina de Premedia</summary>
+      <div class="d-body">
+        <p>Cada candidata se presenta individualmente con un recorrido al ritmo de una tonada, mostrando vestuario y elegancia, seguido de un breve saludo alusivo a las tradiciones panameñas.</p>
+        <p>Son dos elecciones separadas el mismo día: la <strong>Reina de Primaria</strong> en la mañana (una candidata por provincia) y la <strong>Reina de Premedia</strong> en la tarde (una candidata por salón, con provincia asignada al azar). En ambas, la ganadora se elige con el <strong>juego de la flor más larga</strong>: se colocan todas las flores (una por candidata) y cada una escoge la suya al azar frente al público; la candidata cuya flor resulte ser la más larga es la ganadora.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Recorrido de carros de las reinas</summary>
+      <div class="d-body">
+        <p>Cada reina puede contar con uno o varios carros decorados, gestionados por familiares y amigos, para un recorrido por la comunidad. Ruta y detalles se coordinan posteriormente; los carros deben estar organizados y ubicados con antelación el día del evento.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Organización del gimnasio</summary>
+      <div class="d-body">
+        <p>Se señalizarán entradas y salidas con cintas, se distribuirán espacios para evitar aglomeraciones, se reforzará el sistema de sonido y se organizará el ingreso/salida de la murga si participa.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Limpieza y clausura</summary>
+      <div class="d-body">
+        <p>Cada grado recoge sus desechos y desmonta por completo su rancho — ningún rancho puede quedar armado después del cierre. Se coordinará con <strong>Aguaseo</strong> la recolección de basura. La clausura incluye palabras de agradecimiento a estudiantes, docentes, padres y colaboradores, y un posible espectáculo de fuegos artificiales según permisos y seguridad.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Recomendaciones generales</summary>
+      <div class="d-body">
+        <div class="chip-grid">
+          <span class="chip">Usar materiales reciclables</span>
+          <span class="chip">Mantener el espacio limpio</span>
+          <span class="chip">Evitar materiales peligrosos</span>
+          <span class="chip">Fomentar el trabajo en equipo</span>
+          <span class="chip">Todos deben participar</span>
+          <span class="chip">Juegos seguros y educativos</span>
+          <span class="chip">Docente responsable presente</span>
+          <span class="chip">Atuendo típico recomendado</span>
+        </div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<div class="rope"></div>
+
+<!-- ================= EVALUACIÓN ================= -->
+<section id="evaluacion">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="num">05 · Rúbrica</span>
+      <h2>Evaluación de los Ranchos</h2>
+      <p>Cada criterio aporta puntos hasta un total de 100.</p>
+    </div>
+
+    <div class="eval-list">
+      <div class="eval-row"><span class="name">Ambientación y decoración del rancho</span><span class="eval-pts">15</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:15%"></div></div></div>
+      <div class="eval-row"><span class="name">Creatividad e innovación</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
+      <div class="eval-row"><span class="name">Información correcta y dominio del tema</span><span class="eval-pts">15</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:15%"></div></div></div>
+      <div class="eval-row"><span class="name">Organización y presentación</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
+      <div class="eval-row"><span class="name">Juegos interactivos tipo feria</span><span class="eval-pts">15</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:15%"></div></div></div>
+      <div class="eval-row"><span class="name">Participación de todos los integrantes</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
+      <div class="eval-row"><span class="name">Atención y trato a los visitantes</span><span class="eval-pts">10</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:10%"></div></div></div>
+      <div class="eval-row"><span class="name">Gastronomía típica (cuando aplique)</span><span class="eval-pts">5</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:5%"></div></div></div>
+      <div class="eval-row"><span class="name">Limpieza y orden del espacio</span><span class="eval-pts">5</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:5%"></div></div></div>
+      <div class="eval-row"><span class="name">Puntualidad y cumplimiento de lineamientos</span><span class="eval-pts">5</span><div class="eval-bar-track"><div class="eval-bar-fill" style="width:5%"></div></div></div>
+    </div>
+    <div class="eval-total"><span>Total</span><span>100 puntos</span></div>
+  </div>
+</section>
+
+<div class="rope"></div>
+
+<!-- ================= COMISIONES ================= -->
+<section id="comisiones" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="num">06 · Organización</span>
+      <h2>Comisiones de Trabajo</h2>
+      <p>Cada comisión debe entregar con anticipación su planificación, responsables y materiales necesarios.</p>
+    </div>
+
+    <ul class="com-list">
+      <li><span class="cn">1</span>Comisión de Ventas</li>
+      <li><span class="cn">2</span>Comisión de Boletos</li>
+      <li><span class="cn">3</span>Comisión de Escenario</li>
+      <li><span class="cn">4</span>Organización del Día del Evento</li>
+      <li><span class="cn">5</span>Protocolo de Escenario</li>
+      <li><span class="cn">6</span>Maestro(a) de Ceremonia</li>
+      <li><span class="cn">7</span>Comisión de Audio</li>
+      <li><span class="cn">8</span>Comisión del Reinado</li>
+      <li><span class="cn">9</span>Comisión de Limpieza y Orden</li>
+      <li class="highlight"><span class="cn">10</span>Comisión de Comida por Salones</li>
+      <li><span class="cn">11</span>Comisión de Graduación — +507 6349-5116</li>
+      <li><span class="cn">12</span>Comisión de Banda — Samuel Ortega, 6010-3047</li>
+      <li><span class="cn">13</span>Comisión de Típico — Elaisa, +507 6803-7126</li>
+    </ul>
+
+    <div class="comida-note">
+      <h4>🍲 Comisión de Comida por Salones — funciones clave</h4>
+      <ul>
+        <li>Coordinar con cada salón la preparación y venta de platos, evitando repeticiones.</li>
+        <li>Definir cantidad estimada, ingredientes, materiales y precio de cada plato.</li>
+        <li>Colocar un cartel visible con nombre del plato, precio y salón responsable.</li>
+        <li>Supervisar higiene, manipulación de alimentos y limpieza de cada puesto.</li>
+      </ul>
+    </div>
+
+    <div class="comida-note">
+      <h4>🎓 Comisión de Graduación — funciones clave (+507 6349-5116)</h4>
+      <ul>
+        <li>Coordinar la logística de la actividad de graduación dentro del Día del Campesino.</li>
+        <li>Organizar el espacio, asientos y protocolo para los graduandos.</li>
+        <li>Gestionar la entrega de diplomas o reconocimientos correspondientes.</li>
+        <li>Enlazar con la dirección del plantel cualquier requerimiento especial del acto.</li>
+      </ul>
+    </div>
+
+    <div class="comida-note">
+      <h4>🥁 Comisión de Banda — funciones clave (Samuel Ortega, 6010-3047)</h4>
+      <ul>
+        <li>Coordinar la participación de la banda escolar durante el desfile y la apertura.</li>
+        <li>Definir el repertorio y los horarios de actuación dentro del cronograma.</li>
+        <li>Organizar el ingreso, ubicación y salida de los integrantes en el gimnasio.</li>
+        <li>Verificar que los instrumentos y equipo estén listos antes del evento.</li>
+      </ul>
+    </div>
+
+    <div class="comida-note">
+      <h4>👗 Comisión de Típico — funciones clave (Elaisa, +507 6803-7126)</h4>
+      <ul>
+        <li>Coordinar la vestimenta típica de reinas, candidatas y delegaciones por salón.</li>
+        <li>Asesorar a los salones sobre el traje adecuado según la provincia o comarca asignada.</li>
+        <li>Gestionar el préstamo, alquiler o confección de trajes cuando sea necesario.</li>
+        <li>Supervisar que el vestuario esté listo y correcto el día del evento.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="rope"></div>
+
+<footer>
+  <div class="wrap">
+    <blockquote>"Aprender la cultura panameña es vivirla. Cada rancho será una oportunidad para enseñar, compartir y fortalecer el orgullo por nuestras provincias y comarcas."</blockquote>
+    <span class="school">C.E.B.G. General El Jiral · Día del Campesino 2026</span>
+  </div>
+</footer>
+
+</body>
+</html>

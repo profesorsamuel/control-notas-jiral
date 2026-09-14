@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galería de Reinas · Día del Campesino 2026 · C.E.B.G. El Jiral</title>
+
+<link rel="icon" type="image/x-icon" href="../img/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="../img/apple-touch-icon.png">
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+:root{
+  --parchment:#F2E6C8;
+  --parchment-deep:#E8D8AE;
+  --card:#FBF5E4;
+  --ink:#20301D;
+  --ink-soft:#4E5B44;
+  --green-deep:#1F3B24;
+  --green-mid:#3E6B3F;
+  --clay:#B5622E;
+  --clay-dark:#8A4423;
+  --gold:#D19A1F;
+  --red:#C23B22;
+  --line: rgba(32,48,29,0.18);
+  --shadow: 0 6px 18px rgba(32,26,10,0.12);
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background: radial-gradient(ellipse at top left, rgba(255,255,255,0.35), transparent 55%), var(--parchment);
+  color:var(--ink);
+  font-family:'Work Sans', sans-serif;
+  line-height:1.5;
+}
+.wrap{max-width:1000px;margin:0 auto;padding:0 20px;}
+h1,h2{font-family:'Fraunces', serif; margin:0; color:var(--green-deep);}
+
+header.hero{
+  background: linear-gradient(180deg, var(--green-deep) 0%, #274A2B 100%);
+  color:#F2E6C8;
+  padding:40px 0 30px;
+}
+.volver{
+  display:inline-flex; align-items:center; gap:6px;
+  color:#D9CFAE; text-decoration:none; font-family:'Space Mono', monospace;
+  font-size:12.5px; margin-bottom:18px;
+}
+.volver:hover{color:var(--gold);}
+header.hero h1{color:#FBF5E4; font-size:clamp(26px,5vw,38px);}
+header.hero p{max-width:600px; color:#D9CFAE; margin-top:10px; font-size:15px;}
+
+section{padding:36px 0 64px;}
+.nivel-title{
+  font-family:'Space Mono', monospace;
+  font-size:12.5px; letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--clay-dark); margin:34px 0 14px;
+}
+.nivel-title:first-child{margin-top:0;}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(220px,1fr));
+  gap:14px;
+}
+.reina-card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+  padding:18px 18px 16px;
+  text-decoration:none;
+  color:var(--ink);
+  display:block;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.reina-card:hover{transform:translateY(-3px); box-shadow:0 14px 28px rgba(32,26,10,0.18); color:var(--ink);}
+.reina-card .cubierta{
+  width:100%; aspect-ratio:4/3; border-radius:12px; overflow:hidden;
+  background: linear-gradient(135deg, var(--parchment-deep), var(--card));
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:12px; position:relative;
+}
+.reina-card .cubierta img{width:100%; height:100%; object-fit:cover; display:block;}
+.reina-card .cubierta .placeholder{font-size:30px; opacity:.5;}
+.reina-card .conteo{
+  position:absolute; bottom:6px; right:6px;
+  background:rgba(31,59,36,0.85); color:#FBF5E4;
+  font-family:'Space Mono', monospace; font-size:11px;
+  padding:3px 8px; border-radius:999px;
+}
+.reina-card h3{font-size:16.5px; font-weight:600; margin-bottom:2px;}
+.reina-card .nombre-real{
+  font-family:'Fraunces', serif; font-weight:700; font-size:15px;
+  color:var(--clay-dark); margin:0 0 1px;
+}
+.reina-card p{margin:0; font-size:12.5px; color:var(--ink-soft);}
+
+footer{padding:20px 0 40px; text-align:center;}
+footer p{font-size:12.5px; color:var(--ink-soft);}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <a class="volver" href="dia-del-campesino.html">&larr; Programa del Día del Campesino</a>
+    <h1>📷 Galería de las Reinas</h1>
+    <p>Cada reina tiene su propia página de fotos, desde la presentación de candidatas hasta la elección final. Cualquiera puede subir fotos; toca una tarjeta para ver o compartir las suyas.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="nivel-title">Reinado de Primaria · una candidata por provincia o comarca</div>
+    <div class="grid" id="gridPrimaria"></div>
+
+    <div class="nivel-title">Reinado de Premedia · una candidata por salón</div>
+    <div class="grid" id="gridPremedia"></div>
+  </div>
+</section>
+
+<footer>
+  <p>C.E.B.G. El Jiral · Día del Campesino 2026</p>
+</footer>
+
+<script type="module" src="../js/campesino-reinas.js"></script>
+</body>
+</html>
