@@ -284,6 +284,18 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
   line-height:1.4;
 }
 .foto .credito .obs{display:block; font-weight:600; color:var(--ink); margin-bottom:2px; font-size:14px;}
+.foto[draggable="true"]{cursor:grab;}
+.foto.arrastrando{opacity:.4;}
+.foto.destino-arrastre{outline:2px dashed var(--clay); outline-offset:-2px;}
+.foto .manija{
+  position:absolute; top:6px; left:6px;
+  width:26px; height:26px; border-radius:50%;
+  background:rgba(31,59,36,0.85); color:#F2E6C8;
+  border:none; font-size:14px; line-height:1;
+  display:flex; align-items:center; justify-content:center;
+  cursor:grab;
+  z-index:2;
+}
 .vacio{
   text-align:center; padding:50px 20px; color:var(--ink-soft);
   font-size:16px;
