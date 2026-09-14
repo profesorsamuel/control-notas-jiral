@@ -12,6 +12,7 @@ const reina = buscarReina(slug);
 const chipNivel = document.getElementById("chipNivel");
 const tituloReina = document.getElementById("tituloReina");
 const detalleReina = document.getElementById("detalleReina");
+const docentesStrip = document.getElementById("docentesStrip");
 const portadaHero = document.getElementById("portadaHero");
 const galeria = document.getElementById("galeria");
 const vacioAviso = document.getElementById("vacioAviso");
@@ -40,6 +41,7 @@ const perfilContenido = document.getElementById("perfilContenido");
 const perfilEditarDetalle = document.getElementById("perfilEditarDetalle");
 const formPerfil = document.getElementById("formPerfil");
 const pNombreReina = document.getElementById("pNombreReina");
+const notaNombreBloqueado = document.getElementById("notaNombreBloqueado");
 const pFechaNacimiento = document.getElementById("pFechaNacimiento");
 const pComida = document.getElementById("pComida");
 const pColor = document.getElementById("pColor");
@@ -61,7 +63,9 @@ let esAdmin = false;
 let accesoDocente = null; // { docente, clave } una vez validado
 
 // =========================================================
-// Encabezado: nombre de la reina
+// Encabezado: nombre de la reina, y los docentes/salones que la
+// representan (siempre los mismos, definidos en el programa del
+// evento, así que se muestran sin depender de la base de datos).
 // =========================================================
 if (!reina) {
     tituloReina.textContent = "Reina no encontrada";
@@ -73,6 +77,17 @@ if (!reina) {
     tituloReina.textContent = `Reina de ${reina.nombre}`;
     detalleReina.textContent = reina.detalle;
     document.title = `Reina de ${reina.nombre} · Galería · Día del Campesino 2026`;
+
+    const chips = [];
+    for (const d of reina.docentes || []) {
+        chips.push(`<span class="chip-docente">🏫 ${escaparHTML(d.salon)} · ${escaparHTML(d.nombre)}</span>`);
+    }
+    if (reina.apoyo) {
+        chips.push(`<span class="chip-docente">🤝 Apoyo Premedia: ${escaparHTML(reina.apoyo.salon)} · ${escaparHTML(reina.apoyo.nombre)}</span>`);
+    }
+    if (chips.length) {
+        docentesStrip.innerHTML = `<span class="etiqueta">Docentes y salones que la representan</span>${chips.join("")}`;
+    }
 }
 
 // =========================================================
@@ -172,7 +187,8 @@ async function cargarFotos() {
         .from("campesino_fotos")
         .select("id, ruta_storage, subido_por, descripcion, creado_en")
         .eq("reina_slug", reina.slug)
-        .order("creado_en", { ascending: false });
+        .order("creado_en", { ascending: false })
+        .limit(16);
 
     if (error) {
         galeria.innerHTML = "";
@@ -195,9 +211,11 @@ async function cargarFotos() {
         if (foto.subido_por) partesCredito.push(`Subida por ${escaparHTML(foto.subido_por)}`);
         return `
         <div class="foto" data-id="${foto.id}" data-ruta="${foto.ruta_storage}">
-            <img src="${pub.publicUrl}" alt="Foto de la reina de ${escaparHTML(reina.nombre)}" loading="lazy">
+            <div class="foto-img">
+                <img src="${pub.publicUrl}" alt="Foto de la reina de ${escaparHTML(reina.nombre)}" loading="lazy">
+                ${esAdmin ? `<button class="borrar" title="Borrar foto (solo administrador)">&times;</button>` : ""}
+            </div>
             ${partesCredito.length ? `<span class="credito">${partesCredito.join("")}</span>` : ""}
-            ${esAdmin ? `<button class="borrar" title="Borrar foto (solo administrador)">&times;</button>` : ""}
         </div>`;
     }).join("");
 }
@@ -469,8 +487,9 @@ function pintarPerfil(perfil) {
         return;
     }
 
-    // Si ya hay un nombre real, se usa en el encabezado de la página.
-    tituloReina.textContent = `${perfil.nombre_reina} · Reina de ${reina.nombre}`;
+    // Si ya hay un nombre real, se usa como título principal (grande y centrado).
+    tituloReina.textContent = perfil.nombre_reina;
+    detalleReina.textContent = `Reina de ${reina.nombre}`;
 
     const parrafo = construirParrafo(perfil);
 
@@ -502,6 +521,10 @@ async function cargarPerfil() {
 
     if (perfilActual) {
         pNombreReina.value = perfilActual.nombre_reina || "";
+        const registrada = !!(perfilActual.nombre_reina && perfilActual.nombre_reina.trim() !== "");
+        pNombreReina.readOnly = registrada;
+        pNombreReina.required = !registrada;
+        notaNombreBloqueado.classList.toggle("oculto", !registrada);
         pFechaNacimiento.value = perfilActual.fecha_nacimiento || "";
         pComida.value = perfilActual.comida_favorita || "";
         pColor.value = perfilActual.color_favorito || "";
