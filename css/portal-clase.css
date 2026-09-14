@@ -306,6 +306,71 @@ body {
   .header-botones { width: 100%; justify-content: space-between; }
 }
 
+/* ---------- Tarea especial destacada (ej. álbum 9no grado) ---------- */
+.tarea-especial-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(135deg, var(--sun-dark), var(--coral));
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 40px;
+  box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--coral) 60%, transparent);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.tarea-especial-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px -14px color-mix(in srgb, var(--coral) 70%, transparent);
+}
+.tarea-especial-icono {
+  font-size: 30px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.tarea-especial-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+.tarea-especial-titulo {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 15.5px;
+}
+.tarea-especial-descripcion {
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  opacity: 0.95;
+  line-height: 1.4;
+}
+.tarea-especial-grados {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+.grado-chip {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  padding: 3px 10px;
+  letter-spacing: 0.03em;
+}
+.tarea-especial-flecha {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .tarea-especial-card { align-items: flex-start; }
+}
+
 /* ---------- Grupos por materia ---------- */
 .materia-group { margin-bottom: 44px; }
 
