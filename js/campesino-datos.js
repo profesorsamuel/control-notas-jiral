@@ -143,3 +143,27 @@ export const REINAS = [
 export function buscarReina(slug) {
     return REINAS.find((r) => r.slug === slug) || null;
 }
+
+// =====================================================
+// Paleta de "colores básicos" para que cada reina elija el color
+// que usará el día del evento. Es independiente por nivel: una reina
+// de Primaria y una de Premedia sí pueden compartir color (son
+// horarios distintos), pero dos reinas del mismo nivel no.
+// =====================================================
+export const COLORES_BASICOS = [
+    { nombre: "Rojo", hex: "#E63946" },
+    { nombre: "Azul", hex: "#1D4ED8" },
+    { nombre: "Amarillo", hex: "#F4C430" },
+    { nombre: "Verde", hex: "#2E7D32" },
+    { nombre: "Anaranjado", hex: "#F97316" },
+    { nombre: "Morado", hex: "#7C3AED" },
+    { nombre: "Rosado", hex: "#EC4899" },
+    { nombre: "Celeste", hex: "#38BDF8" },
+    { nombre: "Turquesa", hex: "#14B8A6" },
+    { nombre: "Vino", hex: "#7A1F2B" },
+    { nombre: "Café", hex: "#7B4B2A" },
+    { nombre: "Negro", hex: "#1F2937" },
+    { nombre: "Blanco", hex: "#FFFFFF" },
+    { nombre: "Gris", hex: "#6B7280" },
+    { nombre: "Dorado", hex: "#D19A1F" },
+];

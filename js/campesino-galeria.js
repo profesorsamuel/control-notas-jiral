@@ -1,5 +1,5 @@
 import { supabase } from "./supabase.js";
-import { buscarReina } from "./campesino-datos.js";
+import { buscarReina, REINAS, COLORES_BASICOS } from "./campesino-datos.js";
 import { DOCENTES, claveEsperada } from "./campesino-docentes.js";
 
 const BUCKET = "campesino-reinas";
@@ -45,6 +45,9 @@ const notaNombreBloqueado = document.getElementById("notaNombreBloqueado");
 const pFechaNacimiento = document.getElementById("pFechaNacimiento");
 const pComida = document.getElementById("pComida");
 const pColor = document.getElementById("pColor");
+const pColorReinado = document.getElementById("pColorReinado");
+const notaColorTomado = document.getElementById("notaColorTomado");
+const globosReina = document.getElementById("globosReina");
 const pMateria = document.getElementById("pMateria");
 const pCurioso = document.getElementById("pCurioso");
 const pRisa = document.getElementById("pRisa");
@@ -97,6 +100,75 @@ docenteAcceso.insertAdjacentHTML(
     "beforeend",
     DOCENTES.map((nombre) => `<option value="${nombre}">${nombre}</option>`).join("")
 );
+
+// =========================================================
+// Color que usará la reina el día del evento: se elige de una paleta
+// fija de colores básicos, y no se puede repetir entre reinas del
+// MISMO reinado (Primaria o Premedia son horarios distintos, así que
+// sí pueden compartir color entre ellos).
+// =========================================================
+pColorReinado.insertAdjacentHTML(
+    "beforeend",
+    COLORES_BASICOS.map((c) => `<option value="${c.hex}" data-nombre="${c.nombre}">${c.nombre}</option>`).join("")
+);
+
+async function cargarColoresTomados() {
+    if (!reina) return;
+    const slugsDelNivel = REINAS.filter((r) => r.nivel === reina.nivel).map((r) => r.slug);
+
+    const { data, error } = await supabase
+        .from("campesino_perfiles_reinas")
+        .select("reina_slug, color_evento")
+        .in("reina_slug", slugsDelNivel);
+
+    if (error) return;
+
+    const tomadosPorOtras = new Set(
+        (data || [])
+            .filter((fila) => fila.reina_slug !== reina.slug && fila.color_evento)
+            .map((fila) => fila.color_evento)
+    );
+
+    let algunoTachado = false;
+    Array.from(pColorReinado.options).forEach((opcion) => {
+        if (!opcion.value) return;
+        const tomado = tomadosPorOtras.has(opcion.value);
+        opcion.disabled = tomado;
+        opcion.textContent = tomado ? `${opcion.dataset.nombre} (ya elegido)` : opcion.dataset.nombre;
+        if (tomado) algunoTachado = true;
+    });
+    notaColorTomado.style.display = algunoTachado ? "block" : "none";
+}
+
+function nombreColor(hex) {
+    const c = COLORES_BASICOS.find((c) => c.hex.toLowerCase() === (hex || "").toLowerCase());
+    return c ? c.nombre : null;
+}
+
+function pintarGlobos(hex) {
+    const nombre = nombreColor(hex);
+    if (!hex || !nombre) {
+        globosReina.classList.add("oculto");
+        globosReina.innerHTML = "";
+        return;
+    }
+    globosReina.classList.remove("oculto");
+    globosReina.innerHTML = `
+        <div class="globo-wrap">
+            <div class="globo" style="background:${hex}; color:${hex};"></div>
+            <div class="hilo"></div>
+        </div>
+        <div class="globo-wrap">
+            <div class="globo" style="background:${hex}; color:${hex};"></div>
+            <div class="hilo"></div>
+            <div class="etiqueta-color">Color que usará: <b>${escaparHTML(nombre)}</b></div>
+        </div>
+        <div class="globo-wrap">
+            <div class="globo" style="background:${hex}; color:${hex};"></div>
+            <div class="hilo"></div>
+        </div>
+    `;
+}
 
 // =========================================================
 // Acceso de docente: hace falta para subir fotos, la portada o tocar
@@ -553,6 +625,7 @@ function construirParrafo(perfil) {
 function pintarPerfil(perfil) {
     if (!perfil || !perfil.nombre_reina) {
         perfilContenido.innerHTML = `<p class="perfil-vacio">Todavía nadie ha completado el perfil de esta reina. El salón o su profesor(a) guía puede hacerlo con la clave de acceso. 👇</p>`;
+        pintarGlobos(null);
         return;
     }
 
@@ -567,6 +640,7 @@ function pintarPerfil(perfil) {
         ${parrafo ? `<p class="perfil-parrafo">${escaparHTML(parrafo)}</p>` : `<p class="perfil-vacio">Aún faltan las preguntas curiosas.</p>`}
         ${perfil.docente_nombre ? `<p class="perfil-credito">Completado por ${escaparHTML(perfil.docente_nombre)}</p>` : ""}
     `;
+    pintarGlobos(perfil.color_evento);
 }
 
 let perfilActual = null;
@@ -597,6 +671,7 @@ async function cargarPerfil() {
         pFechaNacimiento.value = perfilActual.fecha_nacimiento || "";
         pComida.value = perfilActual.comida_favorita || "";
         pColor.value = perfilActual.color_favorito || "";
+        pColorReinado.value = perfilActual.color_evento || "";
         pMateria.value = perfilActual.materia_favorita || "";
         pCurioso.value = perfilActual.dato_curioso || "";
         pRisa.value = perfilActual.algo_que_da_risa || "";
@@ -615,6 +690,16 @@ formPerfil.addEventListener("submit", async (evento) => {
         return;
     }
 
+    if (pColorReinado.value) {
+        await cargarColoresTomados();
+        const opcionElegida = Array.from(pColorReinado.options).find((o) => o.value === pColorReinado.value);
+        if (opcionElegida && opcionElegida.disabled) {
+            estadoPerfil.textContent = "Ese color ya lo eligió otra reina de tu mismo reinado justo ahora. Elige otro color.";
+            estadoPerfil.classList.add("error");
+            return;
+        }
+    }
+
     btnGuardarPerfil.disabled = true;
     estadoPerfil.classList.remove("error");
     estadoPerfil.textContent = "Guardando...";
@@ -625,6 +710,7 @@ formPerfil.addEventListener("submit", async (evento) => {
         fecha_nacimiento: pFechaNacimiento.value.trim() || null,
         comida_favorita: pComida.value.trim() || null,
         color_favorito: pColor.value.trim() || null,
+        color_evento: pColorReinado.value || null,
         materia_favorita: pMateria.value.trim() || null,
         dato_curioso: pCurioso.value.trim() || null,
         algo_que_da_risa: pRisa.value.trim() || null,
@@ -663,4 +749,5 @@ formPerfil.addEventListener("submit", async (evento) => {
     await revisarSiEsAdmin();
     await cargarFotos();
     await cargarPerfil();
+    await cargarColoresTomados();
 })();
