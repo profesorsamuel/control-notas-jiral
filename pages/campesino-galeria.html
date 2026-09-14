@@ -57,6 +57,13 @@ header.hero{
 }
 header.hero h1{color:#FBF5E4; font-size:clamp(26px,5vw,36px);}
 header.hero p.detalle{color:#D9CFAE; margin-top:6px; font-size:14.5px;}
+.portada-hero{
+  width:110px; height:110px; border-radius:50%;
+  object-fit:cover; border:3px solid var(--gold);
+  box-shadow:0 8px 20px rgba(0,0,0,.35);
+  margin-bottom:14px; display:block;
+  background:rgba(255,255,255,.08);
+}
 
 section{padding:30px 0 60px;}
 
@@ -94,6 +101,25 @@ section{padding:30px 0 60px;}
 .subir-card h2{font-size:17px; margin-bottom:6px;}
 .subir-card p.ayuda{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
 
+.portada-card{padding:20px 22px; margin-bottom:26px;}
+.portada-card h2{font-size:17px; margin-bottom:6px;}
+.portada-card p.ayuda{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+.portada-actual{
+  display:flex; align-items:center; gap:14px; margin-bottom:14px;
+}
+.portada-actual img{
+  width:72px; height:72px; border-radius:50%; object-fit:cover;
+  border:2px solid var(--gold); box-shadow:var(--shadow);
+}
+.portada-actual .sin-portada{
+  width:72px; height:72px; border-radius:50%;
+  background:var(--parchment-deep);
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px; opacity:.6;
+}
+.fila-portada{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+.fila-portada input[type="file"]{flex:1 1 220px; font-size:13.5px;}
+
 .perfil-card{padding:22px 24px; margin-bottom:26px;}
 .perfil-card h2{font-size:18px; margin-bottom:4px;}
 .perfil-nombre{
@@ -101,6 +127,11 @@ section{padding:30px 0 60px;}
   color:var(--clay-dark); margin:2px 0 14px;
 }
 .perfil-vacio{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+.perfil-parrafo{
+  font-size:15px; color:var(--ink); line-height:1.7;
+  background:var(--parchment-deep); border-radius:12px; padding:14px 16px;
+  margin:0 0 6px;
+}
 .perfil-preguntas{display:grid; gap:12px; margin-bottom:6px;}
 .perfil-preguntas .pregunta{
   background:var(--parchment-deep); border-radius:12px; padding:12px 14px;
@@ -149,6 +180,17 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
   font-family:'Work Sans', sans-serif;
   font-size:14px;
 }
+.fila-subir textarea{
+  flex:1 1 100%;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:#fff;
+  font-family:'Work Sans', sans-serif;
+  font-size:14px;
+  resize:vertical;
+  min-height:50px;
+}
 .fila-subir input[type="file"]{
   flex:1 1 220px;
   font-size:13.5px;
@@ -189,8 +231,9 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
 .foto .credito{
   position:absolute; left:0; right:0; bottom:0;
   background:linear-gradient(0deg, rgba(31,59,36,.75), transparent);
-  color:#FBF5E4; font-size:10.5px; padding:12px 8px 6px;
+  color:#FBF5E4; font-size:10.5px; padding:16px 8px 6px;
 }
+.foto .credito .obs{display:block; font-weight:600; margin-bottom:1px;}
 .vacio{
   text-align:center; padding:50px 20px; color:var(--ink-soft);
   font-size:14.5px;
@@ -229,6 +272,7 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
 <header class="hero">
   <div class="wrap">
     <a class="volver" href="campesino-reinas.html">&larr; Todas las reinas</a>
+    <img class="portada-hero oculto" id="portadaHero" src="" alt="">
     <span class="lvl-chip" id="chipNivel">Reinado</span>
     <h1 id="tituloReina">Cargando…</h1>
     <p class="detalle" id="detalleReina"></p>
@@ -238,7 +282,50 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
 <section>
   <div class="wrap">
 
-    <div class="card perfil-card">
+    <div class="card acceso-card" id="accesoCard">
+      <h2>🔑 Acceso de docente</h2>
+      <p class="ayuda">Para evitar contenido indebido, subir fotos, poner la foto de portada o completar el perfil de la reina requiere el nombre de un(a) docente del plantel y su clave. Pídesela a tu profesor(a) guía si no la tienes.</p>
+      <form id="formAcceso" class="fila-acceso">
+        <select id="docenteAcceso" required>
+          <option value="" disabled selected>Elige el nombre del/de la docente...</option>
+        </select>
+        <input type="text" id="claveAcceso" placeholder="Clave" maxlength="2" required autocomplete="off">
+        <button type="submit" class="btn-subir">Entrar</button>
+      </form>
+      <p class="estado-subida" id="estadoAcceso"></p>
+    </div>
+
+    <div class="card portada-card oculto" id="portadaCard">
+      <h2>🎀 Foto de portada</h2>
+      <p class="ayuda">Esta es la foto principal de la reina: la que aparece al frente, arriba de esta página y en la lista de todas las reinas.</p>
+      <div class="portada-actual">
+        <img id="portadaActualImg" class="oculto" src="" alt="Foto de portada actual">
+        <span id="portadaActualVacio" class="sin-portada">👑</span>
+        <span id="portadaActualTexto" style="font-size:13px; color:var(--ink-soft);">Todavía no hay foto de portada.</span>
+      </div>
+      <form id="formPortada" class="fila-portada">
+        <input type="file" id="archivoPortada" accept="image/*" required>
+        <button type="submit" class="btn-subir" id="btnPortada">Guardar foto de portada</button>
+      </form>
+      <p class="estado-subida" id="estadoPortada"></p>
+    </div>
+
+    <div class="card subir-card oculto" id="subirCard">
+      <h2>🖼️ Fotos y observaciones</h2>
+      <p class="ayuda">Ya identificado(a) como docente, puedes agregar todas las fotos que quieras de esta reina y describir abajo qué está pasando en ellas.</p>
+      <form id="formSubir" class="fila-subir">
+        <input type="text" id="nombreQuienSube" placeholder="Tu nombre (opcional, para el crédito de la foto)" maxlength="60">
+        <textarea id="observacionFoto" placeholder="Observación de estas fotos (opcional): qué está haciendo la reina, en qué actividad, etc." maxlength="200"></textarea>
+        <input type="file" id="archivosFoto" accept="image/*" multiple required>
+        <button type="submit" class="btn-subir" id="btnSubir">Subir foto(s)</button>
+      </form>
+      <p class="estado-subida" id="estadoSubida"></p>
+    </div>
+
+    <div class="galeria" id="galeria"></div>
+    <p class="vacio" id="vacioAviso" style="display:none;">Todavía no hay fotos de esta reina. ¡Pide a tu profesor(a) guía que suba la primera! 🌼</p>
+
+    <div class="card perfil-card" style="margin-top:26px;">
       <h2>👑 Conoce a la reina</h2>
       <div id="perfilContenido">
         <p class="perfil-vacio">Cargando perfil…</p>
@@ -252,8 +339,20 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
             <input type="text" id="pNombreReina" maxlength="80" placeholder="Nombre completo de la candidata" required>
           </div>
           <div>
+            <label for="pFechaNacimiento">¿Cuándo nació?</label>
+            <input type="text" id="pFechaNacimiento" maxlength="40" placeholder="Ej. 15 de marzo">
+          </div>
+          <div>
             <label for="pComida">¿Qué le gusta comer?</label>
             <input type="text" id="pComida" maxlength="200" placeholder="Su comida favorita">
+          </div>
+          <div>
+            <label for="pColor">¿Cuál es su color favorito?</label>
+            <input type="text" id="pColor" maxlength="60" placeholder="Su color favorito">
+          </div>
+          <div>
+            <label for="pMateria">¿Cuál es su materia favorita?</label>
+            <input type="text" id="pMateria" maxlength="60" placeholder="Su materia favorita">
           </div>
           <div>
             <label for="pCurioso">Un dato curioso sobre ella</label>
@@ -272,33 +371,6 @@ details.perfil-editar summary::-webkit-details-marker{display:none;}
         </form>
       </details>
     </div>
-
-    <div class="card acceso-card" id="accesoCard">
-      <h2>🔑 Acceso de docente</h2>
-      <p class="ayuda">Para evitar contenido indebido, subir fotos o completar el perfil de la reina requiere el nombre de un(a) docente del plantel y su clave. Pídesela a tu profesor(a) guía si no la tienes.</p>
-      <form id="formAcceso" class="fila-acceso">
-        <select id="docenteAcceso" required>
-          <option value="" disabled selected>Elige el nombre del/de la docente...</option>
-        </select>
-        <input type="text" id="claveAcceso" placeholder="Clave" maxlength="2" required autocomplete="off">
-        <button type="submit" class="btn-subir">Entrar</button>
-      </form>
-      <p class="estado-subida" id="estadoAcceso"></p>
-    </div>
-
-    <div class="card subir-card oculto" id="subirCard">
-      <h2>📤 Subir una foto</h2>
-      <p class="ayuda">Ya identificado(a) como docente, puedes subir fotos de esta reina. Puedes seleccionar varias a la vez.</p>
-      <form id="formSubir" class="fila-subir">
-        <input type="text" id="nombreQuienSube" placeholder="Tu nombre (opcional, para el crédito de la foto)" maxlength="60">
-        <input type="file" id="archivosFoto" accept="image/*" multiple required>
-        <button type="submit" class="btn-subir" id="btnSubir">Subir foto(s)</button>
-      </form>
-      <p class="estado-subida" id="estadoSubida"></p>
-    </div>
-
-    <div class="galeria" id="galeria"></div>
-    <p class="vacio" id="vacioAviso" style="display:none;">Todavía no hay fotos de esta reina. ¡Pide a tu profesor(a) guía que suba la primera! 🌼</p>
 
     <div class="admin-strip">
       <span id="estadoAcceso2"></span>
