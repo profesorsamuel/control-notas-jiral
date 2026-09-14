@@ -92,6 +92,14 @@ export const REINAS = [
         ],
         apoyo: { salon: "IX-B", nombre: "Wendy Harren" },
     },
+    {
+        slug: "primaria-comarcas-indigenas", nombre: "Comarcas Indígenas", nivel: "primaria", detalle: "Salones II-C + III-A",
+        docentes: [
+            { salon: "II-C", nombre: "Carmen Gaitán" },
+            { salon: "III-A", nombre: "Betzaida Rodríguez" },
+        ],
+        apoyo: { salon: "VIII-A (compartido)", nombre: "Juana Brown" },
+    },
 
     // ---------- PREMEDIA: una candidata por salón, provincia asignada por sorteo ----------
     {
