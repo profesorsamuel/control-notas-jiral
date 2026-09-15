@@ -1,0 +1,19 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cuaderno de Tareas 9°C | C.E.B.G. El Jiral</title><link rel="icon" href="../img/estudiante-favicon.ico"><link rel="stylesheet" href="../css/vida_estudiantil.css"><link rel="stylesheet" href="../css/cuaderno_tareas_9c.css"></head><body>
+<header class="ve-top"><div class="ve-wrap ve-top-row"><div class="ve-brand"><img src="../img/escudo-jiral.png" alt="Escudo del C.E.B.G. El Jiral"><div><h1>Cuaderno de Tareas</h1><p>C.E.B.G. El Jiral · Salón 9°C</p></div></div><nav class="ve-nav"><a href="estudiante.html">← Mis notas</a><a href="#" id="btnSalirCuad">Salir</a></nav></div></header>
+<main class="ve-wrap ve-main">
+<section class="ve-intro"><div><h2 id="tituloCuad">Preparando tu cuaderno…</h2><p>Marca cada tarea que completes. Si una actividad pide foto, agrégala ahí mismo — puedes subir varias.</p></div><div class="ve-progress"><div class="ve-progress-track"><div class="ve-progress-bar" id="barraProgreso"></div></div><div class="ve-progress-text" id="textoProgreso">0 de 0 completas</div></div></section>
+<div id="mensajeCuad" class="ve-alert" role="alert"></div>
+
+<section class="ve-panel ve-verificacion" id="panelVerificacion"><h2>Antes de comenzar, identifícate</h2><p>Busca tu nombre en la lista de 9°C y escribe tu cédula como contraseña.</p>
+<div class="ve-verif-grid" style="grid-template-columns:1fr 1fr;">
+<div class="ve-campo"><label for="estudianteCuad"><strong>1. Tu nombre</strong></label><select id="estudianteCuad" class="ve-select"><option value="">Cargando estudiantes…</option></select></div>
+<div class="ve-campo"><label for="cedulaCuad"><strong>2. Tu cédula (como contraseña)</strong></label><div class="ve-cedula-wrap"><input type="password" id="cedulaCuad" class="ve-input" placeholder="Ej: 8-123-4567" autocomplete="off" disabled><button type="button" class="ve-btn light" id="verCedulaCuad" aria-label="Mostrar u ocultar cédula" disabled>👁️</button></div></div>
+</div>
+<div class="ve-verif-acciones"><button class="ve-btn primary" id="verificarIdentidadCuad" disabled>🔓 Verificar y continuar</button><button class="ve-btn light" id="cambiarIdentidadCuad" hidden>🔄 No soy yo / cambiar</button></div>
+</section>
+
+<section id="listaMaterias" hidden></section>
+
+<div class="cuad-lightbox" id="lightboxCuad"><button type="button" class="cuad-lightbox-cerrar" id="cerrarLightbox">✕</button><img id="lightboxImg" src="" alt=""></div>
+</main>
+<script type="module" src="../js/cuaderno_tareas_9c.js"></script></body></html>
