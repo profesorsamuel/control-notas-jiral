@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#075e54">
+  <title>Mensajes de WhatsApp · Banda Estudiantil</title>
+  <style>
+    :root{--verde:#075e54;--verde2:#128c7e;--wa:#25d366;--fondo:#eef5f2;--texto:#17352f;--gris:#64748b;--borde:#d9e5e1;--rojo:#b42318}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--fondo);color:var(--texto)}
+    header{background:linear-gradient(135deg,var(--verde),var(--verde2));color:#fff;padding:24px 16px 54px}
+    header>div,main{max-width:1100px;margin:auto}
+    h1{font-size:clamp(1.45rem,4vw,2.15rem);margin:0 0 8px}
+    header p{margin:0;opacity:.92}
+    main{padding:0 14px 32px;margin-top:-34px}
+    .panel{background:#fff;border:1px solid var(--borde);border-radius:18px;padding:18px;box-shadow:0 12px 35px #064e3b18;margin-bottom:16px}
+    label{display:block;font-weight:800;margin-bottom:8px}
+    textarea,input,select{width:100%;font:inherit;border:1px solid #b9cdc7;border-radius:12px;padding:12px;background:#fff;color:var(--texto)}
+    textarea{min-height:145px;resize:vertical;line-height:1.45}
+    textarea:focus,input:focus,select:focus{outline:3px solid #25d36635;border-color:var(--verde2)}
+    .ayuda{font-size:.88rem;color:var(--gris);margin:8px 0 0;line-height:1.45}
+    code{background:#edf7f3;padding:2px 5px;border-radius:5px;color:var(--verde)}
+    .estado{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px}
+    .guardado{font-size:.88rem;color:var(--verde2);font-weight:700;min-height:1.2em}
+    .controles{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+    .resumen{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 2px 9px;color:var(--gris);font-size:.92rem}
+    .lista{display:grid;gap:10px}
+    .contacto{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;background:#fff;border:1px solid var(--borde);border-radius:15px;padding:14px;box-shadow:0 3px 14px #064e3b0c}
+    .nombre{font-weight:850;font-size:1rem;margin-bottom:5px;text-transform:uppercase}
+    .datos{display:flex;gap:6px;flex-wrap:wrap}
+    .etiqueta{font-size:.75rem;font-weight:800;padding:4px 8px;border-radius:999px;background:#edf7f3;color:var(--verde)}
+    .nota{background:#fff1db;color:#8a4b00}
+    .telefonos{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+    button,.boton{border:0;border-radius:11px;padding:10px 13px;font:inherit;font-weight:850;cursor:pointer;text-decoration:none;text-align:center}
+    .whatsapp{background:var(--wa);color:#073b1b;min-width:128px}
+    .whatsapp:hover{filter:brightness(.95)}
+    .sin-telefono{color:var(--rojo);font-weight:800;font-size:.86rem}
+    .vacio{text-align:center;background:#fff;border:1px dashed #a8bdb6;border-radius:15px;padding:28px;color:var(--gris)}
+    footer{max-width:1100px;margin:0 auto;padding:0 16px 28px;color:var(--gris);font-size:.84rem;text-align:center}
+    @media(max-width:680px){
+      header{padding-top:19px}.panel{padding:14px}.controles{grid-template-columns:1fr}.contacto{grid-template-columns:1fr}.telefonos{justify-content:stretch}.whatsapp{width:100%}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🥁 Mensajes de la Banda Estudiantil</h1>
+      <p>Prof. Samuel Ortega · C.E.B.G. El Jiral</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <label for="mensaje">Mensaje para los estudiantes</label>
+      <textarea id="mensaje" placeholder="Escriba aquí el mensaje que desea enviar..."></textarea>
+      <p class="ayuda">Puede usar <code>{nombre}</code> y <code>{seccion}</code>. La página los sustituye por los datos de cada integrante. El mensaje queda guardado automáticamente en este dispositivo.</p>
+      <div class="estado">
+        <span id="guardado" class="guardado" aria-live="polite"></span>
+        <button type="button" id="borrar">Limpiar mensaje</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="controles">
+        <div>
+          <label for="buscar">Buscar integrante</label>
+          <input id="buscar" type="search" placeholder="Nombre, sección, teléfono o nota..." autocomplete="off">
+        </div>
+        <div>
+          <label for="filtro">Sección</label>
+          <select id="filtro"><option value="">Todas las secciones</option></select>
+        </div>
+      </div>
+    </section>
+
+    <div class="resumen">
+      <strong id="cantidad"></strong>
+      <span>WhatsApp de envío: +507 6926-2339</span>
+    </div>
+    <section id="lista" class="lista" aria-live="polite"></section>
+  </main>
+
+  <footer>Al pulsar el botón se abrirá WhatsApp con el mensaje preparado. Revíselo y pulse Enviar.</footer>
+
+  <script>
+    const contactos = [
+      {nombre:'Francisco',nota:'Instructor',seccion:'Director',telefonos:['68905212']},
+      {nombre:'Abigail Pallares',nota:'Instructor',seccion:'Batallón',telefonos:['69952478']},
+      {nombre:'Angelina Guerra',nota:'',seccion:'Batallón',telefonos:['60621881']},
+      {nombre:'Brittany Guevara',nota:'',seccion:'Batallón',telefonos:['68213046']},
+      {nombre:'Isabel Toribio',nota:'',seccion:'Batallón',telefonos:['67641002']},
+      {nombre:'Kathlyn Victoria',nota:'',seccion:'Batallón',telefonos:['67641002']},
+      {nombre:'Nathaly Díaz',nota:'',seccion:'Batallón',telefonos:['67737740']},
+      {nombre:'Rosa Martínez',nota:'Donación',seccion:'Batallón',telefonos:['63062053']},
+      {nombre:'Daneth Acevedo',nota:'',seccion:'Batutera',telefonos:['68106102']},
+      {nombre:'Danna Guerra',nota:'',seccion:'Batutera',telefonos:['61828302']},
+      {nombre:'Jesuanis Solís',nota:'',seccion:'Batutera',telefonos:['63128377']},
+      {nombre:'Maritzelis López',nota:'',seccion:'Batutera',telefonos:['62267353']},
+      {nombre:'Alvin Urieta',nota:'Pantalón',seccion:'Bombo',telefonos:['66025251']},
+      {nombre:'Erubiel Leones',nota:'Pantalón',seccion:'Bombo',telefonos:['69029894']},
+      {nombre:'Moisés Corales',nota:'Pantalón',seccion:'Bombo',telefonos:['64422534']},
+      {nombre:'Tomás Gutiérrez',nota:'Pantalón',seccion:'Bombo',telefonos:[]},
+      {nombre:'Tomás Vásquez',nota:'Pantalón',seccion:'Bombo',telefonos:['65998979']},
+      {nombre:'Josmar López',nota:'Ropa',seccion:'Caja',telefonos:['62614610']},
+      {nombre:'Osmar López',nota:'Ropa',seccion:'Caja',telefonos:['62614610']},
+      {nombre:'Amy Betancur',nota:'',seccion:'Caja',telefonos:['68905212']},
+      {nombre:'Daniel Urieta',nota:'',seccion:'Caja',telefonos:['64099685','68685247']},
+      {nombre:'Edgar Ortega',nota:'',seccion:'Caja',telefonos:[]},
+      {nombre:'Emmanuel Charris',nota:'',seccion:'Caja',telefonos:['64558426']},
+      {nombre:'Erick Wright',nota:'',seccion:'Caja',telefonos:['66925646']},
+      {nombre:'Francisco Macías',nota:'Devolver',seccion:'Caja',telefonos:['62173638']},
+      {nombre:'Magdiel Guevara',nota:'',seccion:'Caja',telefonos:['65588943']},
+      {nombre:'Yanki Moreno',nota:'',seccion:'Caja',telefonos:['60211228']},
+      {nombre:'Jeyco Cortés',nota:'',seccion:'Caja',telefonos:['69645322']},
+      {nombre:'Keiyanis Moreno',nota:'Ropa',seccion:'Guaripola',telefonos:[]},
+      {nombre:'Daryanis Díaz',nota:'',seccion:'Guaripola',telefonos:['65157541']},
+      {nombre:'Jennifer Meneses',nota:'',seccion:'Guaripola',telefonos:['62652920','67321514']},
+      {nombre:'Johelys Jaén',nota:'',seccion:'Guaripola',telefonos:['67321514','62652920']},
+      {nombre:'Kairianys Víquez',nota:'',seccion:'Guaripola',telefonos:['65511428']},
+      {nombre:'Mía Jiménez',nota:'',seccion:'Guaripola',telefonos:['66053426']},
+      {nombre:'Milagros Hernández',nota:'',seccion:'Guaripola',telefonos:['67737601']},
+      {nombre:'Rosalín Guerra',nota:'',seccion:'Guaripola',telefonos:['60621881']},
+      {nombre:'Sofía Moreno',nota:'Devolver',seccion:'Guaripola',telefonos:['68638810']},
+      {nombre:'Yahidelis Rodríguez',nota:'',seccion:'Guaripola',telefonos:['67737740']},
+      {nombre:'Yenifer Cruz',nota:'',seccion:'Guaripola',telefonos:['65495262']},
+      {nombre:'Dayanis Mendezas',nota:'',seccion:'Guaripola',telefonos:[]},
+      {nombre:'Eymeleth Wright',nota:'Instructor',seccion:'Guaripola',telefonos:['67604083']},
+      {nombre:'Joel Rodríguez',nota:'',seccion:'Güiro',telefonos:['62606812','63183799']},
+      {nombre:'José Mitre',nota:'',seccion:'Güiro',telefonos:['65495262']},
+      {nombre:'Zair Urrieta',nota:'',seccion:'Güiro',telefonos:['68685247']},
+      {nombre:'Noemy Valdez',nota:'Donación',seccion:'Güiro',telefonos:['67326455']},
+      {nombre:'Otoniel Rodríguez',nota:'Instructor',seccion:'Güiro',telefonos:['65791302']},
+      {nombre:'Alina',nota:'Ropa',seccion:'Lira',telefonos:[]},
+      {nombre:'Lineth Guerra',nota:'Ropa',seccion:'Lira',telefonos:['69274294']},
+      {nombre:'Ashley Austin',nota:'',seccion:'Lira',telefonos:['64814365']},
+      {nombre:'Hellen Flores',nota:'',seccion:'Lira',telefonos:[]},
+      {nombre:'Glorielis Ruiz',nota:'Semi',seccion:'Lira',telefonos:['61657045']},
+      {nombre:'Mía Sánchez',nota:'',seccion:'Lira',telefonos:['64814365']},
+      {nombre:'Rosa Yaribel',nota:'',seccion:'Lira',telefonos:[]},
+      {nombre:'Yamilka González',nota:'Instructor',seccion:'Lira',telefonos:['63178903','64558426']},
+      {nombre:'Itzel López',nota:'Semi',seccion:'Platillo',telefonos:['62267353']},
+      {nombre:'Maily Solís',nota:'Semi',seccion:'Platillo',telefonos:['63128377']},
+      {nombre:'Yahirianis Rodríguez',nota:'',seccion:'Platillo',telefonos:['67737740']},
+      {nombre:'Yeily López',nota:'Devolver',seccion:'Platillo',telefonos:['62059234']},
+      {nombre:'Abdel Edwin Chiru',nota:'Semi',seccion:'Tenor',telefonos:['62267353']},
+      {nombre:'Abdías Guevara',nota:'',seccion:'Tenor',telefonos:['61887991']},
+      {nombre:'Adrián Beguido',nota:'Teléfono por averiguar',seccion:'Tenor',telefonos:[]},
+      {nombre:'Alberto Adams',nota:'',seccion:'Tenor',telefonos:['63062053']},
+      {nombre:'Aldair López',nota:'',seccion:'Tenor',telefonos:['69559486']},
+      {nombre:'César Jordan',nota:'',seccion:'Tenor',telefonos:['69614921']},
+      {nombre:'Dilan Sánchez',nota:'',seccion:'Tenor',telefonos:['65137065']},
+      {nombre:'Ehimar Macías',nota:'Devolver',seccion:'Tenor',telefonos:['62173638']},
+      {nombre:'Isac Sánchez',nota:'',seccion:'Tenor',telefonos:['62136138']},
+      {nombre:'José Celada',nota:'',seccion:'Tenor',telefonos:['67629470','69177413']},
+      {nombre:'Kenneth Ramos',nota:'',seccion:'Tenor',telefonos:['63062053']},
+      {nombre:'Luis Herrera',nota:'',seccion:'Tenor',telefonos:['67877891']},
+      {nombre:'Moisés Ortega',nota:'',seccion:'Tenor',telefonos:['63062053']},
+      {nombre:'Víctor Ramos',nota:'',seccion:'Tenor',telefonos:['63062053']},
+      {nombre:'Integrante sin nombre',nota:'Nombre pendiente',seccion:'Sin asignar',telefonos:['68205675']},
+      {nombre:'Rubiela Sánchez',nota:'',seccion:'Sin asignar',telefonos:['62922374']},
+      {nombre:'Integrante sin nombre 2',nota:'Nombre pendiente',seccion:'Sin asignar',telefonos:['68305675']},
+      {nombre:'Itzel',nota:'Encargada de ropa',seccion:'Ropa',telefonos:['67459119']},
+      {nombre:'Yariela Austin',nota:'',seccion:'Sin asignar',telefonos:['62807510']}
+    ];
+
+    const mensaje = document.querySelector('#mensaje');
+    const buscar = document.querySelector('#buscar');
+    const filtro = document.querySelector('#filtro');
+    const lista = document.querySelector('#lista');
+    const cantidad = document.querySelector('#cantidad');
+    const guardado = document.querySelector('#guardado');
+    let aviso;
+
+    mensaje.value = localStorage.getItem('mensajeBandaJiral') || '';
+
+    [...new Set(contactos.map(c => c.seccion))].sort((a,b)=>a.localeCompare(b,'es')).forEach(seccion => {
+      const opcion=document.createElement('option'); opcion.value=seccion; opcion.textContent=seccion; filtro.appendChild(opcion);
+    });
+
+    function textoPlano(valor=''){
+      return valor.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    }
+
+    function mensajePersonalizado(c){
+      return mensaje.value.trim().replaceAll('{nombre}',c.nombre).replaceAll('{seccion}',c.seccion);
+    }
+
+    function abrirWhatsApp(c,telefono){
+      const texto=mensajePersonalizado(c);
+      if(!texto){ mensaje.focus(); alert('Primero escriba el mensaje que desea enviar.'); return; }
+      const numero='507'+telefono.replace(/\D/g,'');
+      window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`,'_blank','noopener');
+    }
+
+    function render(){
+      const q=textoPlano(buscar.value.trim());
+      const seleccion=filtro.value;
+      const visibles=contactos.filter(c=>{
+        const contenido=textoPlano([c.nombre,c.nota,c.seccion,...c.telefonos].join(' '));
+        return (!q||contenido.includes(q))&&(!seleccion||c.seccion===seleccion);
+      });
+      cantidad.textContent=`${visibles.length} integrante${visibles.length===1?'':'s'}`;
+      lista.replaceChildren();
+      if(!visibles.length){
+        const vacio=document.createElement('div'); vacio.className='vacio'; vacio.textContent='No se encontraron integrantes con esos filtros.'; lista.appendChild(vacio); return;
+      }
+      visibles.forEach(c=>{
+        const tarjeta=document.createElement('article'); tarjeta.className='contacto';
+        const info=document.createElement('div');
+        const nombre=document.createElement('div'); nombre.className='nombre'; nombre.textContent=c.nombre;
+        const datos=document.createElement('div'); datos.className='datos';
+        const sec=document.createElement('span'); sec.className='etiqueta'; sec.textContent=c.seccion; datos.appendChild(sec);
+        if(c.nota){const nota=document.createElement('span');nota.className='etiqueta nota';nota.textContent=c.nota;datos.appendChild(nota)}
+        info.append(nombre,datos);
+        const telefonos=document.createElement('div'); telefonos.className='telefonos';
+        if(c.telefonos.length){
+          c.telefonos.forEach((tel,i)=>{const boton=document.createElement('button');boton.type='button';boton.className='whatsapp';boton.textContent=`💬 ${tel}${c.telefonos.length>1?` (${i+1})`:''}`;boton.addEventListener('click',()=>abrirWhatsApp(c,tel));telefonos.appendChild(boton)});
+        }else{
+          const falta=document.createElement('span');falta.className='sin-telefono';falta.textContent='⚠️ Sin teléfono';telefonos.appendChild(falta);
+        }
+        tarjeta.append(info,telefonos); lista.appendChild(tarjeta);
+      });
+    }
+
+    mensaje.addEventListener('input',()=>{
+      localStorage.setItem('mensajeBandaJiral',mensaje.value);
+      guardado.textContent='✓ Mensaje guardado'; clearTimeout(aviso); aviso=setTimeout(()=>guardado.textContent='',1800);
+    });
+    document.querySelector('#borrar').addEventListener('click',()=>{
+      if(!mensaje.value || confirm('¿Desea borrar el mensaje escrito?')){mensaje.value='';localStorage.removeItem('mensajeBandaJiral');guardado.textContent='Mensaje borrado';mensaje.focus()}
+    });
+    buscar.addEventListener('input',render); filtro.addEventListener('change',render); render();
+  </script>
+</body>
+</html>
