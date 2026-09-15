@@ -131,6 +131,59 @@ header.hero::before{
   font-weight:600;
 }
 
+/* ---------- HERO FLEX (texto + imagen) ---------- */
+.hero-flex{
+  display:flex;
+  align-items:center;
+  gap:48px;
+}
+.hero-text{
+  flex:1 1 520px;
+  min-width:0;
+}
+.hero-img-wrap{
+  flex:0 0 300px;
+  position:relative;
+}
+.hero-img-wrap::before{
+  content:"";
+  position:absolute;
+  inset:-10px;
+  border:1.5px solid rgba(209,154,31,0.55);
+  border-radius:20px;
+  pointer-events:none;
+}
+.hero-img-wrap img{
+  display:block;
+  width:100%;
+  aspect-ratio:1/1;
+  object-fit:cover;
+  border-radius:16px;
+  box-shadow:0 18px 40px rgba(0,0,0,0.35);
+  border:3px solid var(--gold);
+}
+.hero-img-tag{
+  position:absolute;
+  bottom:-14px;
+  left:50%;
+  transform:translateX(-50%);
+  background:linear-gradient(135deg, var(--gold), #b9800f);
+  color:var(--green-deep);
+  font-family:'Space Mono', monospace;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  padding:6px 14px;
+  border-radius:999px;
+  box-shadow:0 6px 14px rgba(0,0,0,0.25);
+  white-space:nowrap;
+}
+@media(max-width:820px){
+  .hero-flex{flex-direction:column-reverse; gap:28px;}
+  .hero-img-wrap{flex-basis:auto; width:220px;}
+}
+
 /* ---------- BIG DATE CALLOUT ---------- */
 .big-date{
   display:flex;
@@ -911,22 +964,30 @@ footer .school{
 <header class="hero">
   <div class="wrap">
     <a class="volver-inicio" href="inicio.html">&larr; Volver al inicio</a><br>
-    <span class="eyebrow">C.E.B.G. General El Jiral</span>
-    <h1>Día del <em>Campesino</em> 2026</h1>
-    <p class="sub">Programa oficial de actividades: topones de reinas, jornada cultural, ranchos interactivos por provincia y comarca, y el cierre con la Feria Campesina.</p>
-    <div class="big-date">
-      <span class="bd-label">🌽 Jornada principal</span>
-      <span class="bd-date">16 de octubre</span>
+    <div class="hero-flex">
+      <div class="hero-text">
+        <span class="eyebrow">C.E.B.G. General El Jiral</span>
+        <h1>Día del <em>Campesino</em> 2026</h1>
+        <p class="sub">Programa oficial de actividades: topones de reinas, jornada cultural, ranchos interactivos por provincia y comarca, y el cierre con la Feria Campesina.</p>
+        <div class="big-date">
+          <span class="bd-label">🌽 Jornada principal</span>
+          <span class="bd-date">16 de octubre</span>
+        </div>
+        <div class="hero-meta">
+          <div class="pill"><span class="k">Jornada principal</span><span class="v">Viernes 16 de octubre</span></div>
+          <div class="pill"><span class="k">Presentación de reinas</span><span class="v">Lunes 21 de septiembre</span></div>
+          <div class="pill"><span class="k">Montaje de ranchos</span><span class="v">Jueves previo, 3:00 p.m.</span></div>
+          <div class="pill"><span class="k">Clausura</span><span class="v">2:00 p.m. con fuegos artificiales*</span></div>
+        </div>
+        <br>
+        <a href="campesino-reinas.html" class="btn-galeria-reinas">📷 Ver galería de fotos de las reinas <span class="flecha">→</span></a>
+        <p class="galeria-reinas-sub">Cada una de las 20 reinas (11 de Primaria + 9 de Premedia) tiene su propia página de fotos, desde el inicio hasta el final del reinado.</p>
+      </div>
+      <div class="hero-img-wrap">
+        <img src="../img/dia-campesino-2026.jpg" alt="Cartel Día del Campesino 2026 - C.E.B.G. El Jiral">
+        <span class="hero-img-tag">🌽 16 de octubre</span>
+      </div>
     </div>
-    <div class="hero-meta">
-      <div class="pill"><span class="k">Jornada principal</span><span class="v">Viernes 16 de octubre</span></div>
-      <div class="pill"><span class="k">Presentación de reinas</span><span class="v">Lunes 21 de septiembre</span></div>
-      <div class="pill"><span class="k">Montaje de ranchos</span><span class="v">Jueves previo, 3:00 p.m.</span></div>
-      <div class="pill"><span class="k">Clausura</span><span class="v">2:00 p.m. con fuegos artificiales*</span></div>
-    </div>
-    <br>
-    <a href="campesino-reinas.html" class="btn-galeria-reinas">📷 Ver galería de fotos de las reinas <span class="flecha">→</span></a>
-    <p class="galeria-reinas-sub">Cada una de las 20 reinas (11 de Primaria + 9 de Premedia) tiene su propia página de fotos, desde el inicio hasta el final del reinado.</p>
   </div>
 </header>
 
