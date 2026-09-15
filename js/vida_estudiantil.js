@@ -114,7 +114,7 @@ async function cargarNombresDelSalon(){
   estudiante=null;estudiantesDelSalon=[];mostrarAlbum(false);
   if(!SALONES.includes(salon))return;
   selectNombre.innerHTML='<option value="">Cargando estudiantes…</option>';
-  const {data,error}=await supabase.from('estudiantes').select('id,nombre,salon,cedula').eq('salon',salon).order('nombre',{ascending:true});
+  const {data,error}=await supabase.rpc('obtener_estudiantes_por_salon',{p_salon:salon});
   if(error){selectNombre.innerHTML='<option value="">No se pudo cargar la lista. Recarga la página.</option>';mensaje('No se pudo cargar la lista de estudiantes de este grupo.','error');return}
   estudiantesDelSalon=data||[];
   if(!estudiantesDelSalon.length){selectNombre.innerHTML='<option value="">Este grupo aún no tiene estudiantes cargados.</option>';return}
@@ -136,7 +136,7 @@ async function verificarIdentidad(){
   const cedulaGuardada=normalizarCedula(registro.cedula);
   if(!cedulaGuardada){mensaje('Tu cédula todavía no está registrada en el sistema. Avisa a la dirección para que la agreguen.','error');return}
   if(cedulaEscrita!==cedulaGuardada){mensaje('La cédula no coincide con el nombre seleccionado. Verifica e intenta de nuevo.','error');return}
-  estudiante={id:registro.id,nombre:registro.nombre,salon:registro.salon};
+  estudiante={id:registro.id,nombre:registro.nombre,salon:$('salonVida').value};
   $('nombreVida').textContent=estudiante.nombre;
   $('salonVida').disabled=true;bloquearBotonesSalon(true);$('estudianteVida').disabled=true;$('cedulaVida').disabled=true;$('verCedula').disabled=true;
   $('verificarIdentidad').hidden=true;$('cambiarIdentidad').hidden=false;
