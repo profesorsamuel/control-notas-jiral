@@ -55,7 +55,12 @@
     .whatsapp.enviado{background:#087a46;color:#fff}
     .desmarcar{background:#eef2f1;color:#52635e;padding:8px 10px;font-size:.8rem}
     .contacto.enviado{border-color:#25d366;background:#f2fff7}
+    .contacto.confirmado{border-left:6px solid #f5b700}
+    .confirmado-badge{display:inline-flex;align-items:center;gap:5px;margin:3px 0 6px;padding:5px 9px;border-radius:999px;background:#fff4c2;color:#705100;font-size:.78rem;font-weight:900}
+    .confirmar{background:#fff4c2;color:#705100;font-size:.82rem}
+    .confirmar.activo{background:#f5b700;color:#3e2d00}
     .estado-envios{color:var(--verde);font-weight:850}
+    .estado-confirmados{color:#7a5800;font-weight:850}
     .sin-telefono{color:var(--rojo);font-weight:800;font-size:.86rem}
     .telefono-oculto{color:var(--gris);font-weight:750;font-size:.86rem;background:#eef3f1;padding:8px 10px;border-radius:9px}
     .vacio{text-align:center;background:#fff;border:1px dashed #a8bdb6;border-radius:15px;padding:28px;color:var(--gris)}
@@ -127,7 +132,7 @@
     </section>
 
     <div class="resumen">
-      <div><strong id="cantidad"></strong> <span id="enviados" class="estado-envios" hidden></span></div>
+      <div><strong id="cantidad"></strong> · <span id="confirmadosResumen" class="estado-confirmados"></span> <span id="enviados" class="estado-envios" hidden></span></div>
       <span id="telefonoEnvio" hidden>WhatsApp de envío: +507 6926-2339</span>
     </div>
     <section id="lista" class="lista" aria-live="polite"></section>
@@ -228,6 +233,7 @@
     const filtro = document.querySelector('#filtro');
     const lista = document.querySelector('#lista');
     const cantidad = document.querySelector('#cantidad');
+    const confirmadosResumen = document.querySelector('#confirmadosResumen');
     const totalEnviados = document.querySelector('#enviados');
     const telefonoEnvio = document.querySelector('#telefonoEnvio');
     const panelAdmin = document.querySelector('#panelAdmin');
@@ -235,6 +241,7 @@
     const cerrarSesion = document.querySelector('#cerrarSesion');
     const guardado = document.querySelector('#guardado');
     const enviados = new Set(JSON.parse(localStorage.getItem('mensajesEnviadosBandaJiral') || '[]'));
+    const confirmados = new Set(JSON.parse(localStorage.getItem('confirmadosBandaJiral') || '[]'));
     let aviso;
 
     mensaje.value = localStorage.getItem('mensajeBandaJiral') || '';
@@ -307,6 +314,10 @@
       return `${textoPlano(c.nombre)}|${telefono}`;
     }
 
+    function claveIntegrante(c){
+      return `${textoPlano(c.nombre)}|${textoPlano(c.seccion)}`;
+    }
+
     function guardarEnviados(){
       localStorage.setItem('mensajesEnviadosBandaJiral',JSON.stringify([...enviados]));
     }
@@ -328,6 +339,15 @@
       render();
     }
 
+    function cambiarConfirmacion(c){
+      if(!esAdministrador()) return;
+      const id=claveIntegrante(c);
+      if(confirmados.has(id)) confirmados.delete(id);
+      else confirmados.add(id);
+      localStorage.setItem('confirmadosBandaJiral',JSON.stringify([...confirmados]));
+      render();
+    }
+
     function render(){
       const admin=esAdministrador();
       const q=textoPlano(buscar.value.trim());
@@ -337,6 +357,7 @@
         return (!q||contenido.includes(q))&&(!seleccion||c.seccion===seleccion);
       });
       cantidad.textContent=`${visibles.length} integrante${visibles.length===1?'':'s'}`;
+      confirmadosResumen.textContent=`⭐ ${confirmados.size} confirmado${confirmados.size===1?'':'s'}`;
       const contactosMarcados=contactos.filter(c=>c.telefonos.some(t=>enviados.has(claveEnvio(c,t)))).length;
       totalEnviados.textContent=admin?`· ✅ ${contactosMarcados} enviado${contactosMarcados===1?'':'s'}`:'';
       lista.replaceChildren();
@@ -356,12 +377,16 @@
         const contenedor=document.createElement('div');contenedor.className='grupo-contactos';
         miembros.forEach(c=>{
           const tarjeta=document.createElement('article'); tarjeta.className='contacto';
+          const estaConfirmado=confirmados.has(claveIntegrante(c));
+          if(estaConfirmado) tarjeta.classList.add('confirmado');
           if(admin&&c.telefonos.some(t=>enviados.has(claveEnvio(c,t)))) tarjeta.classList.add('enviado');
           const info=document.createElement('div');
           const nombre=document.createElement('div'); nombre.className='nombre'; nombre.textContent=c.nombre;
           const datos=document.createElement('div'); datos.className='datos';
           if(admin&&c.nota){const nota=document.createElement('span');nota.className='etiqueta nota';nota.textContent=c.nota;datos.appendChild(nota)}
-          info.append(nombre,datos);
+          info.appendChild(nombre);
+          if(estaConfirmado){const insignia=document.createElement('div');insignia.className='confirmado-badge';insignia.textContent='✅ Confirmado en la banda 😄';info.appendChild(insignia)}
+          info.appendChild(datos);
           const telefonos=document.createElement('div'); telefonos.className='telefonos';
           if(!admin){
             const oculto=document.createElement('span');oculto.className='telefono-oculto';oculto.textContent='🔒 Teléfono oculto';telefonos.appendChild(oculto);
@@ -377,6 +402,7 @@
           }else{
             const falta=document.createElement('span');falta.className='sin-telefono';falta.textContent='⚠️ Sin teléfono';telefonos.appendChild(falta);
           }
+          if(admin){const confirmar=document.createElement('button');confirmar.type='button';confirmar.className=`confirmar${estaConfirmado?' activo':''}`;confirmar.textContent=estaConfirmado?'↩️ Quitar confirmación':'✅ Confirmar en la banda';confirmar.addEventListener('click',()=>cambiarConfirmacion(c));telefonos.appendChild(confirmar)}
           tarjeta.append(info,telefonos);contenedor.appendChild(tarjeta);
         });
         grupo.append(titulo,contenedor);lista.appendChild(grupo);
