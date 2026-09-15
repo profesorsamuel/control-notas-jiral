@@ -191,10 +191,7 @@ document.getElementById("reg-salon").addEventListener("change", async (e) => {
     return;
   }
   const { data, error } = await sb
-    .from("estudiantes")
-    .select("id, nombre, cedula")
-    .eq("salon", salon)
-    .order("nombre", { ascending: true });
+    .rpc("obtener_estudiantes_por_salon", { p_salon: salon });
 
   if (error || !data || data.length === 0) {
     selNombre.innerHTML = `<option value="">No se encontraron estudiantes en este salón</option>`;
