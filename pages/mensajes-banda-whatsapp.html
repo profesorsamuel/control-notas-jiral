@@ -9,8 +9,22 @@
     :root{--verde:#075e54;--verde2:#128c7e;--wa:#25d366;--fondo:#eef5f2;--texto:#17352f;--gris:#64748b;--borde:#d9e5e1;--rojo:#b42318}
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--fondo);color:var(--texto)}
+    [hidden]{display:none!important}
+    .acceso{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#052e26dd;backdrop-filter:blur(5px)}
+    .acceso-card{position:relative;width:min(100%,420px);background:#fff;border-radius:22px;padding:26px;box-shadow:0 24px 60px #002e2480;text-align:center}
+    .cerrar-acceso{position:absolute;right:12px;top:12px;background:#eef4f2;color:var(--verde);font-size:1.1rem;padding:7px 10px}
+    .acceso-icono{font-size:3.4rem;line-height:1;margin-bottom:10px}
+    .acceso h1{font-size:1.55rem;margin:0 0 6px;color:var(--verde)}
+    .acceso p{color:var(--gris);margin:0 0 20px}
+    .campo-acceso{text-align:left;margin-top:14px}
+    .clave-wrap{display:grid;grid-template-columns:1fr auto;gap:7px}
+    .ver-clave{background:#e9f4f0;color:var(--verde);min-width:50px;padding:10px}
+    .entrar{width:100%;background:var(--wa);color:#073b1b;margin-top:18px;padding:13px}
+    .error-acceso{color:var(--rojo);font-weight:800;min-height:1.3em;margin-top:12px}
     header{background:linear-gradient(135deg,var(--verde),var(--verde2));color:#fff;padding:24px 16px 54px}
     header>div,main{max-width:1100px;margin:auto}
+    .cabecera{display:flex;align-items:center;justify-content:space-between;gap:15px}
+    .salir,.admin{background:#ffffff25;color:#fff;border:1px solid #ffffff70;white-space:nowrap}
     h1{font-size:clamp(1.45rem,4vw,2.15rem);margin:0 0 8px}
     header p{margin:0;opacity:.92}
     main{padding:0 14px 32px;margin-top:-34px}
@@ -25,7 +39,10 @@
     .guardado{font-size:.88rem;color:var(--verde2);font-weight:700;min-height:1.2em}
     .controles{display:grid;grid-template-columns:2fr 1fr;gap:10px}
     .resumen{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 2px 9px;color:var(--gris);font-size:.92rem}
-    .lista{display:grid;gap:10px}
+    .lista{display:block}
+    .grupo{margin:0 0 22px}
+    .titulo-seccion{margin:0 0 10px;padding:11px 15px;border-radius:13px;background:linear-gradient(90deg,var(--verde),var(--verde2));color:#fff;font-size:1.08rem;display:flex;justify-content:space-between;align-items:center}
+    .grupo-contactos{display:grid;gap:10px}
     .contacto{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;background:#fff;border:1px solid var(--borde);border-radius:15px;padding:14px;box-shadow:0 3px 14px #064e3b0c}
     .nombre{font-weight:850;font-size:1rem;margin-bottom:5px;text-transform:uppercase}
     .datos{display:flex;gap:6px;flex-wrap:wrap}
@@ -35,7 +52,12 @@
     button,.boton{border:0;border-radius:11px;padding:10px 13px;font:inherit;font-weight:850;cursor:pointer;text-decoration:none;text-align:center}
     .whatsapp{background:var(--wa);color:#073b1b;min-width:128px}
     .whatsapp:hover{filter:brightness(.95)}
+    .whatsapp.enviado{background:#087a46;color:#fff}
+    .desmarcar{background:#eef2f1;color:#52635e;padding:8px 10px;font-size:.8rem}
+    .contacto.enviado{border-color:#25d366;background:#f2fff7}
+    .estado-envios{color:var(--verde);font-weight:850}
     .sin-telefono{color:var(--rojo);font-weight:800;font-size:.86rem}
+    .telefono-oculto{color:var(--gris);font-weight:750;font-size:.86rem;background:#eef3f1;padding:8px 10px;border-radius:9px}
     .vacio{text-align:center;background:#fff;border:1px dashed #a8bdb6;border-radius:15px;padding:28px;color:var(--gris)}
     footer{max-width:1100px;margin:0 auto;padding:0 16px 28px;color:var(--gris);font-size:.84rem;text-align:center}
     @media(max-width:680px){
@@ -44,15 +66,44 @@
   </style>
 </head>
 <body>
+  <section id="acceso" class="acceso" hidden>
+    <form id="formAcceso" class="acceso-card" autocomplete="off">
+      <button id="cerrarAcceso" class="cerrar-acceso" type="button" aria-label="Cerrar">✕</button>
+      <div class="acceso-icono">🔐🥁</div>
+      <h1>Administración de la Banda</h1>
+      <p>Ingrese sus datos para ver los teléfonos y enviar mensajes.</p>
+      <div class="campo-acceso">
+        <label for="usuario">Usuario</label>
+        <input id="usuario" type="text" required autocomplete="username" autocapitalize="none" placeholder="Escriba el usuario">
+      </div>
+      <div class="campo-acceso">
+        <label for="clave">Clave</label>
+        <div class="clave-wrap">
+          <input id="clave" type="password" required inputmode="numeric" autocomplete="current-password" placeholder="Escriba la clave">
+          <button id="verClave" class="ver-clave" type="button" aria-label="Mostrar clave" title="Mostrar clave">👁️</button>
+        </div>
+      </div>
+      <button class="entrar" type="submit">Entrar como administrador</button>
+      <div id="errorAcceso" class="error-acceso" role="alert" aria-live="polite"></div>
+    </form>
+  </section>
+
+  <div id="app">
   <header>
-    <div>
-      <h1>🥁 Mensajes de la Banda Estudiantil</h1>
-      <p>Prof. Samuel Ortega · C.E.B.G. El Jiral</p>
+    <div class="cabecera">
+      <div>
+        <h1>🥁 Mensajes de la Banda Estudiantil</h1>
+        <p>Prof. Samuel Ortega · C.E.B.G. El Jiral</p>
+      </div>
+      <div>
+        <button id="abrirAdmin" class="admin" type="button">🔐 Administrador</button>
+        <button id="cerrarSesion" class="salir" type="button" hidden>Cerrar sesión</button>
+      </div>
     </div>
   </header>
 
   <main>
-    <section class="panel">
+    <section id="panelAdmin" class="panel" hidden>
       <label for="mensaje">Mensaje para los estudiantes</label>
       <textarea id="mensaje" placeholder="Escriba aquí el mensaje que desea enviar..."></textarea>
       <p class="ayuda">Puede usar <code>{nombre}</code> y <code>{seccion}</code>. La página los sustituye por los datos de cada integrante. El mensaje queda guardado automáticamente en este dispositivo.</p>
@@ -76,13 +127,14 @@
     </section>
 
     <div class="resumen">
-      <strong id="cantidad"></strong>
-      <span>WhatsApp de envío: +507 6926-2339</span>
+      <div><strong id="cantidad"></strong> <span id="enviados" class="estado-envios" hidden></span></div>
+      <span id="telefonoEnvio" hidden>WhatsApp de envío: +507 6926-2339</span>
     </div>
     <section id="lista" class="lista" aria-live="polite"></section>
   </main>
 
   <footer>Al pulsar el botón se abrirá WhatsApp con el mensaje preparado. Revíselo y pulse Enviar.</footer>
+  </div>
 
   <script>
     const contactos = [
@@ -166,14 +218,78 @@
     ];
 
     const mensaje = document.querySelector('#mensaje');
+    const acceso = document.querySelector('#acceso');
+    const app = document.querySelector('#app');
+    const formAcceso = document.querySelector('#formAcceso');
+    const usuario = document.querySelector('#usuario');
+    const clave = document.querySelector('#clave');
+    const errorAcceso = document.querySelector('#errorAcceso');
     const buscar = document.querySelector('#buscar');
     const filtro = document.querySelector('#filtro');
     const lista = document.querySelector('#lista');
     const cantidad = document.querySelector('#cantidad');
+    const totalEnviados = document.querySelector('#enviados');
+    const telefonoEnvio = document.querySelector('#telefonoEnvio');
+    const panelAdmin = document.querySelector('#panelAdmin');
+    const abrirAdmin = document.querySelector('#abrirAdmin');
+    const cerrarSesion = document.querySelector('#cerrarSesion');
     const guardado = document.querySelector('#guardado');
+    const enviados = new Set(JSON.parse(localStorage.getItem('mensajesEnviadosBandaJiral') || '[]'));
     let aviso;
 
     mensaje.value = localStorage.getItem('mensajeBandaJiral') || '';
+
+    function esAdministrador(){
+      return sessionStorage.getItem('accesoBandaJiral')==='autorizado';
+    }
+
+    function actualizarModo(){
+      const admin=esAdministrador();
+      panelAdmin.hidden=!admin;
+      abrirAdmin.hidden=admin;
+      cerrarSesion.hidden=!admin;
+      totalEnviados.hidden=!admin;
+      telefonoEnvio.hidden=!admin;
+      acceso.hidden=true;
+      render();
+    }
+
+    formAcceso.addEventListener('submit',evento=>{
+      evento.preventDefault();
+      if(usuario.value.trim().toLowerCase()==='banda' && clave.value==='0000'){
+        sessionStorage.setItem('accesoBandaJiral','autorizado');
+        errorAcceso.textContent='';
+        clave.value='';
+        actualizarModo();
+      }else{
+        errorAcceso.textContent='Usuario o clave incorrectos.';
+        clave.select();
+      }
+    });
+
+    document.querySelector('#verClave').addEventListener('click',()=>{
+      const visible=clave.type==='text';
+      clave.type=visible?'password':'text';
+      document.querySelector('#verClave').textContent=visible?'👁️':'🙈';
+    });
+
+    abrirAdmin.addEventListener('click',()=>{
+      acceso.hidden=false;
+      errorAcceso.textContent='';
+      usuario.focus();
+    });
+
+    document.querySelector('#cerrarAcceso').addEventListener('click',()=>{
+      acceso.hidden=true;
+      errorAcceso.textContent='';
+    });
+
+    cerrarSesion.addEventListener('click',()=>{
+      sessionStorage.removeItem('accesoBandaJiral');
+      usuario.value='';
+      clave.value='';
+      actualizarModo();
+    });
 
     [...new Set(contactos.map(c => c.seccion))].sort((a,b)=>a.localeCompare(b,'es')).forEach(seccion => {
       const opcion=document.createElement('option'); opcion.value=seccion; opcion.textContent=seccion; filtro.appendChild(opcion);
@@ -187,40 +303,83 @@
       return mensaje.value.trim().replaceAll('{nombre}',c.nombre).replaceAll('{seccion}',c.seccion);
     }
 
+    function claveEnvio(c,telefono){
+      return `${textoPlano(c.nombre)}|${telefono}`;
+    }
+
+    function guardarEnviados(){
+      localStorage.setItem('mensajesEnviadosBandaJiral',JSON.stringify([...enviados]));
+    }
+
     function abrirWhatsApp(c,telefono){
+      if(!esAdministrador()) return;
       const texto=mensajePersonalizado(c);
       if(!texto){ mensaje.focus(); alert('Primero escriba el mensaje que desea enviar.'); return; }
       const numero='507'+telefono.replace(/\D/g,'');
       window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`,'_blank','noopener');
+      enviados.add(claveEnvio(c,telefono));
+      guardarEnviados();
+      render();
+    }
+
+    function quitarMarca(c,telefono){
+      enviados.delete(claveEnvio(c,telefono));
+      guardarEnviados();
+      render();
     }
 
     function render(){
+      const admin=esAdministrador();
       const q=textoPlano(buscar.value.trim());
       const seleccion=filtro.value;
       const visibles=contactos.filter(c=>{
-        const contenido=textoPlano([c.nombre,c.nota,c.seccion,...c.telefonos].join(' '));
+        const contenido=textoPlano([c.nombre,c.seccion,...(admin?[c.nota,...c.telefonos]:[])].join(' '));
         return (!q||contenido.includes(q))&&(!seleccion||c.seccion===seleccion);
       });
       cantidad.textContent=`${visibles.length} integrante${visibles.length===1?'':'s'}`;
+      const contactosMarcados=contactos.filter(c=>c.telefonos.some(t=>enviados.has(claveEnvio(c,t)))).length;
+      totalEnviados.textContent=admin?`· ✅ ${contactosMarcados} enviado${contactosMarcados===1?'':'s'}`:'';
       lista.replaceChildren();
       if(!visibles.length){
         const vacio=document.createElement('div'); vacio.className='vacio'; vacio.textContent='No se encontraron integrantes con esos filtros.'; lista.appendChild(vacio); return;
       }
-      visibles.forEach(c=>{
-        const tarjeta=document.createElement('article'); tarjeta.className='contacto';
-        const info=document.createElement('div');
-        const nombre=document.createElement('div'); nombre.className='nombre'; nombre.textContent=c.nombre;
-        const datos=document.createElement('div'); datos.className='datos';
-        const sec=document.createElement('span'); sec.className='etiqueta'; sec.textContent=c.seccion; datos.appendChild(sec);
-        if(c.nota){const nota=document.createElement('span');nota.className='etiqueta nota';nota.textContent=c.nota;datos.appendChild(nota)}
-        info.append(nombre,datos);
-        const telefonos=document.createElement('div'); telefonos.className='telefonos';
-        if(c.telefonos.length){
-          c.telefonos.forEach((tel,i)=>{const boton=document.createElement('button');boton.type='button';boton.className='whatsapp';boton.textContent=`💬 ${tel}${c.telefonos.length>1?` (${i+1})`:''}`;boton.addEventListener('click',()=>abrirWhatsApp(c,tel));telefonos.appendChild(boton)});
-        }else{
-          const falta=document.createElement('span');falta.className='sin-telefono';falta.textContent='⚠️ Sin teléfono';telefonos.appendChild(falta);
-        }
-        tarjeta.append(info,telefonos); lista.appendChild(tarjeta);
+      const orden=['Director','Batallón','Batutera','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
+      const secciones=[...new Set(visibles.map(c=>c.seccion))].sort((a,b)=>{
+        const ia=orden.indexOf(a),ib=orden.indexOf(b);
+        return (ia<0?999:ia)-(ib<0?999:ib)||a.localeCompare(b,'es');
+      });
+      secciones.forEach(seccion=>{
+        const miembros=visibles.filter(c=>c.seccion===seccion);
+        const grupo=document.createElement('section');grupo.className='grupo';
+        const titulo=document.createElement('h2');titulo.className='titulo-seccion';
+        titulo.innerHTML=`<span>${seccion}</span><span>${miembros.length}</span>`;
+        const contenedor=document.createElement('div');contenedor.className='grupo-contactos';
+        miembros.forEach(c=>{
+          const tarjeta=document.createElement('article'); tarjeta.className='contacto';
+          if(admin&&c.telefonos.some(t=>enviados.has(claveEnvio(c,t)))) tarjeta.classList.add('enviado');
+          const info=document.createElement('div');
+          const nombre=document.createElement('div'); nombre.className='nombre'; nombre.textContent=c.nombre;
+          const datos=document.createElement('div'); datos.className='datos';
+          if(admin&&c.nota){const nota=document.createElement('span');nota.className='etiqueta nota';nota.textContent=c.nota;datos.appendChild(nota)}
+          info.append(nombre,datos);
+          const telefonos=document.createElement('div'); telefonos.className='telefonos';
+          if(!admin){
+            const oculto=document.createElement('span');oculto.className='telefono-oculto';oculto.textContent='🔒 Teléfono oculto';telefonos.appendChild(oculto);
+          }else if(c.telefonos.length){
+            c.telefonos.forEach((tel,i)=>{
+              const marcado=enviados.has(claveEnvio(c,tel));
+              const boton=document.createElement('button');boton.type='button';boton.className=`whatsapp${marcado?' enviado':''}`;
+              boton.textContent=marcado?'✅ Mensaje enviado':`💬 ${tel}${c.telefonos.length>1?` (${i+1})`:''}`;
+              boton.title=marcado?'Pulse para volver a enviar':'Abrir WhatsApp';
+              boton.addEventListener('click',()=>abrirWhatsApp(c,tel));telefonos.appendChild(boton);
+              if(marcado){const quitar=document.createElement('button');quitar.type='button';quitar.className='desmarcar';quitar.textContent='Quitar marca';quitar.addEventListener('click',()=>quitarMarca(c,tel));telefonos.appendChild(quitar)}
+            });
+          }else{
+            const falta=document.createElement('span');falta.className='sin-telefono';falta.textContent='⚠️ Sin teléfono';telefonos.appendChild(falta);
+          }
+          tarjeta.append(info,telefonos);contenedor.appendChild(tarjeta);
+        });
+        grupo.append(titulo,contenedor);lista.appendChild(grupo);
       });
     }
 
@@ -231,7 +390,8 @@
     document.querySelector('#borrar').addEventListener('click',()=>{
       if(!mensaje.value || confirm('¿Desea borrar el mensaje escrito?')){mensaje.value='';localStorage.removeItem('mensajeBandaJiral');guardado.textContent='Mensaje borrado';mensaje.focus()}
     });
-    buscar.addEventListener('input',render); filtro.addEventListener('change',render); render();
+    buscar.addEventListener('input',render); filtro.addEventListener('change',render);
+    actualizarModo();
   </script>
 </body>
 </html>
