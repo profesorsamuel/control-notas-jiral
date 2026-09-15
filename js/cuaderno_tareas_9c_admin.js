@@ -78,7 +78,7 @@ function pintar(conteoPorTarea){
 }
 
 function limpiarFormulario(){
-  $('fTitulo').value=''; $('fDescripcion').value=''; $('fFecha').value=''; $('fRequiereFoto').checked=false;
+  $('fTitulo').value=''; $('fDescripcion').value=''; $('fFecha').value=''; $('fRequiereFoto').checked=true;
   editandoId = null; $('btnGuardarTarea').textContent = '➕ Agregar tarea'; $('btnCancelarEdicion').hidden = true;
 }
 

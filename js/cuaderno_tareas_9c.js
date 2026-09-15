@@ -174,11 +174,11 @@ async function comprimirFoto(file){
   if (!file.type.startsWith('image/')) throw new Error('Selecciona una fotografía válida.');
   if (file.size > MAX_FOTO) throw new Error('La fotografía supera 25 MB.');
   const bmp = await createImageBitmap(file, {imageOrientation:'from-image'});
-  let w = bmp.width, h = bmp.height; const max = 1280;
+  let w = bmp.width, h = bmp.height; const max = 900;
   if (Math.max(w,h) > max){ const k = max/Math.max(w,h); w = Math.round(w*k); h = Math.round(h*k); }
   const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
   canvas.getContext('2d').drawImage(bmp, 0, 0, w, h); bmp.close();
-  return await new Promise((ok,no)=>canvas.toBlob(b=>b?ok(b):no(new Error('No se pudo preparar la fotografía.')), 'image/webp', .78));
+  return await new Promise((ok,no)=>canvas.toBlob(b=>b?ok(b):no(new Error('No se pudo preparar la fotografía.')), 'image/webp', .55));
 }
 
 async function subirFotos(tareaId, files){
