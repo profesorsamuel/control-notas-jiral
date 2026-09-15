@@ -242,6 +242,21 @@ header.hero::before{
   color: var(--green-deep);
 }
 .btn-galeria-reinas .flecha{font-weight:400;}
+.btn-galeria-reinas-img{
+  display:inline-block;
+  margin-top:18px;
+  transition: transform .15s ease, filter .15s ease;
+}
+.btn-galeria-reinas-img img{
+  display:block;
+  width:100%;
+  max-width:380px;
+  height:auto;
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,0.35));
+}
+.btn-galeria-reinas-img:hover{
+  transform:translateY(-3px);
+}
 .galeria-reinas-sub{
   max-width:560px;
   font-size:13px;
@@ -980,7 +995,9 @@ footer .school{
           <div class="pill"><span class="k">Clausura</span><span class="v">2:00 p.m. con fuegos artificiales*</span></div>
         </div>
         <br>
-        <a href="campesino-reinas.html" class="btn-galeria-reinas">📷 Ver galería de fotos de las reinas <span class="flecha">→</span></a>
+        <a href="campesino-reinas.html" class="btn-galeria-reinas-img">
+          <img src="../img/vote-reina-preferida.png" alt="Vote por tu reina preferida - Ver galería de fotos de las reinas">
+        </a>
         <p class="galeria-reinas-sub">Cada una de las 20 reinas (11 de Primaria + 9 de Premedia) tiene su propia página de fotos, desde el inicio hasta el final del reinado.</p>
       </div>
       <div class="hero-img-wrap">
