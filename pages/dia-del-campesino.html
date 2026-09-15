@@ -435,57 +435,53 @@ section.alt{background:var(--parchment-deep);}
   border-radius:6px;
 }
 
-/* ---------- RANCHOS TABLE / CARDS ---------- */
-.rtable{
-  width:100%;
-  border-collapse:collapse;
-  background:var(--card);
-  border-radius:16px;
-  overflow:hidden;
-  box-shadow:var(--shadow);
+/* ---------- RANCHOS CARD GRID ---------- */
+.rancho-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:16px;
 }
-.rtable th{
-  text-align:left;
+.rancho-card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+  padding:18px 20px;
+  display:flex;
+  flex-direction:column;
+  gap:13px;
+}
+.rancho-card-head{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  border-bottom:1px solid var(--line);
+  padding-bottom:10px;
+}
+.rancho-num{
   font-family:'Space Mono', monospace;
-  font-size:11.5px;
+  font-size:12px;
+  font-weight:700;
+  color:var(--gold);
+}
+.rancho-card-head h3{
+  font-family:'Fraunces', serif;
+  font-size:19px;
+  font-weight:600;
+  color:var(--clay-dark);
+  margin:0;
+}
+.rancho-row{display:flex; flex-direction:column; gap:3px;}
+.rancho-label{
+  font-family:'Space Mono', monospace;
+  font-size:10.5px;
   text-transform:uppercase;
   letter-spacing:0.06em;
-  color:#F2E6C8;
-  background:var(--green-deep);
-  padding:12px 16px;
+  color:var(--green-mid);
 }
-.rtable td{
-  padding:12px 16px;
-  border-top:1px solid var(--line);
-  font-size:14.5px;
-  vertical-align:top;
-}
-.rtable tr:nth-child(even) td{background:rgba(181,98,46,0.05);}
-.rtable td.prov{font-family:'Fraunces', serif; font-weight:600; color:var(--clay-dark);}
+.rancho-row p{margin:0; font-size:14.5px; color:var(--ink); line-height:1.5;}
 
 @media(max-width:680px){
-  .rtable thead{display:none;}
-  .rtable, .rtable tbody, .rtable tr, .rtable td{display:block; width:100%;}
-  .rtable tr{
-    border-top:1px solid var(--line);
-    padding:14px 16px;
-  }
-  .rtable tr:first-child{border-top:none;}
-  .rtable td{
-    padding:4px 0;
-    border:none;
-  }
-  .rtable tr:nth-child(even){background:rgba(181,98,46,0.05);}
-  .rtable td::before{
-    content: attr(data-label);
-    display:block;
-    font-family:'Space Mono', monospace;
-    font-size:10px;
-    text-transform:uppercase;
-    letter-spacing:0.06em;
-    color:var(--green-mid);
-    margin-bottom:2px;
-  }
   .toponi{grid-template-columns:1fr;}
   .toponi .lvl{justify-self:start; margin-top:4px;}
 }
@@ -1011,24 +1007,74 @@ footer .school{
       <p>Cada salón de primaria representa una provincia o comarca, con el apoyo de un grupo de Premedia.</p>
     </div>
 
-    <table class="rtable">
-      <thead>
-        <tr><th>Provincia / Comarca</th><th>Salones de Primaria</th><th>Apoyo de Premedia</th><th>Apoyo en Construcción</th></tr>
-      </thead>
-      <tbody>
-        <tr><td class="prov" data-label="Provincia / Comarca">Bocas del Toro</td><td data-label="Salones de Primaria">Prejardín A · Lesbia Muñoz + V-B · Yessenia Clark</td><td data-label="Apoyo de Premedia">VII-A · Leticia de Palacios</td><td data-label="Apoyo en Construcción">Beto Correa · Alexis Del Mar</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Chiriquí</td><td data-label="Salones de Primaria">Jardín C · Tilsa Garibaldi + I-A · Heidi De León</td><td data-label="Apoyo de Premedia">VIII-A · Juana Brown</td><td data-label="Apoyo en Construcción">Patricia Reyes · Encelma Álvarez</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Coclé</td><td data-label="Salones de Primaria">Prejardín B · Milvia Ortega + V-A · Geraldine Magallón</td><td data-label="Apoyo de Premedia">VII-B · Erika Pimentel</td><td data-label="Apoyo en Construcción">Isaura Góndolo · Nitzi Williams</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Colón</td><td data-label="Salones de Primaria">Jardín A · Albertina Ortiz + IV-C · Anabelis Gallardo</td><td data-label="Apoyo de Premedia">VII-C · Ronald González</td><td data-label="Apoyo en Construcción">Berta Barreno</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Comarcas Indígenas</td><td data-label="Salones de Primaria">II-C · Carmen Gaitán + III-A · Betzaida Rodríguez</td><td data-label="Apoyo de Premedia">Ayllen Nieto · Inglés–Religión</td><td data-label="Apoyo en Construcción">Doris Andrión</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Darién</td><td data-label="Salones de Primaria">Jardín B · Ángela Hall + VI-B · Alejandrina Salazar</td><td data-label="Apoyo de Premedia">Yadira de Gracia · Español</td><td data-label="Apoyo en Construcción">Magalis Rodríguez</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Herrera</td><td data-label="Salones de Primaria">I-B · Zulma Becerra + V-C · Elaisa Jaramillo</td><td data-label="Apoyo de Premedia">VIII-B · Leonela Rivera</td><td data-label="Apoyo en Construcción">Arline Henry · Faustina Rodríguez</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Los Santos</td><td data-label="Salones de Primaria">I-C · Ananías Benítes + VI-A · Viodelka Goitía</td><td data-label="Apoyo de Premedia">VIII-C · Nairobys Sáenz</td><td data-label="Apoyo en Construcción">Danisue Valdés · Gillian Barría</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Panamá</td><td data-label="Salones de Primaria">II-A · Telma Grenald + II-B · Ana Grenard</td><td data-label="Apoyo de Premedia">IX-A · Miriam Valencia</td><td data-label="Apoyo en Construcción">Yitzuri Vargas · Yetzagelis Batista</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Panamá Oeste</td><td data-label="Salones de Primaria">III-B · Jenifer Dean + III-C · Telma Escobar</td><td data-label="Apoyo de Premedia">IX-B · Wendy Harren</td><td data-label="Apoyo en Construcción">Laura Rodríguez · Yisel Mariscal — Psicóloga</td></tr>
-        <tr><td class="prov" data-label="Provincia / Comarca">Veraguas</td><td data-label="Salones de Primaria">IV-A · Angélica Jiménez + IV-B · Rosa Perea</td><td data-label="Apoyo de Premedia">IX-C · Samuel Ortega</td><td data-label="Apoyo en Construcción">Claribel Camargo · Nelia Velásquez — Psicóloga</td></tr>
-      </tbody>
-    </table>
+    <div class="rancho-grid">
+      <article class="rancho-card">
+        <header class="rancho-card-head"><span class="rancho-num">01</span><h3>Bocas del Toro</h3></header>
+        <div class="rancho-row"><span class="rancho-label">🌅 Primaria · Mañana</span><p>Prejardín A · Lesbia Muñoz<br>V-B · Yessenia Clark</p></div>
+        <div class="rancho-row"><span class="rancho-label">🌇 Premedia · Tarde</span><p>VII-A · Leticia de Palacios</p></div>
+        <div class="rancho-row"><span class="rancho-label">🧱 Apoyo en construcción</span><p>Beto Correa · Alexis Del Mar</p></div>
+      </article>
+      <article class="rancho-card">
+        <header class="rancho-card-head"><span class="rancho-num">02</span><h3>Chiriquí</h3></header>
+        <div class="rancho-row"><span class="rancho-label">🌅 Primaria · Mañana</span><p>Jardín C · Tilsa Garibaldi<br>I-A · Heidi De León</p></div>
+        <div class="rancho-row"><span class="rancho-label">🌇 Premedia · Tarde</span><p>VIII-A · Juana Brown</p></div>
+        <div class="rancho-row"><span class="rancho-label">🧱 Apoyo en construcción</span><p>Patricia Reyes · Encelma Álvarez</p></div>
+      </article>
+      <article class="rancho-card">
+        <header class="rancho-card-head"><span class="rancho-num">03</span><h3>Coclé</h3></header>
+        <div class="rancho-row"><span class="rancho-label">🌅 Primaria · Mañana</span><p>Prejardín B · Milvia Ortega<br>V-A · Geraldine Magallón</p></div>
+        <div class="rancho-row"><span class="rancho-label">🌇 Premedia · Tarde</span><p>VII-B · Erika Pimentel</p></div>
+        <div class="rancho-row"><span class="rancho-label">🧱 Apoyo en construcción</span><p>Isaura Góndolo · Nitzi Williams</p></div>
+      </article>
+      <article class="rancho-card">
+        <header class="rancho-card-head"><span class="rancho-num">04</span><h3>Colón</h3></header>
+        <div class="rancho-row"><span class="rancho-label">🌅 Primaria · Mañana</span><p>Jardín A · Albertina Ortiz<br>IV-C · Anabelis Gallardo</p></div>
+        <div class="rancho-row"><span class="rancho-label">🌇 Premedia · Tarde</span><p>VII-C · Ronald González</p></div>
+        <div class="rancho-row"><span class="rancho-label">🧱 Apoyo en construcción</span><p>Berta Barreno</p></div>
+      </article>
+      <article class="rancho-card">
+        <header class="rancho-card-head"><span class="rancho-num">05</span><h3>Comarcas Indígenas</h3></header>
+        <div class="rancho-row"><span class="rancho-label">🌅 Primaria · Mañana</span><p>II-C · Carmen Gaitán<br>III-A · Betzaida Rodríguez</p></div>
+        <div class="rancho-row"><span class="rancho-label">🌇 Premedia · Tarde</span><p>Ayllen Nieto · Inglés–Religión</p></div>
+        <div class="rancho-row"><span class="rancho-label">🧱 Apoyo en construcción</span><p>Doris Andrión</p></div>
+      </article>
+      <article class="rancho-card">
+        <header class="rancho-card-head"><span class="rancho-num">06</span><h3>Darién</h3></header>
+        <div class="rancho-row"><span class="rancho-label">🌅 Primaria · Mañana</span><p>Jardín B · Ángela Hall<br>VI-B · Alejandrina Salazar</p></div>
+        <div class="rancho-row"><span class="rancho-label">🌇 Premedia · Tarde</span><p>Yadira de Gracia · Español</p></div>
+        <div class="rancho-row"><span class="rancho-label">🧱 Apoyo en construcción</span><p>Magalis Rodríguez</p></div>
+      </article>
+      <article class="rancho-card">
+        <header class="rancho-card-head"><span class="rancho-num">07</span><h3>Herrera</h3></header>
+        <div class="rancho-row"><span class="rancho-label">🌅 Primaria · Mañana</span><p>I-B · Zulma Becerra<br>V-C · Elaisa Jaramillo</p></div>
+        <div class="rancho-row"><span class="rancho-label">🌇 Premedia · Tarde</span><p>VIII-B · Leonela Rivera</p></div>
+        <div class="rancho-row"><span class="rancho-label">🧱 Apoyo en construcción</span><p>Arline Henry · Faustina Rodríguez</p></div>
+      </article>
+      <article class="rancho-card">
+        <header class="rancho-card-head"><span class="rancho-num">08</span><h3>Los Santos</h3></header>
+        <div class="rancho-row"><span class="rancho-label">🌅 Primaria · Mañana</span><p>I-C · Ananías Benítes<br>VI-A · Viodelka Goitía</p></div>
+        <div class="rancho-row"><span class="rancho-label">🌇 Premedia · Tarde</span><p>VIII-C · Nairobys Sáenz</p></div>
+        <div class="rancho-row"><span class="rancho-label">🧱 Apoyo en construcción</span><p>Danisue Valdés · Gillian Barría</p></div>
+      </article>
+      <article class="rancho-card">
+        <header class="rancho-card-head"><span class="rancho-num">09</span><h3>Panamá</h3></header>
+        <div class="rancho-row"><span class="rancho-label">🌅 Primaria · Mañana</span><p>II-A · Telma Grenald<br>II-B · Ana Grenard</p></div>
+        <div class="rancho-row"><span class="rancho-label">🌇 Premedia · Tarde</span><p>IX-A · Miriam Valencia</p></div>
+        <div class="rancho-row"><span class="rancho-label">🧱 Apoyo en construcción</span><p>Yitzuri Vargas · Yetzagelis Batista</p></div>
+      </article>
+      <article class="rancho-card">
+        <header class="rancho-card-head"><span class="rancho-num">10</span><h3>Panamá Oeste</h3></header>
+        <div class="rancho-row"><span class="rancho-label">🌅 Primaria · Mañana</span><p>III-B · Jenifer Dean<br>III-C · Telma Escobar</p></div>
+        <div class="rancho-row"><span class="rancho-label">🌇 Premedia · Tarde</span><p>IX-B · Wendy Harren</p></div>
+        <div class="rancho-row"><span class="rancho-label">🧱 Apoyo en construcción</span><p>Laura Rodríguez · Yisel Mariscal — Psicóloga</p></div>
+      </article>
+      <article class="rancho-card">
+        <header class="rancho-card-head"><span class="rancho-num">11</span><h3>Veraguas</h3></header>
+        <div class="rancho-row"><span class="rancho-label">🌅 Primaria · Mañana</span><p>IV-A · Angélica Jiménez<br>IV-B · Rosa Perea</p></div>
+        <div class="rancho-row"><span class="rancho-label">🌇 Premedia · Tarde</span><p>IX-C · Samuel Ortega</p></div>
+        <div class="rancho-row"><span class="rancho-label">🧱 Apoyo en construcción</span><p>Claribel Camargo · Nelia Velásquez — Psicóloga</p></div>
+      </article>
+    </div>
 
     <div class="info-strip" style="margin-top:22px;">
       <div class="card">
