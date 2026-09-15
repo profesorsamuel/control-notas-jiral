@@ -80,10 +80,28 @@ async function cargar(){
 // se elige su grupo automáticamente y se carga la lista de nombres para
 // ahorrarle un paso; de todas formas deberá elegir su nombre y escribir
 // su cédula para poder subir archivos.
+function bloquearBotonesSalon(bloqueado){
+  document.querySelectorAll('#grupoSalonVida .ve-salon-btn').forEach(b=>{b.disabled=bloqueado});
+}
+
+function actualizarBotonesSalon(salon){
+  document.querySelectorAll('#grupoSalonVida .ve-salon-btn').forEach(b=>{
+    b.classList.toggle('activo', b.dataset.salon===salon);
+  });
+}
+
+async function seleccionarSalon(salon){
+  if($('salonVida').disabled)return;
+  $('salonVida').value=salon;
+  actualizarBotonesSalon(salon);
+  await cargarNombresDelSalon();
+}
+
 async function precargarSalonDesdeCuenta(email){
   const {data:e}=await supabase.from('estudiantes').select('id,nombre,salon,correo').eq('correo',email).maybeSingle();
   if(!e||!SALONES.includes(e.salon))return;
   $('salonVida').value=e.salon;
+  actualizarBotonesSalon(e.salon);
   await cargarNombresDelSalon();
   const opcion=[...$('estudianteVida').options].find(o=>String(o.value)===String(e.id));
   if(opcion){$('estudianteVida').value=e.id;alElegirNombre();}
@@ -120,7 +138,7 @@ async function verificarIdentidad(){
   if(cedulaEscrita!==cedulaGuardada){mensaje('La cédula no coincide con el nombre seleccionado. Verifica e intenta de nuevo.','error');return}
   estudiante={id:registro.id,nombre:registro.nombre,salon:registro.salon};
   $('nombreVida').textContent=estudiante.nombre;
-  $('salonVida').disabled=true;$('estudianteVida').disabled=true;$('cedulaVida').disabled=true;$('verCedula').disabled=true;
+  $('salonVida').disabled=true;bloquearBotonesSalon(true);$('estudianteVida').disabled=true;$('cedulaVida').disabled=true;$('verCedula').disabled=true;
   $('verificarIdentidad').hidden=true;$('cambiarIdentidad').hidden=false;
   mensaje(`¡Bienvenido(a), ${estudiante.nombre}! Ya puedes subir tus fotografías y tu video.`,'ok');
   await cargarArchivosDelEstudiante();
@@ -129,7 +147,7 @@ async function verificarIdentidad(){
 
 function cambiarIdentidad(){
   estudiante=null;archivos=new Map();seleccion=new Map();videoSeleccionado=null;
-  $('salonVida').disabled=false;$('estudianteVida').disabled=false;$('cedulaVida').disabled=false;$('cedulaVida').value='';$('verCedula').disabled=false;
+  $('salonVida').disabled=false;bloquearBotonesSalon(false);$('estudianteVida').disabled=false;$('cedulaVida').disabled=false;$('cedulaVida').value='';$('verCedula').disabled=false;
   $('verificarIdentidad').hidden=false;$('verificarIdentidad').disabled=true;$('cambiarIdentidad').hidden=true;
   $('nombreVida').textContent='Preparando tu álbum…';
   mostrarAlbum(false);
@@ -153,6 +171,9 @@ function conectarEventosFijos(){
     if(profesor)profesor.addEventListener('change',()=>guardarComentario(card,id));
   });
   $('salonVida').addEventListener('change',cargarNombresDelSalon);
+  document.querySelectorAll('#grupoSalonVida .ve-salon-btn').forEach(b=>{
+    b.addEventListener('click',()=>seleccionarSalon(b.dataset.salon));
+  });
   $('estudianteVida').addEventListener('change',alElegirNombre);
   $('verCedula').addEventListener('click',()=>{const oculto=$('cedulaVida').type==='password';$('cedulaVida').type=oculto?'text':'password';$('verCedula').textContent=oculto?'🙈':'👁️'});
   $('cedulaVida').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();verificarIdentidad();}});
