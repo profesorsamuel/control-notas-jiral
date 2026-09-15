@@ -375,6 +375,41 @@ section.alt{background:var(--parchment-deep);}
 .fotomini-emoji{font-size:13px; opacity:.6;}
 .fotomini-label{white-space:nowrap;}
 
+/* ---------- REINAS · FOTOS GRANDES ---------- */
+.reina-grande-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:16px;
+  margin-top:16px;
+}
+.reina-grande-card{
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  text-decoration:none;
+}
+.reina-grande-foto{
+  width:100%;
+  aspect-ratio:4/5;
+  border-radius:16px;
+  overflow:hidden;
+  background:linear-gradient(160deg, var(--parchment-deep), var(--card));
+  border:1px solid var(--line);
+  box-shadow:var(--shadow);
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .15s ease;
+}
+.reina-grande-card:hover .reina-grande-foto{transform:translateY(-3px);}
+.reina-grande-foto img{width:100%; height:100%; object-fit:cover; display:block;}
+.reina-grande-emoji{font-size:38px; opacity:.5;}
+.reina-grande-label{
+  font-family:'Fraunces', serif; font-weight:600; font-size:14.5px;
+  color:var(--clay-dark); text-align:center; line-height:1.25;
+}
+.reina-grande-sub{
+  font-family:'Space Mono', monospace; font-size:10px;
+  text-transform:uppercase; letter-spacing:0.05em;
+  color:var(--green-mid); text-align:center;
+}
+
 .info-strip{
   margin-top:22px;
   display:grid;
@@ -839,6 +874,38 @@ footer .school{
       <p>Durante los recreos se enfrentarán dos provincias por día. Como Primaria tiene 11 candidatas (número impar), un grupo se enfrenta en trío y el resto en duelos de dos. La presentación oficial de provincias y reinas será el lunes 14 de septiembre.</p>
     </div>
 
+    <div class="subtab-group" data-group="reinas">
+      <div class="subtabs" role="tablist" aria-label="Reinas">
+        <button type="button" class="subtab-btn active" data-target="reinas-primaria" role="tab" aria-selected="true">Reinas de Primaria</button>
+        <button type="button" class="subtab-btn" data-target="reinas-premedia" role="tab" aria-selected="false">Reinas de Premedia</button>
+      </div>
+
+      <div id="reinas-primaria" class="subtab-panel">
+    <div class="section-head" style="margin-top:22px;">
+      <span class="num">11 provincias y comarcas</span>
+      <h3>Candidatas de Primaria</h3>
+      <p>Una candidata por cada provincia o comarca, elegida por sorteo entre las 11.</p>
+    </div>
+    <div class="reina-grande-grid">
+      <a href="campesino-galeria.html?reina=primaria-bocas-del-toro" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-primaria-bocas-del-toro"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Bocas del Toro</span><span class="reina-grande-sub">Prejardín A + V-B</span></a>
+      <a href="campesino-galeria.html?reina=primaria-chiriqui" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-primaria-chiriqui"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Chiriquí</span><span class="reina-grande-sub">Jardín C + I-A</span></a>
+      <a href="campesino-galeria.html?reina=primaria-cocle" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-primaria-cocle"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Coclé</span><span class="reina-grande-sub">Prejardín B + V-A</span></a>
+      <a href="campesino-galeria.html?reina=primaria-colon" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-primaria-colon"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Colón</span><span class="reina-grande-sub">Jardín A + IV-C</span></a>
+      <a href="campesino-galeria.html?reina=primaria-comarcas-indigenas" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-primaria-comarcas-indigenas"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Comarcas Indígenas</span><span class="reina-grande-sub">II-C + III-A</span></a>
+      <a href="campesino-galeria.html?reina=primaria-darien" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-primaria-darien"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Darién</span><span class="reina-grande-sub">Jardín B + VI-B</span></a>
+      <a href="campesino-galeria.html?reina=primaria-herrera" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-primaria-herrera"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Herrera</span><span class="reina-grande-sub">I-B + V-C</span></a>
+      <a href="campesino-galeria.html?reina=primaria-los-santos" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-primaria-los-santos"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Los Santos</span><span class="reina-grande-sub">I-C + VI-A</span></a>
+      <a href="campesino-galeria.html?reina=primaria-panama" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-primaria-panama"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Panamá</span><span class="reina-grande-sub">II-A + II-B</span></a>
+      <a href="campesino-galeria.html?reina=primaria-panama-oeste" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-primaria-panama-oeste"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Panamá Oeste</span><span class="reina-grande-sub">III-B + III-C</span></a>
+      <a href="campesino-galeria.html?reina=primaria-veraguas" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-primaria-veraguas"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Veraguas</span><span class="reina-grande-sub">IV-A + IV-B</span></a>
+    </div>
+
+    <div class="section-head" style="margin-top:36px;">
+      <span class="num">Calendario de topones</span>
+      <h3>Topones de Primaria</h3>
+      <p>Durante los recreos se enfrentarán dos provincias por día. Como Primaria tiene 11 candidatas (número impar), un grupo se enfrenta en trío y el resto en duelos de dos.</p>
+    </div>
+
     <div class="topones">
       <div class="card toponi"><span class="date">Lunes<br>21 de septiembre</span><span class="match">Panamá <span class="vs">VS</span> Colón<span class="salones">Salones: Panamá → II-A + II-B · Colón → Jardín A + IV-C</span><span class="fotos"><a href="campesino-galeria.html?reina=primaria-panama" class="fotomini"><span class="fotomini-img" id="mini-primaria-panama"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">Panamá</span></a><a href="campesino-galeria.html?reina=primaria-colon" class="fotomini"><span class="fotomini-img" id="mini-primaria-colon"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">Colón</span></a></span></span><span class="lvl primaria">Primaria</span></div>
       <div class="card toponi"><span class="date">Miércoles<br>23 de septiembre</span><span class="match">Chiriquí <span class="vs">VS</span> Los Santos <span class="vs">VS</span> Comarcas Indígenas<span class="salones">Salones: Chiriquí → Jardín C + I-A · Los Santos → I-C + VI-A · Comarcas Indígenas → II-C + III-A</span><span class="fotos"><a href="campesino-galeria.html?reina=primaria-chiriqui" class="fotomini"><span class="fotomini-img" id="mini-primaria-chiriqui"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">Chiriquí</span></a><a href="campesino-galeria.html?reina=primaria-los-santos" class="fotomini"><span class="fotomini-img" id="mini-primaria-los-santos"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">Los Santos</span></a><a href="campesino-galeria.html?reina=primaria-comarcas-indigenas" class="fotomini"><span class="fotomini-img" id="mini-primaria-comarcas-indigenas"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">Comarcas Indígenas</span></a></span></span><span class="lvl primaria">Primaria</span></div>
@@ -846,9 +913,28 @@ footer .school{
       <div class="card toponi"><span class="date">Lunes<br>28 de septiembre</span><span class="match">Herrera <span class="vs">VS</span> Darién<span class="salones">Salones: Herrera → I-B + V-C · Darién → Jardín B + VI-B</span><span class="fotos"><a href="campesino-galeria.html?reina=primaria-herrera" class="fotomini"><span class="fotomini-img" id="mini-primaria-herrera"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">Herrera</span></a><a href="campesino-galeria.html?reina=primaria-darien" class="fotomini"><span class="fotomini-img" id="mini-primaria-darien"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">Darién</span></a></span></span><span class="lvl primaria">Primaria</span></div>
       <div class="card toponi"><span class="date">Miércoles<br>30 de septiembre</span><span class="match">Bocas del Toro <span class="vs">VS</span> Panamá Oeste<span class="salones">Salones: Bocas del Toro → Prejardín A + V-B · Panamá Oeste → III-B + III-C</span><span class="fotos"><a href="campesino-galeria.html?reina=primaria-bocas-del-toro" class="fotomini"><span class="fotomini-img" id="mini-primaria-bocas-del-toro"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">Bocas del Toro</span></a><a href="campesino-galeria.html?reina=primaria-panama-oeste" class="fotomini"><span class="fotomini-img" id="mini-primaria-panama-oeste"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">Panamá Oeste</span></a></span></span><span class="lvl primaria">Primaria</span></div>
     </div>
+      </div>
+
+      <div id="reinas-premedia" class="subtab-panel" style="display:none;">
+    <div class="section-head" style="margin-top:22px;">
+      <span class="num">9 salones</span>
+      <h3>Candidatas de Premedia</h3>
+      <p>Una candidata por cada salón de Premedia. A cada salón se le asigna su provincia al azar, mediante sorteo.</p>
+    </div>
+    <div class="reina-grande-grid">
+      <a href="campesino-galeria.html?reina=premedia-7a" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-premedia-7a"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Bocas del Toro</span><span class="reina-grande-sub">7°A</span></a>
+      <a href="campesino-galeria.html?reina=premedia-8a" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-premedia-8a"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Chiriquí</span><span class="reina-grande-sub">8°A</span></a>
+      <a href="campesino-galeria.html?reina=premedia-7b" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-premedia-7b"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Coclé</span><span class="reina-grande-sub">7°B</span></a>
+      <a href="campesino-galeria.html?reina=premedia-7c" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-premedia-7c"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Colón</span><span class="reina-grande-sub">7°C</span></a>
+      <a href="campesino-galeria.html?reina=premedia-8b" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-premedia-8b"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Herrera</span><span class="reina-grande-sub">8°B</span></a>
+      <a href="campesino-galeria.html?reina=premedia-8c" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-premedia-8c"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Los Santos</span><span class="reina-grande-sub">8°C</span></a>
+      <a href="campesino-galeria.html?reina=premedia-9a" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-premedia-9a"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Panamá</span><span class="reina-grande-sub">9°A</span></a>
+      <a href="campesino-galeria.html?reina=premedia-9b" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-premedia-9b"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Panamá Oeste</span><span class="reina-grande-sub">9°B</span></a>
+      <a href="campesino-galeria.html?reina=premedia-9c" class="reina-grande-card"><div class="reina-grande-foto" id="foto-grande-premedia-9c"><span class="reina-grande-emoji">🌼</span></div><span class="reina-grande-label">Veraguas</span><span class="reina-grande-sub">9°C</span></a>
+    </div>
 
     <div class="section-head" style="margin-top:36px;">
-      <span class="num">Premedia · 9 salones</span>
+      <span class="num">Calendario de topones</span>
       <h3>Topones de Premedia</h3>
       <p>Como Premedia tiene 9 salones (número impar), no se pueden formar solo parejas: un grupo se enfrenta en trío y el resto en duelos de dos. Son encuentros amistosos durante los recreos y no afectan la elección final de la reina.</p>
     </div>
@@ -857,6 +943,8 @@ footer .school{
       <div class="card toponi"><span class="date">Jueves<br>24 de septiembre</span><span class="match">8° A <span class="vs">VS</span> 8° B<span class="salones">Provincia: 8°A → Chiriquí · 8°B → Herrera</span><span class="fotos"><a href="campesino-galeria.html?reina=premedia-8a" class="fotomini"><span class="fotomini-img" id="mini-premedia-8a"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">8°A</span></a><a href="campesino-galeria.html?reina=premedia-8b" class="fotomini"><span class="fotomini-img" id="mini-premedia-8b"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">8°B</span></a></span></span><span class="lvl premedia">Premedia</span></div>
       <div class="card toponi"><span class="date">Martes<br>29 de septiembre</span><span class="match">8° C <span class="vs">VS</span> 9° A<span class="salones">Provincia: 8°C → Los Santos · 9°A → Panamá</span><span class="fotos"><a href="campesino-galeria.html?reina=premedia-8c" class="fotomini"><span class="fotomini-img" id="mini-premedia-8c"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">8°C</span></a><a href="campesino-galeria.html?reina=premedia-9a" class="fotomini"><span class="fotomini-img" id="mini-premedia-9a"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">9°A</span></a></span></span><span class="lvl premedia">Premedia</span></div>
       <div class="card toponi"><span class="date">Miércoles<br>30 de septiembre</span><span class="match">9° B <span class="vs">VS</span> 9° C<span class="salones">Provincia: 9°B → Panamá Oeste · 9°C → Veraguas</span><span class="fotos"><a href="campesino-galeria.html?reina=premedia-9b" class="fotomini"><span class="fotomini-img" id="mini-premedia-9b"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">9°B</span></a><a href="campesino-galeria.html?reina=premedia-9c" class="fotomini"><span class="fotomini-img" id="mini-premedia-9c"><span class="fotomini-emoji">🌼</span></span><span class="fotomini-label">9°C</span></a></span></span><span class="lvl premedia">Premedia</span></div>
+    </div>
+      </div>
     </div>
 
     <div class="section-head" style="margin-top:36px;">
