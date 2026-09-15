@@ -60,7 +60,16 @@ async function pintarCollage(){
 }
 
 async function cargar(){
-  const {data:{user}}=await supabase.auth.getUser();if(!user){location.replace('login.html');return}usuario=user;
+  let {data:{user}}=await supabase.auth.getUser();
+  if(!user){
+    // Nadie ha entrado todavía en este navegador: se crea una sesión
+    // anónima automática (sin correo ni contraseña) para que el estudiante
+    // pueda identificarse solo con grupo + nombre + cédula.
+    const {data,error}=await supabase.auth.signInAnonymously();
+    if(error){mensaje('No se pudo abrir la página. Intenta de nuevo o avisa a tu profesor.','error');return}
+    user=data.user;
+  }
+  usuario=user;
   $('cuadriculaFotos').innerHTML=CATEGORIAS.map(tarjeta).join('');
   mostrarAlbum(false);
   conectarEventosFijos();
@@ -150,7 +159,7 @@ function conectarEventosFijos(){
   $('verificarIdentidad').addEventListener('click',verificarIdentidad);
   $('cambiarIdentidad').addEventListener('click',cambiarIdentidad);
   $('archivoVideo').addEventListener('change',validarVideo);$('guardarVideo').addEventListener('click',subirVideo);$('eliminarVideo').addEventListener('click',()=>eliminar('video-agradecimiento'));
-  $('descargarCollage').addEventListener('click',descargarCollage);$('btnSalirVida').addEventListener('click',async e=>{e.preventDefault();await supabase.auth.signOut();location.replace('login.html')});
+  $('descargarCollage').addEventListener('click',descargarCollage);$('btnSalirVida').addEventListener('click',async e=>{e.preventDefault();await supabase.auth.signOut();location.replace('portal-clase.html')});
 }
 
 async function guardarComentario(card,id){
