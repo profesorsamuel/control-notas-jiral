@@ -39,8 +39,8 @@
   "use strict";
 
   const CLAVE_PENDIENTES = "jiral_intentos_practica_pendientes_v1";
-  const ESPERA_MAX_MS = 15000;                 // tope por intento
-  const PAUSAS_MS = [0, 1500, 4000, 8000, 15000]; // 5 intentos con espera creciente
+  const ESPERA_MAX_MS = 8000;                  // tope por intento (antes 15 s: se sentía "colgado")
+  const PAUSAS_MS = [0, 1500, 4000, 8000];     // 4 intentos con espera creciente (~22 s máx.)
   const REINTENTO_FONDO_MS = 30000;            // barrido cada 30 s con la página abierta
 
   let enviandoPendientes = false;
@@ -257,7 +257,12 @@
       if (!respuesta.ok) {
         let cuerpo = "";
         try { cuerpo = (await respuesta.text()).slice(0, 300); } catch { /* da igual */ }
-        throw new Error(`HTTP ${respuesta.status} ${respuesta.statusText}${cuerpo ? " — " + cuerpo : ""}`);
+        const fallo = new Error(`HTTP ${respuesta.status} ${respuesta.statusText}${cuerpo ? " — " + cuerpo : ""}`);
+        // 400–499 = el servidor SÍ contestó y dijo que no (permisos, datos
+        // mal formados, etc.). Reintentar eso mil veces no sirve de nada y
+        // solo deja al estudiante mirando el aviso azul; se corta de una.
+        fallo.permanente = respuesta.status >= 400 && respuesta.status < 500 && respuesta.status !== 408 && respuesta.status !== 429;
+        throw fallo;
       }
       return true;
     } catch (error) {
@@ -270,10 +275,11 @@
     }
   }
 
-  async function enviarConReintentos(tabla, payload, intentos) {
+  async function enviarConReintentos(tabla, payload, intentos, textoProgreso) {
     let error = null;
     for (let i = 0; i < intentos; i++) {
       if (PAUSAS_MS[i]) await esperar(PAUSAS_MS[i]);
+      if (textoProgreso) mostrarAviso(`${textoProgreso} (intento ${i + 1} de ${intentos})`, "proceso");
       try {
         await enviarUnaVez(tabla, payload);
         return;
@@ -281,6 +287,8 @@
         error = e;
         ultimoError = (e && e.message) || String(e);
         console.error(`Intento de guardado ${i + 1}/${intentos}:`, e);
+        // El servidor contestó y rechazó: no tiene sentido insistir.
+        if (e && e.permanente) break;
       }
     }
     throw error || new Error("No se pudo guardar el intento");
@@ -304,6 +312,56 @@
   }
 
   // ---------------------------------------------------------
+  // Diagnóstico: separa "el celular no llega a internet" de
+  // "el servidor contestó y rechazó el guardado" (permisos, etc.).
+  // Sin esto había que adivinar, que es justo lo que nos tenía
+  // dando vueltas con el caso de Yamal.
+  // ---------------------------------------------------------
+  async function diagnosticar() {
+    const lineas = [];
+    lineas.push(`Conexión del celular: ${navigator.onLine ? "en línea" : "SIN CONEXIÓN"}`);
+
+    const base = window.SUPABASE_URL;
+    const llave = window.SUPABASE_ANON_KEY;
+    if (!base || !llave) {
+      lineas.push("Configuración de Supabase: FALTA en este dispositivo (¿script viejo en caché?).");
+      return lineas.join("\n");
+    }
+
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      const r = await fetch(`${base}/rest/v1/prueba_intentos_practica?select=id&limit=1`, {
+        headers: { apikey: llave, Authorization: `Bearer ${llave}` },
+        cache: "no-store",
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      lineas.push(`Prueba de lectura a Supabase: HTTP ${r.status} ${r.statusText}`);
+      lineas.push(r.ok
+        ? "→ El celular SÍ llega al servidor. El problema está en el permiso de escritura (revisar políticas de INSERT y UPDATE de la tabla)."
+        : "→ El servidor contestó pero rechazó la lectura.");
+    } catch (e) {
+      lineas.push(`Prueba de lectura a Supabase: falló (${(e && e.message) || e})`);
+      lineas.push("→ El celular NO está llegando al servidor: es la red/señal, no los permisos.");
+    }
+    return lineas.join("\n");
+  }
+
+  // Muestra el aviso rojo YA con el error abierto, y le agrega el
+  // diagnóstico cuando termine (para que se pueda capturar en foto).
+  function mostrarErrorConDetalle(mensaje) {
+    mostrarAviso(mensaje, "error");
+    const { detalle } = obtenerAviso();
+    const cabecera = (ultimoError ? `Error: ${ultimoError}\n\n` : "") ;
+    detalle.style.display = "block";
+    detalle.textContent = `${cabecera}Revisando la conexión…\n\nCódigo de respaldo:\n${textoRespaldoPendientes()}`;
+    diagnosticar().then((info) => {
+      detalle.textContent = `${cabecera}${info}\n\nCódigo de respaldo:\n${textoRespaldoPendientes()}`;
+    });
+  }
+
+  // ---------------------------------------------------------
   // API pública (la firma no cambió: sigue recibiendo sb para no
   // tener que tocar los ejercicios que ya la llaman así)
   // ---------------------------------------------------------
@@ -311,15 +369,14 @@
     guardarCopiaLocal(tabla, payload);
     mostrarAviso("⏳ Guardando tu calificación… No cierres esta página.", "proceso");
     try {
-      await enviarConReintentos(tabla, payload, PAUSAS_MS.length);
+      await enviarConReintentos(tabla, payload, PAUSAS_MS.length, "⏳ Guardando tu calificación… No cierres esta página.");
       quitarCopiaLocal(payload);
       mostrarAviso("✅ Calificación guardada correctamente.", "ok");
       return true;
     } catch {
-      mostrarAviso(
+      mostrarErrorConDetalle(
         "⚠️ Todavía no se guardó tu nota. Queda guardada en este celular y se reintentará sola. " +
-        "No borres los datos del navegador. Si sigue en rojo, copia el código de respaldo y envíaselo al profesor.",
-        "error"
+        "No borres los datos del navegador. Si sigue en rojo, copia el código de respaldo y envíaselo al profesor."
       );
       programarBarrido();
       return false;
@@ -344,7 +401,7 @@
     mostrarAviso("⏳ Enviando una calificación que quedó pendiente…", "proceso");
     for (const item of pendientes) {
       try {
-        await enviarConReintentos(item.tabla, item.payload, forzado ? 2 : 3);
+        await enviarConReintentos(item.tabla, item.payload, forzado ? 2 : 3, "⏳ Enviando una calificación que quedó pendiente…");
         quitarCopiaLocal(item.payload);
       } catch (error) {
         console.error("El intento sigue pendiente:", error);
@@ -355,10 +412,9 @@
     if (!leerPendientes().length) {
       mostrarAviso("✅ Calificación pendiente recuperada y guardada.", "ok");
     } else {
-      mostrarAviso(
+      mostrarErrorConDetalle(
         "⚠️ Todavía no se pudo enviar tu nota desde este celular. Queda guardada aquí y se seguirá reintentando. " +
-        "Si sigue en rojo, copia el código de respaldo y envíaselo al profesor.",
-        "error"
+        "Si sigue en rojo, copia el código de respaldo y envíaselo al profesor."
       );
       programarBarrido();
     }
