@@ -25,10 +25,14 @@ async function cargarMiniaturas() {
     }
 
     for (const [slug, ruta] of rutaPorReina) {
-        const contenedor = document.getElementById(`mini-${slug}`);
-        if (!contenedor) continue;
         const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(ruta);
-        contenedor.innerHTML = `<img src="${pub.publicUrl}" alt="" loading="lazy">`;
+        const imgHtml = `<img src="${pub.publicUrl}" alt="" loading="lazy">`;
+
+        const mini = document.getElementById(`mini-${slug}`);
+        if (mini) mini.innerHTML = imgHtml;
+
+        const grande = document.getElementById(`foto-grande-${slug}`);
+        if (grande) grande.innerHTML = imgHtml;
     }
 }
 
