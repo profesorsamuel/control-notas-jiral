@@ -556,7 +556,10 @@ async function finalizarQuiz() {
       finalizado_at: new Date().toISOString(),
     };
 
-    await window.guardarIntentoPracticaSeguro(sb, T.intentosPractica, payloadPractica);
+    // Sin await a propósito: el guardado (con sus reintentos) corre en
+    // segundo plano mientras el estudiante ya ve su resultado. El aviso
+    // de abajo le dice en todo momento si quedó guardado o no.
+    window.guardarIntentoPracticaSeguro(sb, T.intentosPractica, payloadPractica).catch(() => {});
   }
 
   mostrarResultado({ modo: quizState.modo, correctas, incorrectas, porcentaje, nota, tiempoTotal, respuestas });

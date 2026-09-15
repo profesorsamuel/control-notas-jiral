@@ -1,3 +1,9 @@
+// ⚠️ ARCHIVO EN DESUSO — NO SE CARGA EN NINGUNA PÁGINA.
+// El guardado real de los ejercicios lo hace js/guardar_intento_practica.js
+// (ese sí está enlazado en las 3 páginas de ejercicios de la Clase 1).
+// Se deja aquí solo como referencia histórica; si se edita, no pasa nada,
+// porque ningún HTML lo incluye. Para evitar confusiones, cualquier cambio
+// en la lógica de guardado va en js/guardar_intento_practica.js.
 // =========================================================
 // GUARDADO ROBUSTO DE INTENTOS DE PRÁCTICA
 // C.E.B.G. EL JIRAL — usado por los 3 ejercicios de cada Clase

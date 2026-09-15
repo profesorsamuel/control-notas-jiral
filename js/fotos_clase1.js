@@ -312,9 +312,11 @@ document.getElementById("btn-revisar-fotos").addEventListener("click", async () 
   // upsert: inserta si es el primer intento, o actualiza si ya había uno
   // (resuelto por la base de datos misma vía la restricción única
   // codigo_examen + tipo_ejercicio + cedula — no hace falta leer nada antes).
-  await window.guardarIntentoPracticaSeguro(sb, T.intentosPractica, payloadFotos);
-
+  // Primero se muestra el resultado y después se guarda en segundo plano:
+  // así el estudiante no se queda mirando la pantalla anterior mientras el
+  // celular reintenta (podía tardar varios segundos con señal débil).
   mostrarVista(vistaResultado);
+  window.guardarIntentoPracticaSeguro(sb, T.intentosPractica, payloadFotos).catch(() => {});
 });
 
 function formatoSeg(s) {
