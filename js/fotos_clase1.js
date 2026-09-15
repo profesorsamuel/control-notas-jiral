@@ -184,6 +184,11 @@ function irAInicio() {
 }
 
 (function arrancar() {
+  // Si de una sesión anterior quedó algún intento (de este u otro
+  // ejercicio de práctica) sin poder guardarse, se intenta ahora,
+  // en silencio, aprovechando que la página se está abriendo.
+  if (window.GuardadoPractica) window.GuardadoPractica.reintentarPendientes(sb);
+
   const guardado = localStorage.getItem(LS_KEY);
   if (guardado) {
     try {
@@ -308,16 +313,42 @@ document.getElementById("btn-revisar-fotos").addEventListener("click", async () 
     finalizado_at: new Date().toISOString(),
   };
 
-  // upsert: inserta si es el primer intento, o actualiza si ya había uno
-  // (resuelto por la base de datos misma vía la restricción única
-  // codigo_examen + tipo_ejercicio + cedula — no hace falta leer nada antes).
-  const { error } = await sb
-    .from(T.intentosPractica)
-    .upsert(payloadFotos, { onConflict: "codigo_examen,tipo_ejercicio,cedula" });
-  if (error) console.error("No se pudo guardar el intento de pareo de fotos:", error);
-
+  // Se muestra el resultado de inmediato (no hay que esperar a que el
+  // guardado termine, los reintentos pueden tardar hasta ~20 segundos).
+  // El aviso de "guardando/guardado/pendiente" se actualiza solo,
+  // mientras GuardadoPractica reintenta por su cuenta en segundo plano.
   mostrarVista(vistaResultado);
+  guardarFotosConAviso(payloadFotos);
 });
+
+function guardarFotosConAviso(payload) {
+  const aviso = document.getElementById("fotos-estado-guardado");
+  const btnReintentar = document.getElementById("btn-reintentar-fotos");
+
+  function pintarEstado(estado) {
+    if (!aviso) return;
+    btnReintentar && (btnReintentar.hidden = estado !== "pendiente");
+    aviso.classList.remove("estado-ok", "estado-espera", "estado-error");
+    if (estado === "guardando") { aviso.textContent = "💾 Guardando tu resultado…"; aviso.classList.add("estado-espera"); }
+    else if (estado === "reintentando") { aviso.textContent = "🔄 Sin respuesta todavía, reintentando…"; aviso.classList.add("estado-espera"); }
+    else if (estado === "guardado") { aviso.textContent = "✅ Resultado guardado."; aviso.classList.add("estado-ok"); }
+    else if (estado === "pendiente") { aviso.textContent = "⚠️ No se pudo guardar (sin conexión). Se reintentará solo al recuperar señal, o toca \"Reintentar\"."; aviso.classList.add("estado-error"); }
+  }
+
+  window.GuardadoPractica
+    ? window.GuardadoPractica.guardarIntento(sb, T.intentosPractica, payload, pintarEstado)
+    : (async () => {
+        // Respaldo por si guardado_practica.js no se cargó en la página.
+        const { error } = await sb.from(T.intentosPractica).upsert(payload, { onConflict: "codigo_examen,tipo_ejercicio,cedula" });
+        if (error) console.error("No se pudo guardar el intento de pareo de fotos:", error);
+      })();
+
+  if (btnReintentar) {
+    btnReintentar.onclick = () => {
+      if (window.GuardadoPractica) window.GuardadoPractica.reintentarAhora(sb, T.intentosPractica, payload, pintarEstado);
+    };
+  }
+}
 
 function formatoSeg(s) {
   const m = Math.floor(s / 60), r = s % 60;

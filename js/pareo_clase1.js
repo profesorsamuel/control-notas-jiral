@@ -193,6 +193,11 @@ function irAInicio() {
 // Al cargar la página: si ya hay un estudiante guardado (por ejemplo,
 // porque ya hizo el examen de esta clase), se salta el registro.
 (function arrancar() {
+  // Si de una sesión anterior quedó algún intento (de este u otro
+  // ejercicio de práctica) sin poder guardarse, se intenta ahora,
+  // en silencio, aprovechando que la página se está abriendo.
+  if (window.GuardadoPractica) window.GuardadoPractica.reintentarPendientes(sb);
+
   const guardado = localStorage.getItem(LS_KEY);
   if (guardado) {
     try {
@@ -318,10 +323,6 @@ document.getElementById("btn-revisar-pareo").addEventListener("click", async () 
     </div>
   `).join("");
 
-  // Guarda el intento en la misma tabla que ya usa la práctica del
-  // examen de opción múltiple, marcado como "pareo" para distinguirlo
-  // en el panel del docente. Si falla (ej. sin conexión), no se le
-  // avisa al estudiante ni se bloquea ver su resultado.
   // Solo se conserva el ÚLTIMO intento de este estudiante para este
   // ejercicio de pareo: si ya hay un registro previo se actualiza (aunque
   // la nota nueva sea más baja que la anterior); si no hay, se crea uno.
@@ -339,16 +340,41 @@ document.getElementById("btn-revisar-pareo").addEventListener("click", async () 
     finalizado_at: new Date().toISOString(),
   };
 
-  // upsert: inserta si es el primer intento, o actualiza si ya había uno
-  // (resuelto por la base de datos misma vía la restricción única
-  // codigo_examen + tipo_ejercicio + cedula — no hace falta leer nada antes).
-  const { error } = await sb
-    .from(T.intentosPractica)
-    .upsert(payloadPareo, { onConflict: "codigo_examen,tipo_ejercicio,cedula" });
-  if (error) console.error("No se pudo guardar el intento de pareo:", error);
-
+  // Se muestra el resultado de inmediato (no hay que esperar a que el
+  // guardado termine, los reintentos pueden tardar hasta ~20 segundos).
+  // El aviso de "guardando/guardado/pendiente" se actualiza solo,
+  // mientras GuardadoPractica reintenta por su cuenta en segundo plano.
   mostrarVista(vistaResultado);
+  guardarPareoConAviso(payloadPareo);
 });
+
+function guardarPareoConAviso(payload) {
+  const aviso = document.getElementById("pareo-estado-guardado");
+  const btnReintentar = document.getElementById("btn-reintentar-pareo");
+
+  function pintarEstado(estado) {
+    if (!aviso) return;
+    btnReintentar && (btnReintentar.hidden = estado !== "pendiente");
+    aviso.classList.remove("estado-ok", "estado-espera", "estado-error");
+    if (estado === "guardando") { aviso.textContent = "💾 Guardando tu resultado…"; aviso.classList.add("estado-espera"); }
+    else if (estado === "reintentando") { aviso.textContent = "🔄 Sin respuesta todavía, reintentando…"; aviso.classList.add("estado-espera"); }
+    else if (estado === "guardado") { aviso.textContent = "✅ Resultado guardado."; aviso.classList.add("estado-ok"); }
+    else if (estado === "pendiente") { aviso.textContent = "⚠️ No se pudo guardar (sin conexión). Se reintentará solo al recuperar señal, o toca \"Reintentar\"."; aviso.classList.add("estado-error"); }
+  }
+
+  window.GuardadoPractica
+    ? window.GuardadoPractica.guardarIntento(sb, T.intentosPractica, payload, pintarEstado)
+    : (async () => {
+        const { error } = await sb.from(T.intentosPractica).upsert(payload, { onConflict: "codigo_examen,tipo_ejercicio,cedula" });
+        if (error) console.error("No se pudo guardar el intento de pareo:", error);
+      })();
+
+  if (btnReintentar) {
+    btnReintentar.onclick = () => {
+      if (window.GuardadoPractica) window.GuardadoPractica.reintentarAhora(sb, T.intentosPractica, payload, pintarEstado);
+    };
+  }
+}
 
 function formatoSeg(s) {
   const m = Math.floor(s / 60), r = s % 60;
