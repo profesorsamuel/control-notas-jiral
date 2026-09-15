@@ -1,0 +1,34 @@
+.cuad-materia{background:#fff;border:1px solid var(--borde);border-radius:16px;overflow:hidden;box-shadow:0 4px 14px #14324d10;margin-bottom:18px}
+.cuad-materia-head{display:flex;align-items:center;gap:10px;padding:14px 16px;font-weight:800;font-size:1.05rem;color:#173049}
+.cuad-materia-count{margin-left:auto;font-size:.82rem;font-weight:700;background:#ffffffb0;padding:4px 10px;border-radius:999px}
+.cuad-tarea{display:flex;gap:12px;align-items:flex-start;padding:13px 16px;border-top:1px solid var(--borde)}
+.cuad-tarea.hecha{background:#f3fbf4}
+.cuad-check{flex:0 0 auto;width:26px;height:26px;border:2px solid #94a9bd;border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;margin-top:2px}
+.cuad-check.on{background:var(--verde);border-color:var(--verde)}
+.cuad-tarea-cuerpo{flex:1;min-width:0}
+.cuad-tarea-titulo{font-weight:700;color:#172033;line-height:1.35}
+.cuad-tarea.hecha .cuad-tarea-titulo{text-decoration:line-through;color:#5b7185}
+.cuad-tarea-desc{font-size:.87rem;color:var(--gris);margin-top:3px;line-height:1.4}
+.cuad-tarea-fecha{display:inline-block;margin-top:6px;font-size:.76rem;font-weight:800;letter-spacing:.03em;color:#8a5a00;background:#fff3d6;padding:3px 9px;border-radius:999px}
+.cuad-tarea-fecha.vencida{color:#991b1b;background:#fee2e2}
+.cuad-fotos-zona{margin-top:10px}
+.cuad-fotos-tira{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.cuad-foto-item{position:relative;width:64px;height:64px;border-radius:9px;overflow:hidden;border:1px solid var(--borde);background:#eef3f8}
+.cuad-foto-item img{width:100%;height:100%;object-fit:cover;cursor:pointer}
+.cuad-foto-borrar{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#00000099;color:#fff;border:0;font-size:11px;line-height:1;cursor:pointer}
+.cuad-foto-add{width:64px;height:64px;border-radius:9px;border:2px dashed #91a7bc;display:flex;align-items:center;justify-content:center;color:var(--azul);font-size:22px;cursor:pointer;background:#fff;flex-shrink:0}
+.cuad-foto-input{position:absolute;width:1px;height:1px;opacity:0}
+.cuad-foto-subiendo{font-size:.78rem;color:var(--gris)}
+.cuad-lightbox{position:fixed;inset:0;background:#000000d9;display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+.cuad-lightbox.open{display:flex}
+.cuad-lightbox img{max-width:100%;max-height:100%;border-radius:8px}
+.cuad-lightbox-cerrar{position:absolute;top:16px;right:20px;background:#ffffff22;color:#fff;border:0;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer}
+@media(max-width:560px){.cuad-materia-head{font-size:.95rem}}
+
+/* ---------- ADMIN ---------- */
+.cuad-admin-fila{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.cuad-admin-info{flex:1;min-width:0}
+.cuad-admin-badge{font-size:.76rem;font-weight:800;background:var(--azul-claro);color:var(--azul);padding:3px 9px;border-radius:999px;white-space:nowrap}
+.cuad-admin-acciones{display:flex;gap:6px;flex-shrink:0}
+.cuad-admin-acciones button{border:0;background:#fff;border:1px solid var(--borde);border-radius:8px;padding:6px 9px;cursor:pointer;font-size:.85rem}
+
