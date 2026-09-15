@@ -31,8 +31,8 @@ async function cargarMiniaturas() {
         const mini = document.getElementById(`mini-${slug}`);
         if (mini) mini.innerHTML = imgHtml;
 
-        const grande = document.getElementById(`foto-grande-${slug}`);
-        if (grande) grande.innerHTML = imgHtml;
+        const contenedores = document.querySelectorAll(`[data-reina-foto="${slug}"]`);
+        contenedores.forEach((el) => { el.innerHTML = imgHtml; });
     }
 }
 
