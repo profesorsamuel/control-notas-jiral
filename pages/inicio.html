@@ -343,6 +343,16 @@ body {
 
         .insignia-destacada i { font-size: .62rem; }
 
+        .imagen-destacada {
+            display: block;
+            width: calc(100% + 42px);
+            margin: -21px -21px 14px -21px;
+            max-width: none;
+            aspect-ratio: 16 / 9;
+            object-fit: cover;
+            object-position: center 20%;
+        }
+
         .boton-timbre {
             display: flex;
             align-items: center;
@@ -540,6 +550,7 @@ body {
 
                 <!-- DÍA DEL CAMPESINO 2026 -->
                 <a href="dia-del-campesino.html" class="tarjeta-docente tarjeta-destacada">
+                    <img src="../img/dia-campesino-2026.jpg" alt="Día del Campesino 2026 - C.E.B.G. El Jiral" class="imagen-destacada" loading="lazy">
                     <span class="insignia-destacada"><i class="fa-solid fa-seedling"></i> 2 de octubre</span>
                     <div class="icono">
                         <i class="fa-solid fa-wheat-awn" aria-hidden="true"></i>
