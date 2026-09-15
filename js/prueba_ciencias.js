@@ -4,6 +4,7 @@
 // =========================================================
 
 const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+window.sbPractica = sb;
 const CONFIG = window.PRUEBA_CONFIG;
 const BANCO = window[CONFIG.bancoGlobal];
 const T = CONFIG.tablas;
@@ -26,11 +27,6 @@ if (MODO_VISTA_PREVIA) {
   banner.className = "banner-vista-previa";
   banner.textContent = "🔍 MODO VISTA PREVIA (administrador) — nada de lo que hagas aquí se guarda ni cuenta como intento real";
   document.body.prepend(banner);
-} else if (window.GuardadoPractica) {
-  // Si de una sesión anterior quedó algún intento (de este u otro
-  // ejercicio de práctica) sin poder guardarse, se intenta ahora,
-  // en silencio, aprovechando que la página se está abriendo.
-  window.GuardadoPractica.reintentarPendientes(sb);
 }
 
 // ---------- Referencias DOM ----------
@@ -560,44 +556,10 @@ async function finalizarQuiz() {
       finalizado_at: new Date().toISOString(),
     };
 
-    // Se muestra el resultado de inmediato (no hay que esperar a que el
-    // guardado termine, los reintentos pueden tardar hasta ~20 segundos).
-    // El aviso de "guardando/guardado/pendiente" se actualiza solo,
-    // mientras GuardadoPractica reintenta por su cuenta en segundo plano.
-    mostrarResultado({ modo: quizState.modo, correctas, incorrectas, porcentaje, nota, tiempoTotal, respuestas });
-    guardarQuizConAviso(payloadPractica);
-    return;
+    await window.guardarIntentoPracticaSeguro(sb, T.intentosPractica, payloadPractica);
   }
 
   mostrarResultado({ modo: quizState.modo, correctas, incorrectas, porcentaje, nota, tiempoTotal, respuestas });
-}
-
-function guardarQuizConAviso(payload) {
-  const aviso = document.getElementById("res-estado-guardado");
-  const btnReintentar = document.getElementById("btn-reintentar-quiz");
-
-  function pintarEstado(estado) {
-    if (!aviso) return;
-    btnReintentar && (btnReintentar.hidden = estado !== "pendiente");
-    aviso.classList.remove("estado-ok", "estado-espera", "estado-error");
-    if (estado === "guardando") { aviso.textContent = "💾 Guardando tu resultado…"; aviso.classList.add("estado-espera"); }
-    else if (estado === "reintentando") { aviso.textContent = "🔄 Sin respuesta todavía, reintentando…"; aviso.classList.add("estado-espera"); }
-    else if (estado === "guardado") { aviso.textContent = "✅ Resultado guardado."; aviso.classList.add("estado-ok"); }
-    else if (estado === "pendiente") { aviso.textContent = "⚠️ No se pudo guardar (sin conexión). Se reintentará solo al recuperar señal, o toca \"Reintentar\"."; aviso.classList.add("estado-error"); }
-  }
-
-  window.GuardadoPractica
-    ? window.GuardadoPractica.guardarIntento(sb, T.intentosPractica, payload, pintarEstado)
-    : (async () => {
-        const { error } = await sb.from(T.intentosPractica).upsert(payload, { onConflict: "codigo_examen,tipo_ejercicio,cedula" });
-        if (error) console.error("No se pudo guardar el intento de práctica:", error);
-      })();
-
-  if (btnReintentar) {
-    btnReintentar.onclick = () => {
-      if (window.GuardadoPractica) window.GuardadoPractica.reintentarAhora(sb, T.intentosPractica, payload, pintarEstado);
-    };
-  }
 }
 
 function mostrarResultado({ modo, correctas, incorrectas, porcentaje, nota, tiempoTotal, respuestas }) {
@@ -701,4 +663,5 @@ if (MODO_VISTA_PREVIA) {
   cargarMenu();
 } else {
   mostrarVista(vistaInicio);
+  window.reenviarIntentosPracticaPendientes(sb);
 }
