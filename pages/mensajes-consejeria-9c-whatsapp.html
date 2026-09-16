@@ -52,12 +52,13 @@
     .grupo{margin:0 0 22px}
     .titulo-seccion{margin:0 0 10px;padding:11px 15px;border-radius:13px;background:linear-gradient(90deg,var(--verde),var(--verde2));color:#fff;font-size:1.08rem;display:flex;justify-content:space-between;align-items:center}
     .grupo-contactos{display:grid;gap:10px}
-    .contacto{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;background:#fff;border:1px solid var(--borde);border-radius:15px;padding:14px;box-shadow:0 3px 14px #064e3b0c}
+    .contacto{display:flex;flex-direction:column;gap:12px;background:#fff;border:1px solid var(--borde);border-radius:15px;padding:14px;box-shadow:0 3px 14px #064e3b0c}
     .nombre{font-weight:850;font-size:1rem;margin-bottom:5px;text-transform:uppercase}
     .datos{display:flex;gap:6px;flex-wrap:wrap}
     .etiqueta{font-size:.75rem;font-weight:800;padding:4px 8px;border-radius:999px;background:#edf7f3;color:var(--verde)}
     .nota{background:#fff1db;color:#8a4b00}
-    .telefonos{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+    .telefonos{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-start}
+    .fila-telefono{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
     button,.boton{border:0;border-radius:11px;padding:10px 13px;font:inherit;font-weight:850;cursor:pointer;text-decoration:none;text-align:center}
     .whatsapp{background:var(--wa);color:#073b1b;min-width:128px}
     .whatsapp:hover{filter:brightness(.95)}
@@ -79,7 +80,7 @@
     .vacio{text-align:center;background:#fff;border:1px dashed #a8bdb6;border-radius:15px;padding:28px;color:var(--gris)}
     footer{max-width:1100px;margin:0 auto;padding:0 16px 28px;color:var(--gris);font-size:.84rem;text-align:center}
     @media(max-width:680px){
-      header{padding-top:19px}.panel{padding:14px}.controles{grid-template-columns:1fr}.pestanas{grid-template-columns:1fr}.contacto{grid-template-columns:1fr}.telefonos{justify-content:stretch}.whatsapp{width:100%}.botones-lista button{width:100%}
+      header{padding-top:19px}.panel{padding:14px}.controles{grid-template-columns:1fr}.pestanas{grid-template-columns:1fr}.telefonos{justify-content:stretch}.fila-telefono,.whatsapp,.confirmar,.retirar{width:100%}.botones-lista button{width:100%}
     }
   </style>
 </head>
@@ -410,12 +411,14 @@
             const oculto=document.createElement('span');oculto.className='telefono-oculto';oculto.textContent='🔒 Teléfono oculto';telefonos.appendChild(oculto);
           }else if(c.telefonos.length){
             c.telefonos.forEach((tel,i)=>{
+              const fila=document.createElement('div');fila.className='fila-telefono';
               const marcado=enviados.has(claveEnvio(c,tel));
               const boton=document.createElement('button');boton.type='button';boton.className=`whatsapp${marcado?' enviado':''}`;
               boton.textContent=marcado?'✅ Mensaje enviado':`💬 ${tel}${c.telefonos.length>1?` (${i+1})`:''}`;
               boton.title=marcado?'Pulse para volver a enviar':'Abrir WhatsApp';
-              boton.addEventListener('click',()=>abrirWhatsApp(c,tel));telefonos.appendChild(boton);
-              if(marcado){const quitar=document.createElement('button');quitar.type='button';quitar.className='desmarcar';quitar.textContent='Quitar marca';quitar.addEventListener('click',()=>quitarMarca(c,tel));telefonos.appendChild(quitar)}
+              boton.addEventListener('click',()=>abrirWhatsApp(c,tel));fila.appendChild(boton);
+              if(marcado){const quitar=document.createElement('button');quitar.type='button';quitar.className='desmarcar';quitar.textContent='Quitar marca';quitar.addEventListener('click',()=>quitarMarca(c,tel));fila.appendChild(quitar)}
+              telefonos.appendChild(fila);
             });
           }else{
             const falta=document.createElement('span');falta.className='sin-telefono';falta.textContent='⚠️ Sin teléfono';telefonos.appendChild(falta);
