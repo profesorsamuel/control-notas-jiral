@@ -38,9 +38,15 @@
     .estado{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px}
     .guardado{font-size:.88rem;color:var(--verde2);font-weight:700;min-height:1.2em}
     .controles{display:grid;grid-template-columns:2fr 1fr;gap:10px}
-    .pestanas{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:15px;padding:5px;background:#eaf2ef;border-radius:13px}
+    .pestanas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;padding:5px;background:#eaf2ef;border-radius:13px}
     .pestana{background:transparent;color:var(--verde);padding:11px}
     .pestana.activa{background:#fff;box-shadow:0 3px 12px #064e3b18;color:var(--verde);border:1px solid var(--borde)}
+    .acciones-lista{margin:0 0 15px;padding:13px;border:1px solid #c8ddd6;border-radius:13px;background:#f4fbf8}
+    .acciones-lista strong{display:block;margin-bottom:9px;color:var(--verde)}
+    .botones-lista{display:flex;gap:8px;flex-wrap:wrap}
+    .copiar-lista{background:#e1efe9;color:var(--verde)}
+    .enviar-lista{background:var(--wa);color:#073b1b}
+    .aviso-lista{display:inline-block;margin-left:8px;color:var(--verde2);font-size:.85rem;font-weight:800}
     .resumen{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 2px 9px;color:var(--gris);font-size:.92rem}
     .lista{display:block}
     .grupo{margin:0 0 22px}
@@ -69,7 +75,7 @@
     .vacio{text-align:center;background:#fff;border:1px dashed #a8bdb6;border-radius:15px;padding:28px;color:var(--gris)}
     footer{max-width:1100px;margin:0 auto;padding:0 16px 28px;color:var(--gris);font-size:.84rem;text-align:center}
     @media(max-width:680px){
-      header{padding-top:19px}.panel{padding:14px}.controles{grid-template-columns:1fr}.contacto{grid-template-columns:1fr}.telefonos{justify-content:stretch}.whatsapp{width:100%}
+      header{padding-top:19px}.panel{padding:14px}.controles{grid-template-columns:1fr}.pestanas{grid-template-columns:1fr}.contacto{grid-template-columns:1fr}.telefonos{justify-content:stretch}.whatsapp{width:100%}.botones-lista button{width:100%}
     }
   </style>
 </head>
@@ -125,6 +131,15 @@
       <div class="pestanas" role="tablist" aria-label="Vista del listado">
         <button id="tabTodos" class="pestana activa" type="button" role="tab" aria-selected="true">👥 Todos</button>
         <button id="tabConfirmados" class="pestana" type="button" role="tab" aria-selected="false">✅ Confirmados 😄</button>
+        <button id="tabPendientes" class="pestana" type="button" role="tab" aria-selected="false">⏳ No han confirmado</button>
+      </div>
+      <div id="accionesLista" class="acciones-lista" hidden>
+        <strong id="tituloAccionesLista"></strong>
+        <div class="botones-lista">
+          <button id="copiarLista" class="copiar-lista" type="button">📋 Copiar lista</button>
+          <button id="enviarLista" class="enviar-lista" type="button">💬 Enviar lista por WhatsApp</button>
+          <span id="avisoLista" class="aviso-lista" aria-live="polite"></span>
+        </div>
       </div>
       <div class="controles">
         <div>
@@ -240,6 +255,10 @@
     const filtro = document.querySelector('#filtro');
     const tabTodos = document.querySelector('#tabTodos');
     const tabConfirmados = document.querySelector('#tabConfirmados');
+    const tabPendientes = document.querySelector('#tabPendientes');
+    const accionesLista = document.querySelector('#accionesLista');
+    const tituloAccionesLista = document.querySelector('#tituloAccionesLista');
+    const avisoLista = document.querySelector('#avisoLista');
     const lista = document.querySelector('#lista');
     const cantidad = document.querySelector('#cantidad');
     const confirmadosResumen = document.querySelector('#confirmadosResumen');
@@ -364,16 +383,26 @@
       const seleccion=filtro.value;
       const visibles=contactos.filter(c=>{
         const contenido=textoPlano([c.nombre,c.seccion,...(admin?[c.nota,...c.telefonos]:[])].join(' '));
-        const coincideVista=vistaActual==='todos'||confirmados.has(claveIntegrante(c));
+        const estaConfirmado=confirmados.has(claveIntegrante(c));
+        const coincideVista=vistaActual==='todos'||(vistaActual==='confirmados'&&estaConfirmado)||(vistaActual==='pendientes'&&!estaConfirmado);
         return coincideVista&&(!q||contenido.includes(q))&&(!seleccion||c.seccion===seleccion);
       });
+      const totalConfirmados=contactos.filter(c=>confirmados.has(claveIntegrante(c))).length;
+      const totalPendientes=contactos.length-totalConfirmados;
+      tabTodos.textContent=`👥 Todos (${contactos.length})`;
+      tabConfirmados.textContent=`✅ Confirmados (${totalConfirmados})`;
+      tabPendientes.textContent=`⏳ No han confirmado (${totalPendientes})`;
+      accionesLista.hidden=!admin||vistaActual==='todos';
+      tituloAccionesLista.textContent=vistaActual==='confirmados'?'✅ Lista de integrantes confirmados 😄':'⏳ Lista de integrantes que no han confirmado';
       cantidad.textContent=`${visibles.length} integrante${visibles.length===1?'':'s'}`;
       confirmadosResumen.textContent=`⭐ ${confirmados.size} confirmado${confirmados.size===1?'':'s'}`;
       const contactosMarcados=contactos.filter(c=>c.telefonos.some(t=>enviados.has(claveEnvio(c,t)))).length;
       totalEnviados.textContent=admin?`· ✅ ${contactosMarcados} enviado${contactosMarcados===1?'':'s'}`:'';
       lista.replaceChildren();
       if(!visibles.length){
-        const vacio=document.createElement('div'); vacio.className='vacio'; vacio.textContent=vistaActual==='confirmados'?'Todavía no hay integrantes confirmados con esos filtros.':'No se encontraron integrantes con esos filtros.'; lista.appendChild(vacio); return;
+        const vacio=document.createElement('div'); vacio.className='vacio';
+        vacio.textContent=vistaActual==='confirmados'?'Todavía no hay integrantes confirmados con esos filtros.':vistaActual==='pendientes'?'Todos han confirmado o no hay resultados con esos filtros.':'No se encontraron integrantes con esos filtros.';
+        lista.appendChild(vacio); return;
       }
       const orden=['Director','Batallón','Batutera','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
       const secciones=[...new Set(visibles.map(c=>c.seccion))].sort((a,b)=>{
@@ -428,17 +457,60 @@
       if(!mensaje.value || confirm('¿Desea borrar el mensaje escrito?')){mensaje.value='';localStorage.removeItem('mensajeBandaJiral');guardado.textContent='Mensaje borrado';mensaje.focus()}
     });
     buscar.addEventListener('input',render); filtro.addEventListener('change',render);
+
+    function generarTextoLista(){
+      const quiereConfirmados=vistaActual==='confirmados';
+      const miembros=contactos.filter(c=>confirmados.has(claveIntegrante(c))===quiereConfirmados);
+      const titulo=quiereConfirmados?'✅ *INTEGRANTES CONFIRMADOS EN LA BANDA* 😄':'⏳ *INTEGRANTES QUE AÚN NO HAN CONFIRMADO*';
+      const orden=['Director','Batallón','Batutera','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
+      const secciones=[...new Set(miembros.map(c=>c.seccion))].sort((a,b)=>{
+        const ia=orden.indexOf(a),ib=orden.indexOf(b);
+        return (ia<0?999:ia)-(ib<0?999:ib)||a.localeCompare(b,'es');
+      });
+      const lineas=[titulo,''];
+      let numero=1;
+      secciones.forEach(seccion=>{
+        lineas.push(`*${seccion.toUpperCase()}*`);
+        miembros.filter(c=>c.seccion===seccion).forEach(c=>lineas.push(`${numero++}. ${c.nombre}${quiereConfirmados?' ✅':''}`));
+        lineas.push('');
+      });
+      lineas.push(`*Total: ${miembros.length} integrante${miembros.length===1?'':'s'}*`);
+      if(!quiereConfirmados) lineas.push('Por favor, confirmar si continuará participando en la banda. Gracias.');
+      return lineas.join('\n');
+    }
+
+    async function copiarTextoLista(){
+      const texto=generarTextoLista();
+      try{
+        await navigator.clipboard.writeText(texto);
+      }catch(error){
+        const temporal=document.createElement('textarea');temporal.value=texto;temporal.style.position='fixed';temporal.style.opacity='0';document.body.appendChild(temporal);temporal.select();document.execCommand('copy');temporal.remove();
+      }
+      avisoLista.textContent='✓ Lista copiada';
+      setTimeout(()=>avisoLista.textContent='',1800);
+    }
+
+    document.querySelector('#copiarLista').addEventListener('click',copiarTextoLista);
+    document.querySelector('#enviarLista').addEventListener('click',()=>{
+      window.open(`https://wa.me/?text=${encodeURIComponent(generarTextoLista())}`,'_blank','noopener');
+    });
+
     function cambiarPestana(nuevaVista){
       vistaActual=nuevaVista;
       const todos=nuevaVista==='todos';
+      const confirmadosActiva=nuevaVista==='confirmados';
+      const pendientesActiva=nuevaVista==='pendientes';
       tabTodos.classList.toggle('activa',todos);
-      tabConfirmados.classList.toggle('activa',!todos);
+      tabConfirmados.classList.toggle('activa',confirmadosActiva);
+      tabPendientes.classList.toggle('activa',pendientesActiva);
       tabTodos.setAttribute('aria-selected',String(todos));
-      tabConfirmados.setAttribute('aria-selected',String(!todos));
+      tabConfirmados.setAttribute('aria-selected',String(confirmadosActiva));
+      tabPendientes.setAttribute('aria-selected',String(pendientesActiva));
       render();
     }
     tabTodos.addEventListener('click',()=>cambiarPestana('todos'));
     tabConfirmados.addEventListener('click',()=>cambiarPestana('confirmados'));
+    tabPendientes.addEventListener('click',()=>cambiarPestana('pendientes'));
     actualizarModo();
   </script>
 </body>
