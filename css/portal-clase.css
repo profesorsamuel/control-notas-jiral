@@ -478,6 +478,162 @@ body {
   color: var(--muted);
 }
 
+/* ---------- Accesos directos a las clases ---------- */
+.accesos-clases-directos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.acceso-curso {
+  --curso-color: var(--ciencias);
+  --curso-color-oscuro: var(--ciencias-dark);
+  position: relative;
+  overflow: hidden;
+  margin-top: 24px;
+  padding: 22px;
+  border: 2px solid color-mix(in srgb, var(--curso-color) 28%, #fff);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--curso-color) 22%, transparent) 0, transparent 38%),
+    linear-gradient(145deg, #fff, color-mix(in srgb, var(--curso-color) 7%, #fff));
+  box-shadow: 0 14px 30px -20px color-mix(in srgb, var(--curso-color) 70%, #000);
+}
+
+.accesos-clases-directos .acceso-curso { margin-top: 0; }
+.acceso-curso-octavo { --curso-color: #00a878; --curso-color-oscuro: #087f5b; }
+.acceso-curso-informatica { --curso-color: var(--informatica); --curso-color-oscuro: var(--informatica-dark); }
+
+.acceso-curso-encabezado {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.acceso-curso-icono {
+  display: grid;
+  place-items: center;
+  flex: 0 0 50px;
+  width: 50px;
+  height: 50px;
+  border-radius: 17px;
+  background: linear-gradient(135deg, var(--curso-color), var(--curso-color-oscuro));
+  box-shadow: 0 8px 18px -8px var(--curso-color-oscuro);
+  font-size: 25px;
+}
+
+.acceso-curso-etiqueta {
+  margin: 0 0 2px;
+  color: var(--curso-color-oscuro);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.acceso-curso h3 {
+  margin: 0;
+  color: var(--ink);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(17px, 2.5vw, 21px);
+  line-height: 1.15;
+}
+
+.acceso-curso-grados {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.acceso-curso-grados span {
+  min-width: 38px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: var(--curso-color-oscuro);
+  color: #fff;
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--curso-color-oscuro) 70%, #000);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+  transform: rotate(2deg);
+}
+
+.acceso-curso-grados span:nth-child(even) { transform: rotate(-2deg); }
+
+.acceso-curso-ayuda {
+  margin: 15px 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.botones-clases {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.botones-clases a,
+.boton-proyecto {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 11px 14px;
+  border: 2px solid color-mix(in srgb, var(--curso-color) 35%, #fff);
+  border-radius: 15px;
+  background: #fff;
+  color: var(--curso-color-oscuro);
+  text-decoration: none;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  transition: transform .18s ease, color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.botones-clases a span,
+.boton-proyecto span { font-size: 19px; transition: transform .18s ease; }
+
+.botones-clases a:hover,
+.botones-clases a:focus-visible,
+.boton-proyecto:hover,
+.boton-proyecto:focus-visible {
+  transform: translateY(-3px);
+  outline: none;
+  background: linear-gradient(135deg, var(--curso-color), var(--curso-color-oscuro));
+  color: #fff;
+  box-shadow: 0 10px 20px -12px var(--curso-color-oscuro);
+}
+
+.botones-clases a:hover span,
+.botones-clases a:focus-visible span,
+.boton-proyecto:hover span,
+.boton-proyecto:focus-visible span { transform: translateX(3px); }
+
+.boton-proyecto {
+  width: 100%;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--curso-color), var(--curso-color-oscuro));
+  color: #fff;
+  box-shadow: 0 10px 20px -13px var(--curso-color-oscuro);
+}
+
+@media (max-width: 760px) {
+  .accesos-clases-directos { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .acceso-curso { padding: 17px; border-radius: 20px; }
+  .acceso-curso-encabezado { align-items: flex-start; flex-wrap: wrap; }
+  .acceso-curso-grados { width: 100%; justify-content: flex-start; margin: 2px 0 0 62px; }
+  .botones-clases { grid-template-columns: 1fr 1fr; }
+}
+
 /* ---------- Vista de tareas de una clase ---------- */
 .vista-tareas.oculto { display: none; }
 
