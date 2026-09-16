@@ -3,3 +3,38 @@
 @media(max-width:850px){.ve-verif-grid{grid-template-columns:1fr}}
 .ve-collage-titulo{margin:8px 0 0;font-weight:800;color:var(--azul);letter-spacing:.3px}
 .ve-video-section{margin-top:22px;padding:18px}.ve-video-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(280px,1.25fr);gap:20px}.ve-video-rules{color:var(--gris);line-height:1.6}.ve-video-rules h2{color:var(--azul);margin-top:0}.ve-video-box{border:1px solid var(--borde);border-radius:14px;overflow:hidden}.ve-video-box .ve-preview{aspect-ratio:16/9}.ve-filter{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}.ve-filter>*{min-width:170px}.ve-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.ve-person{font-weight:800;color:var(--azul);margin-bottom:8px}.ve-admin-card{background:#fff;border:1px solid var(--borde);border-radius:14px;padding:14px;box-shadow:0 4px 14px #14324d10}.ve-admin-media{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:#e8eef4}.ve-admin-card video.ve-admin-media{aspect-ratio:16/9}.ve-admin-card h3{margin:12px 0 5px}.ve-admin-card p{color:var(--gris);margin:4px 0;line-height:1.4}.ve-empty{grid-column:1/-1;text-align:center;padding:40px 20px;background:#fff;border:1px dashed #a8bacb;border-radius:14px;color:var(--gris)}.ve-modal{position:fixed;inset:0;background:#001529cc;display:none;align-items:center;justify-content:center;padding:18px;z-index:100}.ve-modal.open{display:flex}.ve-modal-box{width:min(520px,100%);background:#fff;border-radius:16px;padding:20px}.ve-modal-box h2{margin-top:0;color:var(--azul)}@media(max-width:850px){.ve-grid,.ve-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.ve-video-grid{grid-template-columns:1fr}}@media(max-width:560px){.ve-wrap{width:min(100% - 18px,1180px)}.ve-grid,.ve-gallery{grid-template-columns:1fr}.ve-top{padding:13px 0}.ve-brand img{width:48px;height:48px}.ve-nav{width:100%}.ve-nav a{flex:1}.ve-intro{padding:14px}.ve-main{padding-top:14px}.ve-actions{flex-direction:column}.ve-btn{width:100%}}
+
+/* ===== Ajustes extra para celular en vertical (Vida Estudiantil) ===== */
+@media(max-width:480px){
+  .ve-wrap{width:calc(100% - 20px)}
+  .ve-top{padding:12px 0}
+  .ve-brand{gap:10px}
+  .ve-brand img{width:42px;height:42px}
+  .ve-brand h1{font-size:1.15rem;line-height:1.25}
+  .ve-brand p{font-size:.82rem}
+  .ve-nav{gap:6px}
+  .ve-nav a{padding:12px 8px;font-size:.85rem;min-height:44px}
+  .ve-main{padding-top:12px}
+  .ve-intro{padding:14px;gap:12px}
+  .ve-intro h2{font-size:1.1rem}
+  .ve-intro p{font-size:.9rem}
+  .ve-progress{width:100%}
+  .ve-panel,.ve-intro{border-radius:12px}
+  .ve-verificacion{padding:14px}
+  .ve-verificacion h2{font-size:1.1rem}
+  .ve-verif-grid{gap:16px;margin-bottom:16px}
+  .ve-campo label{font-size:.95rem}
+  /* Botones de grupo (9A/9B/9C) más altos y fáciles de tocar con el dedo */
+  .ve-salon-grupo{gap:8px}
+  .ve-salon-btn{min-width:0;min-height:50px;font-size:.95rem;padding:10px 6px}
+  /* La cédula usa font-size 16px (heredado de body) a propósito: evita que
+     Safari/Chrome en iOS hagan zoom automático al tocar el campo. */
+  .ve-cedula-wrap{gap:6px}
+  .ve-cedula-wrap input{min-height:48px}
+  .ve-cedula-wrap .ve-btn{min-width:48px;padding:10px}
+  .ve-verif-acciones{flex-direction:column}
+  .ve-verif-acciones .ve-btn{width:100%;min-height:50px;font-size:1rem}
+  .ve-verif-nota{font-size:.85rem}
+  .ve-card-head h3{font-size:.95rem}
+  .ve-upload-label{min-height:50px;font-size:.9rem}
+}
