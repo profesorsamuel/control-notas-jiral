@@ -271,6 +271,37 @@ body {
             color: var(--tinta);
         }
 
+        /* Íconos personalizados (imagen) para las tarjetas de la página principal */
+        .icono-img {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: transparent;
+            box-shadow: 0 4px 12px rgba(20, 33, 61, .18);
+        }
+
+        .icono-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .tarjeta-consulta .titulo-con-icono {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .tarjeta-consulta .titulo-con-icono .icono-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+
         .tarjeta-docente h2 {
             font-family: "Fraunces", Georgia, serif;
             font-size: 1rem;
@@ -562,10 +593,10 @@ body {
 
                 <!-- VER MIS NOTAS (por cédula, sin contraseña) -->
                 <div class="tarjeta-consulta">
-                    <h2>
-                        <i class="fa-solid fa-file-lines me-2" aria-hidden="true"></i>
-                        Ver mis notas
-                    </h2>
+                    <div class="titulo-con-icono">
+                        <span class="icono-img"><img src="../img/icono-mis-notas.png" alt="" loading="lazy"></span>
+                        <h2 class="mb-0">Ver mis notas</h2>
+                    </div>
                     <p>
                         Escribe tu cédula para ver y descargar tus notas de todas las materias.
                     </p>
@@ -596,8 +627,8 @@ body {
 
                 <a href="portal-clase.html" class="tarjeta-docente tarjeta-destacada">
                     <span class="insignia-destacada"><i class="fa-solid fa-star"></i> Destacado</span>
-                    <div class="icono">
-                        <i class="fa-solid fa-book-open" aria-hidden="true"></i>
+                    <div class="icono icono-img">
+                        <img src="../img/icono-portal-clase.png" alt="" loading="lazy">
                     </div>
                     <h2>Portal de Clase</h2>
                     <p>Consulta y descarga las tareas de Ciencias Naturales, Ciencias e Informática.</p>
@@ -608,8 +639,8 @@ body {
                 <p class="seccion-titulo">Acceso para docentes</p>
 
                 <a href="login.html?rol=profesor" class="tarjeta-docente">
-                    <div class="icono">
-                        <i class="fa-solid fa-chalkboard-user" aria-hidden="true"></i>
+                    <div class="icono icono-img">
+                        <img src="../img/icono-portal-profesor.png" alt="" loading="lazy">
                     </div>
                     <h2>Docente</h2>
                     <p>Ingresa con tu cédula y contraseña para registrar notas de tus materias.</p>
