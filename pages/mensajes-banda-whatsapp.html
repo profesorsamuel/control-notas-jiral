@@ -38,7 +38,7 @@
     .estado{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px}
     .guardado{font-size:.88rem;color:var(--verde2);font-weight:700;min-height:1.2em}
     .controles{display:grid;grid-template-columns:2fr 1fr;gap:10px}
-    .pestanas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;padding:5px;background:#eaf2ef;border-radius:13px}
+    .pestanas{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;padding:5px;background:#eaf2ef;border-radius:13px}
     .pestana{background:transparent;color:var(--verde);padding:11px}
     .pestana.activa{background:#fff;box-shadow:0 3px 12px #064e3b18;color:var(--verde);border:1px solid var(--borde)}
     .acciones-lista{margin:0 0 15px;padding:13px;border:1px solid #c8ddd6;border-radius:13px;background:#f4fbf8}
@@ -65,9 +65,13 @@
     .desmarcar{background:#eef2f1;color:#52635e;padding:8px 10px;font-size:.8rem}
     .contacto.enviado{border-color:#25d366;background:#f2fff7}
     .contacto.confirmado{border-left:6px solid #f5b700}
+    .contacto.retirado{border-left:6px solid #98a2b3;background:#f7f8f9}
     .confirmado-badge{display:inline-flex;align-items:center;gap:5px;margin:3px 0 6px;padding:5px 9px;border-radius:999px;background:#fff4c2;color:#705100;font-size:.78rem;font-weight:900}
+    .retirado-badge{display:inline-flex;align-items:center;gap:5px;margin:3px 0 6px;padding:5px 9px;border-radius:999px;background:#e8ebef;color:#344054;font-size:.78rem;font-weight:900}
     .confirmar{background:#fff4c2;color:#705100;font-size:.82rem}
     .confirmar.activo{background:#f5b700;color:#3e2d00}
+    .retirar{background:#e8ebef;color:#344054;font-size:.82rem}
+    .retirar.activo{background:#667085;color:#fff}
     .estado-envios{color:var(--verde);font-weight:850}
     .estado-confirmados{color:#7a5800;font-weight:850}
     .sin-telefono{color:var(--rojo);font-weight:800;font-size:.86rem}
@@ -132,6 +136,7 @@
         <button id="tabTodos" class="pestana activa" type="button" role="tab" aria-selected="true">👥 Todos</button>
         <button id="tabConfirmados" class="pestana" type="button" role="tab" aria-selected="false">✅ Confirmados 😄</button>
         <button id="tabPendientes" class="pestana" type="button" role="tab" aria-selected="false">⏳ No han confirmado</button>
+        <button id="tabRetirados" class="pestana" type="button" role="tab" aria-selected="false">🚪 Se retiraron</button>
       </div>
       <div id="accionesLista" class="acciones-lista" hidden>
         <strong id="tituloAccionesLista"></strong>
@@ -256,6 +261,7 @@
     const tabTodos = document.querySelector('#tabTodos');
     const tabConfirmados = document.querySelector('#tabConfirmados');
     const tabPendientes = document.querySelector('#tabPendientes');
+    const tabRetirados = document.querySelector('#tabRetirados');
     const accionesLista = document.querySelector('#accionesLista');
     const tituloAccionesLista = document.querySelector('#tituloAccionesLista');
     const avisoLista = document.querySelector('#avisoLista');
@@ -270,6 +276,7 @@
     const guardado = document.querySelector('#guardado');
     const enviados = new Set(JSON.parse(localStorage.getItem('mensajesEnviadosBandaJiral') || '[]'));
     const confirmados = new Set(JSON.parse(localStorage.getItem('confirmadosBandaJiral') || '[]'));
+    const retirados = new Set(JSON.parse(localStorage.getItem('retiradosBandaJiral') || '[]'));
     let aviso;
     let vistaActual='todos';
 
@@ -372,8 +379,25 @@
       if(!esAdministrador()) return;
       const id=claveIntegrante(c);
       if(confirmados.has(id)) confirmados.delete(id);
-      else confirmados.add(id);
+      else{
+        confirmados.add(id);
+        retirados.delete(id);
+        localStorage.setItem('retiradosBandaJiral',JSON.stringify([...retirados]));
+      }
       localStorage.setItem('confirmadosBandaJiral',JSON.stringify([...confirmados]));
+      render();
+    }
+
+    function cambiarRetiro(c){
+      if(!esAdministrador()) return;
+      const id=claveIntegrante(c);
+      if(retirados.has(id)) retirados.delete(id);
+      else{
+        retirados.add(id);
+        confirmados.delete(id);
+        localStorage.setItem('confirmadosBandaJiral',JSON.stringify([...confirmados]));
+      }
+      localStorage.setItem('retiradosBandaJiral',JSON.stringify([...retirados]));
       render();
     }
 
@@ -383,25 +407,30 @@
       const seleccion=filtro.value;
       const visibles=contactos.filter(c=>{
         const contenido=textoPlano([c.nombre,c.seccion,...(admin?[c.nota,...c.telefonos]:[])].join(' '));
-        const estaConfirmado=confirmados.has(claveIntegrante(c));
-        const coincideVista=vistaActual==='todos'||(vistaActual==='confirmados'&&estaConfirmado)||(vistaActual==='pendientes'&&!estaConfirmado);
+        const id=claveIntegrante(c);
+        const estaRetirado=retirados.has(id);
+        const estaConfirmado=confirmados.has(id)&&!estaRetirado;
+        const estaPendiente=!estaConfirmado&&!estaRetirado;
+        const coincideVista=vistaActual==='todos'||(vistaActual==='confirmados'&&estaConfirmado)||(vistaActual==='pendientes'&&estaPendiente)||(vistaActual==='retirados'&&estaRetirado);
         return coincideVista&&(!q||contenido.includes(q))&&(!seleccion||c.seccion===seleccion);
       });
-      const totalConfirmados=contactos.filter(c=>confirmados.has(claveIntegrante(c))).length;
-      const totalPendientes=contactos.length-totalConfirmados;
+      const totalRetirados=contactos.filter(c=>retirados.has(claveIntegrante(c))).length;
+      const totalConfirmados=contactos.filter(c=>confirmados.has(claveIntegrante(c))&&!retirados.has(claveIntegrante(c))).length;
+      const totalPendientes=contactos.length-totalConfirmados-totalRetirados;
       tabTodos.textContent=`👥 Todos (${contactos.length})`;
       tabConfirmados.textContent=`✅ Confirmados (${totalConfirmados})`;
       tabPendientes.textContent=`⏳ No han confirmado (${totalPendientes})`;
+      tabRetirados.textContent=`🚪 Se retiraron (${totalRetirados})`;
       accionesLista.hidden=!admin||vistaActual==='todos';
-      tituloAccionesLista.textContent=vistaActual==='confirmados'?'✅ Lista de integrantes confirmados 😄':'⏳ Lista de integrantes que no han confirmado';
+      tituloAccionesLista.textContent=vistaActual==='confirmados'?'✅ Lista de integrantes confirmados 😄':vistaActual==='retirados'?'🚪 Lista de integrantes retirados':'⏳ Lista de integrantes que no han confirmado';
       cantidad.textContent=`${visibles.length} integrante${visibles.length===1?'':'s'}`;
-      confirmadosResumen.textContent=`⭐ ${confirmados.size} confirmado${confirmados.size===1?'':'s'}`;
+      confirmadosResumen.textContent=`⭐ ${totalConfirmados} confirmado${totalConfirmados===1?'':'s'} · 🚪 ${totalRetirados} retirado${totalRetirados===1?'':'s'}`;
       const contactosMarcados=contactos.filter(c=>c.telefonos.some(t=>enviados.has(claveEnvio(c,t)))).length;
       totalEnviados.textContent=admin?`· ✅ ${contactosMarcados} enviado${contactosMarcados===1?'':'s'}`:'';
       lista.replaceChildren();
       if(!visibles.length){
         const vacio=document.createElement('div'); vacio.className='vacio';
-        vacio.textContent=vistaActual==='confirmados'?'Todavía no hay integrantes confirmados con esos filtros.':vistaActual==='pendientes'?'Todos han confirmado o no hay resultados con esos filtros.':'No se encontraron integrantes con esos filtros.';
+        vacio.textContent=vistaActual==='confirmados'?'Todavía no hay integrantes confirmados con esos filtros.':vistaActual==='pendientes'?'Todos han confirmado, se retiraron o no hay resultados con esos filtros.':vistaActual==='retirados'?'Todavía no hay integrantes marcados como retirados.':'No se encontraron integrantes con esos filtros.';
         lista.appendChild(vacio); return;
       }
       const orden=['Director','Batallón','Batutera','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
@@ -417,8 +446,11 @@
         const contenedor=document.createElement('div');contenedor.className='grupo-contactos';
         miembros.forEach(c=>{
           const tarjeta=document.createElement('article'); tarjeta.className='contacto';
-          const estaConfirmado=confirmados.has(claveIntegrante(c));
+          const id=claveIntegrante(c);
+          const estaRetirado=retirados.has(id);
+          const estaConfirmado=confirmados.has(id)&&!estaRetirado;
           if(estaConfirmado) tarjeta.classList.add('confirmado');
+          if(estaRetirado) tarjeta.classList.add('retirado');
           if(admin&&c.telefonos.some(t=>enviados.has(claveEnvio(c,t)))) tarjeta.classList.add('enviado');
           const info=document.createElement('div');
           const nombre=document.createElement('div'); nombre.className='nombre'; nombre.textContent=c.nombre;
@@ -426,6 +458,7 @@
           if(admin&&c.nota){const nota=document.createElement('span');nota.className='etiqueta nota';nota.textContent=c.nota;datos.appendChild(nota)}
           info.appendChild(nombre);
           if(estaConfirmado){const insignia=document.createElement('div');insignia.className='confirmado-badge';insignia.textContent='✅ Confirmado en la banda 😄';info.appendChild(insignia)}
+          if(estaRetirado){const insignia=document.createElement('div');insignia.className='retirado-badge';insignia.textContent='🚪 Retirado de la banda';info.appendChild(insignia)}
           info.appendChild(datos);
           const telefonos=document.createElement('div'); telefonos.className='telefonos';
           if(!admin){
@@ -443,6 +476,7 @@
             const falta=document.createElement('span');falta.className='sin-telefono';falta.textContent='⚠️ Sin teléfono';telefonos.appendChild(falta);
           }
           if(admin){const confirmar=document.createElement('button');confirmar.type='button';confirmar.className=`confirmar${estaConfirmado?' activo':''}`;confirmar.textContent=estaConfirmado?'↩️ Quitar confirmación':'✅ Confirmar en la banda';confirmar.addEventListener('click',()=>cambiarConfirmacion(c));telefonos.appendChild(confirmar)}
+          if(admin){const retirar=document.createElement('button');retirar.type='button';retirar.className=`retirar${estaRetirado?' activo':''}`;retirar.textContent=estaRetirado?'↩️ Reintegrar a la lista':'🚪 Marcar como retirado';retirar.addEventListener('click',()=>cambiarRetiro(c));telefonos.appendChild(retirar)}
           tarjeta.append(info,telefonos);contenedor.appendChild(tarjeta);
         });
         grupo.append(titulo,contenedor);lista.appendChild(grupo);
@@ -459,9 +493,13 @@
     buscar.addEventListener('input',render); filtro.addEventListener('change',render);
 
     function generarTextoLista(){
-      const quiereConfirmados=vistaActual==='confirmados';
-      const miembros=contactos.filter(c=>confirmados.has(claveIntegrante(c))===quiereConfirmados);
-      const titulo=quiereConfirmados?'✅ *INTEGRANTES CONFIRMADOS EN LA BANDA* 😄':'⏳ *INTEGRANTES QUE AÚN NO HAN CONFIRMADO*';
+      const miembros=contactos.filter(c=>{
+        const id=claveIntegrante(c),estaRetirado=retirados.has(id),estaConfirmado=confirmados.has(id)&&!estaRetirado;
+        if(vistaActual==='confirmados') return estaConfirmado;
+        if(vistaActual==='retirados') return estaRetirado;
+        return !estaConfirmado&&!estaRetirado;
+      });
+      const titulo=vistaActual==='confirmados'?'✅ *INTEGRANTES CONFIRMADOS EN LA BANDA* 😄':vistaActual==='retirados'?'🚪 *INTEGRANTES RETIRADOS DE LA BANDA*':'⏳ *INTEGRANTES QUE AÚN NO HAN CONFIRMADO*';
       const orden=['Director','Batallón','Batutera','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
       const secciones=[...new Set(miembros.map(c=>c.seccion))].sort((a,b)=>{
         const ia=orden.indexOf(a),ib=orden.indexOf(b);
@@ -471,11 +509,11 @@
       let numero=1;
       secciones.forEach(seccion=>{
         lineas.push(`*${seccion.toUpperCase()}*`);
-        miembros.filter(c=>c.seccion===seccion).forEach(c=>lineas.push(`${numero++}. ${c.nombre}${quiereConfirmados?' ✅':''}`));
+        miembros.filter(c=>c.seccion===seccion).forEach(c=>lineas.push(`${numero++}. ${c.nombre}${vistaActual==='confirmados'?' ✅':vistaActual==='retirados'?' 🚪':''}`));
         lineas.push('');
       });
       lineas.push(`*Total: ${miembros.length} integrante${miembros.length===1?'':'s'}*`);
-      if(!quiereConfirmados) lineas.push('Por favor, confirmar si continuará participando en la banda. Gracias.');
+      if(vistaActual==='pendientes') lineas.push('Por favor, confirmar si continuará participando en la banda. Gracias.');
       return lineas.join('\n');
     }
 
@@ -500,17 +538,21 @@
       const todos=nuevaVista==='todos';
       const confirmadosActiva=nuevaVista==='confirmados';
       const pendientesActiva=nuevaVista==='pendientes';
+      const retiradosActiva=nuevaVista==='retirados';
       tabTodos.classList.toggle('activa',todos);
       tabConfirmados.classList.toggle('activa',confirmadosActiva);
       tabPendientes.classList.toggle('activa',pendientesActiva);
+      tabRetirados.classList.toggle('activa',retiradosActiva);
       tabTodos.setAttribute('aria-selected',String(todos));
       tabConfirmados.setAttribute('aria-selected',String(confirmadosActiva));
       tabPendientes.setAttribute('aria-selected',String(pendientesActiva));
+      tabRetirados.setAttribute('aria-selected',String(retiradosActiva));
       render();
     }
     tabTodos.addEventListener('click',()=>cambiarPestana('todos'));
     tabConfirmados.addEventListener('click',()=>cambiarPestana('confirmados'));
     tabPendientes.addEventListener('click',()=>cambiarPestana('pendientes'));
+    tabRetirados.addEventListener('click',()=>cambiarPestana('retirados'));
     actualizarModo();
   </script>
 </body>
