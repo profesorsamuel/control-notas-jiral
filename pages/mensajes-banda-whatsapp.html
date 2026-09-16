@@ -38,6 +38,9 @@
     .estado{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px}
     .guardado{font-size:.88rem;color:var(--verde2);font-weight:700;min-height:1.2em}
     .controles{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+    .pestanas{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:15px;padding:5px;background:#eaf2ef;border-radius:13px}
+    .pestana{background:transparent;color:var(--verde);padding:11px}
+    .pestana.activa{background:#fff;box-shadow:0 3px 12px #064e3b18;color:var(--verde);border:1px solid var(--borde)}
     .resumen{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 2px 9px;color:var(--gris);font-size:.92rem}
     .lista{display:block}
     .grupo{margin:0 0 22px}
@@ -119,6 +122,10 @@
     </section>
 
     <section class="panel">
+      <div class="pestanas" role="tablist" aria-label="Vista del listado">
+        <button id="tabTodos" class="pestana activa" type="button" role="tab" aria-selected="true">👥 Todos</button>
+        <button id="tabConfirmados" class="pestana" type="button" role="tab" aria-selected="false">✅ Confirmados 😄</button>
+      </div>
       <div class="controles">
         <div>
           <label for="buscar">Buscar integrante</label>
@@ -150,7 +157,7 @@
       {nombre:'Isabel Toribio',nota:'',seccion:'Batallón',telefonos:['67641002']},
       {nombre:'Kathlyn Victoria',nota:'',seccion:'Batallón',telefonos:['67641002']},
       {nombre:'Nathaly Díaz',nota:'',seccion:'Batallón',telefonos:['67737740']},
-      {nombre:'Rosa Martínez',nota:'Donación',seccion:'Batallón',telefonos:['63062053']},
+      {nombre:'Rosa Martínez',nota:'Donación',seccion:'Batallón',telefonos:['63062053','66401797']},
       {nombre:'Daneth Acevedo',nota:'',seccion:'Batutera',telefonos:['68106102']},
       {nombre:'Danna Guerra',nota:'',seccion:'Batutera',telefonos:['61828302']},
       {nombre:'Jesuanis Solís',nota:'',seccion:'Batutera',telefonos:['63128377']},
@@ -172,7 +179,7 @@
       {nombre:'Yanki Moreno',nota:'',seccion:'Caja',telefonos:['60211228']},
       {nombre:'Jeyco Cortés',nota:'',seccion:'Caja',telefonos:['69645322']},
       {nombre:'Keiyanis Moreno',nota:'Ropa',seccion:'Guaripola',telefonos:[]},
-      {nombre:'Daryanis Díaz',nota:'',seccion:'Guaripola',telefonos:['65157541']},
+      {nombre:'Daryanis Díaz',nota:'',seccion:'Guaripola',telefonos:['65157541','67923615']},
       {nombre:'Jennifer Meneses',nota:'',seccion:'Guaripola',telefonos:['62652920','67321514']},
       {nombre:'Johelys Jaén',nota:'',seccion:'Guaripola',telefonos:['67321514','62652920']},
       {nombre:'Kairianys Víquez',nota:'',seccion:'Guaripola',telefonos:['65511428']},
@@ -211,10 +218,10 @@
       {nombre:'Ehimar Macías',nota:'Devolver',seccion:'Tenor',telefonos:['62173638']},
       {nombre:'Isac Sánchez',nota:'',seccion:'Tenor',telefonos:['62136138']},
       {nombre:'José Celada',nota:'',seccion:'Tenor',telefonos:['67629470','69177413']},
-      {nombre:'Kenneth Ramos',nota:'',seccion:'Tenor',telefonos:['63062053']},
+      {nombre:'Kenneth Ramos',nota:'',seccion:'Tenor',telefonos:['63062053','66401797']},
       {nombre:'Luis Herrera',nota:'',seccion:'Tenor',telefonos:['67877891']},
-      {nombre:'Moisés Ortega',nota:'',seccion:'Tenor',telefonos:['63062053']},
-      {nombre:'Víctor Ramos',nota:'',seccion:'Tenor',telefonos:['63062053']},
+      {nombre:'Moisés Ortega',nota:'',seccion:'Tenor',telefonos:['63062053','66401797']},
+      {nombre:'Víctor Ramos',nota:'',seccion:'Tenor',telefonos:['63062053','66401797']},
       {nombre:'Integrante sin nombre',nota:'Nombre pendiente',seccion:'Sin asignar',telefonos:['68205675']},
       {nombre:'Rubiela Sánchez',nota:'',seccion:'Sin asignar',telefonos:['62922374']},
       {nombre:'Integrante sin nombre 2',nota:'Nombre pendiente',seccion:'Sin asignar',telefonos:['68305675']},
@@ -231,6 +238,8 @@
     const errorAcceso = document.querySelector('#errorAcceso');
     const buscar = document.querySelector('#buscar');
     const filtro = document.querySelector('#filtro');
+    const tabTodos = document.querySelector('#tabTodos');
+    const tabConfirmados = document.querySelector('#tabConfirmados');
     const lista = document.querySelector('#lista');
     const cantidad = document.querySelector('#cantidad');
     const confirmadosResumen = document.querySelector('#confirmadosResumen');
@@ -243,6 +252,7 @@
     const enviados = new Set(JSON.parse(localStorage.getItem('mensajesEnviadosBandaJiral') || '[]'));
     const confirmados = new Set(JSON.parse(localStorage.getItem('confirmadosBandaJiral') || '[]'));
     let aviso;
+    let vistaActual='todos';
 
     mensaje.value = localStorage.getItem('mensajeBandaJiral') || '';
 
@@ -354,7 +364,8 @@
       const seleccion=filtro.value;
       const visibles=contactos.filter(c=>{
         const contenido=textoPlano([c.nombre,c.seccion,...(admin?[c.nota,...c.telefonos]:[])].join(' '));
-        return (!q||contenido.includes(q))&&(!seleccion||c.seccion===seleccion);
+        const coincideVista=vistaActual==='todos'||confirmados.has(claveIntegrante(c));
+        return coincideVista&&(!q||contenido.includes(q))&&(!seleccion||c.seccion===seleccion);
       });
       cantidad.textContent=`${visibles.length} integrante${visibles.length===1?'':'s'}`;
       confirmadosResumen.textContent=`⭐ ${confirmados.size} confirmado${confirmados.size===1?'':'s'}`;
@@ -362,7 +373,7 @@
       totalEnviados.textContent=admin?`· ✅ ${contactosMarcados} enviado${contactosMarcados===1?'':'s'}`:'';
       lista.replaceChildren();
       if(!visibles.length){
-        const vacio=document.createElement('div'); vacio.className='vacio'; vacio.textContent='No se encontraron integrantes con esos filtros.'; lista.appendChild(vacio); return;
+        const vacio=document.createElement('div'); vacio.className='vacio'; vacio.textContent=vistaActual==='confirmados'?'Todavía no hay integrantes confirmados con esos filtros.':'No se encontraron integrantes con esos filtros.'; lista.appendChild(vacio); return;
       }
       const orden=['Director','Batallón','Batutera','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
       const secciones=[...new Set(visibles.map(c=>c.seccion))].sort((a,b)=>{
@@ -417,6 +428,17 @@
       if(!mensaje.value || confirm('¿Desea borrar el mensaje escrito?')){mensaje.value='';localStorage.removeItem('mensajeBandaJiral');guardado.textContent='Mensaje borrado';mensaje.focus()}
     });
     buscar.addEventListener('input',render); filtro.addEventListener('change',render);
+    function cambiarPestana(nuevaVista){
+      vistaActual=nuevaVista;
+      const todos=nuevaVista==='todos';
+      tabTodos.classList.toggle('activa',todos);
+      tabConfirmados.classList.toggle('activa',!todos);
+      tabTodos.setAttribute('aria-selected',String(todos));
+      tabConfirmados.setAttribute('aria-selected',String(!todos));
+      render();
+    }
+    tabTodos.addEventListener('click',()=>cambiarPestana('todos'));
+    tabConfirmados.addEventListener('click',()=>cambiarPestana('confirmados'));
     actualizarModo();
   </script>
 </body>
