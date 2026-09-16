@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Corrector de estudiantes — El Jiral</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{--verde:#1e7e34;--rojo:#c0392b;--azul:#1f4e78;--gris:#666;--bg:#f4f6f8;}
+  *{box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);margin:0;padding:0;color:#222;}
+  header{background:var(--azul);color:#fff;padding:16px 24px;}
+  header h1{margin:0;font-size:20px;}
+  header p{margin:4px 0 0;font-size:13px;opacity:.85;}
+  .wrap{max-width:1200px;margin:20px auto;padding:0 16px;}
+  .card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.1);padding:20px;margin-bottom:20px;}
+  label{font-weight:bold;font-size:13px;display:block;margin-bottom:4px;}
+  input[type=email],input[type=password],select{width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;font-size:14px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;}
+  .row > div{flex:1;min-width:200px;}
+  button{background:var(--verde);color:#fff;border:none;padding:10px 18px;border-radius:5px;font-size:14px;cursor:pointer;}
+  button:hover{opacity:.9;}
+  button.secundario{background:#6c757d;}
+  button.peligro{background:var(--rojo);}
+  button:disabled{background:#999;cursor:not-allowed;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px;}
+  th,td{border:1px solid #e2e2e2;padding:6px 8px;text-align:left;vertical-align:middle;}
+  th{background:#eef2f5;position:sticky;top:0;}
+  tr.diff{background:#fff6e5;}
+  tr.igual{color:#999;}
+  tr.sinmatch{background:#fdeaea;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;color:#fff;}
+  .badge.ok{background:var(--verde);}
+  .badge.warn{background:#e0a800;}
+  .badge.err{background:var(--rojo);}
+  #estado{font-size:13px;color:var(--gris);margin-left:10px;}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:10px;}
+  .small{font-size:12px;color:var(--gris);}
+  code{background:#eee;padding:1px 5px;border-radius:3px;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Corrector de nombres y cédulas — Esc. El Jiral</h1>
+  <p>Compara la lista oficial de los boletines contra la base de datos en línea (Supabase) y te deja corregir solo lo que tú apruebes.</p>
+</header>
+<div class="wrap">
+
+  <div class="card" id="cardLogin">
+    <h2 style="margin-top:0;font-size:16px;">1. Inicia sesión con tu cuenta de administrador</h2>
+    <p class="small">Este archivo se conecta directamente a la misma base de datos que usa <code>admin.html</code>, con las mismas reglas de permisos. Nada se envía a ningún otro lado: corre 100% en tu navegador.</p>
+    <div class="row">
+      <div><label>Correo</label><input type="email" id="inpEmail" placeholder="profesorsamuelortega@gmail.com"></div>
+      <div><label>Contraseña</label><input type="password" id="inpPass"></div>
+      <div style="flex:0 0 auto;"><button id="btnLogin">Iniciar sesión</button></div>
+    </div>
+    <p id="loginMsg" class="small"></p>
+  </div>
+
+  <div class="card hidden" id="cardTabla">
+    <h2 style="margin-top:0;font-size:16px;">2. Revisa las diferencias</h2>
+    <div class="row">
+      <div>
+        <label>Filtrar salón</label>
+        <select id="selSalon">
+          <option value="">Todos los salones</option>
+          <option value="8A">8°A</option>
+          <option value="8B">8°B</option>
+          <option value="9A">9°A</option>
+          <option value="9B">9°B</option>
+          <option value="9C">9°C</option>
+        </select>
+      </div>
+      <div>
+        <label>Mostrar</label>
+        <select id="selFiltro">
+          <option value="diff">Solo diferencias / sin coincidencia</option>
+          <option value="todos">Todos los estudiantes</option>
+        </select>
+      </div>
+      <div style="flex:0 0 auto;"><button class="secundario" id="btnRecargar">Recargar de la base de datos</button></div>
+    </div>
+    <div class="toolbar">
+      <div class="small" id="resumen"></div>
+      <div>
+        <button id="btnAplicarSel">Aplicar corregidos marcados</button>
+        <span id="estado"></span>
+      </div>
+    </div>
+    <table id="tabla">
+      <thead>
+        <tr>
+          <th style="width:26px;"><input type="checkbox" id="chkAll"></th>
+          <th>Salón</th>
+          <th>Nombre en el sistema</th>
+          <th>Cédula en el sistema</th>
+          <th>Cédula correcta (boletín)</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <p class="small" style="margin-top:14px;">Estudiantes del boletín que <b>no aparecen</b> en la base de datos (revisa si hay que agregarlos desde "Gestionar estudiantes"):</p>
+    <table id="tablaFaltantes">
+      <thead><tr><th>Salón</th><th>Nombre completo (boletín)</th><th>Cédula</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2/+esm";
+
+const supabase = createClient(
+  "https://luewrpzgetqslxqmdcxv.supabase.co",
+  "sb_publishable_zJc68aiTxJs7HBgaqeHxrQ_JDcm91xG"
+);
+
+// Lista oficial extraída de los boletines de calificaciones (II Trimestre, 16-09-2026)
+const ROSTER = [{"salon": "8A", "nombreCompleto": "ABREGO QUINTERO, YERLYN LISETH", "nombreCorto": "ABREGO, YERLYN", "cedula": "3-771-1082"}, {"salon": "8A", "nombreCompleto": "ALZAMORA GUERRA, PETER LEONEL", "nombreCorto": "ALZAMORA, PETER", "cedula": "3-769-244"}, {"salon": "8A", "nombreCompleto": "BAKER MARTINEZ, ANTONIO EBRAHIN", "nombreCorto": "BAKER, ANTONIO", "cedula": "3-772-2397"}, {"salon": "8A", "nombreCompleto": "BEKER QUINTERO, PABLO ESTEBAN", "nombreCorto": "BEKER, PABLO", "cedula": "12-740-2033"}, {"salon": "8A", "nombreCompleto": "BELL AIZPRUA, CILIANIS ZULAY", "nombreCorto": "BELL, CILIANIS", "cedula": "3-769-768"}, {"salon": "8A", "nombreCompleto": "BENITEZ TORIBIO, KEYMARIS KELINETH", "nombreCorto": "BENITEZ, KEYMARIS", "cedula": "3-772-451"}, {"salon": "8A", "nombreCompleto": "BOSQUEZ MORENO, KEVIN ARIEL", "nombreCorto": "BOSQUEZ, KEVIN", "cedula": "3-772-810"}, {"salon": "8A", "nombreCompleto": "CAMARENA PEREZ, DAYANIS ELIANIS", "nombreCorto": "CAMARENA, DAYANIS", "cedula": "3-771-2310"}, {"salon": "8A", "nombreCompleto": "CORTES HOOKER, JEYCOP ANTONIO", "nombreCorto": "CORTES, JEYCOP", "cedula": "3-773-253"}, {"salon": "8A", "nombreCompleto": "DIAZ, NATHALY YEUDIEL", "nombreCorto": "DIAZ, NATHALY", "cedula": "3-772-1147"}, {"salon": "8A", "nombreCompleto": "FLORES VERGARA, HELLEN EVIN", "nombreCorto": "FLORES, HELLEN", "cedula": "8-1134-1566"}, {"salon": "8A", "nombreCompleto": "GONZALEZ FERNANDEZ, JULIANIZ GERTRUDIZ", "nombreCorto": "GONZALEZ, JULIANIZ", "cedula": "3-771-1708"}, {"salon": "8A", "nombreCompleto": "GONZALEZ GUERRA, YAMILKA YANIZ", "nombreCorto": "GONZALEZ, YAMILKA", "cedula": "3-773-1656"}, {"salon": "8A", "nombreCompleto": "JORDAN ALVARADO, MIGUEL ANGEL", "nombreCorto": "JORDAN, MIGUEL", "cedula": "8-1126-1522"}, {"salon": "8A", "nombreCompleto": "JORDAN BEITIA, CESAR ALEXANDER", "nombreCorto": "JORDAN, CESAR", "cedula": "3-772-2016"}, {"salon": "8A", "nombreCompleto": "LUNA ORTEGA, MANUEL DE JESUS", "nombreCorto": "LUNA, MANUEL", "cedula": "3-772-767"}, {"salon": "8A", "nombreCompleto": "MARIN GUEVARA, RAFAEL EDUARDO", "nombreCorto": "MARIN, RAFAEL", "cedula": "4-866-350"}, {"salon": "8A", "nombreCompleto": "MORENO APARICIO, JORGE LUIS", "nombreCorto": "MORENO, JORGE", "cedula": "3-773-1708"}, {"salon": "8A", "nombreCompleto": "PERALTA SANJUR, JOSAFAT YOEL", "nombreCorto": "PERALTA, JOSAFAT", "cedula": "3-770-555"}, {"salon": "8A", "nombreCompleto": "RODRIGUEZ MENDOZA, EVELIN ODALIS", "nombreCorto": "RODRIGUEZ, EVELIN", "cedula": "3-772-452"}, {"salon": "8A", "nombreCompleto": "ROSAS FERNANDEZ, YARIBEL ROSALEE", "nombreCorto": "ROSAS, YARIBEL", "cedula": "3-772-1864"}, {"salon": "8A", "nombreCompleto": "SANCHEZ GARZON, RICHARD DANIEL", "nombreCorto": "SANCHEZ, RICHARD", "cedula": "3-773-695"}, {"salon": "8A", "nombreCompleto": "SANTAMARIA VERGARA, GAHEL ISAAC", "nombreCorto": "SANTAMARIA, GAHEL", "cedula": "8-1136-2292"}, {"salon": "8A", "nombreCompleto": "SIMION RACERO, HENRY ARIEL", "nombreCorto": "SIMION, HENRY", "cedula": "3-772-173"}, {"salon": "8A", "nombreCompleto": "SORIANO JORDAN, MICKEILYS GINA", "nombreCorto": "SORIANO, MICKEILYS", "cedula": "8-1129-384"}, {"salon": "8A", "nombreCompleto": "TORIBIO PEREZ, KEYSI MABEL", "nombreCorto": "TORIBIO, KEYSI", "cedula": "3-773-384"}, {"salon": "8B", "nombreCompleto": "ALZAMORA GUERRA, JUSTIN LEONEL", "nombreCorto": "ALZAMORA, JUSTIN", "cedula": "3-767-1055"}, {"salon": "8B", "nombreCompleto": "BEST HERNANDEZ, LIANELYS MAYRETH", "nombreCorto": "BEST, LIANELYS", "cedula": "3-772-1278"}, {"salon": "8B", "nombreCompleto": "BONILLA QUINTERO, ROLANDO DAVID", "nombreCorto": "BONILLA, ROLANDO", "cedula": "3-773-2262"}, {"salon": "8B", "nombreCompleto": "BOYD, EVANGELING KATRINA", "nombreCorto": "BOYD, EVANGELING", "cedula": "3-773-872"}, {"salon": "8B", "nombreCompleto": "CABALLERO SANCHEZ, LUIS ANGEL", "nombreCorto": "CABALLERO, LUIS", "cedula": "3-773-1615"}, {"salon": "8B", "nombreCompleto": "CEDENO MOREIRA, LUIS ANGEL", "nombreCorto": "CEDENO, LUIS", "cedula": "8-1139-1693"}, {"salon": "8B", "nombreCompleto": "CELADA ORTEGA, JOSE ANTONIO", "nombreCorto": "CELADA, JOSE", "cedula": "8-1072-989"}, {"salon": "8B", "nombreCompleto": "CHANIS FIGUEROA, JAASIEL ESTHER", "nombreCorto": "CHANIS, JAASIEL", "cedula": "3-773-1006"}, {"salon": "8B", "nombreCompleto": "ESQUINA SANCHEZ, ALAN ANEL", "nombreCorto": "ESQUINA, ALAN", "cedula": "8-1133-1539"}, {"salon": "8B", "nombreCompleto": "GONZALEZ CAMACHO, ELIANIS ISABEL", "nombreCorto": "GONZALEZ, ELIANIS", "cedula": "3-771-2312"}, {"salon": "8B", "nombreCompleto": "GONZALEZ QUIROZ, HANNA WIDAD", "nombreCorto": "GONZALEZ, HANNA", "cedula": "3-772-26"}, {"salon": "8B", "nombreCompleto": "HERNANDEZ GONZALEZ, DANIEL YAIR", "nombreCorto": "HERNANDEZ, DANIEL", "cedula": "8-1131-1627"}, {"salon": "8B", "nombreCompleto": "JHENIRETH JIMENEZ, KENDRA", "nombreCorto": "JHENIRETH, KENDRA", "cedula": "3-774-673"}, {"salon": "8B", "nombreCompleto": "LOPEZ PENALBA, ITZEL YANAIKA", "nombreCorto": "LOPEZ, ITZEL", "cedula": "3-773-432"}, {"salon": "8B", "nombreCompleto": "LUCERO VELEZ, ORLANDO ABIMAEL", "nombreCorto": "LUCERO, ORLANDO", "cedula": "8-1131-1267"}, {"salon": "8B", "nombreCompleto": "MARTINEZ JORDAN, JOSE ISAAC", "nombreCorto": "MARTINEZ, JOSE", "cedula": "8-1134-2103"}, {"salon": "8B", "nombreCompleto": "MARTINEZ PACHECO, ROSA ELENA", "nombreCorto": "MARTINEZ, ROSA", "cedula": "3-769-1239"}, {"salon": "8B", "nombreCompleto": "MARTINEZ QUINONES, YAYKELIS ITZEL", "nombreCorto": "MARTINEZ, YAYKELIS", "cedula": "3-771-1872"}, {"salon": "8B", "nombreCompleto": "MERA ROBLES, JOSHUA RICARDO", "nombreCorto": "MERA, JOSHUA", "cedula": "3-769-2431"}, {"salon": "8B", "nombreCompleto": "MORELO AMAYA, EDWARD", "nombreCorto": "MORELO, EDWARD", "cedula": "3-772-1927"}, {"salon": "8B", "nombreCompleto": "NAVARRO CASTILLO, VIVIANA NICOLLE", "nombreCorto": "NAVARRO, VIVIANA", "cedula": "8-1135-2428"}, {"salon": "8B", "nombreCompleto": "SANCHEZ MORAN, JUAN DAVID", "nombreCorto": "SANCHEZ, JUAN", "cedula": "3-773-325"}, {"salon": "8B", "nombreCompleto": "SANGUILLEN GREEN, EFRAIN MANUEL", "nombreCorto": "SANGUILLEN, EFRAIN", "cedula": "3-771-1851"}, {"salon": "8B", "nombreCompleto": "SANTOS, ANDRES ABDIEL", "nombreCorto": "SANTOS, ANDRES", "cedula": "8-1138-519"}, {"salon": "8B", "nombreCompleto": "SOSA, ISABEL EILEN", "nombreCorto": "SOSA, ISABEL", "cedula": "3-774-99"}, {"salon": "8B", "nombreCompleto": "VASQUEZ MERA, JOSIMAR ANTONIO", "nombreCorto": "VASQUEZ, JOSIMAR", "cedula": "8-1128-173"}, {"salon": "8B", "nombreCompleto": "VEGA, EULICES ANTONIO", "nombreCorto": "VEGA, EULICES", "cedula": "3-767-1934"}, {"salon": "9A", "nombreCompleto": "ARAUZ RIVERA, NAOMI GALIT", "nombreCorto": "ARAUZ, NAOMI", "cedula": "3-770-1641"}, {"salon": "9A", "nombreCompleto": "AYARZA MORELO, MARIELIS YINETH", "nombreCorto": "AYARZA, MARIELIS", "cedula": "3-770-1214"}, {"salon": "9A", "nombreCompleto": "BERRIO ESPINOSA, RAUL ADONIS", "nombreCorto": "BERRIO, RAUL", "cedula": "3-770-1114"}, {"salon": "9A", "nombreCompleto": "CEDENO CASTILLO, DIBA YANELIS", "nombreCorto": "CEDENO, DIBA", "cedula": "4-863-1398"}, {"salon": "9A", "nombreCompleto": "CHEN ZHONG, ANGELA BERLINDA", "nombreCorto": "CHEN, ANGELA", "cedula": "6-731-1921"}, {"salon": "9A", "nombreCompleto": "GONEL LORENZO, RIGOBERTO ELIEL", "nombreCorto": "GONEL, RIGOBERTO", "cedula": "3-770-535"}, {"salon": "9A", "nombreCompleto": "GONZALEZ AROSEMENA, ELITH SAMIR", "nombreCorto": "GONZALEZ, ELITH", "cedula": "3-767-366"}, {"salon": "9A", "nombreCompleto": "GONZALEZ PALACIO, DIONEL ADAN", "nombreCorto": "GONZALEZ, DIONEL", "cedula": "12-737-116"}, {"salon": "9A", "nombreCompleto": "GONZALEZ PEREZ, GISSELLE SURIANY", "nombreCorto": "GONZALEZ, GISSELLE", "cedula": "8-1125-1626"}, {"salon": "9A", "nombreCompleto": "GUERRA RODRIGUEZ, KEYLI NICOLE", "nombreCorto": "GUERRA, KEYLI", "cedula": "8-1120-757"}, {"salon": "9A", "nombreCompleto": "JAEN, GLORIA NADESH", "nombreCorto": "JAEN, GLORIA", "cedula": "8-1128-1667"}, {"salon": "9A", "nombreCompleto": "LEZCANO MARTINEZ, ABIRAN DAVID", "nombreCorto": "LEZCANO, ABIRAN", "cedula": "3-771-823"}, {"salon": "9A", "nombreCompleto": "LUZCANDO MARTINEZ, YIMELIS NIDIUSKA", "nombreCorto": "LUZCANDO, YIMELIS", "cedula": "3-771-2129"}, {"salon": "9A", "nombreCompleto": "MAGALLON CARRERA, AARON ZAID", "nombreCorto": "MAGALLON, AARON", "cedula": "3-767-1435"}, {"salon": "9A", "nombreCompleto": "MARTINEZ SANTOS, ERICK ANTONIO", "nombreCorto": "MARTINEZ, ERICK", "cedula": "3-769-2192"}, {"salon": "9A", "nombreCompleto": "MC FARLANE, SAMUEL ABDIEL", "nombreCorto": "MC, SAMUEL", "cedula": "8-1122-1640"}, {"salon": "9A", "nombreCompleto": "MUNOZ RODRIGUEZ, ARIANIS MICHELLE", "nombreCorto": "MUNOZ, ARIANIS", "cedula": "3-769-1122"}, {"salon": "9A", "nombreCompleto": "NUNEZ MOREIRA, BRIANIS ISABEL", "nombreCorto": "NUNEZ, BRIANIS", "cedula": "3-769-957"}, {"salon": "9A", "nombreCompleto": "QUIROZ TUNON, ANYELIS YOSIBEL", "nombreCorto": "QUIROZ, ANYELIS", "cedula": "3-771-630"}, {"salon": "9A", "nombreCompleto": "TORRES VILLARRETA, TATIANA ICEL", "nombreCorto": "TORRES, TATIANA", "cedula": "3-770-2437"}, {"salon": "9A", "nombreCompleto": "VASQUEZ PINILLA, DAVID ELOY", "nombreCorto": "VASQUEZ, DAVID", "cedula": "3-771-1533"}, {"salon": "9A", "nombreCompleto": "VERGARA SOTO, JOSE ADAN", "nombreCorto": "VERGARA, JOSE", "cedula": "3-769-569"}, {"salon": "9B", "nombreCompleto": "ATHERTON SANTOS, EDUARDO ABDIEL", "nombreCorto": "ATHERTON, EDUARDO", "cedula": "8-1119-1662"}, {"salon": "9B", "nombreCompleto": "CONCEPCION VEGAS, SAID ALESSANDRO", "nombreCorto": "CONCEPCION, SAID", "cedula": "8-1120-493"}, {"salon": "9B", "nombreCompleto": "CRUZ, WINTHON DIAZ", "nombreCorto": "CRUZ, WINTHON", "cedula": "RD6364732"}, {"salon": "9B", "nombreCompleto": "CRUZ GONZALEZ, MOISES JAVIER", "nombreCorto": "CRUZ, MOISES", "cedula": "8-1106-1355"}, {"salon": "9B", "nombreCompleto": "CUBILLA QUINTERO, MARCOS JOSE", "nombreCorto": "CUBILLA, MARCOS", "cedula": "3-771-1088"}, {"salon": "9B", "nombreCompleto": "CUEVAS MANUEL, EMILY CRISTAL", "nombreCorto": "CUEVAS, EMILY", "cedula": "3-770-1869"}, {"salon": "9B", "nombreCompleto": "GOMEZ PINEDA, JAMED ANGEL", "nombreCorto": "GOMEZ, JAMED", "cedula": "3-770-1577"}, {"salon": "9B", "nombreCompleto": "GONEL CASTRO, RICARDO ABISAI", "nombreCorto": "GONEL, RICARDO", "cedula": "3-769-1292"}, {"salon": "9B", "nombreCompleto": "GONZALEZ ALVAREZ, ALLISON MICHELLE", "nombreCorto": "GONZALEZ, ALLISON", "cedula": "8-1113-1936"}, {"salon": "9B", "nombreCompleto": "GUERRA, JASER ALDAHIR", "nombreCorto": "GUERRA, JASER", "cedula": "8-1127-2205"}, {"salon": "9B", "nombreCompleto": "GUEVARA HERNANDEZ, DAVID ALEJANDRO", "nombreCorto": "GUEVARA, DAVID", "cedula": "3-769-988"}, {"salon": "9B", "nombreCompleto": "GUTIERREZ SANTAMARIA, ELIANIS MILEYBIS", "nombreCorto": "GUTIERREZ, ELIANIS", "cedula": "3-770-1293"}, {"salon": "9B", "nombreCompleto": "JAEN RODRIGUEZ, JOHELYS KIRIANIS", "nombreCorto": "JAEN, JOHELYS", "cedula": "3-770-2181"}, {"salon": "9B", "nombreCompleto": "LARA QUINTERO, KAROL MICHELLE", "nombreCorto": "LARA, KAROL", "cedula": "3-768-1469"}, {"salon": "9B", "nombreCompleto": "LOBO VERGARA, ARIANYS YOIDEL", "nombreCorto": "LOBO, ARIANYS", "cedula": "3-771-2144"}, {"salon": "9B", "nombreCompleto": "LUJAN RODRIGUEZ, ALISSON JOELYS", "nombreCorto": "LUJAN, ALISSON", "cedula": "3-771-1224"}, {"salon": "9B", "nombreCompleto": "LOPEZ MURILLO, MARIA FERNANDA", "nombreCorto": "LOPEZ, MARIA", "cedula": "3-770-215"}, {"salon": "9B", "nombreCompleto": "MONTENEGRO CORRALES, ARJAN NAZARETH", "nombreCorto": "MONTENEGRO, ARJAN", "cedula": "8-1089-1593"}, {"salon": "9B", "nombreCompleto": "MYRIE SANCHEZ, JOHAN ELIAS", "nombreCorto": "MYRIE, JOHAN", "cedula": "3-770-1902"}, {"salon": "9B", "nombreCompleto": "PEREZ ORTEGA, PAOLA ALEXANDRA", "nombreCorto": "PEREZ, PAOLA", "cedula": "3-767-1077"}, {"salon": "9B", "nombreCompleto": "QUIEL LARA, YOHANIS DALIAN", "nombreCorto": "QUIEL, YOHANIS", "cedula": "3-766-1000"}, {"salon": "9B", "nombreCompleto": "RODRIGUEZ ORTEGA, EDUARDO AMETH", "nombreCorto": "RODRIGUEZ, EDUARDO", "cedula": "3-769-1504"}, {"salon": "9B", "nombreCompleto": "RODRIGUEZ VELEZ, ARHIANYS AISNEILY", "nombreCorto": "RODRIGUEZ, ARHIANYS", "cedula": "8-1114-748"}, {"salon": "9B", "nombreCompleto": "VALDEZ GUERREL, YOHANA YASURY", "nombreCorto": "VALDEZ, YOHANA", "cedula": "3-770-487"}, {"salon": "9B", "nombreCompleto": "VARGAS PALACIOS, ROMINA ITZEL", "nombreCorto": "VARGAS, ROMINA", "cedula": "8-1113-157"}, {"salon": "9B", "nombreCompleto": "VERGARA SANCHEZ, ODALIS DEL CARMEN", "nombreCorto": "VERGARA, ODALIS", "cedula": "3-769-2194"}, {"salon": "9C", "nombreCompleto": "ADAMS PACHECO, ALBERTO AUGUSTO", "nombreCorto": "ADAMS, ALBERTO", "cedula": "3-764-1462"}, {"salon": "9C", "nombreCompleto": "DE LEON DE ALBA, EMMANUEL AMETH", "nombreCorto": "DE, EMMANUEL", "cedula": "3-768-628"}, {"salon": "9C", "nombreCompleto": "FELIPE ABREGO, OLEIGH MASIEL", "nombreCorto": "FELIPE, OLEIGH", "cedula": "8-1118-1743"}, {"salon": "9C", "nombreCompleto": "GONZALEZ GONZALEZ, ALLAN MOISES", "nombreCorto": "GONZALEZ, ALLAN", "cedula": "3-765-1039"}, {"salon": "9C", "nombreCompleto": "GONZALEZ QUIROZ, JOSEPH ADDUL", "nombreCorto": "GONZALEZ, JOSEPH", "cedula": "3-769-29"}, {"salon": "9C", "nombreCompleto": "GUTIERREZ RIOS, JEAN CARLOS", "nombreCorto": "GUTIERREZ, JEAN", "cedula": "3-771-1377"}, {"salon": "9C", "nombreCompleto": "HERNANDEZ GUEVARA, XAVIER ALEXANDER", "nombreCorto": "HERNANDEZ, XAVIER", "cedula": "3-771-2102"}, {"salon": "9C", "nombreCompleto": "HERRERA PINTO, ISAAC ABRAHAM", "nombreCorto": "HERRERA, ISAAC", "cedula": "3-770-1617"}, {"salon": "9C", "nombreCompleto": "JIMENEZ, ANJALHI JHERAY", "nombreCorto": "JIMENEZ, ANJALHI", "cedula": "3-773-26"}, {"salon": "9C", "nombreCompleto": "LLERENA DOMINGUEZ, YASIR JOSAFAT", "nombreCorto": "LLERENA, YASIR", "cedula": "8-1126-244"}, {"salon": "9C", "nombreCompleto": "MENDOZA THOMAS, YAMAL GAEL", "nombreCorto": "MENDOZA, YAMAL", "cedula": "3-770-948"}, {"salon": "9C", "nombreCompleto": "MUNOZ ESPINOZA, JOHANY MASSIEL", "nombreCorto": "MUNOZ, JOHANY", "cedula": "3-768-1776"}, {"salon": "9C", "nombreCompleto": "MUNOZ ORTEGA, MARIETH AIMETH", "nombreCorto": "MUNOZ, MARIETH", "cedula": "3-770-1438"}, {"salon": "9C", "nombreCompleto": "ORTEGA MUNOZ, AYMAR ANETH", "nombreCorto": "ORTEGA, AYMAR", "cedula": "3-771-1198"}, {"salon": "9C", "nombreCompleto": "PAZ DE LEON, ISAAC RAUL", "nombreCorto": "PAZ, ISAAC", "cedula": "8-1123-489"}, {"salon": "9C", "nombreCompleto": "PENUELA RODRIGUEZ, CRISTIAN RAFAEL", "nombreCorto": "PENUELA, CRISTIAN", "cedula": "3-767-913"}, {"salon": "9C", "nombreCompleto": "PIMENTEL TORIBIO, ALEXANDER ELIAS", "nombreCorto": "PIMENTEL, ALEXANDER", "cedula": "3-767-2369"}, {"salon": "9C", "nombreCompleto": "PITALUA AGUIRRE, AIMARY ABIGAIL", "nombreCorto": "PITALUA, AIMARY", "cedula": "3-766-890"}, {"salon": "9C", "nombreCompleto": "QUIROZ PEREZ, DIANA DEL CARMEN", "nombreCorto": "QUIROZ, DIANA", "cedula": "3-770-1663"}, {"salon": "9C", "nombreCompleto": "RODRIGUEZ, JAMES FABIAN", "nombreCorto": "RODRIGUEZ, JAMES", "cedula": "3-772-214"}, {"salon": "9C", "nombreCompleto": "RODRIGUEZ TORIBIO, ANAYANSI YURIETH", "nombreCorto": "RODRIGUEZ, ANAYANSI", "cedula": "3-770-1522"}, {"salon": "9C", "nombreCompleto": "SIMION RACERO, HARRY ABDIEL", "nombreCorto": "SIMION, HARRY", "cedula": "3-768-444"}, {"salon": "9C", "nombreCompleto": "TORRES VELASQUEZ, KEVELIN IBETH", "nombreCorto": "TORRES, KEVELIN", "cedula": "3-769-1985"}, {"salon": "9C", "nombreCompleto": "VASQUEZ MUNOZ, TOMAS DAVID", "nombreCorto": "VASQUEZ, TOMAS", "cedula": "3-767-856"}, {"salon": "9C", "nombreCompleto": "WILSON SALAZAR, ARIELIS KATIARI", "nombreCorto": "WILSON, ARIELIS", "cedula": "3-769-1691"}, {"salon": "9C", "nombreCompleto": "ZAMBRANO CASTILLO, BRITHNEY YESIBETH", "nombreCorto": "ZAMBRANO, BRITHNEY", "cedula": "3-771-372"}]
+;
+
+function normaliza(s){
+  return (s||"")
+    .toString()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .toUpperCase()
+    .replace(/\s+/g," ")
+    .trim();
+}
+function normalizaCedula(s){
+  return (s||"").toString().replace(/\s+/g,"").toUpperCase();
+}
+
+let filas = []; // {live, roster, estado}
+
+const $ = (sel) => document.querySelector(sel);
+const cardLogin = $("#cardLogin");
+const cardTabla = $("#cardTabla");
+const loginMsg = $("#loginMsg");
+const estadoEl = $("#estado");
+const resumenEl = $("#resumen");
+
+$("#btnLogin").addEventListener("click", async () => {
+  const email = $("#inpEmail").value.trim();
+  const password = $("#inpPass").value;
+  if (!email || !password) { loginMsg.textContent = "Escribe tu correo y contraseña."; return; }
+  loginMsg.textContent = "Entrando...";
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    loginMsg.textContent = "❌ " + error.message;
+    return;
+  }
+  loginMsg.textContent = "";
+  cardLogin.classList.add("hidden");
+  cardTabla.classList.remove("hidden");
+  await cargar();
+});
+
+$("#btnRecargar").addEventListener("click", cargar);
+$("#selSalon").addEventListener("change", pintar);
+$("#selFiltro").addEventListener("change", pintar);
+$("#chkAll").addEventListener("change", (e) => {
+  document.querySelectorAll(".chkFila:not([disabled])").forEach(c => c.checked = e.target.checked);
+});
+
+async function cargar(){
+  estadoEl.textContent = "Cargando estudiantes...";
+  const { data, error } = await supabase
+    .from("estudiantes")
+    .select("id, nombre, cedula, salon")
+    .eq("es_prueba", false)
+    .order("salon").order("nombre");
+
+  if (error) {
+    estadoEl.textContent = "❌ No se pudo cargar: " + error.message;
+    return;
+  }
+
+  const usados = new Set();
+  filas = data.map(live => {
+    const candidatos = ROSTER.filter(r => normaliza(r.salon) === normaliza(live.salon));
+    let match = candidatos.find(r =>
+      normaliza(r.nombreCorto) === normaliza(live.nombre) && !usados.has(r.cedula + r.salon)
+    );
+    if (!match) {
+      match = candidatos.find(r => normalizaCedula(r.cedula) === normalizaCedula(live.cedula) && !usados.has(r.cedula + r.salon));
+    }
+    if (match) usados.add(match.cedula + match.salon);
+
+    let estado = "sinmatch";
+    if (match) {
+      const cedulaIgual = normalizaCedula(match.cedula) === normalizaCedula(live.cedula);
+      estado = cedulaIgual ? "igual" : "diff";
+    }
+    return { live, roster: match, estado };
+  });
+
+  const faltantes = ROSTER.filter(r => !usados.has(r.cedula + r.salon));
+  pintarFaltantes(faltantes);
+  pintar();
+  estadoEl.textContent = "";
+}
+
+function pintarFaltantes(faltantes){
+  const tbody = document.querySelector("#tablaFaltantes tbody");
+  tbody.innerHTML = "";
+  faltantes.forEach(f => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${f.salon}</td><td>${f.nombreCompleto}</td><td>${f.cedula}</td>`;
+    tbody.appendChild(tr);
+  });
+  if (faltantes.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:#999;">Ninguno — todos los del boletín ya están en el sistema.</td></tr>`;
+  }
+}
+
+function pintar(){
+  const salonSel = $("#selSalon").value;
+  const soloDiff = $("#selFiltro").value === "diff";
+  const tbody = document.querySelector("#tabla tbody");
+  tbody.innerHTML = "";
+
+  let vista = filas.filter(f => !salonSel || normaliza(f.live.salon) === normaliza(salonSel));
+  if (soloDiff) vista = vista.filter(f => f.estado !== "igual");
+
+  let diffs = 0, sinmatch = 0, iguales = 0;
+  filas.forEach(f => { if (f.estado === "diff") diffs++; else if (f.estado === "sinmatch") sinmatch++; else iguales++; });
+  resumenEl.textContent = `${filas.length} estudiantes en el sistema · ${diffs} con cédula distinta al boletín · ${sinmatch} sin coincidencia clara · ${iguales} ya correctos.`;
+
+  vista.forEach(f => {
+    const tr = document.createElement("tr");
+    tr.className = f.estado;
+    const cedulaCorrecta = f.roster ? f.roster.cedula : "—";
+    const puedeCorregir = f.estado === "diff";
+    const badge = f.estado === "igual" ? `<span class="badge ok">Igual</span>`
+                : f.estado === "diff" ? `<span class="badge warn">Cédula distinta</span>`
+                : `<span class="badge err">Sin coincidencia</span>`;
+    tr.innerHTML = `
+      <td><input type="checkbox" class="chkFila" data-id="${f.live.id}" ${puedeCorregir ? "" : "disabled"}></td>
+      <td>${f.live.salon}</td>
+      <td>${f.live.nombre ?? ""}</td>
+      <td>${f.live.cedula ?? "<i>vacía</i>"}</td>
+      <td>${cedulaCorrecta}</td>
+      <td>${badge}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+$("#btnAplicarSel").addEventListener("click", async () => {
+  const marcados = Array.from(document.querySelectorAll(".chkFila:checked"));
+  if (marcados.length === 0) { estadoEl.textContent = "No marcaste ninguna fila."; return; }
+  if (!confirm(`Vas a corregir la cédula de ${marcados.length} estudiante(s). ¿Continuar?`)) return;
+
+  estadoEl.textContent = "Guardando...";
+  let ok = 0, fallo = 0;
+  for (const chk of marcados) {
+    const id = chk.dataset.id;
+    const fila = filas.find(f => String(f.live.id) === String(id));
+    if (!fila || !fila.roster) { fallo++; continue; }
+    const { error } = await supabase.from("estudiantes").update({ cedula: fila.roster.cedula }).eq("id", id);
+    if (error) { fallo++; console.error(error); } else { ok++; }
+  }
+  estadoEl.textContent = `✅ ${ok} corregidos${fallo ? ", ❌ " + fallo + " fallaron (revisa la consola)" : ""}.`;
+  await cargar();
+});
+</script>
+</body>
+</html>
