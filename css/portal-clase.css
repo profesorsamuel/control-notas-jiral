@@ -319,14 +319,10 @@ body {
 
 /* ---------- Tarea especial destacada (ej. álbum 9no grado) ---------- */
 .tarea-especial-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  display: block;
   text-decoration: none;
-  color: #fff;
-  background: linear-gradient(120deg, var(--pink), var(--coral) 45%, var(--sun-dark));
   border-radius: var(--radius);
-  padding: 20px 22px;
+  overflow: hidden;
   margin-bottom: 40px;
   box-shadow: 0 14px 28px -14px color-mix(in srgb, var(--coral) 65%, transparent);
   transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s ease;
@@ -334,6 +330,11 @@ body {
 .tarea-especial-card:hover {
   transform: translateY(-4px) scale(1.01);
   box-shadow: 0 18px 34px -14px color-mix(in srgb, var(--coral) 75%, transparent);
+}
+.tarea-especial-imagen {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 .tarea-especial-icono {
   font-size: 30px;
