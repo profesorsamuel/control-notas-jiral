@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#075e54">
+  <title>Mensajes de WhatsApp · Consejería 9°C</title>
+  <style>
+    :root{--verde:#075e54;--verde2:#128c7e;--wa:#25d366;--fondo:#eef5f2;--texto:#17352f;--gris:#64748b;--borde:#d9e5e1;--rojo:#b42318}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--fondo);color:var(--texto)}
+    [hidden]{display:none!important}
+    .acceso{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#052e26dd;backdrop-filter:blur(5px)}
+    .acceso-card{position:relative;width:min(100%,420px);background:#fff;border-radius:22px;padding:26px;box-shadow:0 24px 60px #002e2480;text-align:center}
+    .cerrar-acceso{position:absolute;right:12px;top:12px;background:#eef4f2;color:var(--verde);font-size:1.1rem;padding:7px 10px}
+    .acceso-icono{font-size:3.4rem;line-height:1;margin-bottom:10px}
+    .acceso h1{font-size:1.55rem;margin:0 0 6px;color:var(--verde)}
+    .acceso p{color:var(--gris);margin:0 0 20px}
+    .campo-acceso{text-align:left;margin-top:14px}
+    .clave-wrap{display:grid;grid-template-columns:1fr auto;gap:7px}
+    .ver-clave{background:#e9f4f0;color:var(--verde);min-width:50px;padding:10px}
+    .entrar{width:100%;background:var(--wa);color:#073b1b;margin-top:18px;padding:13px}
+    .error-acceso{color:var(--rojo);font-weight:800;min-height:1.3em;margin-top:12px}
+    header{background:linear-gradient(135deg,var(--verde),var(--verde2));color:#fff;padding:24px 16px 54px}
+    header>div,main{max-width:1100px;margin:auto}
+    .cabecera{display:flex;align-items:center;justify-content:space-between;gap:15px}
+    .salir,.admin{background:#ffffff25;color:#fff;border:1px solid #ffffff70;white-space:nowrap}
+    h1{font-size:clamp(1.45rem,4vw,2.15rem);margin:0 0 8px}
+    header p{margin:0;opacity:.92}
+    main{padding:0 14px 32px;margin-top:-34px}
+    .panel{background:#fff;border:1px solid var(--borde);border-radius:18px;padding:18px;box-shadow:0 12px 35px #064e3b18;margin-bottom:16px}
+    label{display:block;font-weight:800;margin-bottom:8px}
+    textarea,input,select{width:100%;font:inherit;border:1px solid #b9cdc7;border-radius:12px;padding:12px;background:#fff;color:var(--texto)}
+    textarea{min-height:145px;resize:vertical;line-height:1.45}
+    textarea:focus,input:focus,select:focus{outline:3px solid #25d36635;border-color:var(--verde2)}
+    .ayuda{font-size:.88rem;color:var(--gris);margin:8px 0 0;line-height:1.45}
+    code{background:#edf7f3;padding:2px 5px;border-radius:5px;color:var(--verde)}
+    .estado{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px}
+    .guardado{font-size:.88rem;color:var(--verde2);font-weight:700;min-height:1.2em}
+    .controles{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+    .pestanas{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;padding:5px;background:#eaf2ef;border-radius:13px}
+    .pestana{background:transparent;color:var(--verde);padding:11px}
+    .pestana.activa{background:#fff;box-shadow:0 3px 12px #064e3b18;color:var(--verde);border:1px solid var(--borde)}
+    .acciones-lista{margin:0 0 15px;padding:13px;border:1px solid #c8ddd6;border-radius:13px;background:#f4fbf8}
+    .acciones-lista strong{display:block;margin-bottom:9px;color:var(--verde)}
+    .botones-lista{display:flex;gap:8px;flex-wrap:wrap}
+    .copiar-lista{background:#e1efe9;color:var(--verde)}
+    .enviar-lista{background:var(--wa);color:#073b1b}
+    .aviso-lista{display:inline-block;margin-left:8px;color:var(--verde2);font-size:.85rem;font-weight:800}
+    .resumen{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 2px 9px;color:var(--gris);font-size:.92rem}
+    .lista{display:block}
+    .grupo{margin:0 0 22px}
+    .titulo-seccion{margin:0 0 10px;padding:11px 15px;border-radius:13px;background:linear-gradient(90deg,var(--verde),var(--verde2));color:#fff;font-size:1.08rem;display:flex;justify-content:space-between;align-items:center}
+    .grupo-contactos{display:grid;gap:10px}
+    .contacto{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;background:#fff;border:1px solid var(--borde);border-radius:15px;padding:14px;box-shadow:0 3px 14px #064e3b0c}
+    .nombre{font-weight:850;font-size:1rem;margin-bottom:5px;text-transform:uppercase}
+    .datos{display:flex;gap:6px;flex-wrap:wrap}
+    .etiqueta{font-size:.75rem;font-weight:800;padding:4px 8px;border-radius:999px;background:#edf7f3;color:var(--verde)}
+    .nota{background:#fff1db;color:#8a4b00}
+    .telefonos{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+    button,.boton{border:0;border-radius:11px;padding:10px 13px;font:inherit;font-weight:850;cursor:pointer;text-decoration:none;text-align:center}
+    .whatsapp{background:var(--wa);color:#073b1b;min-width:128px}
+    .whatsapp:hover{filter:brightness(.95)}
+    .whatsapp.enviado{background:#087a46;color:#fff}
+    .desmarcar{background:#eef2f1;color:#52635e;padding:8px 10px;font-size:.8rem}
+    .contacto.enviado{border-color:#25d366;background:#f2fff7}
+    .contacto.confirmado{border-left:6px solid #f5b700}
+    .contacto.retirado{border-left:6px solid #98a2b3;background:#f7f8f9}
+    .confirmado-badge{display:inline-flex;align-items:center;gap:5px;margin:3px 0 6px;padding:5px 9px;border-radius:999px;background:#fff4c2;color:#705100;font-size:.78rem;font-weight:900}
+    .retirado-badge{display:inline-flex;align-items:center;gap:5px;margin:3px 0 6px;padding:5px 9px;border-radius:999px;background:#e8ebef;color:#344054;font-size:.78rem;font-weight:900}
+    .confirmar{background:#fff4c2;color:#705100;font-size:.82rem}
+    .confirmar.activo{background:#f5b700;color:#3e2d00}
+    .retirar{background:#e8ebef;color:#344054;font-size:.82rem}
+    .retirar.activo{background:#667085;color:#fff}
+    .estado-envios{color:var(--verde);font-weight:850}
+    .estado-confirmados{color:#7a5800;font-weight:850}
+    .sin-telefono{color:var(--rojo);font-weight:800;font-size:.86rem}
+    .telefono-oculto{color:var(--gris);font-weight:750;font-size:.86rem;background:#eef3f1;padding:8px 10px;border-radius:9px}
+    .vacio{text-align:center;background:#fff;border:1px dashed #a8bdb6;border-radius:15px;padding:28px;color:var(--gris)}
+    footer{max-width:1100px;margin:0 auto;padding:0 16px 28px;color:var(--gris);font-size:.84rem;text-align:center}
+    @media(max-width:680px){
+      header{padding-top:19px}.panel{padding:14px}.controles{grid-template-columns:1fr}.pestanas{grid-template-columns:1fr}.contacto{grid-template-columns:1fr}.telefonos{justify-content:stretch}.whatsapp{width:100%}.botones-lista button{width:100%}
+    }
+  </style>
+</head>
+<body>
+  <section id="acceso" class="acceso" hidden>
+    <form id="formAcceso" class="acceso-card" autocomplete="off">
+      <button id="cerrarAcceso" class="cerrar-acceso" type="button" aria-label="Cerrar">✕</button>
+      <div class="acceso-icono">🔐📋</div>
+      <h1>Administración de la Consejería</h1>
+      <p>Ingrese sus datos para ver los teléfonos y enviar mensajes.</p>
+      <div class="campo-acceso">
+        <label for="usuario">Usuario</label>
+        <input id="usuario" type="text" required autocomplete="username" autocapitalize="none" placeholder="Escriba el usuario">
+      </div>
+      <div class="campo-acceso">
+        <label for="clave">Clave</label>
+        <div class="clave-wrap">
+          <input id="clave" type="password" required inputmode="numeric" autocomplete="current-password" placeholder="Escriba la clave">
+          <button id="verClave" class="ver-clave" type="button" aria-label="Mostrar clave" title="Mostrar clave">👁️</button>
+        </div>
+      </div>
+      <button class="entrar" type="submit">Entrar como administrador</button>
+      <div id="errorAcceso" class="error-acceso" role="alert" aria-live="polite"></div>
+    </form>
+  </section>
+
+  <div id="app">
+  <header>
+    <div class="cabecera">
+      <div>
+        <h1>📋 Mensajes de la Consejería 9°C</h1>
+        <p>Prof. Samuel Ortega · C.E.B.G. El Jiral</p>
+      </div>
+      <div>
+        <button id="abrirAdmin" class="admin" type="button">🔐 Administrador</button>
+        <button id="cerrarSesion" class="salir" type="button" hidden>Cerrar sesión</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="panelAdmin" class="panel" hidden>
+      <label for="mensaje">Mensaje para los estudiantes</label>
+      <textarea id="mensaje" placeholder="Escriba aquí el mensaje que desea enviar..."></textarea>
+      <p class="ayuda">Puede usar <code>{nombre}</code> y <code>{seccion}</code>. La página los sustituye por los datos de cada integrante. El mensaje queda guardado automáticamente en este dispositivo.</p>
+      <div class="estado">
+        <span id="guardado" class="guardado" aria-live="polite"></span>
+        <button type="button" id="borrar">Limpiar mensaje</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="pestanas" role="tablist" aria-label="Vista del listado">
+        <button id="tabTodos" class="pestana activa" type="button" role="tab" aria-selected="true">👥 Todos</button>
+        <button id="tabConfirmados" class="pestana" type="button" role="tab" aria-selected="false">✅ Confirmados 😄</button>
+        <button id="tabPendientes" class="pestana" type="button" role="tab" aria-selected="false">⏳ No han confirmado</button>
+        <button id="tabRetirados" class="pestana" type="button" role="tab" aria-selected="false">🚪 Se retiraron</button>
+      </div>
+      <div id="accionesLista" class="acciones-lista" hidden>
+        <strong id="tituloAccionesLista"></strong>
+        <div class="botones-lista">
+          <button id="copiarLista" class="copiar-lista" type="button">📋 Copiar lista</button>
+          <button id="enviarLista" class="enviar-lista" type="button">💬 Enviar lista por WhatsApp</button>
+          <span id="avisoLista" class="aviso-lista" aria-live="polite"></span>
+        </div>
+      </div>
+      <div class="controles">
+        <div>
+          <label for="buscar">Buscar estudiante</label>
+          <input id="buscar" type="search" placeholder="Nombre, sección, teléfono o nota..." autocomplete="off">
+        </div>
+        <div>
+          <label for="filtro">Sección</label>
+          <select id="filtro"><option value="">Todas las secciones</option></select>
+        </div>
+      </div>
+    </section>
+
+    <div class="resumen">
+      <div><strong id="cantidad"></strong> · <span id="confirmadosResumen" class="estado-confirmados"></span> <span id="enviados" class="estado-envios" hidden></span></div>
+      <span id="telefonoEnvio" hidden>WhatsApp de envío: +507 6926-2339</span>
+    </div>
+    <section id="lista" class="lista" aria-live="polite"></section>
+  </main>
+
+  <footer>Al pulsar el botón se abrirá WhatsApp con el mensaje preparado. Revíselo y pulse Enviar.</footer>
+  </div>
+
+  <script>
+    const contactos = [
+      {nombre:'Alexander Pimentel',nota:'',seccion:'9°C',telefonos:['65999636','68482894']},
+      {nombre:'Jean Gutiérrez',nota:'',seccion:'9°C',telefonos:['60891789','61348221']},
+      {nombre:'Cristian Peñuela',nota:'',seccion:'9°C',telefonos:['61642248','60055907']},
+      {nombre:'Arielis Wilson',nota:'',seccion:'9°C',telefonos:['66517596']},
+      {nombre:'Tomás Vásquez',nota:'',seccion:'9°C',telefonos:['65998979']},
+      {nombre:'Aymar Ortega',nota:'',seccion:'9°C',telefonos:['69698259']},
+      {nombre:'Aimary Pitalúa',nota:'',seccion:'9°C',telefonos:['69238613','68483368']},
+      {nombre:'Yamal Mendoza',nota:'',seccion:'9°C',telefonos:['64810709','68706211']},
+      {nombre:'Anayansi Rodríguez',nota:'',seccion:'9°C',telefonos:['65545089','67356660']},
+      {nombre:'Xavier Hernández',nota:'',seccion:'9°C',telefonos:['66173487']},
+      {nombre:'Yasir Llerena',nota:'',seccion:'9°C',telefonos:['62317145']},
+      {nombre:'Emmanuel De León',nota:'',seccion:'9°C',telefonos:['62804039','69944935']},
+      {nombre:'James Rodríguez',nota:'',seccion:'9°C',telefonos:['64708503','65504853']},
+      {nombre:'Alberto Adams',nota:'',seccion:'9°C',telefonos:['66401797','66963963']},
+      {nombre:'Marieth Muñoz',nota:'',seccion:'9°C',telefonos:['67224500','69025400']},
+      {nombre:'Isaac Paz',nota:'',seccion:'9°C',telefonos:['64257849','66837667']},
+      {nombre:'Oleigh Felipe',nota:'',seccion:'9°C',telefonos:['64887720','63776414']},
+      {nombre:'Joseph González',nota:'',seccion:'9°C',telefonos:['65021092']},
+      {nombre:'Isaac Herrera',nota:'',seccion:'9°C',telefonos:['64757436']},
+      {nombre:'Anjalhi Jiménez',nota:'',seccion:'9°C',telefonos:['61332565']},
+      {nombre:'Diana Quiroz',nota:'',seccion:'9°C',telefonos:['69587801','63310657']},
+      {nombre:'Kevelin Torres',nota:'',seccion:'9°C',telefonos:['68497735']},
+      {nombre:'Brithney Zambrano',nota:'',seccion:'9°C',telefonos:['68415950']},
+      {nombre:'Harry Simión',nota:'',seccion:'9°C',telefonos:['61002512']},
+      {nombre:'Allan González',nota:'Teléfono por averiguar',seccion:'9°C',telefonos:[]},
+      {nombre:'Johany Muñoz',nota:'Teléfono por averiguar',seccion:'9°C',telefonos:[]}
+    ];
+
+    const mensaje = document.querySelector('#mensaje');
+    const acceso = document.querySelector('#acceso');
+    const app = document.querySelector('#app');
+    const formAcceso = document.querySelector('#formAcceso');
+    const usuario = document.querySelector('#usuario');
+    const clave = document.querySelector('#clave');
+    const errorAcceso = document.querySelector('#errorAcceso');
+    const buscar = document.querySelector('#buscar');
+    const filtro = document.querySelector('#filtro');
+    const tabTodos = document.querySelector('#tabTodos');
+    const tabConfirmados = document.querySelector('#tabConfirmados');
+    const tabPendientes = document.querySelector('#tabPendientes');
+    const tabRetirados = document.querySelector('#tabRetirados');
+    const accionesLista = document.querySelector('#accionesLista');
+    const tituloAccionesLista = document.querySelector('#tituloAccionesLista');
+    const avisoLista = document.querySelector('#avisoLista');
+    const lista = document.querySelector('#lista');
+    const cantidad = document.querySelector('#cantidad');
+    const confirmadosResumen = document.querySelector('#confirmadosResumen');
+    const totalEnviados = document.querySelector('#enviados');
+    const telefonoEnvio = document.querySelector('#telefonoEnvio');
+    const panelAdmin = document.querySelector('#panelAdmin');
+    const abrirAdmin = document.querySelector('#abrirAdmin');
+    const cerrarSesion = document.querySelector('#cerrarSesion');
+    const guardado = document.querySelector('#guardado');
+    const enviados = new Set(JSON.parse(localStorage.getItem('mensajesEnviadosConsejeria9C') || '[]'));
+    const confirmados = new Set(JSON.parse(localStorage.getItem('confirmadosConsejeria9C') || '[]'));
+    const retirados = new Set(JSON.parse(localStorage.getItem('retiradosConsejeria9C') || '[]'));
+    let aviso;
+    let vistaActual='todos';
+
+    mensaje.value = localStorage.getItem('mensajeConsejeria9C') || '';
+
+    function esAdministrador(){
+      return sessionStorage.getItem('accesoConsejeria9C')==='autorizado';
+    }
+
+    function actualizarModo(){
+      const admin=esAdministrador();
+      panelAdmin.hidden=!admin;
+      abrirAdmin.hidden=admin;
+      cerrarSesion.hidden=!admin;
+      totalEnviados.hidden=!admin;
+      telefonoEnvio.hidden=!admin;
+      acceso.hidden=true;
+      render();
+    }
+
+    formAcceso.addEventListener('submit',evento=>{
+      evento.preventDefault();
+      if(usuario.value.trim().toLowerCase()==='consejeria' && clave.value==='0000'){
+        sessionStorage.setItem('accesoConsejeria9C','autorizado');
+        errorAcceso.textContent='';
+        clave.value='';
+        actualizarModo();
+      }else{
+        errorAcceso.textContent='Usuario o clave incorrectos.';
+        clave.select();
+      }
+    });
+
+    document.querySelector('#verClave').addEventListener('click',()=>{
+      const visible=clave.type==='text';
+      clave.type=visible?'password':'text';
+      document.querySelector('#verClave').textContent=visible?'👁️':'🙈';
+    });
+
+    abrirAdmin.addEventListener('click',()=>{
+      acceso.hidden=false;
+      errorAcceso.textContent='';
+      usuario.focus();
+    });
+
+    document.querySelector('#cerrarAcceso').addEventListener('click',()=>{
+      acceso.hidden=true;
+      errorAcceso.textContent='';
+    });
+
+    cerrarSesion.addEventListener('click',()=>{
+      sessionStorage.removeItem('accesoConsejeria9C');
+      usuario.value='';
+      clave.value='';
+      actualizarModo();
+    });
+
+    [...new Set(contactos.map(c => c.seccion))].sort((a,b)=>a.localeCompare(b,'es')).forEach(seccion => {
+      const opcion=document.createElement('option'); opcion.value=seccion; opcion.textContent=seccion; filtro.appendChild(opcion);
+    });
+
+    function textoPlano(valor=''){
+      return valor.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    }
+
+    function mensajePersonalizado(c){
+      return mensaje.value.trim().replaceAll('{nombre}',c.nombre).replaceAll('{seccion}',c.seccion);
+    }
+
+    function claveEnvio(c,telefono){
+      return `${textoPlano(c.nombre)}|${telefono}`;
+    }
+
+    function claveIntegrante(c){
+      return `${textoPlano(c.nombre)}|${textoPlano(c.seccion)}`;
+    }
+
+    function guardarEnviados(){
+      localStorage.setItem('mensajesEnviadosConsejeria9C',JSON.stringify([...enviados]));
+    }
+
+    function abrirWhatsApp(c,telefono){
+      if(!esAdministrador()) return;
+      const texto=mensajePersonalizado(c);
+      if(!texto){ mensaje.focus(); alert('Primero escriba el mensaje que desea enviar.'); return; }
+      const numero='507'+telefono.replace(/\D/g,'');
+      window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`,'_blank','noopener');
+      enviados.add(claveEnvio(c,telefono));
+      guardarEnviados();
+      render();
+    }
+
+    function quitarMarca(c,telefono){
+      enviados.delete(claveEnvio(c,telefono));
+      guardarEnviados();
+      render();
+    }
+
+    function cambiarConfirmacion(c){
+      if(!esAdministrador()) return;
+      const id=claveIntegrante(c);
+      if(confirmados.has(id)) confirmados.delete(id);
+      else{
+        confirmados.add(id);
+        retirados.delete(id);
+        localStorage.setItem('retiradosConsejeria9C',JSON.stringify([...retirados]));
+      }
+      localStorage.setItem('confirmadosConsejeria9C',JSON.stringify([...confirmados]));
+      render();
+    }
+
+    function cambiarRetiro(c){
+      if(!esAdministrador()) return;
+      const id=claveIntegrante(c);
+      if(retirados.has(id)) retirados.delete(id);
+      else{
+        retirados.add(id);
+        confirmados.delete(id);
+        localStorage.setItem('confirmadosConsejeria9C',JSON.stringify([...confirmados]));
+      }
+      localStorage.setItem('retiradosConsejeria9C',JSON.stringify([...retirados]));
+      render();
+    }
+
+    function render(){
+      const admin=esAdministrador();
+      const q=textoPlano(buscar.value.trim());
+      const seleccion=filtro.value;
+      const visibles=contactos.filter(c=>{
+        const contenido=textoPlano([c.nombre,c.seccion,...(admin?[c.nota,...c.telefonos]:[])].join(' '));
+        const id=claveIntegrante(c);
+        const estaRetirado=retirados.has(id);
+        const estaConfirmado=confirmados.has(id)&&!estaRetirado;
+        const estaPendiente=!estaConfirmado&&!estaRetirado;
+        const coincideVista=vistaActual==='todos'||(vistaActual==='confirmados'&&estaConfirmado)||(vistaActual==='pendientes'&&estaPendiente)||(vistaActual==='retirados'&&estaRetirado);
+        return coincideVista&&(!q||contenido.includes(q))&&(!seleccion||c.seccion===seleccion);
+      });
+      const totalRetirados=contactos.filter(c=>retirados.has(claveIntegrante(c))).length;
+      const totalConfirmados=contactos.filter(c=>confirmados.has(claveIntegrante(c))&&!retirados.has(claveIntegrante(c))).length;
+      const totalPendientes=contactos.length-totalConfirmados-totalRetirados;
+      tabTodos.textContent=`👥 Todos (${contactos.length})`;
+      tabConfirmados.textContent=`✅ Confirmados (${totalConfirmados})`;
+      tabPendientes.textContent=`⏳ No han confirmado (${totalPendientes})`;
+      tabRetirados.textContent=`🚪 Se retiraron (${totalRetirados})`;
+      accionesLista.hidden=!admin||vistaActual==='todos';
+      tituloAccionesLista.textContent=vistaActual==='confirmados'?'✅ Lista de estudiantes confirmados 😄':vistaActual==='retirados'?'🚪 Lista de estudiantes retirados':'⏳ Lista de estudiantes que no han confirmado';
+      cantidad.textContent=`${visibles.length} estudiante${visibles.length===1?'':'s'}`;
+      confirmadosResumen.textContent=`⭐ ${totalConfirmados} confirmado${totalConfirmados===1?'':'s'} · 🚪 ${totalRetirados} retirado${totalRetirados===1?'':'s'}`;
+      const contactosMarcados=contactos.filter(c=>c.telefonos.some(t=>enviados.has(claveEnvio(c,t)))).length;
+      totalEnviados.textContent=admin?`· ✅ ${contactosMarcados} enviado${contactosMarcados===1?'':'s'}`:'';
+      lista.replaceChildren();
+      if(!visibles.length){
+        const vacio=document.createElement('div'); vacio.className='vacio';
+        vacio.textContent=vistaActual==='confirmados'?'Todavía no hay estudiantes confirmados con esos filtros.':vistaActual==='pendientes'?'Todos han confirmado, se retiraron o no hay resultados con esos filtros.':vistaActual==='retirados'?'Todavía no hay estudiantes marcados como retirados.':'No se encontraron estudiantes con esos filtros.';
+        lista.appendChild(vacio); return;
+      }
+      const secciones=[...new Set(visibles.map(c=>c.seccion))].sort((a,b)=>a.localeCompare(b,'es'));
+      secciones.forEach(seccion=>{
+        const miembros=visibles.filter(c=>c.seccion===seccion);
+        const grupo=document.createElement('section');grupo.className='grupo';
+        const titulo=document.createElement('h2');titulo.className='titulo-seccion';
+        titulo.innerHTML=`<span>${seccion}</span><span>${miembros.length}</span>`;
+        const contenedor=document.createElement('div');contenedor.className='grupo-contactos';
+        miembros.forEach(c=>{
+          const tarjeta=document.createElement('article'); tarjeta.className='contacto';
+          const id=claveIntegrante(c);
+          const estaRetirado=retirados.has(id);
+          const estaConfirmado=confirmados.has(id)&&!estaRetirado;
+          if(estaConfirmado) tarjeta.classList.add('confirmado');
+          if(estaRetirado) tarjeta.classList.add('retirado');
+          if(admin&&c.telefonos.some(t=>enviados.has(claveEnvio(c,t)))) tarjeta.classList.add('enviado');
+          const info=document.createElement('div');
+          const nombre=document.createElement('div'); nombre.className='nombre'; nombre.textContent=c.nombre;
+          const datos=document.createElement('div'); datos.className='datos';
+          if(admin&&c.nota){const nota=document.createElement('span');nota.className='etiqueta nota';nota.textContent=c.nota;datos.appendChild(nota)}
+          info.appendChild(nombre);
+          if(estaConfirmado){const insignia=document.createElement('div');insignia.className='confirmado-badge';insignia.textContent='✅ Confirmado 😄';info.appendChild(insignia)}
+          if(estaRetirado){const insignia=document.createElement('div');insignia.className='retirado-badge';insignia.textContent='🚪 Retirado';info.appendChild(insignia)}
+          info.appendChild(datos);
+          const telefonos=document.createElement('div'); telefonos.className='telefonos';
+          if(!admin){
+            const oculto=document.createElement('span');oculto.className='telefono-oculto';oculto.textContent='🔒 Teléfono oculto';telefonos.appendChild(oculto);
+          }else if(c.telefonos.length){
+            c.telefonos.forEach((tel,i)=>{
+              const marcado=enviados.has(claveEnvio(c,tel));
+              const boton=document.createElement('button');boton.type='button';boton.className=`whatsapp${marcado?' enviado':''}`;
+              boton.textContent=marcado?'✅ Mensaje enviado':`💬 ${tel}${c.telefonos.length>1?` (${i+1})`:''}`;
+              boton.title=marcado?'Pulse para volver a enviar':'Abrir WhatsApp';
+              boton.addEventListener('click',()=>abrirWhatsApp(c,tel));telefonos.appendChild(boton);
+              if(marcado){const quitar=document.createElement('button');quitar.type='button';quitar.className='desmarcar';quitar.textContent='Quitar marca';quitar.addEventListener('click',()=>quitarMarca(c,tel));telefonos.appendChild(quitar)}
+            });
+          }else{
+            const falta=document.createElement('span');falta.className='sin-telefono';falta.textContent='⚠️ Sin teléfono';telefonos.appendChild(falta);
+          }
+          if(admin){const confirmar=document.createElement('button');confirmar.type='button';confirmar.className=`confirmar${estaConfirmado?' activo':''}`;confirmar.textContent=estaConfirmado?'↩️ Quitar confirmación':'✅ Confirmar';confirmar.addEventListener('click',()=>cambiarConfirmacion(c));telefonos.appendChild(confirmar)}
+          if(admin){const retirar=document.createElement('button');retirar.type='button';retirar.className=`retirar${estaRetirado?' activo':''}`;retirar.textContent=estaRetirado?'↩️ Reintegrar a la lista':'🚪 Marcar como retirado';retirar.addEventListener('click',()=>cambiarRetiro(c));telefonos.appendChild(retirar)}
+          tarjeta.append(info,telefonos);contenedor.appendChild(tarjeta);
+        });
+        grupo.append(titulo,contenedor);lista.appendChild(grupo);
+      });
+    }
+
+    mensaje.addEventListener('input',()=>{
+      localStorage.setItem('mensajeConsejeria9C',mensaje.value);
+      guardado.textContent='✓ Mensaje guardado'; clearTimeout(aviso); aviso=setTimeout(()=>guardado.textContent='',1800);
+    });
+    document.querySelector('#borrar').addEventListener('click',()=>{
+      if(!mensaje.value || confirm('¿Desea borrar el mensaje escrito?')){mensaje.value='';localStorage.removeItem('mensajeConsejeria9C');guardado.textContent='Mensaje borrado';mensaje.focus()}
+    });
+    buscar.addEventListener('input',render); filtro.addEventListener('change',render);
+
+    function generarTextoLista(){
+      const miembros=contactos.filter(c=>{
+        const id=claveIntegrante(c),estaRetirado=retirados.has(id),estaConfirmado=confirmados.has(id)&&!estaRetirado;
+        if(vistaActual==='confirmados') return estaConfirmado;
+        if(vistaActual==='retirados') return estaRetirado;
+        return !estaConfirmado&&!estaRetirado;
+      });
+      const titulo=vistaActual==='confirmados'?'✅ *ESTUDIANTES CONFIRMADOS* 😄':vistaActual==='retirados'?'🚪 *ESTUDIANTES RETIRADOS*':'⏳ *ESTUDIANTES QUE AÚN NO HAN CONFIRMADO*';
+      const secciones=[...new Set(miembros.map(c=>c.seccion))].sort((a,b)=>a.localeCompare(b,'es'));
+      const lineas=[titulo,''];
+      let numero=1;
+      secciones.forEach(seccion=>{
+        lineas.push(`*${seccion.toUpperCase()}*`);
+        miembros.filter(c=>c.seccion===seccion).forEach(c=>lineas.push(`${numero++}. ${c.nombre}${vistaActual==='confirmados'?' ✅':vistaActual==='retirados'?' 🚪':''}`));
+        lineas.push('');
+      });
+      lineas.push(`*Total: ${miembros.length} estudiante${miembros.length===1?'':'s'}*`);
+      if(vistaActual==='pendientes') lineas.push('Por favor, confirmar asistencia a la reunión de consejería. Gracias.');
+      return lineas.join('\n');
+    }
+
+    async function copiarTextoLista(){
+      const texto=generarTextoLista();
+      try{
+        await navigator.clipboard.writeText(texto);
+      }catch(error){
+        const temporal=document.createElement('textarea');temporal.value=texto;temporal.style.position='fixed';temporal.style.opacity='0';document.body.appendChild(temporal);temporal.select();document.execCommand('copy');temporal.remove();
+      }
+      avisoLista.textContent='✓ Lista copiada';
+      setTimeout(()=>avisoLista.textContent='',1800);
+    }
+
+    document.querySelector('#copiarLista').addEventListener('click',copiarTextoLista);
+    document.querySelector('#enviarLista').addEventListener('click',()=>{
+      window.open(`https://wa.me/?text=${encodeURIComponent(generarTextoLista())}`,'_blank','noopener');
+    });
+
+    function cambiarPestana(nuevaVista){
+      vistaActual=nuevaVista;
+      const todos=nuevaVista==='todos';
+      const confirmadosActiva=nuevaVista==='confirmados';
+      const pendientesActiva=nuevaVista==='pendientes';
+      const retiradosActiva=nuevaVista==='retirados';
+      tabTodos.classList.toggle('activa',todos);
+      tabConfirmados.classList.toggle('activa',confirmadosActiva);
+      tabPendientes.classList.toggle('activa',pendientesActiva);
+      tabRetirados.classList.toggle('activa',retiradosActiva);
+      tabTodos.setAttribute('aria-selected',String(todos));
+      tabConfirmados.setAttribute('aria-selected',String(confirmadosActiva));
+      tabPendientes.setAttribute('aria-selected',String(pendientesActiva));
+      tabRetirados.setAttribute('aria-selected',String(retiradosActiva));
+      render();
+    }
+    tabTodos.addEventListener('click',()=>cambiarPestana('todos'));
+    tabConfirmados.addEventListener('click',()=>cambiarPestana('confirmados'));
+    tabPendientes.addEventListener('click',()=>cambiarPestana('pendientes'));
+    tabRetirados.addEventListener('click',()=>cambiarPestana('retirados'));
+    actualizarModo();
+  </script>
+</body>
+</html>
