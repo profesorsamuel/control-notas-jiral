@@ -2,23 +2,37 @@ import { supabase } from "./supabase.js";
 import { pintarCambiarPanel } from "./roles.js";
 
 // =========================================================
-// 0) MAPA DE codigo_examen -> nombre legible de la clase
-// Si en el futuro se agrega una Clase 4 con ejercicio de
-// práctica (quiz/pareo/fotos), o un nuevo salón (ej. 8°A),
-// solo hay que sumar una línea aquí.
+// Panel "Tareas en clase": muestra los resultados guardados por las
+// actividades grupales que se hacen EN CLASE (crucigrama + pareo +
+// completar), es decir:
+//   - pages/practica_ciencias_8.html          (8°, Clases 1 a 4)
+//   - pages/ejercicios-ciencias-origen-universo.html (9°, Clase 1)
+// Todos guardan en la tabla actividades_clase_intentos (ver
+// supabase/panel_actividades_clase.sql — hay que correr ese script
+// una vez en Supabase antes de que este panel tenga datos).
+//
+// Es el compañero del panel "Tareas en casa" (tareas_practica_profesor
+// .html), que muestra los ejercicios individuales (opción múltiple,
+// pareo de términos, pareo de fotos). Aquí NO se mezclan: este panel
+// es SOLO para las tareas hechas en clase.
+//
+// Cada fila de la tabla es UN GRUPO (no un estudiante), porque estas
+// actividades se hacen en equipo y no piden cédula ni inicio de
+// sesión individual. Si un grupo repite la actividad, se conserva la
+// NOTA MÁS ALTA (igual criterio que pediste para las prácticas).
 // =========================================================
-const NOMBRES_CLASE = {
-    "cn9-clase1-universo-2026": "Clase 1 · El origen del universo y del sistema solar",
-    "cn9-clase2-vida-tierra-2026": "Clase 2 · La vida en la Tierra y la exploración del universo",
-    "cn9-clase3-ondas-2026": "Clase 3 · El movimiento ondulatorio",
-    "cn8a-recuperacion-2026": "Recuperación 8°A",
+
+const NOMBRES_ACTIVIDAD = {
+    "cn9-clase1-actividad-origen-universo-2026": "9° · Clase 1 · Origen del universo y sistema solar",
+    "cn8a-clase1-actividad-2026": "8° · Clase 1 · Transformaciones y reacciones químicas",
+    "cn8a-clase2-actividad-2026": "8° · Clase 2 · Leyes de Kepler y movimientos de la Tierra",
+    "cn8a-clase3-actividad-2026": "8° · Clase 3 · Inclinación terrestre, vida y exploración del universo",
+    "cn8a-clase4-actividad-2026": "8° · Clase 4 · Tecnología e historia de la exploración espacial",
 };
 
-const NOMBRES_TIPO = {
-    quiz: "Opción múltiple",
-    pareo: "Pareo de términos",
-    fotos: "Pareo de fotos",
-};
+function tituloActividad(codigo) {
+    return NOMBRES_ACTIVIDAD[codigo] || codigo;
+}
 
 function escapeHtml(str) {
     return String(str ?? "")
@@ -38,17 +52,32 @@ function formatearFecha(iso) {
     });
 }
 
-function normalizarCedula(c) {
-    return String(c ?? "").trim().toLowerCase().replace(/[\s-]/g, "");
+function fechaSoloDia(iso) {
+    if (!iso) return null;
+    return new Date(iso).toISOString().slice(0, 10);
 }
 
 function fechaDe(r) {
     return r.finalizado_at || r.registrado_at || null;
 }
 
+// Quita tildes, pasa a minúsculas y deja solo letras/espacios —
+// para poder comparar "Peñuel" con "penuel" o "María" con "maria".
+function normalizarTexto(s) {
+    return String(s ?? "")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function tokensSignificativos(nombre) {
+    return normalizarTexto(nombre).split(" ").filter((t) => t.length >= 3);
+}
+
 // =========================================================
-// 1) VERIFICAR SESIÓN (mismo criterio que profesor.js:
-// debe existir en profesor_materias, o ser admin/consejero)
+// 1) VERIFICAR SESIÓN (mismo criterio que el resto del panel del docente)
 // =========================================================
 async function verificarSesion() {
     const { data: { user }, error: errUser } = await supabase.auth.getUser();
@@ -80,26 +109,24 @@ async function verificarSesion() {
 }
 
 // =========================================================
-// 2) CARGAR INTENTOS DE PRÁCTICA
-// Para poder mostrar "la mejor nota de cada uno" (aunque el
-// estudiante haya repetido el ejercicio) leemos el HISTORIAL
-// completo (historial_intentos_practica), que guarda TODOS los
-// intentos. Si esa tabla todavía no existe (no se ha corrido
-// panel_tareas_practica.sql), usamos prueba_intentos_practica,
-// que solo tiene el último intento — en ese caso "mejor nota"
-// coincide con "último intento" y se avisa en pantalla.
+// 2) ESTADO GLOBAL
 // =========================================================
-let TODOS = [];            // filas crudas (todos los intentos si hay historial)
-let GRUPOS = [];           // una entrada por estudiante+clase+tipo, con {ultimo, mejor, veces}
-let SIN_HISTORIAL = false;
+let GRUPOS = [];       // una fila por grupo (con su mejor intento)
+let ESTUDIANTES = [];  // roster de 8A/9A/9B/9C, para "quién falta"
+let SIN_TABLA = false;
 
-let vistaActual = "ultimo"; // "ultimo" | "mejor"
-let filtroClase = "todas";
-let filtroTipo = "todos";
+let filtroActividad = "todas";
 let filtroSalon = "todos";
-let ordenActual = { campo: "finalizado_at", asc: false };
+let fechaDesde = "";
+let fechaHasta = "";
+let textoBusqueda = "";
+let ordenActual = { campo: "fecha", asc: false };
+let mostrarFaltan = false;
 
-async function cargarIntentos() {
+// =========================================================
+// 3) CARGA DE DATOS
+// =========================================================
+async function cargarDatos() {
     const cargando = document.getElementById("pcp-cargando");
     const error = document.getElementById("pcp-error");
     const vacio = document.getElementById("pcp-vacio");
@@ -110,57 +137,43 @@ async function cargarIntentos() {
     vacio.hidden = true;
     resultados.hidden = true;
 
-    // 1º intento: historial completo (todos los intentos).
-    let { data, error: errConsulta } = await supabase
-        .from("historial_intentos_practica")
-        .select("*")
-        .order("registrado_at", { ascending: true });
-
-    // Si la tabla de historial no existe, caemos a la de siempre.
-    if (errConsulta) {
-        SIN_HISTORIAL = true;
-        const fallback = await supabase
-            .from("prueba_intentos_practica")
-            .select("*")
-            .order("finalizado_at", { ascending: true });
-        data = fallback.data;
-        errConsulta = fallback.error;
-    }
+    const [intentosRes, estudiantesRes] = await Promise.all([
+        supabase.from("actividades_clase_intentos").select("*").order("registrado_at", { ascending: false }),
+        supabase.from("estudiantes").select("id,nombre,salon,cedula").in("salon", ["8A", "9A", "9B", "9C"]).order("nombre"),
+    ]);
 
     cargando.hidden = true;
+    ESTUDIANTES = estudiantesRes.data || [];
 
-    if (errConsulta) {
-        console.error("No se pudieron cargar los intentos de práctica:", errConsulta);
-        error.textContent = "Ocurrió un error al cargar los resultados. Intenta recargar la página.";
+    if (intentosRes.error) {
+        SIN_TABLA = true;
         error.hidden = false;
+        error.innerHTML = `⚠️ Todavía no se ha ejecutado <code>supabase/panel_actividades_clase.sql</code> en Supabase (Project &gt; SQL Editor), así que esta tabla no existe aún y el panel no tiene nada que mostrar. Corre ese script una vez y recarga esta página.`;
+        vacio.hidden = false;
+        vacio.textContent = "Sin datos todavía.";
         return;
     }
 
-    TODOS = data || [];
-    construirGrupos();
-    pintarAvisoHistorial();
+    construirGrupos(intentosRes.data || []);
     pintarFiltros();
     aplicarFiltrosYPintar();
 }
 
-// Agrupa todos los intentos por estudiante + clase + tipo, y para
-// cada grupo calcula: el último intento, el de mejor nota, y cuántas
-// veces lo hizo.
-function construirGrupos() {
+// Agrupa por actividad + salón + integrantes, y de cada grupo conserva
+// el intento con la NOTA MÁS ALTA (si empatan, el más reciente). Así,
+// aunque un grupo repita la actividad, siempre se ve su mejor nota.
+function construirGrupos(filas) {
     const mapa = new Map();
-    const claveDe = (r) => `${normalizarCedula(r.cedula)}|${r.codigo_examen}|${r.tipo_ejercicio || "quiz"}`;
+    const claveDe = (r) =>
+        `${r.codigo_examen}|${r.salon || ""}|${normalizarTexto((r.integrantes || []).join(","))}`;
 
-    for (const r of TODOS) {
+    for (const r of filas) {
         const clave = claveDe(r);
         if (!mapa.has(clave)) mapa.set(clave, []);
         mapa.get(clave).push(r);
     }
 
     GRUPOS = Array.from(mapa.values()).map((intentos) => {
-        // Último por fecha.
-        const ultimo = intentos.reduce((a, b) =>
-            (new Date(fechaDe(b)) >= new Date(fechaDe(a)) ? b : a));
-        // Mejor por nota; si empatan en nota, el más reciente.
         const mejor = intentos.reduce((a, b) => {
             const na = Number(a.nota_meduca ?? -1);
             const nb = Number(b.nota_meduca ?? -1);
@@ -168,51 +181,39 @@ function construirGrupos() {
             if (nb < na) return a;
             return (new Date(fechaDe(b)) >= new Date(fechaDe(a)) ? b : a);
         });
-        return { intentos, ultimo, mejor, veces: intentos.length };
+        const r = mejor;
+        return {
+            codigo_examen: r.codigo_examen,
+            salon: r.salon,
+            integrantes: Array.isArray(r.integrantes) ? r.integrantes : [],
+            nombre: r.nombre,
+            cw: (r.crucigrama_total ?? 0) > 0 ? `${r.crucigrama_correctas}/${r.crucigrama_total}` : "—",
+            pareo: (r.pareo_total ?? 0) > 0 ? `${r.pareo_correctas}/${r.pareo_total}` : "—",
+            completar: (r.completar_total ?? 0) > 0 ? `${r.completar_correctas}/${r.completar_total}` : "—",
+            nota: r.nota_meduca,
+            fecha: fechaDe(r),
+            veces: intentos.length,
+        };
     });
 }
 
-function pintarAvisoHistorial() {
-    const aviso = document.getElementById("pcp-aviso-historial");
-    if (SIN_HISTORIAL) {
-        aviso.hidden = false;
-        aviso.innerHTML = `⚠️ La vista <b>"Mejor nota de cada uno"</b> necesita el historial completo de intentos. Aún no se ha ejecutado <code>supabase/panel_tareas_practica.sql</code> en Supabase, así que por ahora solo se guarda el último intento de cada quien: mientras tanto, "mejor nota" mostrará ese último intento. Corre ese script una vez para tener la mejor nota real de cada estudiante.`;
-    } else {
-        aviso.hidden = true;
-    }
-}
-
 // =========================================================
-// 3) FILTROS (chips)
+// 4) FILTROS (chips + fechas + texto)
 // =========================================================
 function pintarFiltros() {
-    const clasesPresentes = [...new Set(GRUPOS.map((g) => g.ultimo.codigo_examen))];
-    const tiposPresentes = [...new Set(GRUPOS.map((g) => g.ultimo.tipo_ejercicio || "quiz"))];
-    const salonesPresentes = [...new Set(GRUPOS.map((g) => g.ultimo.salon))].filter(Boolean).sort();
+    const actividadesPresentes = [...new Set(GRUPOS.map((g) => g.codigo_examen))];
+    const salonesPresentes = [...new Set(GRUPOS.map((g) => g.salon))].filter(Boolean).sort();
 
-    const contClase = document.getElementById("pcp-filtro-clase");
-    contClase.innerHTML = ["todas", ...clasesPresentes].map((c) => {
-        const etiqueta = c === "todas" ? "Todas" : (NOMBRES_CLASE[c] || c);
-        const activa = filtroClase === c ? "chip-activa" : "";
+    const contActividad = document.getElementById("pcp-filtro-actividad");
+    contActividad.innerHTML = ["todas", ...actividadesPresentes].map((c) => {
+        const etiqueta = c === "todas" ? "Todas" : tituloActividad(c);
+        const activa = filtroActividad === c ? "chip-activa" : "";
         return `<span class="chip-opcion ${activa}" data-valor="${escapeHtml(c)}">${escapeHtml(etiqueta)}</span>`;
     }).join("");
-    contClase.querySelectorAll(".chip-opcion").forEach((chip) => {
+    contActividad.querySelectorAll(".chip-opcion").forEach((chip) => {
         chip.addEventListener("click", () => {
-            filtroClase = chip.dataset.valor;
-            pintarFiltros();
-            aplicarFiltrosYPintar();
-        });
-    });
-
-    const contTipo = document.getElementById("pcp-filtro-tipo");
-    contTipo.innerHTML = ["todos", ...tiposPresentes].map((t) => {
-        const etiqueta = t === "todos" ? "Todos" : (NOMBRES_TIPO[t] || t);
-        const activa = filtroTipo === t ? "chip-activa" : "";
-        return `<span class="chip-opcion ${activa}" data-valor="${escapeHtml(t)}">${escapeHtml(etiqueta)}</span>`;
-    }).join("");
-    contTipo.querySelectorAll(".chip-opcion").forEach((chip) => {
-        chip.addEventListener("click", () => {
-            filtroTipo = chip.dataset.valor;
+            filtroActividad = chip.dataset.valor;
+            mostrarFaltan = false;
             pintarFiltros();
             aplicarFiltrosYPintar();
         });
@@ -227,63 +228,56 @@ function pintarFiltros() {
     contSalon.querySelectorAll(".chip-opcion").forEach((chip) => {
         chip.addEventListener("click", () => {
             filtroSalon = chip.dataset.valor;
+            mostrarFaltan = false;
             pintarFiltros();
             aplicarFiltrosYPintar();
         });
     });
 }
 
-// Selector de vista: Último intento vs Mejor nota
-document.querySelectorAll("#pcp-filtro-vista .chip-opcion").forEach((chip) => {
-    chip.addEventListener("click", () => {
-        vistaActual = chip.dataset.vista;
-        document.querySelectorAll("#pcp-filtro-vista .chip-opcion")
-            .forEach((c) => c.classList.toggle("chip-activa", c.dataset.vista === vistaActual));
-        // Ajusta el subtítulo y el encabezado de la última columna.
-        const sub = document.getElementById("pcp-subtitulo");
-        const colFecha = document.getElementById("pcp-col-fecha");
-        if (vistaActual === "mejor") {
-            sub.textContent = "Mejor nota de cada estudiante (aunque haya repetido) · Clases 1 a 4 · Todos los salones";
-            colFecha.textContent = "Fecha de la mejor";
-        } else {
-            sub.textContent = "Último intento de cada estudiante · Clases 1 a 4 · Todos los salones";
-            colFecha.textContent = "Último intento";
-        }
-        aplicarFiltrosYPintar();
-    });
+document.getElementById("pcp-buscar").addEventListener("input", (e) => {
+    textoBusqueda = normalizarTexto(e.target.value);
+    aplicarFiltrosYPintar();
+});
+document.getElementById("pcp-fecha-desde").addEventListener("change", (e) => {
+    fechaDesde = e.target.value;
+    aplicarFiltrosYPintar();
+});
+document.getElementById("pcp-fecha-hasta").addEventListener("change", (e) => {
+    fechaHasta = e.target.value;
+    aplicarFiltrosYPintar();
+});
+document.getElementById("pcp-fecha-limpiar").addEventListener("click", () => {
+    fechaDesde = ""; fechaHasta = "";
+    document.getElementById("pcp-fecha-desde").value = "";
+    document.getElementById("pcp-fecha-hasta").value = "";
+    aplicarFiltrosYPintar();
 });
 
 // =========================================================
-// 4) APLICAR FILTROS + ORDEN + PINTAR TABLA
+// 5) APLICAR FILTROS + ORDEN + PINTAR TABLA
 // =========================================================
-// Devuelve, para cada grupo que pasa los filtros, la fila que
-// corresponde a la vista elegida (el último intento, o el de mejor
-// nota), más el número de veces que repitió.
-function filasParaVista() {
-    return GRUPOS
-        .filter((g) => {
-            const r = g.ultimo; // los filtros de clase/tipo/salón son iguales en todos los intentos del grupo
-            if (filtroClase !== "todas" && r.codigo_examen !== filtroClase) return false;
-            if (filtroTipo !== "todos" && (r.tipo_ejercicio || "quiz") !== filtroTipo) return false;
-            if (filtroSalon !== "todos" && r.salon !== filtroSalon) return false;
-            return true;
-        })
-        .map((g) => {
-            const base = vistaActual === "mejor" ? g.mejor : g.ultimo;
-            return { ...base, veces: g.veces, _fecha: fechaDe(base) };
-        });
+function gruposFiltrados() {
+    return GRUPOS.filter((g) => {
+        if (filtroActividad !== "todas" && g.codigo_examen !== filtroActividad) return false;
+        if (filtroSalon !== "todos" && g.salon !== filtroSalon) return false;
+        if (fechaDesde && fechaSoloDia(g.fecha) < fechaDesde) return false;
+        if (fechaHasta && fechaSoloDia(g.fecha) > fechaHasta) return false;
+        if (textoBusqueda) {
+            const haystack = normalizarTexto((g.integrantes || []).join(" ") + " " + (g.nombre || ""));
+            if (!haystack.includes(textoBusqueda)) return false;
+        }
+        return true;
+    });
 }
 
 function aplicarFiltrosYPintar() {
-    let filas = filasParaVista();
+    let filas = gruposFiltrados();
 
     filas.sort((a, b) => {
         const campo = ordenActual.campo;
-        let va = a[campo];
-        let vb = b[campo];
-        if (campo === "clase") { va = NOMBRES_CLASE[a.codigo_examen] || a.codigo_examen; vb = NOMBRES_CLASE[b.codigo_examen] || b.codigo_examen; }
-        if (campo === "tipo") { va = a.tipo_ejercicio || "quiz"; vb = b.tipo_ejercicio || "quiz"; }
-        if (campo === "finalizado_at") { va = a._fecha; vb = b._fecha; }
+        let va = a[campo]; let vb = b[campo];
+        if (campo === "actividad") { va = tituloActividad(a.codigo_examen); vb = tituloActividad(b.codigo_examen); }
         if (va === null || va === undefined) va = "";
         if (vb === null || vb === undefined) vb = "";
         if (typeof va === "string") va = va.toLowerCase();
@@ -306,53 +300,94 @@ function aplicarFiltrosYPintar() {
     resultados.hidden = false;
 
     pintarResumen(filas);
+    pintarFaltan(filas);
 
     const tbody = document.getElementById("pcp-tbody");
-    tbody.innerHTML = filas.map((r) => {
-        const tipo = r.tipo_ejercicio || "quiz";
-        const claseBadge = `badge-tipo-${tipo}`;
-        const nota = r.nota_meduca !== null && r.nota_meduca !== undefined ? Number(r.nota_meduca).toFixed(1) : "—";
-        const claseNota = (r.nota_meduca !== null && r.nota_meduca < 3) ? "nota-baja" : "nota-alta";
-        const veces = r.veces > 1
-            ? `<b title="Repitió el ejercicio ${r.veces} veces">${r.veces}×</b>`
-            : `${r.veces}`;
+    tbody.innerHTML = filas.map((g) => {
+        const nota = g.nota !== null && g.nota !== undefined ? Number(g.nota).toFixed(1) : "—";
+        const claseNota = (g.nota !== null && g.nota !== undefined && Number(g.nota) < 3) ? "nota-baja" : "nota-alta";
+        const chipsIntegrantes = (g.integrantes || []).map((n) => `<span class="pcp-integrante-chip">${escapeHtml(n)}</span>`).join("") || "—";
+        const veces = g.veces > 1
+            ? `<b title="El grupo repitió la actividad ${g.veces} veces; se muestra la mejor nota">${g.veces}×</b>`
+            : `${g.veces}`;
         return `
             <tr>
-                <td>${escapeHtml(r.nombre)}</td>
-                <td>${escapeHtml(r.salon)}</td>
-                <td>${escapeHtml(NOMBRES_CLASE[r.codigo_examen] || r.codigo_examen)}</td>
-                <td><span class="badge ${claseBadge}">${escapeHtml(NOMBRES_TIPO[tipo] || tipo)}</span></td>
+                <td>${formatearFecha(g.fecha)}</td>
+                <td>${escapeHtml(g.salon || "—")}</td>
+                <td>${escapeHtml(tituloActividad(g.codigo_examen))}</td>
+                <td><div class="pcp-integrantes-lista">${chipsIntegrantes}</div></td>
+                <td>${escapeHtml(g.cw)}</td>
+                <td>${escapeHtml(g.pareo)}</td>
+                <td>${escapeHtml(g.completar)}</td>
                 <td class="${claseNota}">${nota}</td>
-                <td>${r.porcentaje ?? "—"}%</td>
-                <td>${r.correctas ?? "—"}</td>
-                <td>${r.incorrectas ?? "—"}</td>
                 <td>${veces}</td>
-                <td>${formatearFecha(r._fecha)}</td>
             </tr>
         `;
     }).join("");
 }
 
 function pintarResumen(filas) {
-    const total = filas.length;
-    const conNota = filas.filter((r) => r.nota_meduca !== null && r.nota_meduca !== undefined);
+    const totalGrupos = filas.length;
+    const totalEstudiantes = filas.reduce((s, g) => s + (g.integrantes?.length || 0), 0);
+    const conNota = filas.filter((g) => g.nota !== null && g.nota !== undefined);
     const promedio = conNota.length
-        ? (conNota.reduce((s, r) => s + Number(r.nota_meduca), 0) / conNota.length).toFixed(1)
+        ? (conNota.reduce((s, g) => s + Number(g.nota), 0) / conNota.length).toFixed(1)
         : "—";
-    const bajoTres = conNota.filter((r) => Number(r.nota_meduca) < 3).length;
-    const repitieron = filas.filter((r) => r.veces > 1).length;
+    const bajoTres = conNota.filter((g) => Number(g.nota) < 3).length;
 
-    const etiquetaPromedio = vistaActual === "mejor" ? "Promedio (mejores)" : "Promedio";
     document.getElementById("pcp-resumen").innerHTML = `
-        <div class="pcp-resumen-item">Estudiantes<b>${total}</b></div>
-        <div class="pcp-resumen-item">${etiquetaPromedio}<b>${promedio}</b></div>
-        <div class="pcp-resumen-item">Con nota &lt; 3.0<b>${bajoTres}</b></div>
-        <div class="pcp-resumen-item">Repitieron<b>${repitieron}</b></div>
+        <div class="pcp-resumen-item">Grupos registrados<b>${totalGrupos}</b></div>
+        <div class="pcp-resumen-item">Estudiantes cubiertos<b>${totalEstudiantes}</b></div>
+        <div class="pcp-resumen-item">Promedio (mejor de cada grupo)<b>${promedio}</b></div>
+        <div class="pcp-resumen-item">Grupos con nota &lt; 3.0<b>${bajoTres}</b></div>
     `;
 }
 
 // =========================================================
-// 5) ORDEN AL HACER CLIC EN ENCABEZADOS
+// 6) QUIÉN FALTA (aproximado por nombre — solo con una actividad elegida)
+// =========================================================
+function pintarFaltan(filasVisibles) {
+    const cont = document.getElementById("pcp-faltan-cont");
+    const toggle = document.getElementById("pcp-faltan-toggle");
+    const lista = document.getElementById("pcp-faltan-lista");
+    const aviso = document.getElementById("pcp-faltan-aviso");
+
+    if (filtroActividad === "todas") {
+        cont.hidden = true;
+        return;
+    }
+
+    const roster = ESTUDIANTES.filter((e) => filtroSalon === "todos" || e.salon === filtroSalon);
+
+    const haystack = normalizarTexto(
+        filasVisibles.flatMap((g) => g.integrantes || []).join(" ")
+    );
+
+    const faltan = roster.filter((e) => {
+        const tokens = tokensSignificativos(e.nombre);
+        if (tokens.length === 0) return false;
+        const coincidencias = tokens.filter((t) => haystack.includes(t)).length;
+        const necesarias = tokens.length === 1 ? 1 : 2;
+        return coincidencias < necesarias;
+    });
+
+    cont.hidden = false;
+    toggle.textContent = mostrarFaltan
+        ? `🙈 Ocultar (${faltan.length})`
+        : `👀 Mostrar quién no aparece en ningún grupo todavía (${faltan.length})`;
+    lista.hidden = !mostrarFaltan;
+    aviso.hidden = !mostrarFaltan;
+    lista.innerHTML = faltan.map((e) => `<span class="pcp-faltan-chip">${escapeHtml(e.nombre)} · ${escapeHtml(e.salon)}</span>`).join("")
+        || `<span class="pcp-faltan-chip">🎉 Todos en este salón aparecen en algún grupo.</span>`;
+
+    toggle.onclick = () => {
+        mostrarFaltan = !mostrarFaltan;
+        pintarFaltan(filasVisibles);
+    };
+}
+
+// =========================================================
+// 7) ORDEN AL HACER CLIC EN ENCABEZADOS
 // =========================================================
 document.querySelectorAll("table.pcp-tabla th[data-orden]").forEach((th) => {
     th.addEventListener("click", () => {
@@ -367,11 +402,12 @@ document.querySelectorAll("table.pcp-tabla th[data-orden]").forEach((th) => {
 });
 
 // =========================================================
-// 6) ARRANQUE
+// 8) ARRANQUE
 // =========================================================
 (async function init() {
     const ok = await verificarSesion();
     if (!ok) return;
     pintarCambiarPanel("profesor", "claro-sobre-oscuro");
-    cargarIntentos();
+    await cargarDatos();
+    if (!SIN_TABLA) setInterval(cargarDatos, 30000);
 })();
