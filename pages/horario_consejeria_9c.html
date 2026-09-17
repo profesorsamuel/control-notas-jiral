@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horario · Consejería 9°C · C.E.B.G. El Jiral</title>
+
+<link rel="icon" type="image/x-icon" href="../img/consejero-favicon.ico">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="../css/temas.css">
+
+<style>
+    body.tema-horario-9c {
+        --morado-oscuro: #4b3fb3;
+        --morado: #5a4fcf;
+        --azul-medio: #2f7bd1;
+        --rojo-oscuro: #5b1b1b;
+        --rojo: #b3282e;
+        --wa: #25d366;
+        background: linear-gradient(135deg, var(--morado-oscuro), var(--azul-medio));
+        min-height: 100vh;
+        font-family: "Segoe UI", Arial, sans-serif;
+        padding: 24px 12px 44px;
+    }
+
+    main.envoltorio {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .barra-volver {
+        max-width: 1100px;
+        margin: 0 auto 14px;
+    }
+
+    .barra-volver a {
+        color: rgba(255,255,255,.85);
+        text-decoration: none;
+        font-size: .9rem;
+        font-weight: 600;
+    }
+
+    .barra-volver a:hover { color: #fff; }
+
+    .tarjeta-principal {
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 14px 34px rgba(0,0,0,.28);
+        overflow: hidden;
+    }
+
+    /* -------- Pestañas Docente / Alumno -------- */
+    .pestanas-rol {
+        display: flex;
+    }
+
+    .pestana-rol {
+        flex: 1;
+        border: none;
+        padding: 16px 10px;
+        font-weight: 700;
+        font-size: .95rem;
+        background: #eef0f5;
+        color: #555;
+        cursor: pointer;
+        transition: background .15s ease, color .15s ease;
+    }
+
+    .pestana-rol i { margin-right: 6px; }
+
+    .pestana-rol.activa {
+        background: linear-gradient(90deg, var(--morado), var(--azul-medio));
+        color: #fff;
+    }
+
+    /* -------- Encabezado de cada panel -------- */
+    .encabezado-horario {
+        padding: 18px 24px;
+        text-align: center;
+        color: #fff;
+    }
+
+    .panel-docente .encabezado-horario { background: linear-gradient(90deg, var(--morado-oscuro), var(--morado)); }
+    .panel-alumno .encabezado-horario { background: linear-gradient(90deg, var(--rojo-oscuro), var(--rojo)); }
+
+    .encabezado-horario h1 { font-size: 1.25rem; margin: 0 0 4px; font-weight: 700; }
+    .encabezado-horario p { margin: 0; font-size: .85rem; opacity: .92; }
+
+    .info-linea { padding: 12px 24px; text-align: center; font-size: .9rem; color: #333; border-bottom: 1px solid #eee; }
+    .info-linea span { display: inline-block; margin: 0 10px; }
+
+    .contenedor-tabla { overflow-x: auto; padding: 16px; }
+
+    table.tabla-horario { width: 100%; border-collapse: collapse; min-width: 720px; }
+
+    table.tabla-horario th {
+        color: #fff; padding: 10px 8px; font-size: .85rem; text-align: center;
+    }
+
+    .panel-docente table.tabla-horario th { background: var(--morado); }
+    .panel-alumno table.tabla-horario th { background: var(--rojo); }
+
+    table.tabla-horario td {
+        border: 1px solid #eee; padding: 8px 6px; vertical-align: middle; text-align: center; font-size: .82rem;
+        min-width: 110px;
+    }
+
+    td.col-hora { background: #f3f4fb; color: #444; font-weight: 600; white-space: nowrap; }
+
+    tr.fila-recreo td { background: #f5a623; color: #fff; font-weight: 700; text-align: center; }
+
+    td.celda-vacia { color: #c3c6d3; }
+
+    .panel-rol { display: none; }
+    .panel-rol.activo { display: block; }
+
+    /* -------- Tarjeta de consejería / mensaje -------- */
+    .tarjeta-consejero {
+        margin: 18px;
+        border-radius: 14px;
+        border: 1px solid #e3e6ef;
+        background: #f7f8fc;
+        padding: 18px 20px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+    }
+
+    .tarjeta-consejero .icono-consejero {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--morado), var(--azul-medio));
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .tarjeta-consejero .texto-consejero { flex: 1; min-width: 180px; }
+    .tarjeta-consejero .texto-consejero strong { display: block; color: #222; font-size: .95rem; }
+    .tarjeta-consejero .texto-consejero span { display: block; color: #6b7280; font-size: .82rem; margin-top: 2px; }
+
+    .btn-enviar-mensaje {
+        background: var(--wa);
+        border: none;
+        color: #fff;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 10px 20px;
+        font-size: .88rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        box-shadow: 0 8px 18px rgba(37,211,102,.35);
+    }
+
+    .btn-enviar-mensaje:hover { filter: brightness(1.05); color: #fff; }
+
+    .nota-desliza {
+        text-align: center;
+        font-size: .78rem;
+        color: #9aa2b0;
+        padding: 0 16px 16px;
+    }
+</style>
+</head>
+
+<body class="tema-horario-9c">
+
+    <div class="barra-volver">
+        <a href="inicio.html"><i class="fa-solid fa-arrow-left me-1"></i> Volver al inicio</a>
+    </div>
+
+    <main class="envoltorio">
+        <div class="tarjeta-principal">
+
+            <!-- PESTAÑAS -->
+            <div class="pestanas-rol">
+                <button type="button" class="pestana-rol activa" id="btnPestanaDocente">
+                    <i class="fa-solid fa-chalkboard-user"></i> Docente
+                </button>
+                <button type="button" class="pestana-rol" id="btnPestanaAlumno">
+                    <i class="fa-solid fa-user-graduate"></i> Alumno 9°C
+                </button>
+            </div>
+
+            <!-- ===================== PANEL DOCENTE ===================== -->
+            <div class="panel-rol panel-docente activo" id="panelDocente">
+
+                <div class="encabezado-horario">
+                    <h1><i class="fa-solid fa-pen-nib me-1"></i> Horario de Clases (Docente)</h1>
+                </div>
+
+                <div class="info-linea">
+                    <span><i class="fa-solid fa-chalkboard-user me-1"></i> Profesor: Samuel Ortega</span>
+                    <span><i class="fa-solid fa-book me-1"></i> Asignatura: C. Naturales 9° A, B, C – 8° A, B</span>
+                    <span><i class="fa-solid fa-clock me-1"></i> Horas: 24</span>
+                </div>
+
+                <div class="contenedor-tabla">
+                    <table class="tabla-horario">
+                        <thead>
+                            <tr>
+                                <th>Hora</th><th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="col-hora">12:20 – 12:55</td>
+                                <td>Consejería</td><td>9°C Naturales</td><td>9°C Naturales</td><td>9°A Naturales</td><td class="celda-vacia">—</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">12:55 – 1:30</td>
+                                <td>9°C Naturales</td><td class="celda-vacia">—</td><td>9°C Naturales</td><td class="celda-vacia">—</td><td>9°A Naturales</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">1:30 – 2:05</td>
+                                <td class="celda-vacia">—</td><td>8°A Naturales</td><td class="celda-vacia">—</td><td>8°A Compu</td><td>8°B Compu</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">2:05 – 2:40</td>
+                                <td>8°A Naturales</td><td>8°A Naturales</td><td>9°B Naturales</td><td>8°A Compu</td><td>8°B Compu</td>
+                            </tr>
+                            <tr class="fila-recreo"><td colspan="6"><i class="fa-solid fa-mug-hot me-1"></i> RECREO</td></tr>
+                            <tr>
+                                <td class="col-hora">3:00 – 3:35</td>
+                                <td class="celda-vacia">—</td><td class="celda-vacia">—</td><td>8°A Naturales</td><td class="celda-vacia">—</td><td class="celda-vacia">—</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">3:35 – 4:10</td>
+                                <td>9°B Naturales</td><td>9°A Naturales</td><td class="celda-vacia">—</td><td class="celda-vacia">—</td><td>9°B Naturales</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">4:10 – 4:45</td>
+                                <td class="celda-vacia">—</td><td>9°A Naturales</td><td class="celda-vacia">—</td><td>9°B Naturales</td><td>8°A Naturales</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">4:45 – 5:20</td>
+                                <td class="celda-vacia">—</td><td class="celda-vacia">—</td><td>9°A Naturales</td><td>9°B Naturales</td><td>9°C Naturales</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="nota-desliza"><i class="fa-solid fa-hand-point-up me-1"></i> Desliza horizontalmente para ver toda la tabla</p>
+            </div>
+
+            <!-- ===================== PANEL ALUMNO 9°C ===================== -->
+            <div class="panel-rol panel-alumno" id="panelAlumno">
+
+                <div class="encabezado-horario">
+                    <h1><i class="fa-solid fa-school me-1"></i> Horario de Clases – 9°C</h1>
+                </div>
+
+                <div class="info-linea">
+                    <span><i class="fa-solid fa-chalkboard-user me-1"></i> Profesor: Samuel Ortega</span>
+                    <span><i class="fa-solid fa-school-flag me-1"></i> Centro Educativo: C.E.B.G. El Jiral</span>
+                </div>
+
+                <div class="contenedor-tabla">
+                    <table class="tabla-horario">
+                        <thead>
+                            <tr>
+                                <th>Hora</th><th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="col-hora">12:20 – 12:55</td>
+                                <td>Consejería</td><td>C. Naturales</td><td>C. Naturales</td><td>Matemáticas</td><td>Orientación</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">12:55 – 1:30</td>
+                                <td>C. Naturales</td><td>Inglés</td><td>C. Naturales</td><td>Contabilidad</td><td>Educ. Física</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">1:30 – 2:05</td>
+                                <td>Geografía</td><td>Agropecuaria</td><td>Español</td><td>F.D.C.</td><td>Educ. Física</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">2:05 – 2:40</td>
+                                <td>Español</td><td>Agropecuaria</td><td>Español</td><td>F.D.C.</td><td>Español</td>
+                            </tr>
+                            <tr class="fila-recreo"><td colspan="6"><i class="fa-solid fa-mug-hot me-1"></i> RECREO</td></tr>
+                            <tr>
+                                <td class="col-hora">3:00 – 3:35</td>
+                                <td>Inglés</td><td>Español</td><td>Matemáticas</td><td>Geografía</td><td>Religión</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">3:35 – 4:10</td>
+                                <td>Música</td><td>Matemáticas</td><td>Historia</td><td>Inglés</td><td>Contabilidad</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">4:10 – 4:45</td>
+                                <td>Historia</td><td>Matemáticas</td><td>Religión</td><td>Exp. Artística</td><td>Matemáticas</td>
+                            </tr>
+                            <tr>
+                                <td class="col-hora">4:45 – 5:20</td>
+                                <td>Cívica</td><td>Música</td><td>Inglés</td><td>Exp. Artística</td><td>C. Naturales</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="nota-desliza"><i class="fa-solid fa-hand-point-up me-1"></i> Desliza horizontalmente para ver toda la tabla</p>
+            </div>
+
+            <!-- TARJETA DE CONSEJERÍA / MENSAJE -->
+            <div class="tarjeta-consejero">
+                <span class="icono-consejero"><i class="fa-solid fa-comments"></i></span>
+                <span class="texto-consejero">
+                    <strong>Consejero · 9°C</strong>
+                    <span>Envía un mensaje al consejero por WhatsApp desde la página de Consejería 9°C.</span>
+                </span>
+                <a
+                    href="mensajes-consejeria-9c-whatsapp.html"
+                    class="btn-enviar-mensaje"
+                >
+                    <i class="fa-brands fa-whatsapp"></i> Enviar mensaje
+                </a>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        const btnPestanaDocente = document.getElementById("btnPestanaDocente");
+        const btnPestanaAlumno = document.getElementById("btnPestanaAlumno");
+        const panelDocente = document.getElementById("panelDocente");
+        const panelAlumno = document.getElementById("panelAlumno");
+
+        function mostrarDocente() {
+            btnPestanaDocente.classList.add("activa");
+            btnPestanaAlumno.classList.remove("activa");
+            panelDocente.classList.add("activo");
+            panelAlumno.classList.remove("activo");
+        }
+
+        function mostrarAlumno() {
+            btnPestanaAlumno.classList.add("activa");
+            btnPestanaDocente.classList.remove("activa");
+            panelAlumno.classList.add("activo");
+            panelDocente.classList.remove("activo");
+        }
+
+        btnPestanaDocente.addEventListener("click", mostrarDocente);
+        btnPestanaAlumno.addEventListener("click", mostrarAlumno);
+    </script>
+
+</body>
+</html>
