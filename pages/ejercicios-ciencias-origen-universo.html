@@ -288,15 +288,34 @@
     display:flex;
     flex-wrap:wrap;
     gap:10px;
-    margin-bottom:14px;
+    margin-bottom:8px;
   }
-  .grupo-input{
+  .grupo-aviso{
+    color: var(--muted);
+    font-size:.88rem;
+  }
+  .grupo-check{
     flex: 1 1 220px;
+    display:flex;
+    align-items:center;
+    gap:8px;
     padding:10px 12px;
     border-radius:8px;
     border:1px solid var(--border);
     font-size:.9rem;
     background:#fbfcfe;
+    cursor:pointer;
+    user-select:none;
+  }
+  .grupo-check input[type="checkbox"]{
+    width:18px;
+    height:18px;
+    flex-shrink:0;
+    accent-color: var(--accent2, #1d7a46);
+  }
+  .grupo-check.marcado{
+    border-color: var(--accent2);
+    background:#e6f5f2;
   }
 
   /* RESULTADO FINAL */
@@ -407,22 +426,20 @@
   <!-- ================= INTEGRANTES DEL GRUPO ================= -->
   <div class="card" id="grupo-card">
     <h2 class="ex-title">👥 Integrantes del grupo</h2>
-    <p class="ex-sub">Escriban aquí los nombres de todos los integrantes antes de comenzar.</p>
-    <div id="grupo-nombres">
-      <input type="text" class="grupo-input" placeholder="Integrante 1">
-      <input type="text" class="grupo-input" placeholder="Integrante 2">
-      <input type="text" class="grupo-input" placeholder="Integrante 3">
-      <input type="text" class="grupo-input" placeholder="Integrante 4">
-    </div>
-    <button class="btn ghost" id="grupo-add">➕ Agregar integrante</button>
 
-    <p class="ex-sub" style="margin-top:16px;">¿En qué salón están?</p>
+    <p class="ex-sub">¿En qué salón están?</p>
     <div class="salon-row" id="salon-row">
       <button type="button" class="salon-btn" data-salon="9A">9°A</button>
       <button type="button" class="salon-btn" data-salon="9B">9°B</button>
       <button type="button" class="salon-btn" data-salon="9C">9°C</button>
     </div>
     <p class="campo-error" id="salon-error">Selecciona tu salón antes de finalizar.</p>
+
+    <p class="ex-sub" style="margin-top:16px;">Marca a todos los integrantes del grupo (de la lista de tu salón).</p>
+    <div id="grupo-nombres">
+      <p class="grupo-aviso" id="grupo-aviso">Primero selecciona tu salón arriba…</p>
+    </div>
+    <p class="campo-error" id="grupo-error">Marca al menos un integrante antes de finalizar.</p>
   </div>
 
   <!-- ================= SELECCIÓN DE EJERCICIOS ================= -->
@@ -966,34 +983,55 @@ function evaluarCompletar(){
 }
 
 /* =========================================================
-   INTEGRANTES DEL GRUPO
+   INTEGRANTES DEL GRUPO (lista real del salón, no texto libre)
 ========================================================= */
-document.getElementById('grupo-add').addEventListener('click', ()=>{
-  const wrap = document.getElementById('grupo-nombres');
-  const n = wrap.querySelectorAll('.grupo-input').length + 1;
-  const inp = document.createElement('input');
-  inp.type='text';
-  inp.className='grupo-input';
-  inp.placeholder = `Integrante ${n}`;
-  wrap.appendChild(inp);
-});
-
 function getIntegrantes(){
-  return Array.from(document.querySelectorAll('.grupo-input'))
-    .map(i=>i.value.trim())
-    .filter(v=>v.length>0);
+  return Array.from(document.querySelectorAll('.grupo-check input:checked'))
+    .map(chk => chk.dataset.nombre);
+}
+
+function pintarListaIntegrantes(estudiantes){
+  const wrap = document.getElementById('grupo-nombres');
+  if(!estudiantes || estudiantes.length === 0){
+    wrap.innerHTML = `<p class="grupo-aviso">No se encontraron estudiantes en este salón.</p>`;
+    return;
+  }
+  wrap.innerHTML = estudiantes.map((est, i) => `
+    <label class="grupo-check" for="grupo-chk-${i}">
+      <input type="checkbox" id="grupo-chk-${i}" data-nombre="${est.nombre.replace(/"/g,'&quot;')}">
+      <span>${est.nombre}</span>
+    </label>
+  `).join('');
+  wrap.querySelectorAll('.grupo-check').forEach(label=>{
+    const chk = label.querySelector('input');
+    chk.addEventListener('change', ()=>{
+      label.classList.toggle('marcado', chk.checked);
+      document.getElementById('grupo-error').style.display='none';
+    });
+  });
 }
 
 /* =========================================================
-   SALÓN DEL GRUPO
+   SALÓN DEL GRUPO (al elegirlo, carga la lista real de
+   estudiantes de ese salón para marcar los integrantes)
 ========================================================= */
 let salonSeleccionado = null;
 document.querySelectorAll('.salon-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
+  btn.addEventListener('click', async ()=>{
     document.querySelectorAll('.salon-btn').forEach(b=>b.classList.remove('selected'));
     btn.classList.add('selected');
     salonSeleccionado = btn.dataset.salon;
     document.getElementById('salon-error').style.display='none';
+
+    const wrap = document.getElementById('grupo-nombres');
+    wrap.innerHTML = `<p class="grupo-aviso">Cargando estudiantes de ${btn.textContent}…</p>`;
+
+    const { data, error } = await window.sbPractica.rpc('obtener_estudiantes_por_salon', { p_salon: salonSeleccionado });
+    if(error){
+      wrap.innerHTML = `<p class="grupo-aviso">No se pudo cargar la lista de este salón. Recarga la página e inténtalo de nuevo.</p>`;
+      return;
+    }
+    pintarListaIntegrantes(data);
   });
 });
 
@@ -1061,17 +1099,21 @@ function mostrarNota(){
 }
 
 document.getElementById('finalizar-ejercicio').addEventListener('click', ()=>{
-  const integrantes = getIntegrantes();
   const msg = document.getElementById('resultado-msg');
-  if(integrantes.length === 0){
-    msg.textContent = 'Escribe el nombre de al menos un integrante antes de finalizar.';
-    msg.className = 'result-msg bad';
-    return;
-  }
+
   if(!salonSeleccionado){
     document.getElementById('salon-error').style.display='block';
     document.getElementById('salon-row').scrollIntoView({behavior:'smooth', block:'center'});
     msg.textContent = 'Falta indicar el salón (9°A, 9°B o 9°C).';
+    msg.className = 'result-msg bad';
+    return;
+  }
+
+  const integrantes = getIntegrantes();
+  if(integrantes.length === 0){
+    document.getElementById('grupo-error').style.display='block';
+    document.getElementById('grupo-nombres').scrollIntoView({behavior:'smooth', block:'center'});
+    msg.textContent = 'Marca al menos un integrante del grupo antes de finalizar.';
     msg.className = 'result-msg bad';
     return;
   }
@@ -1082,9 +1124,9 @@ document.getElementById('finalizar-ejercicio').addEventListener('click', ()=>{
   evaluarPareo();
   evaluarCompletar();
 
-  document.querySelectorAll('#cw-grid input, #pareo-list select, #fill-list input, .grupo-input')
+  document.querySelectorAll('#cw-grid input, #pareo-list select, #fill-list input, .grupo-check input')
     .forEach(control => control.disabled = true);
-  document.querySelectorAll('#cw-new, #cw-clear, #pareo-new, #fill-new, #grupo-add, .salon-btn')
+  document.querySelectorAll('#cw-new, #cw-clear, #pareo-new, #fill-new, .salon-btn')
     .forEach(button => button.disabled = true);
 
   const nota = mostrarNota();
