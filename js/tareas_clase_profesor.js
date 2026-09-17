@@ -18,6 +18,10 @@ import { pintarCambiarPanel } from "./roles.js";
 
 const NOMBRES_ACTIVIDAD = {
     "cn9-clase1-actividad-origen-universo-2026": "9° · Clase 1 · Origen del universo y sistema solar",
+    "cn8a-clase1-actividad-2026": "8° · Clase 1 · Transformaciones y reacciones químicas",
+    "cn8a-clase2-actividad-2026": "8° · Clase 2 · Leyes de Kepler y movimientos de la Tierra",
+    "cn8a-clase3-actividad-2026": "8° · Clase 3 · Inclinación terrestre, vida y exploración del universo",
+    "cn8a-clase4-actividad-2026": "8° · Clase 4 · Tecnología e historia de la exploración espacial",
 };
 
 function tituloActividad(codigo) {
@@ -125,7 +129,7 @@ async function cargarDatos() {
 
     const [intentosRes, estudiantesRes] = await Promise.all([
         supabase.from("actividades_clase_intentos").select("*").order("registrado_at", { ascending: false }),
-        supabase.from("estudiantes").select("id,nombre,salon,cedula").in("salon", ["9A", "9B", "9C"]).order("nombre"),
+        supabase.from("estudiantes").select("id,nombre,salon,cedula").in("salon", ["8A", "9A", "9B", "9C"]).order("nombre"),
     ]);
 
     cargando.hidden = true;
