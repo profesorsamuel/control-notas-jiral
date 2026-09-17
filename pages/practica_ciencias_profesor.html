@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prácticas de Ciencias Naturales | Panel del Docente</title>
+    <title>Tareas en clase | Panel del Docente</title>
 
     <link rel="icon" type="image/x-icon" href="../img/profesor-favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="../img/profesor-favicon-32.png">
@@ -38,19 +38,11 @@
             gap: 10px;
         }
 
-        .pcp-header h1 {
-            font-size: 1.15rem;
-            margin: 0;
-        }
-
-        .pcp-header p {
-            margin: 2px 0 0;
-            font-size: .85rem;
-            opacity: .85;
-        }
+        .pcp-header h1 { font-size: 1.15rem; margin: 0; }
+        .pcp-header p { margin: 2px 0 0; font-size: .85rem; opacity: .85; }
 
         .pcp-contenedor {
-            max-width: 1100px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px 16px 60px;
         }
@@ -63,11 +55,7 @@
             margin-bottom: 18px;
         }
 
-        .chips-selector {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
+        .chips-selector { display: flex; flex-wrap: wrap; gap: 8px; }
 
         .chip-opcion {
             display: inline-flex;
@@ -92,11 +80,18 @@
             color: var(--color-primario-oscuro, var(--color-primario));
         }
 
-        table.pcp-tabla {
-            width: 100%;
-            border-collapse: collapse;
+        input#pcp-buscar, input.pcp-fecha {
+            border: 1px solid var(--color-borde);
+            border-radius: 10px;
+            padding: 8px 12px;
             font-size: 13.5px;
         }
+        input#pcp-buscar { width: 100%; max-width: 320px; }
+
+        .pcp-fechas-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+        .pcp-fechas-row label { font-size:12.5px; color:#64748b; display:flex; flex-direction:column; gap:3px; }
+
+        table.pcp-tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 
         table.pcp-tabla th {
             text-align: left;
@@ -111,24 +106,21 @@
 
         table.pcp-tabla th:hover { background: #e2e8f0; }
 
-        table.pcp-tabla td {
-            padding: 8px;
-            border-bottom: 1px solid var(--color-borde);
-            white-space: nowrap;
-        }
-
+        table.pcp-tabla td { padding: 8px; border-bottom: 1px solid var(--color-borde); }
         table.pcp-tabla tbody tr:hover { background: #f8fafc; }
 
         .pcp-tabla-scroll {
-            max-height: 65vh;
+            max-height: 62vh;
             overflow: auto;
             border: 1px solid var(--color-borde);
             border-radius: 10px;
         }
 
-        .badge-tipo-quiz { background: #4f46e5; }
-        .badge-tipo-pareo { background: #0ea5e9; }
-        .badge-tipo-fotos { background: #16a34a; }
+        .pcp-integrantes-lista { display:flex; flex-wrap:wrap; gap:4px; max-width:260px; white-space:normal; }
+        .pcp-integrante-chip {
+            background:#eef2ff; color:#3730a3; border-radius:14px;
+            padding:2px 9px; font-size:12px; white-space:nowrap;
+        }
 
         .nota-baja { color: #dc2626; font-weight: 700; }
         .nota-alta { color: #16a34a; font-weight: 700; }
@@ -136,12 +128,7 @@
         #pcp-vacio, #pcp-cargando, #pcp-error { text-align: center; padding: 30px; color: #64748b; }
         #pcp-error { color: #dc2626; }
 
-        .pcp-resumen {
-            display: flex;
-            gap: 14px;
-            flex-wrap: wrap;
-            margin-bottom: 14px;
-        }
+        .pcp-resumen { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
 
         .pcp-resumen-item {
             background: #f8fafc;
@@ -152,6 +139,35 @@
         }
 
         .pcp-resumen-item b { display: block; font-size: 17px; }
+
+        .pcp-faltan-lista { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+        .pcp-faltan-chip {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            color: #9a3412;
+            border-radius: 20px;
+            padding: 4px 10px;
+            font-size: 12.5px;
+        }
+
+        .pcp-toggle-link {
+            font-size: 12.5px;
+            color: var(--color-primario);
+            cursor: pointer;
+            text-decoration: underline;
+            user-select: none;
+        }
+
+        .pcp-aviso-aprox {
+            font-size: 12px;
+            color: #92400e;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-top: 8px;
+        }
     </style>
 </head>
 
@@ -159,62 +175,74 @@
 
     <header class="pcp-header">
         <div>
-            <h1>🧪 Prácticas de Ciencias Naturales</h1>
-            <p id="pcp-subtitulo">Último intento de cada estudiante · Clases 1 a 4 · Todos los salones</p>
+            <h1>📝 Tareas en clase</h1>
+            <p>Actividades grupales hechas en clase (crucigrama, pareo, completar) · 8° y 9° · Ciencias Naturales</p>
         </div>
-        <div id="navCambiarPanel"></div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <a href="tareas_practica_profesor.html" style="color:#fff; font-size:13px; text-decoration:underline;">🏠 Ver tareas en casa</a>
+            <span id="navCambiarPanel"></span>
+        </div>
     </header>
 
     <div class="pcp-contenedor">
 
         <div class="pcp-panel">
             <div style="margin-bottom:14px;">
-                <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Vista</p>
-                <div class="chips-selector" id="pcp-filtro-vista">
-                    <span class="chip-opcion chip-activa" data-vista="ultimo">📌 Último intento</span>
-                    <span class="chip-opcion" data-vista="mejor">🏆 Mejor nota de cada uno</span>
-                </div>
+                <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Actividad</p>
+                <div class="chips-selector" id="pcp-filtro-actividad"></div>
             </div>
 
             <div style="margin-bottom:14px;">
-                <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Clase</p>
-                <div class="chips-selector" id="pcp-filtro-clase"></div>
-            </div>
-
-            <div style="margin-bottom:14px;">
-                <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Tipo de ejercicio</p>
-                <div class="chips-selector" id="pcp-filtro-tipo"></div>
-            </div>
-
-            <div>
                 <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Salón</p>
                 <div class="chips-selector" id="pcp-filtro-salon"></div>
             </div>
-        </div>
 
-        <div id="pcp-aviso-historial" hidden style="background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px; padding:10px 12px; font-size:12.5px; margin-bottom:14px;"></div>
+            <div style="margin-bottom:14px;">
+                <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Fecha</p>
+                <div class="pcp-fechas-row">
+                    <label>Desde <input type="date" class="pcp-fecha" id="pcp-fecha-desde"></label>
+                    <label>Hasta <input type="date" class="pcp-fecha" id="pcp-fecha-hasta"></label>
+                    <span class="pcp-toggle-link" id="pcp-fecha-limpiar">Quitar filtro de fecha</span>
+                </div>
+            </div>
+
+            <div>
+                <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Buscar integrante</p>
+                <input type="text" id="pcp-buscar" placeholder="Nombre del estudiante…">
+            </div>
+        </div>
 
         <div id="pcp-cargando">Cargando resultados…</div>
         <div id="pcp-error" hidden></div>
-        <div id="pcp-vacio" hidden>No hay intentos de práctica registrados con estos filtros.</div>
+        <div id="pcp-vacio" hidden>No hay actividades de clase registradas con estos filtros.</div>
 
         <div id="pcp-resultados" hidden>
             <div class="pcp-resumen" id="pcp-resumen"></div>
+
+            <div id="pcp-faltan-cont" hidden style="margin-bottom:14px;">
+                <span class="pcp-toggle-link" id="pcp-faltan-toggle">👀 Mostrar quién no aparece en ningún grupo todavía</span>
+                <div class="pcp-faltan-lista" id="pcp-faltan-lista" hidden></div>
+                <p class="pcp-aviso-aprox" id="pcp-faltan-aviso" hidden>
+                    ⚠️ Esta lista es aproximada: los estudiantes escriben su nombre a mano al entrar al grupo
+                    (no hay inicio de sesión individual en esta actividad), así que una falta de tilde o un
+                    nombre incompleto puede hacer que alguien aparezca aquí aunque sí haya participado. Revisa
+                    la columna "Integrantes" de la tabla si tienes dudas sobre alguien en particular.
+                </p>
+            </div>
 
             <div class="pcp-tabla-scroll">
                 <table class="pcp-tabla">
                     <thead>
                         <tr>
-                            <th data-orden="nombre">Estudiante</th>
+                            <th data-orden="fecha">Fecha</th>
                             <th data-orden="salon">Salón</th>
-                            <th data-orden="clase">Clase</th>
-                            <th data-orden="tipo">Ejercicio</th>
-                            <th data-orden="nota_meduca">Nota</th>
-                            <th data-orden="porcentaje">%</th>
-                            <th data-orden="correctas">Correctas</th>
-                            <th data-orden="incorrectas">Incorrectas</th>
+                            <th data-orden="actividad">Actividad</th>
+                            <th>Integrantes</th>
+                            <th data-orden="cw">Crucigrama</th>
+                            <th data-orden="pareo">Pareo</th>
+                            <th data-orden="completar">Completar</th>
+                            <th data-orden="nota">Nota</th>
                             <th data-orden="veces">Veces</th>
-                            <th data-orden="finalizado_at" id="pcp-col-fecha">Último intento</th>
                         </tr>
                     </thead>
                     <tbody id="pcp-tbody"></tbody>
