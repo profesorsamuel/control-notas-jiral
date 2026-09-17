@@ -160,7 +160,7 @@
     <header class="pcp-header">
         <div>
             <h1>🧪 Prácticas de Ciencias Naturales</h1>
-            <p>Último intento de cada estudiante · Clases 1 a 4 · Todos los salones</p>
+            <p id="pcp-subtitulo">Último intento de cada estudiante · Clases 1 a 4 · Todos los salones</p>
         </div>
         <div id="navCambiarPanel"></div>
     </header>
@@ -168,6 +168,14 @@
     <div class="pcp-contenedor">
 
         <div class="pcp-panel">
+            <div style="margin-bottom:14px;">
+                <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Vista</p>
+                <div class="chips-selector" id="pcp-filtro-vista">
+                    <span class="chip-opcion chip-activa" data-vista="ultimo">📌 Último intento</span>
+                    <span class="chip-opcion" data-vista="mejor">🏆 Mejor nota de cada uno</span>
+                </div>
+            </div>
+
             <div style="margin-bottom:14px;">
                 <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Clase</p>
                 <div class="chips-selector" id="pcp-filtro-clase"></div>
@@ -183,6 +191,8 @@
                 <div class="chips-selector" id="pcp-filtro-salon"></div>
             </div>
         </div>
+
+        <div id="pcp-aviso-historial" hidden style="background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px; padding:10px 12px; font-size:12.5px; margin-bottom:14px;"></div>
 
         <div id="pcp-cargando">Cargando resultados…</div>
         <div id="pcp-error" hidden></div>
@@ -203,7 +213,8 @@
                             <th data-orden="porcentaje">%</th>
                             <th data-orden="correctas">Correctas</th>
                             <th data-orden="incorrectas">Incorrectas</th>
-                            <th data-orden="finalizado_at">Último intento</th>
+                            <th data-orden="veces">Veces</th>
+                            <th data-orden="finalizado_at" id="pcp-col-fecha">Último intento</th>
                         </tr>
                     </thead>
                     <tbody id="pcp-tbody"></tbody>
