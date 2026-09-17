@@ -38,6 +38,14 @@ function formatearFecha(iso) {
     });
 }
 
+function normalizarCedula(c) {
+    return String(c ?? "").trim().toLowerCase().replace(/[\s-]/g, "");
+}
+
+function fechaDe(r) {
+    return r.finalizado_at || r.registrado_at || null;
+}
+
 // =========================================================
 // 1) VERIFICAR SESIÓN (mismo criterio que profesor.js:
 // debe existir en profesor_materias, o ser admin/consejero)
@@ -72,11 +80,20 @@ async function verificarSesion() {
 }
 
 // =========================================================
-// 2) CARGAR TODOS LOS INTENTOS DE PRÁCTICA
-// (ya guardamos solo el último intento de cada estudiante
-// por examen+tipo, así que aquí no hay que deduplicar nada)
+// 2) CARGAR INTENTOS DE PRÁCTICA
+// Para poder mostrar "la mejor nota de cada uno" (aunque el
+// estudiante haya repetido el ejercicio) leemos el HISTORIAL
+// completo (historial_intentos_practica), que guarda TODOS los
+// intentos. Si esa tabla todavía no existe (no se ha corrido
+// panel_tareas_practica.sql), usamos prueba_intentos_practica,
+// que solo tiene el último intento — en ese caso "mejor nota"
+// coincide con "último intento" y se avisa en pantalla.
 // =========================================================
-let TODOS = [];
+let TODOS = [];            // filas crudas (todos los intentos si hay historial)
+let GRUPOS = [];           // una entrada por estudiante+clase+tipo, con {ultimo, mejor, veces}
+let SIN_HISTORIAL = false;
+
+let vistaActual = "ultimo"; // "ultimo" | "mejor"
 let filtroClase = "todas";
 let filtroTipo = "todos";
 let filtroSalon = "todos";
@@ -93,10 +110,22 @@ async function cargarIntentos() {
     vacio.hidden = true;
     resultados.hidden = true;
 
-    const { data, error: errConsulta } = await supabase
-        .from("prueba_intentos_practica")
+    // 1º intento: historial completo (todos los intentos).
+    let { data, error: errConsulta } = await supabase
+        .from("historial_intentos_practica")
         .select("*")
-        .order("finalizado_at", { ascending: false });
+        .order("registrado_at", { ascending: true });
+
+    // Si la tabla de historial no existe, caemos a la de siempre.
+    if (errConsulta) {
+        SIN_HISTORIAL = true;
+        const fallback = await supabase
+            .from("prueba_intentos_practica")
+            .select("*")
+            .order("finalizado_at", { ascending: true });
+        data = fallback.data;
+        errConsulta = fallback.error;
+    }
 
     cargando.hidden = true;
 
@@ -108,17 +137,58 @@ async function cargarIntentos() {
     }
 
     TODOS = data || [];
+    construirGrupos();
+    pintarAvisoHistorial();
     pintarFiltros();
     aplicarFiltrosYPintar();
+}
+
+// Agrupa todos los intentos por estudiante + clase + tipo, y para
+// cada grupo calcula: el último intento, el de mejor nota, y cuántas
+// veces lo hizo.
+function construirGrupos() {
+    const mapa = new Map();
+    const claveDe = (r) => `${normalizarCedula(r.cedula)}|${r.codigo_examen}|${r.tipo_ejercicio || "quiz"}`;
+
+    for (const r of TODOS) {
+        const clave = claveDe(r);
+        if (!mapa.has(clave)) mapa.set(clave, []);
+        mapa.get(clave).push(r);
+    }
+
+    GRUPOS = Array.from(mapa.values()).map((intentos) => {
+        // Último por fecha.
+        const ultimo = intentos.reduce((a, b) =>
+            (new Date(fechaDe(b)) >= new Date(fechaDe(a)) ? b : a));
+        // Mejor por nota; si empatan en nota, el más reciente.
+        const mejor = intentos.reduce((a, b) => {
+            const na = Number(a.nota_meduca ?? -1);
+            const nb = Number(b.nota_meduca ?? -1);
+            if (nb > na) return b;
+            if (nb < na) return a;
+            return (new Date(fechaDe(b)) >= new Date(fechaDe(a)) ? b : a);
+        });
+        return { intentos, ultimo, mejor, veces: intentos.length };
+    });
+}
+
+function pintarAvisoHistorial() {
+    const aviso = document.getElementById("pcp-aviso-historial");
+    if (SIN_HISTORIAL) {
+        aviso.hidden = false;
+        aviso.innerHTML = `⚠️ La vista <b>"Mejor nota de cada uno"</b> necesita el historial completo de intentos. Aún no se ha ejecutado <code>supabase/panel_tareas_practica.sql</code> en Supabase, así que por ahora solo se guarda el último intento de cada quien: mientras tanto, "mejor nota" mostrará ese último intento. Corre ese script una vez para tener la mejor nota real de cada estudiante.`;
+    } else {
+        aviso.hidden = true;
+    }
 }
 
 // =========================================================
 // 3) FILTROS (chips)
 // =========================================================
 function pintarFiltros() {
-    const clasesPresentes = [...new Set(TODOS.map((r) => r.codigo_examen))];
-    const tiposPresentes = [...new Set(TODOS.map((r) => r.tipo_ejercicio || "quiz"))];
-    const salonesPresentes = [...new Set(TODOS.map((r) => r.salon))].sort();
+    const clasesPresentes = [...new Set(GRUPOS.map((g) => g.ultimo.codigo_examen))];
+    const tiposPresentes = [...new Set(GRUPOS.map((g) => g.ultimo.tipo_ejercicio || "quiz"))];
+    const salonesPresentes = [...new Set(GRUPOS.map((g) => g.ultimo.salon))].filter(Boolean).sort();
 
     const contClase = document.getElementById("pcp-filtro-clase");
     contClase.innerHTML = ["todas", ...clasesPresentes].map((c) => {
@@ -163,16 +233,49 @@ function pintarFiltros() {
     });
 }
 
+// Selector de vista: Último intento vs Mejor nota
+document.querySelectorAll("#pcp-filtro-vista .chip-opcion").forEach((chip) => {
+    chip.addEventListener("click", () => {
+        vistaActual = chip.dataset.vista;
+        document.querySelectorAll("#pcp-filtro-vista .chip-opcion")
+            .forEach((c) => c.classList.toggle("chip-activa", c.dataset.vista === vistaActual));
+        // Ajusta el subtítulo y el encabezado de la última columna.
+        const sub = document.getElementById("pcp-subtitulo");
+        const colFecha = document.getElementById("pcp-col-fecha");
+        if (vistaActual === "mejor") {
+            sub.textContent = "Mejor nota de cada estudiante (aunque haya repetido) · Clases 1 a 4 · Todos los salones";
+            colFecha.textContent = "Fecha de la mejor";
+        } else {
+            sub.textContent = "Último intento de cada estudiante · Clases 1 a 4 · Todos los salones";
+            colFecha.textContent = "Último intento";
+        }
+        aplicarFiltrosYPintar();
+    });
+});
+
 // =========================================================
 // 4) APLICAR FILTROS + ORDEN + PINTAR TABLA
 // =========================================================
+// Devuelve, para cada grupo que pasa los filtros, la fila que
+// corresponde a la vista elegida (el último intento, o el de mejor
+// nota), más el número de veces que repitió.
+function filasParaVista() {
+    return GRUPOS
+        .filter((g) => {
+            const r = g.ultimo; // los filtros de clase/tipo/salón son iguales en todos los intentos del grupo
+            if (filtroClase !== "todas" && r.codigo_examen !== filtroClase) return false;
+            if (filtroTipo !== "todos" && (r.tipo_ejercicio || "quiz") !== filtroTipo) return false;
+            if (filtroSalon !== "todos" && r.salon !== filtroSalon) return false;
+            return true;
+        })
+        .map((g) => {
+            const base = vistaActual === "mejor" ? g.mejor : g.ultimo;
+            return { ...base, veces: g.veces, _fecha: fechaDe(base) };
+        });
+}
+
 function aplicarFiltrosYPintar() {
-    let filas = TODOS.filter((r) => {
-        if (filtroClase !== "todas" && r.codigo_examen !== filtroClase) return false;
-        if (filtroTipo !== "todos" && (r.tipo_ejercicio || "quiz") !== filtroTipo) return false;
-        if (filtroSalon !== "todos" && r.salon !== filtroSalon) return false;
-        return true;
-    });
+    let filas = filasParaVista();
 
     filas.sort((a, b) => {
         const campo = ordenActual.campo;
@@ -180,6 +283,7 @@ function aplicarFiltrosYPintar() {
         let vb = b[campo];
         if (campo === "clase") { va = NOMBRES_CLASE[a.codigo_examen] || a.codigo_examen; vb = NOMBRES_CLASE[b.codigo_examen] || b.codigo_examen; }
         if (campo === "tipo") { va = a.tipo_ejercicio || "quiz"; vb = b.tipo_ejercicio || "quiz"; }
+        if (campo === "finalizado_at") { va = a._fecha; vb = b._fecha; }
         if (va === null || va === undefined) va = "";
         if (vb === null || vb === undefined) vb = "";
         if (typeof va === "string") va = va.toLowerCase();
@@ -209,6 +313,9 @@ function aplicarFiltrosYPintar() {
         const claseBadge = `badge-tipo-${tipo}`;
         const nota = r.nota_meduca !== null && r.nota_meduca !== undefined ? Number(r.nota_meduca).toFixed(1) : "—";
         const claseNota = (r.nota_meduca !== null && r.nota_meduca < 3) ? "nota-baja" : "nota-alta";
+        const veces = r.veces > 1
+            ? `<b title="Repitió el ejercicio ${r.veces} veces">${r.veces}×</b>`
+            : `${r.veces}`;
         return `
             <tr>
                 <td>${escapeHtml(r.nombre)}</td>
@@ -219,7 +326,8 @@ function aplicarFiltrosYPintar() {
                 <td>${r.porcentaje ?? "—"}%</td>
                 <td>${r.correctas ?? "—"}</td>
                 <td>${r.incorrectas ?? "—"}</td>
-                <td>${formatearFecha(r.finalizado_at)}</td>
+                <td>${veces}</td>
+                <td>${formatearFecha(r._fecha)}</td>
             </tr>
         `;
     }).join("");
@@ -232,11 +340,14 @@ function pintarResumen(filas) {
         ? (conNota.reduce((s, r) => s + Number(r.nota_meduca), 0) / conNota.length).toFixed(1)
         : "—";
     const bajoTres = conNota.filter((r) => Number(r.nota_meduca) < 3).length;
+    const repitieron = filas.filter((r) => r.veces > 1).length;
 
+    const etiquetaPromedio = vistaActual === "mejor" ? "Promedio (mejores)" : "Promedio";
     document.getElementById("pcp-resumen").innerHTML = `
         <div class="pcp-resumen-item">Estudiantes<b>${total}</b></div>
-        <div class="pcp-resumen-item">Promedio<b>${promedio}</b></div>
+        <div class="pcp-resumen-item">${etiquetaPromedio}<b>${promedio}</b></div>
         <div class="pcp-resumen-item">Con nota &lt; 3.0<b>${bajoTres}</b></div>
+        <div class="pcp-resumen-item">Repitieron<b>${repitieron}</b></div>
     `;
 }
 
