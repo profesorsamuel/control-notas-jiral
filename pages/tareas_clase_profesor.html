@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarea en clase | Panel del Docente</title>
+
+    <link rel="icon" type="image/x-icon" href="../img/profesor-favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../img/profesor-favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../img/profesor-favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../img/profesor-apple-touch-icon.png">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/temas.css">
+
+    <style>
+        html, body { max-width: 100%; overflow-x: hidden; }
+
+        body.tema-docente {
+            font-family: 'Inter', sans-serif;
+            background: var(--color-fondo);
+            color: var(--color-texto, #1e293b);
+        }
+
+        h1, h2, h3, .tc-titulo { font-family: 'Baloo 2', sans-serif; }
+
+        .tc-header {
+            background: var(--color-primario);
+            color: #fff;
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tc-header h1 { font-size: 1.15rem; margin: 0; }
+        .tc-header p { margin: 2px 0 0; font-size: .85rem; opacity: .85; }
+
+        .tc-contenedor {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 16px 60px;
+        }
+
+        .tc-panel {
+            background: var(--color-panel, #fff);
+            border: 1px solid var(--color-borde);
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+
+        .chips-selector { display: flex; flex-wrap: wrap; gap: 8px; }
+
+        .chip-opcion {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--color-borde);
+            background: #fff;
+            color: #1e293b;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: border-color .15s ease, background-color .15s ease;
+        }
+
+        .chip-opcion:hover { border-color: var(--color-primario); }
+
+        .chip-opcion.chip-activa {
+            background: var(--color-primario-claro, #e8ecfb);
+            border-color: var(--color-primario);
+            color: var(--color-primario-oscuro, var(--color-primario));
+        }
+
+        input#tc-buscar, input.tc-fecha {
+            border: 1px solid var(--color-borde);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 13.5px;
+        }
+        input#tc-buscar { width: 100%; max-width: 320px; }
+
+        .tc-fechas-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+        .tc-fechas-row label { font-size:12.5px; color:#64748b; display:flex; flex-direction:column; gap:3px; }
+
+        table.tc-tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+
+        table.tc-tabla th {
+            text-align: left;
+            padding: 10px 8px;
+            background: #f1f5f9;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        table.tc-tabla th:hover { background: #e2e8f0; }
+
+        table.tc-tabla td { padding: 8px; border-bottom: 1px solid var(--color-borde); }
+        table.tc-tabla tbody tr:hover { background: #f8fafc; }
+
+        .tc-tabla-scroll {
+            max-height: 62vh;
+            overflow: auto;
+            border: 1px solid var(--color-borde);
+            border-radius: 10px;
+        }
+
+        .tc-integrantes-lista { display:flex; flex-wrap:wrap; gap:4px; max-width:260px; white-space:normal; }
+        .tc-integrante-chip {
+            background:#eef2ff; color:#3730a3; border-radius:14px;
+            padding:2px 9px; font-size:12px; white-space:nowrap;
+        }
+
+        .nota-baja { color: #dc2626; font-weight: 700; }
+        .nota-alta { color: #16a34a; font-weight: 700; }
+
+        #tc-vacio, #tc-cargando, #tc-error { text-align: center; padding: 30px; color: #64748b; }
+        #tc-error { color: #dc2626; }
+
+        .tc-resumen { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+
+        .tc-resumen-item {
+            background: #f8fafc;
+            border: 1px solid var(--color-borde);
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 13px;
+        }
+
+        .tc-resumen-item b { display: block; font-size: 17px; }
+
+        .tc-faltan-lista { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+        .tc-faltan-chip {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            color: #9a3412;
+            border-radius: 20px;
+            padding: 4px 10px;
+            font-size: 12.5px;
+        }
+
+        .tc-toggle-link {
+            font-size: 12.5px;
+            color: var(--color-primario);
+            cursor: pointer;
+            text-decoration: underline;
+            user-select: none;
+        }
+
+        .tc-aviso-aprox {
+            font-size: 12px;
+            color: #92400e;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+
+<body class="tema-docente">
+
+    <header class="tc-header">
+        <div>
+            <h1>📝 Tarea en clase</h1>
+            <p>Actividades grupales hechas en clase (crucigrama, pareo, completar) · 9° · Ciencias Naturales</p>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <a href="tareas_practica_profesor.html" style="color:#fff; font-size:13px; text-decoration:underline;">🏠 Ver tareas en casa</a>
+            <span id="navCambiarPanel"></span>
+        </div>
+    </header>
+
+    <div class="tc-contenedor">
+
+        <div class="tc-panel">
+            <div style="margin-bottom:14px;">
+                <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Actividad</p>
+                <div class="chips-selector" id="tc-filtro-actividad"></div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Salón</p>
+                <div class="chips-selector" id="tc-filtro-salon"></div>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Fecha</p>
+                <div class="tc-fechas-row">
+                    <label>Desde <input type="date" class="tc-fecha" id="tc-fecha-desde"></label>
+                    <label>Hasta <input type="date" class="tc-fecha" id="tc-fecha-hasta"></label>
+                    <span class="tc-toggle-link" id="tc-fecha-limpiar">Quitar filtro de fecha</span>
+                </div>
+            </div>
+
+            <div>
+                <p style="margin:0 0 6px; font-weight:700; font-size:13px;">Buscar integrante</p>
+                <input type="text" id="tc-buscar" placeholder="Nombre del estudiante…">
+            </div>
+        </div>
+
+        <div id="tc-cargando">Cargando resultados…</div>
+        <div id="tc-error" hidden></div>
+        <div id="tc-vacio" hidden>No hay actividades de clase registradas con estos filtros.</div>
+
+        <div id="tc-resultados" hidden>
+            <div class="tc-resumen" id="tc-resumen"></div>
+
+            <div id="tc-faltan-cont" hidden style="margin-bottom:14px;">
+                <span class="tc-toggle-link" id="tc-faltan-toggle">👀 Mostrar quién no aparece en ningún grupo todavía</span>
+                <div class="tc-faltan-lista" id="tc-faltan-lista" hidden></div>
+                <p class="tc-aviso-aprox" id="tc-faltan-aviso" hidden>
+                    ⚠️ Esta lista es aproximada: los estudiantes escriben su nombre a mano al entrar al grupo
+                    (no hay inicio de sesión individual en esta actividad), así que una falta de tilde o un
+                    nombre incompleto puede hacer que alguien aparezca aquí aunque sí haya participado. Revisa
+                    la columna "Integrantes" de la tabla si tienes dudas sobre alguien en particular.
+                </p>
+            </div>
+
+            <div class="tc-tabla-scroll">
+                <table class="tc-tabla">
+                    <thead>
+                        <tr>
+                            <th data-orden="fecha">Fecha</th>
+                            <th data-orden="salon">Salón</th>
+                            <th data-orden="actividad">Actividad</th>
+                            <th>Integrantes</th>
+                            <th data-orden="cw">Crucigrama</th>
+                            <th data-orden="pareo">Pareo</th>
+                            <th data-orden="completar">Completar</th>
+                            <th data-orden="nota">Nota final</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tc-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="../js/tareas_clase_profesor.js"></script>
+</body>
+</html>

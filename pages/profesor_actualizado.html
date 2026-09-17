@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel del Docente</title>
+
+    <link rel="icon" type="image/x-icon" href="../img/profesor-favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="../img/profesor-favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../img/profesor-favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../img/profesor-apple-touch-icon.png">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Panel del Docente | Control de Notas - C.E.B.G. El Jiral">
+    <meta property="og:description" content="Registra y edita las notas de tus estudiantes por salón y materia.">
+    <meta property="og:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
+    <meta property="og:url" content="https://notasjiral.netlify.app/pages/profesor.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://notasjiral.netlify.app/img/profesor-og-image.jpg">
+
+    <!-- Bootstrap: necesario para las clases usadas en la tabla de notas (form-control, badge, table-danger, etc.) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Tipografía propia: Baloo 2 para títulos (cálida, redondeada, con
+         aire escolar) + Inter para datos y texto de la tabla (legible en
+         tamaños chicos). Reemplaza el Arial genérico de antes. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Necesarias para exportar el reporte de notas a PDF y JPG -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+    <style>
+        /* Candado general: nada en la página (ni siquiera el contenedor
+           que se arma fuera de pantalla para exportar PDF/JPG) puede
+           hacer que el ancho total se salga del celular. */
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        /* ============ Selector tipo "chips" para Salón / Materia ============
+           Reemplaza el <select> visible: se ve toda la lista de opciones
+           de una vez, cada una con su gancho, y se elige tocando/clicando
+           encima (una sola opción activa a la vez). */
+        .chips-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .chip-opcion {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--color-borde);
+            background: #ffffff;
+            color: var(--color-texto);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: border-color .15s ease, background-color .15s ease;
+        }
+
+        .chip-opcion:hover { border-color: var(--color-primario); }
+
+        .chip-opcion-activa {
+            background: var(--color-primario-claro);
+            border-color: var(--color-primario);
+            color: var(--color-primario-oscuro);
+        }
+
+        /* ============ Paleta propia (índigo + ámbar, moderna) ============
+           Antes: verde pizarra + dorado sobre fondo crema. Ahora: índigo
+           como color principal (más actual, tipo apps de escritorio/SaaS),
+           ámbar como color de acción/acento, sobre un fondo gris frío
+           suave en vez del crema tipo cuaderno. */
+body {
+            font-family: 'Inter', Arial, sans-serif;
+            padding: 20px;
+            background: var(--color-fondo);
+            color: var(--color-texto);
+        }
+
+        h1, h2 {
+            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
+        }
+        h1 { color: var(--color-primario); font-weight: 700; }
+        h2 { color: var(--color-primario); font-size: 1.2rem; margin-top: 30px; font-weight: 600; }
+
+        /* ============ Encabezado del panel (nombre del docente) ============ */
+        .docente-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+            color: #ffffff;
+            border-radius: 18px;
+            padding: 22px 26px;
+            margin-bottom: 22px;
+            box-shadow: 0 8px 24px rgba(67, 56, 202, .28);
+        }
+
+        .docente-header-identidad {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        .docente-header-avatar {
+            flex: none;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--color-acento);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
+        }
+
+        .docente-header-texto {
+            min-width: 0;
+        }
+
+        .docente-header-eyebrow {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #c7d2fe;
+            margin: 0 0 2px;
+        }
+
+        .docente-header-nombre {
+            font-family: 'Baloo 2', 'Inter', Arial, sans-serif;
+            font-weight: 800;
+            font-size: clamp(1.3rem, 2.6vw, 1.9rem);
+            color: #ffffff;
+            margin: 0;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        .docente-header-resumen {
+            font-size: 13px;
+            color: #e0e7ff;
+            margin-top: 4px;
+        }
+
+        .docente-header-acciones {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .docente-header-acciones a,
+        .docente-header-acciones button {
+            font-size: 14px;
+        }
+
+        .btn-header-accion {
+            background: var(--color-acento);
+            color: #fff;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            transition: background-color .15s ease;
+        }
+
+        .btn-header-accion:hover { background: var(--color-acento-oscuro); color: #fff; }
+
+        @media (max-width: 600px) {
+            .docente-header { padding: 16px 18px; }
+            .docente-header-avatar { width: 46px; height: 46px; font-size: 1.15rem; }
+        }
+
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid var(--color-borde); padding: 8px; text-align: center; }
+        th { background: var(--color-primario); color: white; font-family: 'Inter', Arial, sans-serif; }
+
+        .resumen, .panel-blanco {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 20px rgba(15, 23, 42, .06);
+        }
+
+        .form-notas-fila {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .form-notas-fila > div { display: flex; flex-direction: column; gap: 4px; }
+        .form-notas-fila label { font-size: 13px; font-weight: bold; color: var(--color-primario); }
+        .form-notas-fila select, .form-notas-fila input {
+            padding: 8px;
+            border: 1px solid var(--color-borde);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        #btnGuardarNotasGrupo {
+            padding: 8px 16px;
+            background: var(--color-acento);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            height: 38px;
+        }
+
+        #btnGuardarNotasGrupo { background: var(--color-primario); margin-top: 15px; }
+
+        /* Botones de exportar (PDF / JPG): píldoras con degradado propio,
+           en vez de los botones planos "outline" de Bootstrap, con un
+           pequeño efecto de elevación al pasar el mouse. */
+        .botonera-exportar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-exportar {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, .14);
+            transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+        }
+
+        .btn-exportar:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(15, 23, 42, .2); }
+        .btn-exportar:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(15, 23, 42, .14); }
+        .btn-exportar:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .btn-exportar-icono { font-size: 16px; line-height: 1; }
+
+        .btn-exportar-pdf { background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); }
+        .btn-exportar-jpg { background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); }
+        .btn-exportar-notamin { background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); }
+        .btn-exportar-final { background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%); }
+
+        /* Paleta pastel moderna (tonos índigo/ámbar/rojo/violeta), con
+           fondos suaves y letra oscura; las casillas de nota siempre en
+           blanco para que se lean bien encima. */
+        .table-danger, tr.table-danger > td, tr.table-danger > th {
+            background-color: #fee2e2 !important;
+            color: #991b1b !important;
+        }
+        .table-warning, tr.table-warning > td, tr.table-warning > th {
+            background-color: #fef3c7 !important;
+            color: #92400e !important;
+        }
+        .table-success, td.table-success {
+            background-color: var(--color-primario-claro) !important;
+            color: var(--color-primario-oscuro) !important;
+        }
+        .text-danger { color: #dc2626 !important; }
+        .badge.bg-warning { background-color: #fef3c7 !important; color: #92400e !important; }
+
+        /* Columna actualmente seleccionada en el formulario de arriba:
+           un violeta suave, distinto del índigo principal y del ámbar de
+           acento, para que se note sin confundirse con otros estados. */
+        .table-primary, th.table-primary { background-color: #ede9fe !important; }
+        .text-primary { color: #5b21b6 !important; }
+
+        .input-nota-grupo, .input-tema-columna {
+            background-color: #fff !important;
+            color: #222 !important;
+        }
+
+        /* Ancho mínimo fijo para que un valor como "3.5" siempre quepa
+           completo dentro de la casilla, incluso en pantallas angostas
+           de celular (antes se podía recortar o quedar dentro de un
+           campo demasiado angosto que requería scroll para leerse). */
+        td.celda-nota {
+            width: var(--ancho-celda-nota, 68px);
+            min-width: var(--ancho-celda-nota, 68px);
+        }
+        .input-nota-grupo {
+            width: 100%;
+            min-width: calc(var(--ancho-celda-nota, 68px) - 8px);
+            box-sizing: border-box;
+            text-align: center;
+            padding: 6px 1px;
+            font-size: var(--tamano-texto-nota, 14px);
+        }
+
+        #tablaScroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
+        #tablaScroll table { border-collapse: separate; border-spacing: 0; }
+        #tablaScroll th, #tablaScroll td { border: 1px solid #ddd4c4; }
+
+        /* Que cada columna (excepto las fijas de # y Estudiante) quede
+           "trabada" completa al terminar de deslizar en celular, en vez
+           de poder quedar cortada a la mitad justo en el borde de la
+           pantalla. */
+        #tablaScroll th:not(.col-fija), #tablaScroll td:not(.col-fija) {
+            scroll-snap-align: start;
+        }
+
+        /* Columnas fijas: # y Estudiante quedan pegadas a la izquierda
+           mientras el resto de la tabla se desliza por debajo. */
+        .col-fija {
+            position: sticky;
+            background: #fff;
+            z-index: 1;
+        }
+        .col-fija-num { left: 0; width: 34px; min-width: 34px; }
+        .col-fija-nombre {
+            left: 34px;
+            width: 120px;
+            min-width: 120px;
+            max-width: 120px;
+            text-align: left;
+            white-space: normal;
+            box-shadow: 2px 0 4px rgba(0, 0, 0, .12);
+        }
+        thead .col-fija { background: var(--color-primario); color: #fff; z-index: 2; }
+        tr.table-warning td.col-fija { background-color: #fef3c7; }
+        tr.table-danger td.col-fija { background-color: #fee2e2; }
+
+        /* Resaltado de tendencia por estudiante: mejoró (verde esmeralda),
+           bajó rendimiento (naranja). "En peligro" ya usa table-danger/rojo
+           (nota final por debajo de 3.0) y tiene prioridad sobre estas dos. */
+        tr.fila-mejora { background-color: #ecfdf5; }
+        tr.fila-mejora td.col-fija { background-color: #d1fae5; }
+        tr.fila-bajada { background-color: #fff7ed; }
+        tr.fila-bajada td.col-fija { background-color: #ffedd5; }
+        .badge-tendencia .badge { font-size: 10px; font-weight: normal; vertical-align: middle; }
+
+        /* Bootstrap pinta ".text-muted" en gris oscuro, que sobre el
+           índigo del encabezado casi no se ve. Lo aclaramos solo dentro
+           de la tabla. */
+        #tablaScroll thead .text-muted { color: #c7d2fe !important; }
+        #tablaScroll thead .btn-eliminar-columna { color: #fecaca !important; }
+
+        /* Celular: menos relleno alrededor y campos del formulario a todo
+           el ancho, para que no quede tanto espacio vacío. */
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .resumen, .panel-blanco { padding: 12px; }
+            h1 { font-size: 1.25rem; }
+            .form-notas-fila { flex-direction: column; align-items: stretch; gap: 10px; }
+            .form-notas-fila > div { width: 100%; }
+            .form-notas-fila select, .form-notas-fila input { width: 100%; box-sizing: border-box; }
+            #buscarCorreo { width: 100%; box-sizing: border-box; }
+        }
+
+        #buscarCorreo {
+            width: 350px;
+            padding: 10px;
+            border: 1px solid var(--color-borde);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        /* ===== Modal de Apreciación: pestañas modernas ===== */
+        .apr-cabecera {
+            background: var(--color-primario-claro);
+            border: 1px solid #e0e7ff;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+        }
+
+        .apr-cabecera-fila {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .apr-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 6px;
+            background: #f1f5f9;
+            border-radius: 14px;
+            margin-bottom: 18px;
+            position: sticky;
+            top: -1rem;
+            z-index: 5;
+        }
+
+        .apr-tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            border: none;
+            background: transparent;
+            color: var(--color-texto);
+            font-weight: 600;
+            font-size: 13.5px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background .15s ease, color .15s ease, transform .1s ease;
+            white-space: nowrap;
+        }
+
+        .apr-tab-btn:hover { background: #e2e8f0; }
+
+        .apr-tab-btn.activo {
+            background: var(--color-primario);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(79, 70, 229, .3);
+        }
+
+        .apr-tab-btn .apr-tab-icono { font-size: 15px; }
+
+        .apr-tab-btn .apr-tab-badge {
+            background: rgba(0, 0, 0, .12);
+            border-radius: 999px;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 1px 7px;
+            margin-left: 2px;
+        }
+
+        .apr-tab-btn.activo .apr-tab-badge { background: rgba(255, 255, 255, .25); }
+
+        .apr-tab-pane { display: none; }
+        .apr-tab-pane.activo { display: block; animation: aprFadeIn .18s ease; }
+
+        @keyframes aprFadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .apr-panel-seccion {
+            background: #fff;
+            border: 1px solid var(--color-borde);
+            border-radius: 14px;
+            padding: 16px 18px;
+        }
+
+        .apr-panel-seccion h6 {
+            margin-top: 0 !important;
+        }
+
+        .apr-nota-final-panel {
+            background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+            border: 1px solid #bbf7d0;
+        }
+
+        .apr-nota-final-panel table thead th { background: #059669; }
+
+        @media (max-width: 600px) {
+            .apr-tabs { position: static; }
+            .apr-tab-btn { flex: 1 1 auto; justify-content: center; }
+        }
+    </style>
+    <link rel="stylesheet" href="../css/temas.css">
+</head>
+
+<body class="tema-docente">
+
+    <header class="docente-header">
+        <div class="docente-header-identidad">
+            <div class="docente-header-avatar" id="avatarDocente">👨‍🏫</div>
+            <div class="docente-header-texto">
+                <p class="docente-header-eyebrow">Panel del Docente</p>
+                <h1 class="docente-header-nombre" id="nombreProfesorHeader">Cargando...</h1>
+                <p class="docente-header-resumen" id="resumenAsignacionesHeader"></p>
+            </div>
+        </div>
+        <div class="docente-header-acciones">
+            <a href="asistencia.html" class="btn-header-accion">📋 Asistencia</a>
+            <a href="tareas.html" class="btn-header-accion">📚 Tareas</a>
+            <a href="portal-admin.html" class="btn-header-accion">🗂️ Mi Portal de Clase</a>
+            <a href="alerta_horario.html" class="btn-header-accion">🔔 Horario</a>
+            <a href="riesgo.html?modo=profesor" class="btn-header-accion">⚠️ Riesgo</a>
+            <a href="sin_examen.html" class="btn-header-accion">📝 Sin Examen</a>
+            <a href="boletin_profesor.html" class="btn-header-accion">🧾 Boletín 3 Trimestres</a>
+            <a href="riesgo_boletin.html" class="btn-header-accion">⚠️ Riesgo (todos los salones)</a>
+            <a href="cuadro_aprobados.html" class="btn-header-accion">📊 Cuadro</a>
+            <a href="cuadro_fracaso.html" class="btn-header-accion">📉 Fracaso Escolar</a>
+            <a href="planificador_meduca.html" class="btn-header-accion">🧪 Planificador MEDUCA</a>
+            <a href="prueba_clase1_ciencias_9_admin.html" class="btn-header-accion">🔬 Examen Clase 1</a>
+            <a href="practica_ciencias_profesor.html" class="btn-header-accion">🧪 Prácticas Ciencias</a>
+            <a href="tareas_practica_profesor.html" class="btn-header-accion">🏠 Tareas en casa</a>
+            <a href="tareas_clase_profesor.html" class="btn-header-accion">📝 Tarea en clase</a>
+            <a href="decoracion_clase1.html" class="btn-header-accion">🎨 Decoremos el salón</a>
+            <span id="navCambiarPanel"></span>
+        </div>
+    </header>
+
+    <!-- ================= REGISTRAR / EDITAR NOTAS ================= -->
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <h2 style="margin:0;">📝 Registrar notas</h2>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; position:relative; align-items:center;">
+            <label class="form-check small" style="display:flex; align-items:center; gap:5px; margin:0; color:#92400e; background:#fef3c7; padding:5px 10px; border-radius:8px; border:1px solid #fde68a;" title="Muestra los estudiantes marcados como 'es_prueba' en esta pantalla y en las Apreciaciones, SOLO para que tú los pruebes. Nunca aparecen en Boletín, Cuadro, Riesgo ni en los PDF/reportes de aquí mismo, sin importar este interruptor.">
+                <input type="checkbox" id="chkMostrarEstudiantesPrueba" class="form-check-input" style="margin:0;">
+                🧪 Mostrar estudiante(s) de prueba aquí
+            </label>
+            <button type="button" id="btnPapelera" class="btn btn-outline-secondary btn-sm">🗑️ Papelera</button>
+            <button type="button" id="btnAbrirEnviarNotas" class="btn btn-outline-primary btn-sm">📧 Enviar notas por correo ▾</button>
+            <span id="estadoEnviarRespaldo" class="small" style="align-self:center;"></span>
+
+            <div id="panelEnviarNotas" style="display:none; position:absolute; top:100%; right:0; margin-top:4px; z-index:20; background:#fff; border:1px solid #dee2e6; border-radius:8px; padding:12px; min-width:230px; box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+                <div class="small" style="font-weight:bold; color:var(--color-primario); margin-bottom:6px;">
+                    ¿Qué salones incluir?
+                </div>
+                <div id="listaChecksSalonesEnvio" style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;"></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                    <button type="button" id="btnEnvioSalonesTodos" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Todos</button>
+                    <button type="button" id="btnEnvioSalonesNinguno" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Ninguno</button>
+                </div>
+                <button type="button" id="btnConfirmarEnvioNotas" class="btn btn-primary btn-sm w-100">📧 Enviar por correo</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="avisoSinAsignaciones" class="panel-blanco" style="display:none; color:#dc2626;">
+        Todavía no tienes materias ni salones asignados. Pídele al administrador que te
+        agregue en la pantalla de "Asignaciones de profesores".
+    </div>
+
+    <div id="panelPapelera" class="panel-blanco" style="display:none;">
+        <div style="font-weight:bold; color:var(--color-primario); margin-bottom:8px;">
+            🗑️ Papelera de reciclaje (casillas eliminadas de la materia/salón/trimestre cargados)
+        </div>
+        <p class="small text-muted" style="margin-bottom:8px;">
+            Estas casillas fueron eliminadas pero sus notas siguen guardadas. No hay límite de
+            tiempo: puedes restaurarlas cuando quieras con el botón "♻️ Restaurar".
+        </p>
+        <div id="listaPapelera"></div>
+        <span id="estadoPapelera" class="small"></span>
+    </div>
+
+    <div class="panel-blanco">
+        <div class="form-notas-fila">
+            <div>
+                <label>Salón</label>
+                <select id="selectSalonNota" style="display:none;"><option value="">Cargando...</option></select>
+                <div id="chipsSalonNota" class="chips-selector"><span class="small text-muted">Cargando...</span></div>
+            </div>
+            <div>
+                <label>Materia</label>
+                <select id="selectMateriaNota" style="display:none;" disabled><option value="">Seleccione primero un salón</option></select>
+                <div id="chipsMateriaNota" class="chips-selector"><span class="small text-muted">Seleccione primero un salón</span></div>
+            </div>
+            <div>
+                <label>Trimestre</label>
+                <select id="selectTrimestreNota" style="display:none;">
+                    <option value="Trimestre 1">Trimestre 1</option>
+                    <option value="Trimestre 2">Trimestre 2</option>
+                    <option value="Trimestre 3">Trimestre 3</option>
+                </select>
+                <div id="chipsTrimestreNota" class="chips-selector"></div>
+                <div id="avisoTrimestrePasado" style="display:none; margin-top:4px; font-size:12px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:5px 8px; max-width:260px;"></div>
+            </div>
+            <div>
+                <span id="estadoCargaSalon" class="small text-muted"></span>
+            </div>
+        </div>
+        <!-- El Tipo (Apreciación/Ejercicio/Examen) y la casilla (número) ya
+             no los elige el docente a mano: la primera casilla que se crea
+             es de Apreciación, y desde ahí se agregan más con el botón "➕"
+             de cada grupo de columnas en la tabla. -->
+        <input type="hidden" id="selectTipoNota" value="apreciacion">
+        <input type="hidden" id="inputNumeroNota" min="1" max="10" value="1">
+    </div>
+
+    <div id="bloqueLeyendaMateria" class="panel-blanco" style="display:none;">
+        <details>
+            <summary style="font-weight:bold; color:var(--color-primario); cursor:pointer;">
+                ℹ️ Explicación de las notas (aparece en "Ver mis notas" del estudiante)
+            </summary>
+            <p class="small text-muted" style="margin:8px 0;">
+                Este texto se muestra debajo de la tabla de esta materia en la pantalla de
+                consulta de notas del estudiante. Aplica a <strong>todos los trimestres de
+                este salón</strong> con esta materia (es un texto distinto por cada salón,
+                aunque sea la misma materia). Déjalo vacío y guarda para quitarlo.
+            </p>
+            <textarea id="textareaLeyendaMateria" class="form-control form-control-sm" rows="3"
+                placeholder='Ej: Nota 1 es de la clase 1. Nota 2 es la práctica 1...'></textarea>
+            <div style="margin-top:8px; display:flex; align-items:center; gap:10px;">
+                <button type="button" id="btnGuardarLeyenda" class="btn btn-sm btn-primary">Guardar explicación</button>
+                <span id="estadoLeyenda" class="small"></span>
+            </div>
+        </details>
+    </div>
+
+    <div id="bloqueTablaNotas" class="panel-blanco" style="display:none;">
+        <div class="mb-2 small">
+            <div style="font-weight:bold; color:var(--color-primario); margin-bottom:6px;">
+                🧩 Elegir columnas para ver
+            </div>
+            <div style="margin-bottom:6px;">
+                <button type="button" id="btnColumnasSeleccionarTodas" class="btn btn-link btn-sm p-0 me-3" style="text-decoration:none;">Seleccionar todas</button>
+                <button type="button" id="btnColumnasSeleccionarNinguna" class="btn btn-link btn-sm p-0 me-3" style="text-decoration:none;">Ninguna</button>
+                <button type="button" id="btnOcultarColumnasCompletas" class="btn btn-link btn-sm p-0" style="text-decoration:none;">👁️‍🗨️ Ocultar las que ya tienen nota</button>
+            </div>
+            <div id="listaChecksColumnas" style="display:flex; flex-wrap:wrap; gap:10px; padding:10px; background:#f8fafc; border-radius:6px;"></div>
+            <div id="bloqueAgregarPrimeraColumna" style="display:none; margin-top:8px; gap:8px; flex-wrap:wrap;"></div>
+        </div>
+        <div class="mb-2 small">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+                <div style="font-weight:bold; color:var(--color-primario);">
+                    🧑‍🎓 Elegir estudiantes para ver:
+                </div>
+                <button type="button" id="btnToggleFiltroEstudiantes" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Mostrar filtro</button>
+            </div>
+            <div id="bloqueFiltroEstudiantes" style="display:none; margin-top:6px;">
+                <div style="margin-bottom:6px;">
+                    <button type="button" id="btnEstudiantesSeleccionarTodos" class="btn btn-link btn-sm p-0 me-3" style="text-decoration:none;">Seleccionar todos</button>
+                    <button type="button" id="btnEstudiantesSeleccionarNinguno" class="btn btn-link btn-sm p-0" style="text-decoration:none;">Ninguno</button>
+                </div>
+                <div id="listaChecksEstudiantes" style="display:flex; flex-wrap:wrap; gap:10px; padding:10px; background:#f8fafc; border-radius:6px; max-height:220px; overflow-y:auto;"></div>
+                <p style="font-size:11px; color:#888; margin:8px 0 0;">
+                    Esto solo afecta lo que ves en pantalla; el PDF y el JPG siempre salen con
+                    todos los estudiantes, como un reporte formal.
+                </p>
+            </div>
+        </div>
+        <div class="mb-2 small" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <label for="rangoAnchoCasilla" style="font-weight:bold; color:var(--color-primario);">↔️ Ancho de las casillas:</label>
+            <input type="range" id="rangoAnchoCasilla" min="50" max="110" value="68" style="flex:1; min-width:120px; max-width:220px;">
+            <span id="valorAnchoCasilla" style="min-width:38px;">68px</span>
+        </div>
+        <div id="tablaScroll">
+            <table>
+                <thead>
+                    <tr id="cabeceraNotasGrupo"></tr>
+                    <tr id="cabeceraTemasGrupo"></tr>
+                </thead>
+                <tbody id="tablaNotasGrupo"></tbody>
+            </table>
+        </div>
+        <button type="button" id="btnGuardarNotasGrupo" style="display:none;">💾 Guardar notas</button>
+        <span id="estadoGuardadoNotas" class="small" style="margin-left:0;"></span>
+        <div class="mt-3 botonera-exportar">
+            <button type="button" id="btnExportarPdf" class="btn-exportar btn-exportar-pdf">
+                <span class="btn-exportar-icono">📄</span>
+                <span class="btn-exportar-texto">Descargar PDF</span>
+            </button>
+            <button type="button" id="btnExportarJpg" class="btn-exportar btn-exportar-jpg">
+                <span class="btn-exportar-icono">🖼️</span>
+                <span class="btn-exportar-texto">Descargar JPG</span>
+            </button>
+            <button type="button" id="btnExportarNotaMinima" class="btn-exportar btn-exportar-notamin">
+                <span class="btn-exportar-icono">🎯</span>
+                <span class="btn-exportar-texto">Nota mínima en Examen (PDF)</span>
+            </button>
+            <button type="button" id="btnExportarFinalPdf" class="btn-exportar btn-exportar-final">
+                <span class="btn-exportar-icono">🏁</span>
+                <span class="btn-exportar-texto">Solo Prom. Final (PDF)</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ============ Modal: detalle de Apreciación 4+ (asistencia, comportamiento, actividades) ============ -->
+    <div class="modal fade" id="modalApreciacionDetalle" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="apreciacionModalTitulo">Apreciación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body" id="apreciacionModalCuerpo">
+                    <!-- Se llena dinámicamente desde js/apreciaciones.js -->
+                </div>
+                <div class="modal-footer">
+                    <span id="apreciacionModalEstadoGuardado" class="small me-auto"></span>
+                    <button type="button" class="btn btn-outline-warning" id="btnReabrirApreciacion">✏️ Editar de nuevo</button>
+                    <button type="button" class="btn btn-outline-success" id="btnCompletarApreciacionManual">✅ Marcar como completada</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-primary" id="btnGuardarApreciacionDetalle">💾 Guardar apreciación</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS: solo se usa para el modal de arriba (bootstrap.Modal) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script type="module" src="../js/profesor.js"></script>
+
+</body>
+
+</html>

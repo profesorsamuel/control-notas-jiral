@@ -151,6 +151,20 @@
     flex-wrap:wrap;
     align-items:flex-start;
   }
+  .cw-hint{
+    display:none;
+    font-size:.82rem;
+    color: var(--accent2);
+    font-weight:700;
+    margin: 0 0 10px;
+  }
+  .cw-scroll{
+    width:100%;
+    overflow-x:auto;
+    overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:6px;
+  }
   #cw-grid{
     display:grid;
     gap:2px;
@@ -159,10 +173,11 @@
     border-radius:6px;
     width:max-content;
     margin: 0 auto;
+    touch-action: pan-x pan-y;
   }
   .cw-cell{
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     background:#fff;
     position:relative;
   }
@@ -172,13 +187,14 @@
     height:100%;
     border:none;
     text-align:center;
-    font-size:1rem;
+    font-size:1.05rem;
     font-weight:700;
     text-transform:uppercase;
     background:transparent;
     color: var(--primary);
     outline: none;
   }
+  .cw-cell input:focus{ background:#eaf2fb; box-shadow: inset 0 0 0 2px var(--accent2); }
   .cw-cell input.correct{ background:#d9f2e3; color:var(--ok); }
   .cw-cell input.incorrect{ background:#fbdcd8; color:var(--bad); }
   .cw-num{
@@ -306,10 +322,50 @@
     line-height:1.6;
   }
 
-  @media (max-width:560px){
-    .cw-cell{ width:24px; height:24px; }
-    .cw-cell input{ font-size:.8rem; }
+  /* GRUPO / SALÓN */
+  .salon-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:4px;
+  }
+  .salon-btn{
+    flex:1 1 90px;
+    padding:10px 8px;
+    border-radius:10px;
+    border:2px solid var(--border);
+    background:#fbfcfe;
+    color: var(--primary);
+    font-weight:700;
+    font-size:.95rem;
+    cursor:pointer;
+    text-align:center;
+  }
+  .salon-btn.selected{
+    border-color: var(--accent2);
+    background:#e6f5f2;
+    color: var(--accent2);
+  }
+  .campo-error{ color: var(--bad); font-size:.85rem; font-weight:700; margin-top:6px; display:none; }
+
+  @media (max-width:768px){
+    header{ padding: 24px 12px 14px; }
+    main{ margin: 14px auto; padding: 0 10px; }
+    .card{ padding: 16px 14px 20px; border-radius:12px; }
+    .tabs{ margin-top:12px; gap:8px; }
+    .tab-btn{ padding:10px 16px; font-size:.88rem; }
+    .cw-hint{ display:block; }
+    .cw-cell{ width:34px; height:34px; }
+    .cw-cell input{ font-size:1.05rem; }
+    .cw-clues{ min-width:100%; }
+    .crossword-wrap{ gap:16px; }
     .pareo-term{ flex-basis:100%; }
+    .pareo-row select{ min-width:100%; }
+    .fill-item input{ width:130px; }
+    .nota-box{ flex-direction:column; align-items:flex-start; gap:8px; }
+  }
+  @media (max-width:400px){
+    .cw-cell{ width:30px; height:30px; }
   }
 </style>
 </head>
@@ -334,6 +390,14 @@
       <input type="text" class="grupo-input" placeholder="Integrante 4">
     </div>
     <button class="btn ghost" id="grupo-add">➕ Agregar integrante</button>
+
+    <p class="ex-sub" style="margin-top:16px;">¿En qué salón están?</p>
+    <div class="salon-row" id="salon-row">
+      <button type="button" class="salon-btn" data-salon="9A">9°A</button>
+      <button type="button" class="salon-btn" data-salon="9B">9°B</button>
+      <button type="button" class="salon-btn" data-salon="9C">9°C</button>
+    </div>
+    <p class="campo-error" id="salon-error">Selecciona tu salón antes de finalizar.</p>
   </div>
 
   <!-- ================= SELECCIÓN DE EJERCICIOS ================= -->
@@ -353,8 +417,9 @@
         <button class="btn warn" id="cw-clear">🧹 Limpiar</button>
       </div>
       <div class="result-msg" id="cw-msg"></div>
+      <p class="cw-hint">👉 Desliza el crucigrama hacia los lados para ver todas las casillas.</p>
       <div class="crossword-wrap">
-        <div id="cw-grid"></div>
+        <div class="cw-scroll"><div id="cw-grid"></div></div>
         <div class="cw-clues">
           <h3>➡️ Horizontales</h3>
           <ol id="cw-across"></ol>
@@ -409,6 +474,19 @@
 
 <footer>Ciencias Naturales · 9° grado · Universo, sistema solar y Luna</footer>
 
+<!-- Guardado de resultados en Supabase (para el Panel del Docente > Tarea en clase) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/portal-config.js"></script>
+<script src="../js/guardar_intento_practica.js"></script>
+<script>
+// Cliente de Supabase que usa guardar_intento_practica.js (misma llave
+// pública "anon" que usan los demás ejercicios; protegida por las
+// políticas de seguridad de la tabla, no por estar oculta).
+window.sbPractica = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+// Identifica esta actividad de clase específica frente a las demás
+// (Clase 2, Clase 3, etc.) en el panel del docente.
+const CODIGO_ACTIVIDAD_CLASE = 'cn9-clase1-actividad-origen-universo-2026';
+</script>
 <script>
 /* =========================================================
    TABS
@@ -878,6 +956,19 @@ function getIntegrantes(){
 }
 
 /* =========================================================
+   SALÓN DEL GRUPO
+========================================================= */
+let salonSeleccionado = null;
+document.querySelectorAll('.salon-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.salon-btn').forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected');
+    salonSeleccionado = btn.dataset.salon;
+    document.getElementById('salon-error').style.display='none';
+  });
+});
+
+/* =========================================================
    RESULTADO FINAL Y ENVÍO POR WHATSAPP
 ========================================================= */
 const CLASE_NUMERO = 'Clase 1';
@@ -948,6 +1039,13 @@ document.getElementById('finalizar-ejercicio').addEventListener('click', ()=>{
     msg.className = 'result-msg bad';
     return;
   }
+  if(!salonSeleccionado){
+    document.getElementById('salon-error').style.display='block';
+    document.getElementById('salon-row').scrollIntoView({behavior:'smooth', block:'center'});
+    msg.textContent = 'Falta indicar el salón (9°A, 9°B o 9°C).';
+    msg.className = 'result-msg bad';
+    return;
+  }
 
   if(!confirm('¿Deseas finalizar? Después de continuar se mostrarán la corrección y la nota.')) return;
 
@@ -957,13 +1055,39 @@ document.getElementById('finalizar-ejercicio').addEventListener('click', ()=>{
 
   document.querySelectorAll('#cw-grid input, #pareo-list select, #fill-list input, .grupo-input')
     .forEach(control => control.disabled = true);
-  document.querySelectorAll('#cw-new, #cw-clear, #pareo-new, #fill-new, #grupo-add')
+  document.querySelectorAll('#cw-new, #cw-clear, #pareo-new, #fill-new, #grupo-add, .salon-btn')
     .forEach(button => button.disabled = true);
 
   const nota = mostrarNota();
   const notaFormateada = nota.toFixed(1);
   const mensajeNota = obtenerMensajeNota(nota);
   const fechaHora = obtenerFechaHoraPanama();
+
+  // Guardado en Supabase para que el docente pueda revisar desde el
+  // Panel del Docente ("Tarea en clase") quién la hizo y con qué nota,
+  // sin depender de que el mensaje de WhatsApp llegue o se confirme.
+  // Va en segundo plano (sin "await") y usa la misma cola resistente
+  // que usan los demás ejercicios: si el celular pierde señal, el
+  // intento queda guardado localmente y se reintenta solo.
+  try {
+    const payloadActividad = {
+      codigo_examen: CODIGO_ACTIVIDAD_CLASE,
+      tipo_ejercicio: 'actividad_clase',
+      cedula: integrantes.join(' / '), // no hay login individual: se usa la lista de integrantes como clave de grupo
+      nombre: integrantes.join(', '),
+      salon: salonSeleccionado,
+      integrantes,
+      crucigrama_correctas: resultados.cw.correct, crucigrama_total: resultados.cw.total,
+      pareo_correctas: resultados.pareo.correct, pareo_total: resultados.pareo.total,
+      completar_correctas: resultados.fill.correct, completar_total: resultados.fill.total,
+      nota_meduca: nota,
+      finalizado_at: new Date().toISOString(),
+    };
+    window.guardarIntentoPracticaSeguro(window.sbPractica, 'actividades_clase_intentos', payloadActividad).catch(()=>{});
+  } catch (e) {
+    console.error('No se pudo iniciar el guardado de la actividad en clase:', e);
+  }
+
   const texto =
     `*Ciencias Naturales 9°*\n`+
     `*${CLASE_NUMERO}*\n`+
