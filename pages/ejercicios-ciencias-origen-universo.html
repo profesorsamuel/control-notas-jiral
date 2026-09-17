@@ -676,8 +676,12 @@ function cwRender(){
   const {grid,placements,bounds} = cwState;
   const cols = bounds.maxC-bounds.minC+1;
   const rows = bounds.maxR-bounds.minR+1;
-  gridEl.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
-  gridEl.style.gridTemplateRows = `repeat(${rows}, 30px)`;
+  // El tamaño de casilla se ajusta al tamaño de pantalla, igual que en el
+  // CSS (.cw-cell), para que el grid y las casillas queden alineados.
+  const tam = (window.matchMedia('(max-width:400px)').matches ? 30
+             : window.matchMedia('(max-width:768px)').matches ? 34 : 32);
+  gridEl.style.gridTemplateColumns = `repeat(${cols}, ${tam}px)`;
+  gridEl.style.gridTemplateRows = `repeat(${rows}, ${tam}px)`;
   gridEl.innerHTML='';
 
   const numbers={};
