@@ -128,19 +128,25 @@
     caja.setAttribute("aria-live", "polite");
     Object.assign(caja.style, {
       position: "fixed", left: "12px", right: "12px", bottom: "12px",
-      zIndex: "99999", maxWidth: "620px", margin: "auto", padding: "14px 16px",
+      zIndex: "99999", maxWidth: "620px", margin: "auto", padding: "10px 14px",
       borderRadius: "12px", color: "#fff", fontWeight: "700", textAlign: "center",
       boxShadow: "0 6px 24px rgba(0,0,0,.28)", display: "none",
-      fontSize: "15px", lineHeight: "1.35",
+      fontSize: "clamp(12px, 3vw, 15px)", lineHeight: "1.3",
+      // En celulares acostados (poca altura) el aviso puede terminar
+      // ocupando media pantalla y tapando el botón de "Finalizar".
+      // Con esto, si el contenido no cabe, el AVISO se hace scrollable
+      // por dentro en vez de crecer hacia arriba y tapar el botón.
+      maxHeight: "42vh", overflowY: "auto",
     });
 
     const texto = document.createElement("div");
 
     const detalle = document.createElement("div");
     Object.assign(detalle.style, {
-      display: "none", marginTop: "8px", fontWeight: "400", fontSize: "12px",
+      display: "none", marginTop: "6px", fontWeight: "400", fontSize: "11.5px",
       opacity: ".95", wordBreak: "break-word", textAlign: "left",
       background: "rgba(0,0,0,.18)", borderRadius: "8px", padding: "8px",
+      maxHeight: "16vh", overflowY: "auto",
     });
 
     const botones = document.createElement("div");
@@ -196,6 +202,7 @@
           `Conexión del celular: ${navigator.onLine ? "en línea" : "SIN CONEXIÓN"}\n\n` +
           `Código de respaldo:\n${textoRespaldoPendientes()}`;
       }
+      ajustarEspacioParaAviso();
     });
 
     botones.append(btnReintentar, btnCopiar, btnDetalle);
@@ -206,6 +213,28 @@
     return refs;
   }
 
+  // ---------------------------------------------------------
+  // Reservar espacio para el aviso (celulares pequeños/acostados)
+  // ---------------------------------------------------------
+  // El aviso es "position:fixed", así que SIEMPRE queda encima de lo
+  // que haya al fondo de la página, sin importar el scroll. En un
+  // celular acostado (poca altura de pantalla) eso tapaba el botón
+  // "Finalizar y guardar". La solución: cuando el aviso está visible,
+  // le agregamos ese mismo alto como "padding-bottom" al body, para
+  // que siempre quede un espacio en blanco debajo del botón y el
+  // aviso no tape nada.
+  let paddingOriginalBody = null;
+  function ajustarEspacioParaAviso() {
+    requestAnimationFrame(() => {
+      if (!refs) return;
+      if (paddingOriginalBody === null) paddingOriginalBody = document.body.style.paddingBottom || "";
+      const visible = refs.caja.style.display !== "none";
+      document.body.style.paddingBottom = visible
+        ? `${refs.caja.offsetHeight + 24}px`
+        : paddingOriginalBody;
+    });
+  }
+
   function mostrarAviso(mensaje, tipo) {
     const { caja, texto, detalle, botones } = obtenerAviso();
     texto.textContent = mensaje;
@@ -213,11 +242,13 @@
     caja.style.display = "block";
     botones.style.display = tipo === "error" ? "flex" : "none";
     if (tipo !== "error") detalle.style.display = "none";
-    if (tipo === "ok") setTimeout(() => { caja.style.display = "none"; }, 6000);
+    ajustarEspacioParaAviso();
+    if (tipo === "ok") setTimeout(() => { caja.style.display = "none"; ajustarEspacioParaAviso(); }, 6000);
   }
 
   function ocultarAviso() {
     if (refs) refs.caja.style.display = "none";
+    ajustarEspacioParaAviso();
   }
 
   // ---------------------------------------------------------
@@ -356,8 +387,10 @@
     const cabecera = (ultimoError ? `Error: ${ultimoError}\n\n` : "") ;
     detalle.style.display = "block";
     detalle.textContent = `${cabecera}Revisando la conexión…\n\nCódigo de respaldo:\n${textoRespaldoPendientes()}`;
+    ajustarEspacioParaAviso();
     diagnosticar().then((info) => {
       detalle.textContent = `${cabecera}${info}\n\nCódigo de respaldo:\n${textoRespaldoPendientes()}`;
+      ajustarEspacioParaAviso();
     });
   }
 
