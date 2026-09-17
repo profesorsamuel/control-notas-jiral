@@ -148,9 +148,12 @@ async function cargarDatos() {
     if (intentosRes.error) {
         SIN_TABLA = true;
         error.hidden = false;
-        error.innerHTML = `⚠️ Todavía no se ha ejecutado <code>supabase/panel_actividades_clase.sql</code> en Supabase (Project &gt; SQL Editor), así que esta tabla no existe aún y el panel no tiene nada que mostrar. Corre ese script una vez y recarga esta página.`;
-        vacio.hidden = false;
-        vacio.textContent = "Sin datos todavía.";
+        error.innerHTML = `⚠️ <b>Aún no aparece nada porque falta un paso en Supabase.</b><br>
+            Hay que ejecutar <b>una sola vez</b> el archivo <code>supabase/panel_actividades_clase.sql</code>
+            en Supabase (Project &gt; SQL Editor). Ese script crea la tabla donde se guardan las prácticas en
+            clase. Después de correrlo, recarga esta página. <br>
+            <span style="opacity:.8; font-size:11.5px;">(Detalle técnico: ${escapeHtml(intentosRes.error.message || "la tabla actividades_clase_intentos no existe o no es accesible todavía")}.)</span>`;
+        vacio.hidden = true;
         return;
     }
 
