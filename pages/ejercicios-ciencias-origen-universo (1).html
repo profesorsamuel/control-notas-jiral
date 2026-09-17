@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Práctica en clase · Ciencias Naturales 8.º</title>
+<title>Ciencias Naturales 9° · Universo, sistema solar y Luna</title>
 <style>
   :root{
     --bg: #0b1d33;
@@ -154,7 +154,7 @@
   .cw-hint{
     display:none;
     font-size:.82rem;
-    color: var(--accent2, #2a9d8f);
+    color: var(--accent2);
     font-weight:700;
     margin: 0 0 10px;
   }
@@ -194,7 +194,7 @@
     color: var(--primary);
     outline: none;
   }
-  .cw-cell input:focus{ background:#eaf2fb; box-shadow: inset 0 0 0 2px var(--accent2, #2a9d8f); }
+  .cw-cell input:focus{ background:#eaf2fb; box-shadow: inset 0 0 0 2px var(--accent2); }
   .cw-cell input.correct{ background:#d9f2e3; color:var(--ok); }
   .cw-cell input.incorrect{ background:#fbdcd8; color:var(--bad); }
   .cw-num{
@@ -311,13 +311,12 @@
     width:18px;
     height:18px;
     flex-shrink:0;
-    accent-color: var(--accent2, #2a9d8f);
+    accent-color: var(--accent2, #1d7a46);
   }
   .grupo-check.marcado{
     border-color: var(--accent2);
     background:#e6f5f2;
   }
-  .campo-error{ color: var(--bad); font-size:.85rem; font-weight:700; margin-top:6px; display:none; }
 
   /* RESULTADO FINAL */
   .nota-box{
@@ -342,10 +341,38 @@
     line-height:1.6;
   }
 
+  /* GRUPO / SALÓN */
+  .salon-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:4px;
+  }
+  .salon-btn{
+    flex:1 1 90px;
+    padding:10px 8px;
+    border-radius:10px;
+    border:2px solid var(--border);
+    background:#fbfcfe;
+    color: var(--primary);
+    font-weight:700;
+    font-size:.95rem;
+    cursor:pointer;
+    text-align:center;
+  }
+  .salon-btn.selected{
+    border-color: var(--accent2);
+    background:#e6f5f2;
+    color: var(--accent2);
+  }
+  .campo-error{ color: var(--bad); font-size:.85rem; font-weight:700; margin-top:6px; display:none; }
+
   @media (max-width:768px){
     header{ padding: 24px 12px 14px; }
     main{ margin: 14px auto; padding: 0 10px; }
     .card{ padding: 16px 14px 20px; border-radius:12px; }
+    .tabs{ margin-top:12px; gap:8px; }
+    .tab-btn{ padding:10px 16px; font-size:.88rem; }
     .cw-hint{ display:block; }
     .cw-cell{ width:34px; height:34px; }
     .cw-cell input{ font-size:1.05rem; }
@@ -353,6 +380,7 @@
     .crossword-wrap{ gap:16px; }
     .pareo-term{ flex-basis:100%; }
     .pareo-row select{ min-width:100%; }
+    .fill-item input{ width:130px; }
     .nota-box{ flex-direction:column; align-items:flex-start; gap:8px; }
   }
   @media (max-width:400px){
@@ -388,9 +416,9 @@
 <body>
 
 <header>
-  <div class="class-title" id="clase-titulo">CLASE</div>
-  <h1>🧪 Ciencias Naturales · Salón 08</h1>
-  <p id="tema-titulo">Práctica en clase</p>
+  <div class="class-title">CLASE 1</div>
+  <h1>🌍 Ciencias Naturales · Salón 9</h1>
+  <p>Origen del universo, formación del sistema solar y origen de la Luna</p>
 </header>
 
 <main>
@@ -398,13 +426,18 @@
   <!-- ================= INTEGRANTES DEL GRUPO ================= -->
   <div class="card" id="grupo-card">
     <h2 class="ex-title">👥 Integrantes del grupo</h2>
-    <label style="display:block;margin-bottom:12px;font-weight:700;">Grupo
-      <span style="margin-left:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:#f7f7f7;display:inline-block;">8A</span>
-      <input type="hidden" id="grupo-seccion" value="8A">
-    </label>
-    <p class="ex-sub">Marca a todos los integrantes del grupo (de la lista de 8°A).</p>
+
+    <p class="ex-sub">¿En qué salón están?</p>
+    <div class="salon-row" id="salon-row">
+      <button type="button" class="salon-btn" data-salon="9A">9°A</button>
+      <button type="button" class="salon-btn" data-salon="9B">9°B</button>
+      <button type="button" class="salon-btn" data-salon="9C">9°C</button>
+    </div>
+    <p class="campo-error" id="salon-error">Selecciona tu salón antes de finalizar.</p>
+
+    <p class="ex-sub" style="margin-top:16px;">Marca a todos los integrantes del grupo (de la lista de tu salón).</p>
     <div id="grupo-nombres">
-      <p class="grupo-aviso" id="grupo-aviso">Cargando estudiantes de 8°A…</p>
+      <p class="grupo-aviso" id="grupo-aviso">Primero selecciona tu salón arriba…</p>
     </div>
     <p class="campo-error" id="grupo-error">Marca al menos un integrante antes de finalizar.</p>
   </div>
@@ -420,7 +453,7 @@
   <section class="exercise active" id="ex-crucigrama">
     <div class="card">
       <h2 class="ex-title">Crucigrama</h2>
-      <p class="ex-sub">Cada vez que generas un crucigrama se elige al azar un tema de la clase. Escribe las respuestas SIN tildes.</p>
+      <p class="ex-sub">Cada vez que generas un crucigrama se elige al azar uno de 5 temas distintos del banco. Escribe las respuestas SIN tildes.</p>
       <div class="toolbar">
         <button class="btn secondary" id="cw-new">🔀 Nuevo crucigrama</button>
         <button class="btn warn" id="cw-clear">🧹 Limpiar</button>
@@ -443,7 +476,7 @@
   <section class="exercise" id="ex-pareo">
     <div class="card">
       <h2 class="ex-title">Pareo</h2>
-      <p class="ex-sub">Selecciona en cada lista desplegable la definición correcta para cada término. Se muestran 5 términos de la clase.</p>
+      <p class="ex-sub">Selecciona en cada lista desplegable la definición correcta para cada término. Se muestran 5 términos de un banco de 35.</p>
       <div class="toolbar">
         <button class="btn secondary" id="pareo-new">🔀 Nuevo pareo</button>
       </div>
@@ -456,7 +489,7 @@
   <section class="exercise" id="ex-completar">
     <div class="card">
       <h2 class="ex-title">Completar</h2>
-      <p class="ex-sub">Escribe la palabra que falta en cada oración. Se muestran 10 preguntas de la clase (no importan tildes ni mayúsculas).</p>
+      <p class="ex-sub">Escribe la palabra que falta en cada oración. Se muestran 10 preguntas de un banco de 35 (no importan tildes ni mayúsculas).</p>
       <div class="toolbar">
         <button class="btn secondary" id="fill-new">🔀 Nuevo grupo</button>
       </div>
@@ -481,7 +514,7 @@
 
 </main>
 
-<footer>Ciencias Naturales · 8.º grado · Prof. Samuel Ortega</footer>
+<footer>Ciencias Naturales · 9° grado · Universo, sistema solar y Luna</footer>
 
 <!-- Guardado de resultados en Supabase (para el Panel del Docente > Tarea en clase) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -489,33 +522,14 @@
 <script src="../js/guardar_intento_practica.js"></script>
 <script>
 // Cliente de Supabase que usa guardar_intento_practica.js (misma llave
-// pública "anon" que usan los demás ejercicios).
+// pública "anon" que usan los demás ejercicios; protegida por las
+// políticas de seguridad de la tabla, no por estar oculta).
 window.sbPractica = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+// Identifica esta actividad de clase específica frente a las demás
+// (Clase 2, Clase 3, etc.) en el panel del docente.
+const CODIGO_ACTIVIDAD_CLASE = 'cn9-clase1-actividad-origen-universo-2026';
 </script>
-
 <script>
-const CLASE = Math.min(4, Math.max(1, Number(new URLSearchParams(location.search).get('clase')) || 1));
-const PRACTICAS = {
-  1:{titulo:'Transformaciones y reacciones químicas',crosswords:[
-    {title:'Reacciones químicas',words:[{word:'REACTIVO',clue:'Sustancia presente antes de la reacción'},{word:'PRODUCTO',clue:'Sustancia nueva que se forma'},{word:'ENLACE',clue:'Unión entre átomos'},{word:'ENERGIA',clue:'Puede absorberse o liberarse'},{word:'ATOMO',clue:'Partícula que se reorganiza sin desaparecer'},{word:'MATERIA',clue:'Se conserva durante la reacción'}]},
-    {title:'Procesos químicos',words:[{word:'COMBUSTION',clue:'Reacción que libera calor y suele producir luz'},{word:'OXIDACION',clue:'Proceso relacionado con pérdida de electrones'},{word:'CORROSION',clue:'Deterioro de un metal por oxidación'},{word:'LEVADURA',clue:'Microorganismo usado en fermentación'},{word:'BALANCEO',clue:'Ajuste de coeficientes de una ecuación'},{word:'COEFICIENTE',clue:'Número colocado delante de una fórmula'}]}
-  ],pareo:[{term:'Reactivo',def:'Sustancia inicial de una reacción'},{term:'Producto',def:'Sustancia formada después de la reacción'},{term:'Endotérmica',def:'Reacción que absorbe energía'},{term:'Exotérmica',def:'Reacción que libera energía'},{term:'Reversible',def:'Puede volver a formar los reactivos'},{term:'Irreversible',def:'No recupera fácilmente los reactivos'},{term:'Combustión',def:'Reacción entre combustible y comburente'},{term:'Fermentación',def:'Transformación de azúcares por microorganismos'},{term:'Oxidación',def:'Proceso donde una sustancia pierde electrones'},{term:'Antioxidante',def:'Sustancia que retrasa la oxidación'}],fill:[{text:'Las sustancias iniciales se llaman ____.',answers:['reactivos']},{text:'Las sustancias nuevas se llaman ____.',answers:['productos']},{text:'Una reacción que absorbe energía es ____.',answers:['endotermica']},{text:'Una reacción que libera energía es ____.',answers:['exotermica']},{text:'La cantidad de átomos se ____.',answers:['conserva']},{text:'Al balancear se cambian los ____.',answers:['coeficientes']},{text:'La herrumbre es una forma de ____.',answers:['corrosion','oxidacion']},{text:'La ____ transforma azúcares durante la fermentación.',answers:['levadura']},{text:'Los ____ químicos se rompen y se forman.',answers:['enlaces']},{text:'La vela encendida presenta una reacción de ____.',answers:['combustion']},{text:'Los subíndices no se cambian al ____.',answers:['balancear']},{text:'Una sustancia que evita la oxidación es un ____.',answers:['antioxidante']}]},
-  2:{titulo:'Leyes de Kepler y movimientos de la Tierra',crosswords:[
-    {title:'Leyes de Kepler',words:[{word:'ELIPSE',clue:'Forma de las órbitas planetarias'},{word:'FOCO',clue:'Punto donde se ubica el Sol en la elipse'},{word:'ORBITA',clue:'Trayectoria de un planeta'},{word:'PERIODO',clue:'Tiempo de una vuelta alrededor del Sol'},{word:'AREA',clue:'Superficie barrida en tiempos iguales'},{word:'KEPLER',clue:'Científico que formuló tres leyes planetarias'}]},
-    {title:'Movimientos terrestres',words:[{word:'ROTACION',clue:'Giro que produce el día y la noche'},{word:'TRASLACION',clue:'Movimiento de la Tierra alrededor del Sol'},{word:'PERIHELIO',clue:'Punto más cercano al Sol'},{word:'AFELIO',clue:'Punto más lejano al Sol'},{word:'PRECESION',clue:'Cambio lento de orientación del eje'},{word:'NUTACION',clue:'Pequeña oscilación del eje'}]}
-  ],pareo:[{term:'Elipse',def:'Curva cerrada con dos focos'},{term:'Foco',def:'Punto de la elipse ocupado por el Sol'},{term:'Área barrida',def:'Superficie cubierta por la línea planeta-Sol'},{term:'Periodo orbital',def:'Tiempo de una vuelta alrededor del Sol'},{term:'Rotación',def:'Giro de la Tierra sobre su eje'},{term:'Traslación',def:'Movimiento de la Tierra alrededor del Sol'},{term:'Perihelio',def:'Punto orbital más cercano al Sol'},{term:'Afelio',def:'Punto orbital más lejano al Sol'},{term:'Precesión',def:'Cambio lento de orientación del eje'},{term:'Esferoide',def:'Forma ligeramente achatada de la Tierra'}],fill:[{text:'Las órbitas planetarias son ____.',answers:['elipticas']},{text:'El Sol está en uno de los ____ de la elipse.',answers:['focos']},{text:'Los planetas barren áreas iguales en tiempos ____.',answers:['iguales']},{text:'Cerca del Sol un planeta se mueve más ____.',answers:['rapido']},{text:'La rotación produce el día y la ____.',answers:['noche']},{text:'La traslación dura aproximadamente ____ días.',answers:['365']},{text:'El punto más cercano al Sol es el ____.',answers:['perihelio']},{text:'El punto más lejano al Sol es el ____.',answers:['afelio']},{text:'El eje terrestre está inclinado ____ grados.',answers:['23.5','23,5']},{text:'La Tierra tiene forma de ____.',answers:['esferoide']},{text:'La precesión tarda unos ____ años.',answers:['26000']},{text:'Cada cuatro años se agrega un día ____.',answers:['bisiesto']}]},
-  3:{titulo:'Inclinación terrestre, vida y exploración del universo',crosswords:[
-    {title:'Clima y seres vivos',words:[{word:'LATITUD',clue:'Distancia angular respecto al ecuador'},{word:'TROPICAL',clue:'Zona donde se encuentra Panamá'},{word:'SOLSTICIO',clue:'Momento de mayor diferencia entre día y noche'},{word:'EQUINOCCIO',clue:'Día y noche duran casi lo mismo'},{word:'MIGRACION',clue:'Desplazamiento estacional de animales'},{word:'HIBERNACION',clue:'Reposo durante meses fríos'}]},
-    {title:'Exploración del universo',words:[{word:'ASTRONOMIA',clue:'Ciencia que estudia los astros'},{word:'ASTRONAUTICA',clue:'Diseña y opera vehículos espaciales'},{word:'ASTROFISICA',clue:'Aplica la física a los cuerpos celestes'},{word:'COSMOS',clue:'Universo como sistema ordenado'},{word:'SONDA',clue:'Vehículo no tripulado de exploración'},{word:'SATELITE',clue:'Objeto que orbita otro cuerpo'}]}
-  ],pareo:[{term:'Solsticio',def:'Máxima diferencia entre día y noche'},{term:'Equinoccio',def:'Día y noche duran aproximadamente igual'},{term:'Zona tropical',def:'Recibe luz casi perpendicular todo el año'},{term:'Zona templada',def:'Presenta cuatro estaciones marcadas'},{term:'Migración',def:'Desplazamiento estacional de animales'},{term:'Hibernación',def:'Reposo para conservar energía en el frío'},{term:'Estivación',def:'Reposo durante calor o sequía'},{term:'Astronomía',def:'Ciencia que estudia los astros'},{term:'Astronáutica',def:'Diseña y opera vehículos espaciales'},{term:'Astrofísica',def:'Aplica la física al universo'}],fill:[{text:'La inclinación del eje terrestre es de ____ grados.',answers:['23.5','23,5']},{text:'Panamá se encuentra en la zona ____.',answers:['tropical']},{text:'En el equinoccio el día y la noche duran casi ____.',answers:['igual']},{text:'El desplazamiento estacional se llama ____.',answers:['migracion']},{text:'El reposo durante el frío se llama ____.',answers:['hibernacion']},{text:'El reposo durante calor intenso se llama ____.',answers:['estivacion']},{text:'Las plantas producen flores mediante la ____.',answers:['floracion']},{text:'La ciencia que estudia los astros es la ____.',answers:['astronomia']},{text:'La ____ diseña vehículos espaciales.',answers:['astronautica']},{text:'La ____ aplica la física al universo.',answers:['astrofisica']},{text:'Las zonas templadas tienen cuatro ____.',answers:['estaciones']},{text:'Panamá presenta época seca y época ____.',answers:['lluviosa']}]},
-  4:{titulo:'Tecnología e historia de la exploración espacial',crosswords:[
-    {title:'Tecnologías espaciales',words:[{word:'TELESCOPIO',clue:'Instrumento para observar objetos distantes'},{word:'SATELITE',clue:'Objeto artificial que orbita la Tierra'},{word:'SONDA',clue:'Vehículo no tripulado de exploración'},{word:'COHETE',clue:'Vehículo propulsor de cargas espaciales'},{word:'ESTACION',clue:'Laboratorio habitable en órbita'},{word:'ROVER',clue:'Robot que recorre otra superficie'}]},
-    {title:'Hitos espaciales',words:[{word:'SPUTNIK',clue:'Primer satélite artificial'},{word:'GAGARIN',clue:'Primer humano en orbitar la Tierra'},{word:'APOLLO',clue:'Programa que llevó humanos a la Luna'},{word:'HUBBLE',clue:'Telescopio espacial lanzado en 1990'},{word:'VOYAGER',clue:'Sonda que alcanzó el espacio interestelar'},{word:'WEBB',clue:'Telescopio infrarrojo lanzado en 2021'}]}
-  ],pareo:[{term:'Telescopio refractor',def:'Instrumento que utiliza lentes'},{term:'Telescopio reflector',def:'Instrumento que utiliza un espejo cóncavo'},{term:'Satélite artificial',def:'Orbita para comunicar, navegar u observar'},{term:'Sonda espacial',def:'Explora sin tripulación'},{term:'Cohete',def:'Impulsa cargas hacia el espacio'},{term:'Estación espacial',def:'Laboratorio habitable en órbita'},{term:'Sputnik 1',def:'Primer satélite artificial, lanzado en 1957'},{term:'Apollo 11',def:'Misión del primer alunizaje humano'},{term:'Perseverance',def:'Rover que estudia Marte'},{term:'James Webb',def:'Observatorio espacial infrarrojo'}],fill:[{text:'Hans Lippershey patentó el telescopio en ____.',answers:['1608']},{text:'Galileo usó el telescopio en ____.',answers:['1609']},{text:'Newton creó el telescopio ____.',answers:['reflector']},{text:'El primer satélite artificial fue el ____.',answers:['sputnik','sputnik1']},{text:'El primer humano en órbita fue Yuri ____.',answers:['gagarin']},{text:'Apollo 11 llegó a la Luna en ____.',answers:['1969']},{text:'El Hubble fue lanzado en ____.',answers:['1990']},{text:'La EEI comenzó a construirse en ____.',answers:['1998']},{text:'El rover ____ aterrizó en Marte en 2021.',answers:['perseverance']},{text:'El James Webb observa principalmente en ____.',answers:['infrarrojo']},{text:'Un robot que recorre un planeta es un ____.',answers:['rover']},{text:'La condición estudiada en estaciones se llama ____.',answers:['microgravedad']}]}
-};
-const DATOS = PRACTICAS[CLASE];
-document.getElementById('clase-titulo').textContent = `CLASE ${CLASE}`;
-document.getElementById('tema-titulo').textContent = DATOS.titulo;
 /* =========================================================
    TABS
 ========================================================= */
@@ -546,47 +560,46 @@ const resultados = {
 /* =========================================================
    1) CRUCIGRAMA — banco de 5 crucigramas, se presenta 1
 ========================================================= */
-const CROSSWORD_BANK = DATOS.crosswords;
-const CROSSWORD_BANK_MODELO = [
-  { title:'Formación de la Tierra', words:[
-    {word:'NUCLEO', clue:'Capa central de la Tierra, formada por hierro y níquel fundidos'},
-    {word:'MANTO', clue:'Capa formada por silicatos y elementos ligeros'},
-    {word:'CORTEZA', clue:'Capa exterior sólida del planeta'},
-    {word:'ATMOSFERA', clue:'Capa de gases liberados por erupciones volcánicas'},
-    {word:'HIDROSFERA', clue:'Se formó por la condensación del vapor de agua'},
-    {word:'NEBULOSA', clue:'Teoría según la cual la Tierra se formó junto al resto del sistema solar'}
+const CROSSWORD_BANK = [
+  { title:'El universo y el Big Bang', words:[
+    {word:'UNIVERSO', clue:'Conjunto de toda la materia, energía, espacio y cuerpos celestes'},
+    {word:'BIGBANG', clue:'Modelo científico más aceptado sobre el origen y expansión del universo'},
+    {word:'SINGULARIDAD', clue:'Estado inicial de densidad extrema propuesto por el modelo del Big Bang'},
+    {word:'EXPANSION', clue:'Proceso por el que las galaxias distantes se alejan entre sí'},
+    {word:'GALAXIA', clue:'Gran conjunto de estrellas; la Vía Láctea es un ejemplo'},
+    {word:'COSMOS', clue:'Otra palabra utilizada para referirse al universo'}
   ]},
-  { title:'Escala de tiempo geológico', words:[
-    {word:'EON', clue:'Unidad más grande de tiempo geológico (miles de millones de años)'},
-    {word:'ERA', clue:'Unidad de tiempo geológico que comprende varios periodos'},
-    {word:'PERIODO', clue:'Unidad de tiempo geológico que se divide en épocas'},
-    {word:'EPOCA', clue:'Unidad de tiempo geológico más breve de las cuatro'},
-    {word:'FOSIL', clue:'Resto o huella de un ser vivo del pasado'},
-    {word:'PRECAMBRICO', clue:'Eón que va desde la formación de la Tierra hasta hace 541 millones de años'}
+  { title:'Evidencias del Big Bang', words:[
+    {word:'RADIACION', clue:'Energía cósmica de fondo que llena el espacio en todas direcciones'},
+    {word:'HIDROGENO', clue:'Elemento ligero formado en las primeras etapas del universo'},
+    {word:'HELIO', clue:'Otro elemento abundante originado poco después del Big Bang'},
+    {word:'GALAXIAS', clue:'Su alejamiento demuestra que el universo continúa expandiéndose'},
+    {word:'PENZIAS', clue:'Apellido de uno de los descubridores de la radiación cósmica de fondo'},
+    {word:'WILSON', clue:'Apellido del otro descubridor de la radiación cósmica de fondo'}
   ]},
-  { title:'Eras geológicas', words:[
-    {word:'PALEOZOICO', clue:'Era de la explosión cámbrica y la salida de la vida del agua'},
-    {word:'MESOZOICO', clue:'Era de la fragmentación de Pangea y el dominio de los grandes reptiles'},
-    {word:'CENOZOICO', clue:'Era actual, conocida como la "era de los mamíferos"'},
-    {word:'PANGEA', clue:'Supercontinente formado al inicio de la era Mesozoica'},
-    {word:'TRILOBITES', clue:'Invertebrados fósiles característicos del Paleozoico'},
-    {word:'DINOSAURIOS', clue:'Grandes reptiles terrestres que dominaron el Mesozoico'}
+  { title:'Teorías del sistema solar', words:[
+    {word:'NEBULOSA', clue:'Teoría más aceptada sobre la formación del sistema solar'},
+    {word:'ACRECION', clue:'Acumulación de partículas de polvo atraídas por gravedad'},
+    {word:'PLANETESIMALES', clue:'Cuerpos pequeños que chocaron y se acumularon para formar planetas'},
+    {word:'LAPLACE', clue:'Propuso una nebulosa giratoria que se enfrió y formó anillos'},
+    {word:'CAPTURA', clue:'Teoría donde el Sol extrae materia de una protoestrella cercana'},
+    {word:'PROTOSOL', clue:'Centro de la nebulosa solar que dio origen al Sol'}
   ]},
-  { title:'Tecnología y universo', words:[
-    {word:'TELESCOPIO', clue:'Instrumento de observación celeste presentado por Galileo en 1610'},
-    {word:'GALILEO', clue:'Científico que observó la Luna, Venus y los satélites de Júpiter'},
-    {word:'SONDA', clue:'Vehículo no tripulado que orbita cuerpos celestes'},
-    {word:'ROVER', clue:'Robot explorador que además puede aterrizar y moverse por la superficie'},
-    {word:'ASTRONOMIA', clue:'Ciencia que estudia los astros y el universo'},
-    {word:'LUNA', clue:'Satélite natural que Galileo observó y describió por primera vez con detalle'}
+  { title:'Nebulosa moderna', words:[
+    {word:'SUPERNOVA', clue:'Explosión estelar cuya onda de choque pudo iniciar la formación del Sol'},
+    {word:'PROTOESTRELLA', clue:'Etapa de una estrella antes de comenzar la fusión nuclear'},
+    {word:'ASTRONOMIA', clue:'Ciencia que estudia los cuerpos celestes y el universo'},
+    {word:'ASTROFISICA', clue:'Rama que estudia las propiedades físicas de los astros'},
+    {word:'GRAVEDAD', clue:'Fuerza que produjo el colapso de parte de la nebulosa gigante'},
+    {word:'DISCO', clue:'Estructura protoplanetaria aplanada alrededor del Sol joven'}
   ]},
-  { title:'Naves espaciales', words:[
-    {word:'SOYUZ', clue:'Nave rusa que transporta astronautas a la EEI'},
-    {word:'VOYAGER', clue:'Sondas que exploraron los límites del sistema solar'},
-    {word:'CASSINI', clue:'Sonda (Cassini-Huygens) que estudió Saturno y sus lunas'},
-    {word:'CURIOSITY', clue:'Rover que ha estudiado la superficie de Marte'},
-    {word:'TRIPULADA', clue:'Tipo de nave diseñada para transportar astronautas'},
-    {word:'DRAGON', clue:'Nave (Crew ___) usada en misiones tripuladas de la NASA'}
+  { title:'Origen de la Luna', words:[
+    {word:'LUNA', clue:'Satélite natural de la Tierra'},
+    {word:'TEA', clue:'Protoplaneta del tamaño de Marte que chocó con la Tierra'},
+    {word:'IMPACTO', clue:'Teoría lunar más aceptada actualmente'},
+    {word:'FISION', clue:'Teoría donde la Tierra primitiva expulsó material por su rápida rotación'},
+    {word:'COLISIONES', clue:'Choques con planetesimales propuestos para explicar el origen lunar'},
+    {word:'SOLIDIFICACION', clue:'Proceso final que convirtió la masa fundida en la Luna'}
   ]}
 ];
 
@@ -798,43 +811,42 @@ document.getElementById('cw-clear').addEventListener('click', ()=>{
 /* =========================================================
    2) PAREO — banco de 35, se presentan 5
 ========================================================= */
-const PAREO_BANK = DATOS.pareo;
-const PAREO_BANK_MODELO = [
-  {term:'Núcleo', def:'Capa central de la Tierra, formada por hierro y níquel fundidos'},
-  {term:'Manto', def:'Capa formada por silicatos y elementos ligeros'},
-  {term:'Corteza', def:'Capa exterior sólida del planeta'},
-  {term:'Atmósfera', def:'Capa de gases liberados por erupciones volcánicas'},
-  {term:'Hidrósfera', def:'Se formó por la condensación del vapor de agua'},
-  {term:'Teoría de la nebulosa', def:'Explica que la Tierra se formó hace unos 4540 millones de años junto al sistema solar'},
-  {term:'Eón', def:'Unidad más grande de tiempo geológico, se mide en miles de millones de años'},
-  {term:'Era', def:'Unidad de tiempo geológico que comprende varios periodos'},
-  {term:'Periodo', def:'Unidad de tiempo geológico que se divide en épocas'},
-  {term:'Época', def:'Unidad de tiempo geológico más breve de las cuatro'},
-  {term:'Fósil', def:'Resto o huella de un ser vivo del pasado'},
-  {term:'Precámbrico', def:'Eón que abarca desde la formación de la Tierra hasta hace 541 millones de años'},
-  {term:'Paleozoico', def:'Era de la explosión cámbrica y la salida de la vida animal del agua a la tierra firme'},
-  {term:'Mesozoico', def:'Era de la fragmentación de Pangea y el dominio de los grandes reptiles'},
-  {term:'Cenozoico', def:'Era actual, conocida como la "era de los mamíferos"'},
-  {term:'Explosión cámbrica', def:'Aparición súbita de unos cincuenta grupos de organismos en el periodo Cámbrico'},
-  {term:'Pangea', def:'Supercontinente formado al inicio de la era Mesozoica'},
-  {term:'Trilobites', def:'Invertebrados fósiles característicos de la primera mitad del Paleozoico'},
-  {term:'Dinosaurios', def:'Grandes reptiles terrestres que dominaron la era Mesozoica'},
-  {term:'Meteorito', def:'Su caída pudo provocar la extinción de los grandes reptiles al final del Mesozoico'},
-  {term:'Homo sapiens sapiens', def:'Especie humana actual; apareció hace unos 200 000 años'},
-  {term:'Primates', def:'Grupo de mamíferos que surgió hace unos 30 millones de años'},
-  {term:'Telescopio', def:'Instrumento de observación celeste presentado por Galileo en 1610'},
-  {term:'Galileo Galilei', def:'Científico que presentó el primer telescopio en Venecia'},
-  {term:'Astronomía', def:'Una de las ciencias más antiguas; estudia los objetos del cielo'},
-  {term:'Telescopio espacial James Webb', def:'Ejemplo de telescopio moderno capaz de capturar imágenes de alta resolución del espacio'},
-  {term:'Estación Espacial Internacional (EEI)', def:'Laboratorio espacial habitable que orbita la Tierra'},
-  {term:'Sonda espacial', def:'Vehículo no tripulado que orbita cuerpos celestes para recopilar información'},
-  {term:'Robot explorador (rover)', def:'Vehículo no tripulado que además puede aterrizar y moverse por la superficie'},
-  {term:'Voyager 1 y 2', def:'Sondas que exploraron los límites del sistema solar'},
-  {term:'Mars Rovers', def:'Vehículos que han estudiado la superficie de Marte, como Curiosity'},
-  {term:'Cassini-Huygens', def:'Sonda que estudió Saturno y sus lunas'},
-  {term:'New Horizons', def:'Sonda que estudió Plutón y sigue explorando el cinturón de Kuiper'},
-  {term:'Soyuz', def:'Nave rusa que transporta astronautas a la EEI'},
-  {term:'Crew Dragon', def:'Nave utilizada en misiones tripuladas de la NASA'}
+const PAREO_BANK = [
+  {term:'Sistema solar', def:'Conjunto formado por el Sol, ocho planetas y otros cuerpos que lo orbitan'},
+  {term:'Big Bang', def:'Modelo científico más aceptado sobre el origen, evolución y expansión del universo'},
+  {term:'Singularidad', def:'Estado inicial donde materia, energía y espacio estaban extremadamente concentrados'},
+  {term:'Expansión del universo', def:'Alejamiento constante de las galaxias distantes'},
+  {term:'Radiación cósmica de fondo', def:'Remanente enfriado de la fase caliente y densa inicial del universo'},
+  {term:'Hidrógeno y helio', def:'Elementos ligeros formados durante las primeras etapas del universo'},
+  {term:'Nucleosíntesis estelar', def:'Proceso dentro de las estrellas que produce elementos más pesados'},
+  {term:'René Descartes', def:'En el siglo XVII formuló una primera hipótesis sobre el origen del sistema solar'},
+  {term:'Kant y Laplace', def:'Pensadores del siglo XVIII que sentaron bases de teorías posteriores'},
+  {term:'Teoría de la nebulosa', def:'Explicación actualmente más aceptada para la formación del sistema solar'},
+  {term:'Acreción', def:'Condensación y acumulación de partículas de polvo atraídas por gravedad'},
+  {term:'Planetesimales', def:'Cuerpos pequeños que chocan y se atraen hasta formar planetas'},
+  {term:'Protoplaneta', def:'Cuerpo giratorio en formación que puede convertirse en planeta'},
+  {term:'Protosol', def:'Centro de la nebulosa solar que posteriormente dio origen al Sol'},
+  {term:'Teoría de Laplace', def:'Una nebulosa giratoria se enfría y forma anillos que originan planetas'},
+  {term:'Teoría de captura', def:'El Sol extrae un filamento de materia de una protoestrella cercana'},
+  {term:'Planetas rocosos', def:'Planetas que se formaron en las zonas más cercanas al Sol'},
+  {term:'Gigantes gaseosos', def:'Planetas que se formaron más allá de unas tres unidades astronómicas'},
+  {term:'Teoría moderna de la nebulosa', def:'Modelo apoyado por la observación de discos alrededor de estrellas jóvenes'},
+  {term:'Beta Pictoris', def:'Sistema planetario cuya observación apoya la teoría moderna de la nebulosa'},
+  {term:'Colapso gravitacional', def:'Contracción de una parte de la nebulosa gigante por efecto de la gravedad'},
+  {term:'Disco protoplanetario', def:'Material aplanado alrededor del Sol joven del que surgieron varios astros'},
+  {term:'Supernova', def:'Explosión estelar cuya onda de choque pudo iniciar la formación del Sol'},
+  {term:'Protoestrella', def:'Fase temprana de una estrella antes de iniciar la fusión nuclear'},
+  {term:'Astronomía', def:'Ciencia que estudia los cuerpos celestes y el universo'},
+  {term:'Astrofísica', def:'Rama de la astronomía que estudia propiedades físicas de los astros'},
+  {term:'Arno Penzias y Robert Wilson', def:'Descubrieron accidentalmente la radiación cósmica de fondo en 1965'},
+  {term:'Teoría de captura lunar', def:'La Luna se formó lejos y fue atraída por la gravedad terrestre'},
+  {term:'Teoría de fisión', def:'La rotación de la Tierra primitiva expulsó el material que formó la Luna'},
+  {term:'Conformación lunar', def:'La Tierra y la Luna se formaron juntas del mismo material'},
+  {term:'Colisiones planetesimales', def:'Varios choques con la Tierra primitiva originaron material lunar'},
+  {term:'Teoría del gran impacto', def:'Explicación más aceptada actualmente sobre el origen de la Luna'},
+  {term:'Tea', def:'Protoplaneta del tamaño de Marte que chocó con la Tierra'},
+  {term:'Masa fundida', def:'Material expulsado que se reunió, enfrió y formó la Luna'},
+  {term:'Composición lunar', def:'Su semejanza con la Tierra respalda la teoría del gran impacto'}
 ];
 
 let pareoCurrent = [];
@@ -897,43 +909,42 @@ function evaluarPareo(){
 /* =========================================================
    3) COMPLETAR — banco de 35, se presentan 10
 ========================================================= */
-const FILL_BANK = DATOS.fill;
-const FILL_BANK_MODELO = [
-  {text:'La Tierra se formó hace unos ____ millones de años, según la teoría de la nebulosa.', answers:['4540']},
-  {text:'El núcleo de la Tierra está formado principalmente por hierro y ____.', answers:['niquel']},
-  {text:'La capa exterior sólida del planeta se llama ____.', answers:['corteza']},
-  {text:'La atmósfera primitiva se formó por gases liberados en erupciones ____.', answers:['volcanicas']},
-  {text:'La hidrósfera se formó por la condensación del ____ de agua.', answers:['vapor']},
-  {text:'Hace unos ____ millones de años ya existían moléculas capaces de replicarse.', answers:['4000']},
-  {text:'El registro fósil útil corresponde a los últimos ____ millones de años.', answers:['541']},
-  {text:'La unidad más grande de tiempo geológico es el ____.', answers:['eon']},
-  {text:'Una era comprende varios ____.', answers:['periodos']},
-  {text:'La época es la unidad de tiempo geológico más ____ de las cuatro.', answers:['breve']},
-  {text:'El Precámbrico abarca desde la formación del planeta hasta hace unos ____ millones de años.', answers:['541']},
-  {text:'Al final de la era Proterozoica aparecieron las células ____, lo que marcó el fin del Precámbrico.', answers:['eucariotas']},
-  {text:'Hace unos 3500 millones de años existían ya ____ que realizaban fotosíntesis.', answers:['cianobacterias']},
-  {text:'La era ____ se caracteriza por la explosión cámbrica.', answers:['paleozoica','paleozoico']},
-  {text:'Durante el Paleozoico, la vida animal salió del agua y colonizó la tierra ____.', answers:['firme']},
-  {text:'En el periodo Cámbrico ocurrió la llamada "explosión ____".', answers:['cambrica']},
-  {text:'Al inicio del Mesozoico, todos los continentes formaban un único supercontinente llamado ____.', answers:['pangea']},
-  {text:'Durante el Mesozoico se desarrollaron sobre todo los ____, especialmente los reptiles.', answers:['vertebrados']},
-  {text:'La caída de un enorme ____ pudo provocar la extinción de los grandes reptiles.', answers:['meteorito']},
-  {text:'La era ____ es conocida como la "era de los mamíferos".', answers:['cenozoica','cenozoico']},
-  {text:'Los primeros primates surgieron hace unos ____ millones de años.', answers:['30']},
-  {text:'La especie Homo sapiens sapiens apareció hace unos ____ años.', answers:['200000']},
-  {text:'En 1610, ____ presentó el primer telescopio en Venecia.', answers:['galileo','galileogalilei']},
-  {text:'Galileo descubrió el planeta ____ a través de su telescopio.', answers:['venus']},
-  {text:'Galileo identificó algunos de los satélites que orbitan alrededor de ____.', answers:['jupiter']},
-  {text:'Galileo observó y registró la existencia de manchas en la superficie del ____.', answers:['sol']},
-  {text:'El telescopio espacial ____ es un ejemplo de la tecnología actual para observar el universo.', answers:['jameswebb','webb']},
-  {text:'La Estación Espacial Internacional es un laboratorio espacial ____ que orbita la Tierra.', answers:['habitable']},
-  {text:'Las sondas espaciales orbitan los cuerpos celestes, mientras que los robots exploradores pueden ____ en su superficie.', answers:['aterrizar']},
-  {text:'La sonda ____ estudió Saturno y sus lunas.', answers:['cassini','cassinihuygens']},
-  {text:'La sonda New Horizons estudió ____ y sigue explorando el cinturón de Kuiper.', answers:['pluton']},
-  {text:'Los Voyager 1 y 2 han explorado los ____ del sistema solar.', answers:['limites']},
-  {text:'La nave ____ es utilizada por Roscosmos para transportar astronautas a la EEI.', answers:['soyuz']},
-  {text:'La nave ____ es utilizada en misiones tripuladas de la NASA.', answers:['crewdragon','dragon']},
-  {text:'Las naves tripuladas hacen el camino de ida y ____, llevando y trayendo a los astronautas.', answers:['vuelta']}
+const FILL_BANK = [
+  {text:'El Sol es la ____ central del sistema solar.', answers:['estrella']},
+  {text:'El sistema solar posee ____ planetas principales.', answers:['ocho','8']},
+  {text:'El modelo científico más aceptado sobre el origen del universo es el ____.', answers:['bigbang']},
+  {text:'El Big Bang ocurrió hace aproximadamente ____ millones de años.', answers:['13800']},
+  {text:'El estado inicial de densidad extrema se denomina ____.', answers:['singularidad']},
+  {text:'El alejamiento de las galaxias demuestra la ____ del universo.', answers:['expansion']},
+  {text:'La radiación cósmica de fondo es un ____ de la etapa caliente del universo.', answers:['remanente','vestigio']},
+  {text:'Los dos elementos ligeros formados primero fueron hidrógeno y ____.', answers:['helio']},
+  {text:'Los elementos pesados se produjeron mediante la nucleosíntesis ____.', answers:['estelar']},
+  {text:'En el siglo XVII, René ____ formuló una hipótesis sobre el sistema solar.', answers:['descartes']},
+  {text:'La explicación más aceptada de la formación del sistema solar es la teoría de la ____.', answers:['nebulosa']},
+  {text:'La acumulación de partículas atraídas por gravedad se llama ____.', answers:['acrecion']},
+  {text:'Los cuerpos de hasta un kilómetro que chocaron para formar planetas se llaman ____.', answers:['planetesimales']},
+  {text:'El centro de la nebulosa solar que dio origen al Sol fue el ____.', answers:['protosol']},
+  {text:'Los planetas ____ se formaron cerca del Sol.', answers:['rocosos']},
+  {text:'Los gigantes gaseosos se formaron más allá de unas ____ unidades astronómicas.', answers:['tres','3']},
+  {text:'Según Laplace, la nebulosa se enfrió y se condensó formando ____.', answers:['anillos']},
+  {text:'La teoría de ____ propone que el Sol extrajo materia de una protoestrella.', answers:['captura']},
+  {text:'La edad estimada del sistema solar es de ____ millones de años.', answers:['4568']},
+  {text:'La formación moderna comenzó con un colapso ____.', answers:['gravitacional']},
+  {text:'El material restante se aplanó y formó un disco ____.', answers:['protoplanetario']},
+  {text:'La onda de choque de una ____ pudo iniciar la formación del Sol.', answers:['supernova']},
+  {text:'Una estrella joven antes de iniciar la fusión nuclear es una ____.', answers:['protoestrella']},
+  {text:'La ciencia que estudia los cuerpos celestes es la ____.', answers:['astronomia']},
+  {text:'La rama que estudia las propiedades físicas de los astros es la ____.', answers:['astrofisica']},
+  {text:'La radiación cósmica de fondo fue descubierta en el año ____.', answers:['1965']},
+  {text:'Arno Penzias y Robert ____ descubrieron la radiación cósmica de fondo.', answers:['wilson']},
+  {text:'El hallazgo de la radiación cósmica de fondo ocurrió de forma ____.', answers:['accidental']},
+  {text:'La teoría lunar más aceptada es la del gran ____.', answers:['impacto']},
+  {text:'El protoplaneta que chocó con la Tierra se llamaba ____.', answers:['tea']},
+  {text:'Tea tenía aproximadamente el tamaño de ____.', answers:['marte']},
+  {text:'La teoría de ____ dice que la Tierra expulsó material por su rápida rotación.', answers:['fision']},
+  {text:'Según la conformación lunar, la Tierra y la Luna se formaron ____.', answers:['juntas']},
+  {text:'El material del gran impacto formó una masa ____.', answers:['fundida']},
+  {text:'La semejanza de la composición de la Luna y la Tierra respalda el gran ____.', answers:['impacto']}
 ];
 
 function fillNew(){
@@ -972,7 +983,7 @@ function evaluarCompletar(){
 }
 
 /* =========================================================
-   INTEGRANTES DEL GRUPO (lista real de 8°A, no texto libre)
+   INTEGRANTES DEL GRUPO (lista real del salón, no texto libre)
 ========================================================= */
 function getIntegrantes(){
   return Array.from(document.querySelectorAll('.grupo-check input:checked'))
@@ -1000,20 +1011,34 @@ function pintarListaIntegrantes(estudiantes){
   });
 }
 
-(async function cargarIntegrantes8A(){
-  const wrap = document.getElementById('grupo-nombres');
-  const { data, error } = await window.sbPractica.rpc('obtener_estudiantes_por_salon', { p_salon: '8A' });
-  if(error){
-    wrap.innerHTML = `<p class="grupo-aviso">No se pudo cargar la lista de 8°A. Recarga la página e inténtalo de nuevo.</p>`;
-    return;
-  }
-  pintarListaIntegrantes(data);
-})();
+/* =========================================================
+   SALÓN DEL GRUPO (al elegirlo, carga la lista real de
+   estudiantes de ese salón para marcar los integrantes)
+========================================================= */
+let salonSeleccionado = null;
+document.querySelectorAll('.salon-btn').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    document.querySelectorAll('.salon-btn').forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected');
+    salonSeleccionado = btn.dataset.salon;
+    document.getElementById('salon-error').style.display='none';
+
+    const wrap = document.getElementById('grupo-nombres');
+    wrap.innerHTML = `<p class="grupo-aviso">Cargando estudiantes de ${btn.textContent}…</p>`;
+
+    const { data, error } = await window.sbPractica.rpc('obtener_estudiantes_por_salon', { p_salon: salonSeleccionado });
+    if(error){
+      wrap.innerHTML = `<p class="grupo-aviso">No se pudo cargar la lista de este salón. Recarga la página e inténtalo de nuevo.</p>`;
+      return;
+    }
+    pintarListaIntegrantes(data);
+  });
+});
 
 /* =========================================================
    RESULTADO FINAL Y ENVÍO POR WHATSAPP
 ========================================================= */
-const CLASE_NUMERO = `Clase ${CLASE}`;
+const CLASE_NUMERO = 'Clase 1';
 const WHATSAPP_NUMERO = '50769262339'; // Panamá (+507) 6926-2339
 
 function obtenerFechaHoraPanama(){
@@ -1074,18 +1099,21 @@ function mostrarNota(){
 }
 
 document.getElementById('finalizar-ejercicio').addEventListener('click', ()=>{
-  const integrantes = getIntegrantes();
-  const grupo = document.getElementById('grupo-seccion').value;
   const msg = document.getElementById('resultado-msg');
+
+  if(!salonSeleccionado){
+    document.getElementById('salon-error').style.display='block';
+    document.getElementById('salon-row').scrollIntoView({behavior:'smooth', block:'center'});
+    msg.textContent = 'Falta indicar el salón (9°A, 9°B o 9°C).';
+    msg.className = 'result-msg bad';
+    return;
+  }
+
+  const integrantes = getIntegrantes();
   if(integrantes.length === 0){
     document.getElementById('grupo-error').style.display='block';
     document.getElementById('grupo-nombres').scrollIntoView({behavior:'smooth', block:'center'});
     msg.textContent = 'Marca al menos un integrante del grupo antes de finalizar.';
-    msg.className = 'result-msg bad';
-    return;
-  }
-  if(!grupo){
-    msg.textContent = 'Selecciona el grupo 8A antes de finalizar.';
     msg.className = 'result-msg bad';
     return;
   }
@@ -1096,9 +1124,9 @@ document.getElementById('finalizar-ejercicio').addEventListener('click', ()=>{
   evaluarPareo();
   evaluarCompletar();
 
-  document.querySelectorAll('#cw-grid input, #pareo-list select, #fill-list input, .grupo-check input, #grupo-seccion')
+  document.querySelectorAll('#cw-grid input, #pareo-list select, #fill-list input, .grupo-check input')
     .forEach(control => control.disabled = true);
-  document.querySelectorAll('#cw-new, #cw-clear, #pareo-new, #fill-new')
+  document.querySelectorAll('#cw-new, #cw-clear, #pareo-new, #fill-new, .salon-btn')
     .forEach(button => button.disabled = true);
 
   const nota = mostrarNota();
@@ -1107,17 +1135,18 @@ document.getElementById('finalizar-ejercicio').addEventListener('click', ()=>{
   const fechaHora = obtenerFechaHoraPanama();
 
   // Guardado en Supabase para que el docente pueda revisar desde el
-  // Panel del Docente ("Tarea en clase") quién la hizo y con qué nota.
-  // Va en segundo plano (sin "await") con la cola resistente que usan
-  // los demás ejercicios: si el celular pierde señal, queda guardado
-  // localmente y se reintenta solo.
+  // Panel del Docente ("Tarea en clase") quién la hizo y con qué nota,
+  // sin depender de que el mensaje de WhatsApp llegue o se confirme.
+  // Va en segundo plano (sin "await") y usa la misma cola resistente
+  // que usan los demás ejercicios: si el celular pierde señal, el
+  // intento queda guardado localmente y se reintenta solo.
   try {
     const payloadActividad = {
-      codigo_examen: `cn8a-clase${CLASE}-actividad-2026`,
+      codigo_examen: CODIGO_ACTIVIDAD_CLASE,
       tipo_ejercicio: 'actividad_clase',
-      cedula: `${grupo} | ${integrantes.join(' / ')}`, // no hay login individual: grupo + integrantes como clave
+      cedula: integrantes.join(' / '), // no hay login individual: se usa la lista de integrantes como clave de grupo
       nombre: integrantes.join(', '),
-      salon: grupo,
+      salon: salonSeleccionado,
       integrantes,
       crucigrama_correctas: resultados.cw.correct, crucigrama_total: resultados.cw.total,
       pareo_correctas: resultados.pareo.correct, pareo_total: resultados.pareo.total,
