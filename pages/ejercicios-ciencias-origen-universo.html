@@ -367,6 +367,31 @@
   @media (max-width:400px){
     .cw-cell{ width:30px; height:30px; }
   }
+
+  /* CELULARES PEQUEÑOS EN HORIZONTAL (poca altura de pantalla):
+     el problema no es el ancho (sobra), es el ALTO. Achicamos el
+     encabezado y los espacios para que todo quepa mejor y haya que
+     hacer menos scroll (que en horizontal se siente más incómodo). */
+  @media (max-height:500px) and (orientation:landscape){
+    header{ padding:10px 12px 6px; }
+    header h1{ font-size:1rem; margin-bottom:2px; }
+    header p{ font-size:.75rem; }
+    .class-title{ padding:4px 14px; font-size:.85rem; margin-bottom:6px; }
+    .stars{ display:none; }
+    .tabs{ margin-top:8px; gap:6px; }
+    .tab-btn{ padding:7px 14px; font-size:.82rem; }
+    main{ margin:10px auto; }
+    .card{ padding:12px 14px 14px; margin-bottom:12px; border-radius:10px; }
+    .ex-title{ font-size:1rem; }
+    .cw-cell{ width:26px; height:26px; }
+    .cw-cell input{ font-size:.85rem; }
+    .cw-num{ font-size:.48rem; }
+    .cw-clues{ min-width:160px; }
+    .cw-clues ol{ font-size:.82rem; }
+    .crossword-wrap{ gap:12px; }
+    .nota-box{ padding:12px 14px; }
+    .nota-num{ font-size:2rem; }
+  }
 </style>
 </head>
 <body>
