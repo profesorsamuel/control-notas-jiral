@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ciencias Naturales 9° · Universo, sistema solar y Luna</title>
+<style>
+  :root{
+    --bg: #0b1d33;
+    --bg-soft: #12294a;
+    --panel: #ffffff;
+    --primary: #0b3954;
+    --accent: #f4a261;
+    --accent2: #2a9d8f;
+    --text: #1c2b3a;
+    --muted: #5c7285;
+    --ok: #2a9d5c;
+    --bad: #d6483f;
+    --border: #d7e2ec;
+    --radius: 14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(180deg, var(--bg) 0%, var(--bg-soft) 260px, #eef3f8 260px);
+    color: var(--text);
+    min-height:100vh;
+    padding-bottom: 60px;
+  }
+  header{
+    text-align:center;
+    padding: 34px 16px 18px;
+    color:#fff;
+  }
+  header h1{
+    margin:0 0 6px;
+    font-size: clamp(1.3rem, 3vw, 2rem);
+    letter-spacing:.3px;
+  }
+  header p{
+    margin:0;
+    color:#bcd0e6;
+    font-size:.95rem;
+  }
+  .class-title{
+    display:inline-block;
+    margin:0 0 12px;
+    padding:8px 22px;
+    border-radius:999px;
+    background:var(--accent);
+    color:#3a2200;
+    font-size:1.15rem;
+    font-weight:800;
+    letter-spacing:1px;
+  }
+  .stars{
+    position:relative;
+    font-size:.8rem;
+    color:#8fb4d9;
+  }
+  .tabs{
+    max-width: 980px;
+    margin: 18px auto 0;
+    display:flex;
+    gap:10px;
+    padding: 0 16px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .tab-btn{
+    border:none;
+    padding:12px 22px;
+    border-radius: 999px;
+    background:#fff;
+    color: var(--primary);
+    font-weight:700;
+    font-size:.95rem;
+    cursor:pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,.15);
+    transition: all .15s ease;
+  }
+  .tab-btn.active{
+    background: var(--accent);
+    color:#3a2200;
+    transform: translateY(-2px);
+  }
+  .tab-btn:hover{ filter: brightness(1.05); }
+
+  main{
+    max-width: 980px;
+    margin: 22px auto;
+    padding: 0 16px;
+  }
+  .card{
+    background: var(--panel);
+    border-radius: var(--radius);
+    box-shadow: 0 6px 24px rgba(11,29,51,.12);
+    padding: 22px 24px 26px;
+    margin-bottom: 20px;
+  }
+  .exercise{ display:none; }
+  .exercise.active{ display:block; }
+
+  .toolbar{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+    margin-bottom: 18px;
+  }
+  .btn{
+    border:none;
+    padding:10px 18px;
+    border-radius:10px;
+    font-weight:600;
+    font-size:.9rem;
+    cursor:pointer;
+    color:#fff;
+    background: var(--primary);
+    transition: filter .15s ease, transform .1s ease;
+  }
+  .btn:hover{ filter:brightness(1.12); }
+  .btn:active{ transform: scale(.97); }
+  .btn.secondary{ background: var(--accent2); }
+  .btn.ghost{ background:#e7eef5; color: var(--primary); }
+  .btn.warn{ background:#b25b45; }
+
+  h2.ex-title{
+    margin:0 0 4px;
+    color: var(--primary);
+    font-size:1.3rem;
+  }
+  .ex-sub{
+    margin:0 0 16px;
+    color: var(--muted);
+    font-size:.9rem;
+  }
+  .result-msg{
+    margin: 10px 0 4px;
+    font-weight:700;
+    min-height: 1.2em;
+  }
+  .result-msg.ok{ color: var(--ok); }
+  .result-msg.bad{ color: var(--bad); }
+
+  /* CRUCIGRAMA */
+  .crossword-wrap{
+    display:flex;
+    gap: 26px;
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+  .cw-hint{
+    display:none;
+    font-size:.82rem;
+    color: var(--accent2);
+    font-weight:700;
+    margin: 0 0 10px;
+  }
+  .cw-scroll{
+    width:100%;
+    overflow-x:auto;
+    overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:6px;
+  }
+  #cw-grid{
+    display:grid;
+    gap:2px;
+    background: var(--border);
+    padding:2px;
+    border-radius:6px;
+    width:max-content;
+    margin: 0 auto;
+    touch-action: pan-x pan-y;
+  }
+  .cw-cell{
+    width: 32px;
+    height: 32px;
+    background:#fff;
+    position:relative;
+  }
+  .cw-cell.empty{ background: transparent; }
+  .cw-cell input{
+    width:100%;
+    height:100%;
+    border:none;
+    text-align:center;
+    font-size:1.05rem;
+    font-weight:700;
+    text-transform:uppercase;
+    background:transparent;
+    color: var(--primary);
+    outline: none;
+  }
+  .cw-cell input:focus{ background:#eaf2fb; box-shadow: inset 0 0 0 2px var(--accent2); }
+  .cw-cell input.correct{ background:#d9f2e3; color:var(--ok); }
+  .cw-cell input.incorrect{ background:#fbdcd8; color:var(--bad); }
+  .cw-num{
+    position:absolute;
+    top:1px; left:2px;
+    font-size:.55rem;
+    color:#8093a8;
+    font-weight:700;
+    pointer-events:none;
+  }
+  .cw-clues{
+    flex:1;
+    min-width:220px;
+  }
+  .cw-clues h3{
+    margin:0 0 8px;
+    color: var(--primary);
+    font-size:1rem;
+    border-bottom:2px solid var(--border);
+    padding-bottom:4px;
+  }
+  .cw-clues ol{
+    margin:0 0 18px;
+    padding-left: 20px;
+    font-size:.88rem;
+    line-height:1.5;
+  }
+  .cw-clues li{ margin-bottom:6px; }
+
+  /* PAREO */
+  .pareo-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    margin-bottom:10px;
+    flex-wrap:wrap;
+  }
+  .pareo-term{
+    flex: 0 0 220px;
+    font-weight:700;
+    color: var(--primary);
+  }
+  .pareo-row select{
+    flex:1;
+    min-width:220px;
+    padding:9px 10px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    font-size:.9rem;
+    background:#fbfcfe;
+  }
+  .pareo-row.correct{ border-color: var(--ok); background:#f1faf4; }
+  .pareo-row.incorrect{ border-color: var(--bad); background:#fdf2f1; }
+
+  /* COMPLETAR */
+  .fill-item{
+    padding:12px 4px;
+    border-bottom:1px dashed var(--border);
+    font-size:.95rem;
+    line-height:1.7;
+  }
+  .fill-item:last-child{ border-bottom:none; }
+  .fill-item input{
+    border:none;
+    border-bottom: 2px solid var(--accent2);
+    background: #f6fafb;
+    padding:4px 8px;
+    font-size:.95rem;
+    font-weight:700;
+    color:var(--primary);
+    width: 160px;
+    text-align:center;
+    border-radius:4px 4px 0 0;
+  }
+  .fill-item input.correct{ border-color: var(--ok); background:#e9f9ee; color:var(--ok); }
+  .fill-item input.incorrect{ border-color: var(--bad); background:#fdeceb; color:var(--bad); }
+  .fill-num{ font-weight:700; color:var(--accent2); margin-right:4px; }
+
+  footer{
+    text-align:center;
+    color:#94a8bd;
+    font-size:.78rem;
+    margin-top: 30px;
+  }
+
+  /* GRUPO */
+  #grupo-nombres{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .grupo-aviso{
+    color: var(--muted);
+    font-size:.88rem;
+  }
+  .grupo-check{
+    flex: 1 1 220px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 12px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    font-size:.9rem;
+    background:#fbfcfe;
+    cursor:pointer;
+    user-select:none;
+  }
+  .grupo-check input[type="checkbox"]{
+    width:18px;
+    height:18px;
+    flex-shrink:0;
+    accent-color: var(--accent2, #1d7a46);
+  }
+  .grupo-check.marcado{
+    border-color: var(--accent2);
+    background:#e6f5f2;
+  }
+
+  /* RESULTADO FINAL */
+  .nota-box{
+    display:flex;
+    align-items:center;
+    gap:20px;
+    margin-top:16px;
+    padding:16px 20px;
+    border-radius:12px;
+    background:#eef6f2;
+    border:1px solid var(--ok);
+  }
+  .nota-num{
+    font-size:2.6rem;
+    font-weight:800;
+    color: var(--ok);
+    line-height:1;
+  }
+  .nota-detalle{
+    font-size:.88rem;
+    color: var(--muted);
+    line-height:1.6;
+  }
+
+  /* GRUPO / SALÓN */
+  .salon-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:4px;
+  }
+  .salon-btn{
+    flex:1 1 90px;
+    padding:10px 8px;
+    border-radius:10px;
+    border:2px solid var(--border);
+    background:#fbfcfe;
+    color: var(--primary);
+    font-weight:700;
+    font-size:.95rem;
+    cursor:pointer;
+    text-align:center;
+  }
+  .salon-btn.selected{
+    border-color: var(--accent2);
+    background:#e6f5f2;
+    color: var(--accent2);
+  }
+  .campo-error{ color: var(--bad); font-size:.85rem; font-weight:700; margin-top:6px; display:none; }
+
+  @media (max-width:768px){
+    header{ padding: 24px 12px 14px; }
+    main{ margin: 14px auto; padding: 0 10px; }
+    .card{ padding: 16px 14px 20px; border-radius:12px; }
+    .tabs{ margin-top:12px; gap:8px; }
+    .tab-btn{ padding:10px 16px; font-size:.88rem; }
+    .cw-hint{ display:block; }
+    .cw-cell{ width:34px; height:34px; }
+    .cw-cell input{ font-size:1.05rem; }
+    .cw-clues{ min-width:100%; }
+    .crossword-wrap{ gap:16px; }
+    .pareo-term{ flex-basis:100%; }
+    .pareo-row select{ min-width:100%; }
+    .fill-item input{ width:130px; }
+    .nota-box{ flex-direction:column; align-items:flex-start; gap:8px; }
+  }
+  @media (max-width:400px){
+    .cw-cell{ width:30px; height:30px; }
+  }
+
+  /* CELULARES PEQUEÑOS EN HORIZONTAL (poca altura de pantalla):
+     el problema no es el ancho (sobra), es el ALTO. Achicamos el
+     encabezado y los espacios para que todo quepa mejor y haya que
+     hacer menos scroll (que en horizontal se siente más incómodo). */
+  @media (max-height:500px) and (orientation:landscape){
+    header{ padding:10px 12px 6px; }
+    header h1{ font-size:1rem; margin-bottom:2px; }
+    header p{ font-size:.75rem; }
+    .class-title{ padding:4px 14px; font-size:.85rem; margin-bottom:6px; }
+    .stars{ display:none; }
+    .tabs{ margin-top:8px; gap:6px; }
+    .tab-btn{ padding:7px 14px; font-size:.82rem; }
+    main{ margin:10px auto; }
+    .card{ padding:12px 14px 14px; margin-bottom:12px; border-radius:10px; }
+    .ex-title{ font-size:1rem; }
+    .cw-cell{ width:26px; height:26px; }
+    .cw-cell input{ font-size:.85rem; }
+    .cw-num{ font-size:.48rem; }
+    .cw-clues{ min-width:160px; }
+    .cw-clues ol{ font-size:.82rem; }
+    .crossword-wrap{ gap:12px; }
+    .nota-box{ padding:12px 14px; }
+    .nota-num{ font-size:2rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="class-title">CLASE 1</div>
+  <h1>🌍 Ciencias Naturales · Salón 9</h1>
+  <p>Origen del universo, formación del sistema solar y origen de la Luna</p>
+</header>
+
+<main>
+
+  <!-- ================= INTEGRANTES DEL GRUPO ================= -->
+  <div class="card" id="grupo-card">
+    <h2 class="ex-title">👥 Integrantes del grupo</h2>
+
+    <p class="ex-sub">¿En qué salón están?</p>
+    <div class="salon-row" id="salon-row">
+      <button type="button" class="salon-btn" data-salon="9A">9°A</button>
+      <button type="button" class="salon-btn" data-salon="9B">9°B</button>
+      <button type="button" class="salon-btn" data-salon="9C">9°C</button>
+    </div>
+    <p class="campo-error" id="salon-error">Selecciona tu salón antes de finalizar.</p>
+
+    <p class="ex-sub" style="margin-top:16px;">Marca a todos los integrantes del grupo (de la lista de tu salón).</p>
+    <div id="grupo-nombres">
+      <p class="grupo-aviso" id="grupo-aviso">Primero selecciona tu salón arriba…</p>
+    </div>
+    <p class="campo-error" id="grupo-error">Marca al menos un integrante antes de finalizar.</p>
+  </div>
+
+  <!-- ================= SELECCIÓN DE EJERCICIOS ================= -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="crucigrama">🧩 Crucigrama</button>
+    <button class="tab-btn" data-tab="pareo">🔗 Pareo</button>
+    <button class="tab-btn" data-tab="completar">✏️ Completar</button>
+  </div>
+
+  <!-- ================= CRUCIGRAMA ================= -->
+  <section class="exercise active" id="ex-crucigrama">
+    <div class="card">
+      <h2 class="ex-title">Crucigrama</h2>
+      <p class="ex-sub">Cada vez que generas un crucigrama se elige al azar uno de 5 temas distintos del banco. Escribe las respuestas SIN tildes.</p>
+      <div class="toolbar">
+        <button class="btn secondary" id="cw-new">🔀 Nuevo crucigrama</button>
+        <button class="btn warn" id="cw-clear">🧹 Limpiar</button>
+      </div>
+      <div class="result-msg" id="cw-msg"></div>
+      <p class="cw-hint">👉 Desliza el crucigrama hacia los lados para ver todas las casillas.</p>
+      <div class="crossword-wrap">
+        <div class="cw-scroll"><div id="cw-grid"></div></div>
+        <div class="cw-clues">
+          <h3>➡️ Horizontales</h3>
+          <ol id="cw-across"></ol>
+          <h3>⬇️ Verticales</h3>
+          <ol id="cw-down"></ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PAREO ================= -->
+  <section class="exercise" id="ex-pareo">
+    <div class="card">
+      <h2 class="ex-title">Pareo</h2>
+      <p class="ex-sub">Selecciona en cada lista desplegable la definición correcta para cada término. Se muestran 5 términos de un banco de 35.</p>
+      <div class="toolbar">
+        <button class="btn secondary" id="pareo-new">🔀 Nuevo pareo</button>
+      </div>
+      <div class="result-msg" id="pareo-msg"></div>
+      <div id="pareo-list"></div>
+    </div>
+  </section>
+
+  <!-- ================= COMPLETAR ================= -->
+  <section class="exercise" id="ex-completar">
+    <div class="card">
+      <h2 class="ex-title">Completar</h2>
+      <p class="ex-sub">Escribe la palabra que falta en cada oración. Se muestran 10 preguntas de un banco de 35 (no importan tildes ni mayúsculas).</p>
+      <div class="toolbar">
+        <button class="btn secondary" id="fill-new">🔀 Nuevo grupo</button>
+      </div>
+      <div class="result-msg" id="fill-msg"></div>
+      <div id="fill-list"></div>
+    </div>
+  </section>
+
+  <!-- ================= RESULTADO FINAL ================= -->
+  <div class="card" id="resultado-card">
+    <h2 class="ex-title">📊 Resultado final</h2>
+    <p class="ex-sub">Las respuestas y la calificación permanecerán ocultas hasta finalizar los 3 ejercicios.</p>
+    <div class="toolbar">
+      <button class="btn secondary" id="finalizar-ejercicio">✅ Finalizar y guardar</button>
+    </div>
+    <div id="nota-box" class="nota-box" style="display:none;">
+      <div class="nota-num" id="nota-num">-</div>
+      <div class="nota-detalle" id="nota-detalle"></div>
+    </div>
+    <div class="result-msg" id="resultado-msg"></div>
+  </div>
+
+</main>
+
+<footer>Ciencias Naturales · 9° grado · Universo, sistema solar y Luna</footer>
+
+<!-- Guardado de resultados en Supabase (para el Panel del Docente > Tarea en clase) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/portal-config.js"></script>
+<script src="../js/guardar_intento_practica.js"></script>
+<script>
+// Cliente de Supabase que usa guardar_intento_practica.js (misma llave
+// pública "anon" que usan los demás ejercicios; protegida por las
+// políticas de seguridad de la tabla, no por estar oculta).
+window.sbPractica = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+// Identifica esta actividad de clase específica frente a las demás
+// (Clase 2, Clase 3, etc.) en el panel del docente.
+const CODIGO_ACTIVIDAD_CLASE = 'cn9-clase1-actividad-origen-universo-2026';
+</script>
+<script>
+/* =========================================================
+   TABS
+========================================================= */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.exercise').forEach(e=>e.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('ex-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+function normalize(s){
+  return s.toString().trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]/g,'');
+}
+
+/* =========================================================
+   RESULTADOS (para la calificación final)
+========================================================= */
+const resultados = {
+  cw:    { correct:0, total:0, done:false },
+  pareo: { correct:0, total:0, done:false },
+  fill:  { correct:0, total:0, done:false }
+};
+
+/* =========================================================
+   1) CRUCIGRAMA — banco de 5 crucigramas, se presenta 1
+========================================================= */
+const CROSSWORD_BANK = [
+  { title:'El universo y el Big Bang', words:[
+    {word:'UNIVERSO', clue:'Conjunto de toda la materia, energía, espacio y cuerpos celestes'},
+    {word:'BIGBANG', clue:'Modelo científico más aceptado sobre el origen y expansión del universo'},
+    {word:'SINGULARIDAD', clue:'Estado inicial de densidad extrema propuesto por el modelo del Big Bang'},
+    {word:'EXPANSION', clue:'Proceso por el que las galaxias distantes se alejan entre sí'},
+    {word:'GALAXIA', clue:'Gran conjunto de estrellas; la Vía Láctea es un ejemplo'},
+    {word:'COSMOS', clue:'Otra palabra utilizada para referirse al universo'}
+  ]},
+  { title:'Evidencias del Big Bang', words:[
+    {word:'RADIACION', clue:'Energía cósmica de fondo que llena el espacio en todas direcciones'},
+    {word:'HIDROGENO', clue:'Elemento ligero formado en las primeras etapas del universo'},
+    {word:'HELIO', clue:'Otro elemento abundante originado poco después del Big Bang'},
+    {word:'GALAXIAS', clue:'Su alejamiento demuestra que el universo continúa expandiéndose'},
+    {word:'PENZIAS', clue:'Apellido de uno de los descubridores de la radiación cósmica de fondo'},
+    {word:'WILSON', clue:'Apellido del otro descubridor de la radiación cósmica de fondo'}
+  ]},
+  { title:'Teorías del sistema solar', words:[
+    {word:'NEBULOSA', clue:'Teoría más aceptada sobre la formación del sistema solar'},
+    {word:'ACRECION', clue:'Acumulación de partículas de polvo atraídas por gravedad'},
+    {word:'PLANETESIMALES', clue:'Cuerpos pequeños que chocaron y se acumularon para formar planetas'},
+    {word:'LAPLACE', clue:'Propuso una nebulosa giratoria que se enfrió y formó anillos'},
+    {word:'CAPTURA', clue:'Teoría donde el Sol extrae materia de una protoestrella cercana'},
+    {word:'PROTOSOL', clue:'Centro de la nebulosa solar que dio origen al Sol'}
+  ]},
+  { title:'Nebulosa moderna', words:[
+    {word:'SUPERNOVA', clue:'Explosión estelar cuya onda de choque pudo iniciar la formación del Sol'},
+    {word:'PROTOESTRELLA', clue:'Etapa de una estrella antes de comenzar la fusión nuclear'},
+    {word:'ASTRONOMIA', clue:'Ciencia que estudia los cuerpos celestes y el universo'},
+    {word:'ASTROFISICA', clue:'Rama que estudia las propiedades físicas de los astros'},
+    {word:'GRAVEDAD', clue:'Fuerza que produjo el colapso de parte de la nebulosa gigante'},
+    {word:'DISCO', clue:'Estructura protoplanetaria aplanada alrededor del Sol joven'}
+  ]},
+  { title:'Origen de la Luna', words:[
+    {word:'LUNA', clue:'Satélite natural de la Tierra'},
+    {word:'TEA', clue:'Protoplaneta del tamaño de Marte que chocó con la Tierra'},
+    {word:'IMPACTO', clue:'Teoría lunar más aceptada actualmente'},
+    {word:'FISION', clue:'Teoría donde la Tierra primitiva expulsó material por su rápida rotación'},
+    {word:'COLISIONES', clue:'Choques con planetesimales propuestos para explicar el origen lunar'},
+    {word:'SOLIDIFICACION', clue:'Proceso final que convirtió la masa fundida en la Luna'}
+  ]}
+];
+
+const CW_SIZE = 21;
+let cwState = null;
+
+function cwGenerate(wordsData){
+  const grid = Array.from({length:CW_SIZE}, ()=>Array(CW_SIZE).fill(null));
+  const placements = [];
+
+  function canPlace(word,row,col,dir){
+    for(let i=0;i<word.length;i++){
+      const r = dir==='V' ? row+i : row;
+      const c = dir==='H' ? col+i : col;
+      if(r<0||c<0||r>=CW_SIZE||c>=CW_SIZE) return false;
+      const cell = grid[r][c];
+      if(cell !== null && cell !== word[i]) return false;
+      if(cell === null){
+        if(dir==='H'){
+          if(grid[r-1] && grid[r-1][c]) return false;
+          if(grid[r+1] && grid[r+1][c]) return false;
+        } else {
+          if(grid[r][c-1]) return false;
+          if(grid[r][c+1]) return false;
+        }
+      }
+    }
+    if(dir==='H'){
+      if(grid[row] && grid[row][col-1]) return false;
+      if(grid[row] && grid[row][col+word.length]) return false;
+    } else {
+      if(grid[row-1] && grid[row-1][col]) return false;
+      if(grid[row+word.length] && grid[row+word.length][col]) return false;
+    }
+    return true;
+  }
+  function place(word,row,col,dir){
+    for(let i=0;i<word.length;i++){
+      const r = dir==='V' ? row+i : row;
+      const c = dir==='H' ? col+i : col;
+      grid[r][c] = word[i];
+    }
+  }
+
+  const words = wordsData.map(w=>({...w, word:w.word.toUpperCase()}))
+    .sort((a,b)=>b.word.length-a.word.length);
+
+  const first = words[0];
+  const startRow = Math.floor(CW_SIZE/2);
+  const startCol = Math.floor((CW_SIZE-first.word.length)/2);
+  place(first.word,startRow,startCol,'H');
+  placements.push({...first,row:startRow,col:startCol,dir:'H'});
+
+  for(let idx=1; idx<words.length; idx++){
+    const w = words[idx];
+    let best=null, bestScore=-1;
+    for(const p of placements){
+      for(let i=0;i<w.word.length;i++){
+        for(let j=0;j<p.word.length;j++){
+          if(w.word[i] !== p.word[j]) continue;
+          const newDir = p.dir==='H' ? 'V' : 'H';
+          let row,col;
+          if(p.dir==='H'){ row=p.row-i; col=p.col+j; }
+          else { row=p.row+j; col=p.col-i; }
+          if(canPlace(w.word,row,col,newDir)){
+            let score=0;
+            for(let k=0;k<w.word.length;k++){
+              const r = newDir==='V' ? row+k : row;
+              const c = newDir==='H' ? col+k : col;
+              if(grid[r][c]) score++;
+            }
+            if(score>bestScore){ bestScore=score; best={word:w.word,clue:w.clue,row,col,dir:newDir}; }
+          }
+        }
+      }
+    }
+    if(best){ place(best.word,best.row,best.col,best.dir); placements.push(best); }
+    else {
+      let done=false;
+      for(let r=0;r<CW_SIZE && !done;r++){
+        for(let c=0;c<=CW_SIZE-w.word.length && !done;c++){
+          if(canPlace(w.word,r,c,'H')){
+            place(w.word,r,c,'H');
+            placements.push({word:w.word,clue:w.clue,row:r,col:c,dir:'H'});
+            done=true;
+          }
+        }
+      }
+    }
+  }
+
+  let minR=CW_SIZE,maxR=0,minC=CW_SIZE,maxC=0;
+  for(let r=0;r<CW_SIZE;r++) for(let c=0;c<CW_SIZE;c++) if(grid[r][c]){
+    minR=Math.min(minR,r); maxR=Math.max(maxR,r);
+    minC=Math.min(minC,c); maxC=Math.max(maxC,c);
+  }
+  const bounds={minR,maxR,minC,maxC};
+
+  const numbers={};
+  let num=1;
+  for(let r=minR;r<=maxR;r++){
+    for(let c=minC;c<=maxC;c++){
+      if(!grid[r][c]) continue;
+      const startsAcross = !grid[r][c-1] && grid[r][c+1];
+      const startsDown = !(grid[r-1] && grid[r-1][c]) && (grid[r+1] && grid[r+1][c]);
+      if(startsAcross || startsDown) numbers[r+','+c] = num++;
+    }
+  }
+  placements.forEach(p=> p.num = numbers[p.row+','+p.col]);
+
+  return {grid, placements, bounds};
+}
+
+function cwRender(){
+  const gridEl = document.getElementById('cw-grid');
+  const {grid,placements,bounds} = cwState;
+  const cols = bounds.maxC-bounds.minC+1;
+  const rows = bounds.maxR-bounds.minR+1;
+  // El tamaño de casilla se ajusta al tamaño de pantalla, igual que en el
+  // CSS (.cw-cell), para que el grid y las casillas queden alineados.
+  const tam = (window.matchMedia('(max-width:400px)').matches ? 30
+             : window.matchMedia('(max-width:768px)').matches ? 34 : 32);
+  gridEl.style.gridTemplateColumns = `repeat(${cols}, ${tam}px)`;
+  gridEl.style.gridTemplateRows = `repeat(${rows}, ${tam}px)`;
+  gridEl.innerHTML='';
+
+  const numbers={};
+  placements.forEach(p=>{ if(p.num) numbers[p.row+','+p.col]=p.num; });
+
+  for(let r=bounds.minR; r<=bounds.maxR; r++){
+    for(let c=bounds.minC; c<=bounds.maxC; c++){
+      const cell = document.createElement('div');
+      if(grid[r][c]){
+        cell.className='cw-cell';
+        const key = r+','+c;
+        if(numbers[key]){
+          const n = document.createElement('span');
+          n.className='cw-num';
+          n.textContent = numbers[key];
+          cell.appendChild(n);
+        }
+        const inp = document.createElement('input');
+        inp.maxLength=1;
+        inp.dataset.r=r; inp.dataset.c=c;
+        inp.addEventListener('input', ()=>{
+          inp.value = inp.value.toUpperCase().slice(0,1);
+          inp.classList.remove('correct','incorrect');
+        });
+        cell.appendChild(inp);
+      } else {
+        cell.className='cw-cell empty';
+      }
+      gridEl.appendChild(cell);
+    }
+  }
+
+  const acrossEl = document.getElementById('cw-across');
+  const downEl = document.getElementById('cw-down');
+  acrossEl.innerHTML=''; downEl.innerHTML='';
+  const across = placements.filter(p=>p.dir==='H').sort((a,b)=>a.num-b.num);
+  const down = placements.filter(p=>p.dir==='V').sort((a,b)=>a.num-b.num);
+  across.forEach(p=>{
+    const li=document.createElement('li');
+    li.textContent = `(${p.num}) ${p.clue}`;
+    acrossEl.appendChild(li);
+  });
+  down.forEach(p=>{
+    const li=document.createElement('li');
+    li.textContent = `(${p.num}) ${p.clue}`;
+    downEl.appendChild(li);
+  });
+}
+
+function cwNew(){
+  const pick = CROSSWORD_BANK[Math.floor(Math.random()*CROSSWORD_BANK.length)];
+  cwState = cwGenerate(pick.words);
+  cwRender();
+  document.getElementById('cw-msg').textContent = `Tema: ${pick.title}`;
+  document.getElementById('cw-msg').className='result-msg';
+}
+
+document.getElementById('cw-new').addEventListener('click', cwNew);
+function evaluarCrucigrama(){
+  const {grid} = cwState;
+  let total=0, correct=0;
+  document.querySelectorAll('#cw-grid input').forEach(inp=>{
+    total++;
+    const r=inp.dataset.r, c=inp.dataset.c;
+    const expected = cwState.grid[r][c];
+    if(inp.value.toUpperCase() === expected){
+      inp.classList.add('correct'); inp.classList.remove('incorrect');
+      correct++;
+    } else {
+      inp.classList.add('incorrect'); inp.classList.remove('correct');
+    }
+  });
+  const msg = document.getElementById('cw-msg');
+  msg.textContent = `Tienes ${correct} de ${total} casillas correctas.`;
+  msg.className = 'result-msg ' + (correct===total ? 'ok':'bad');
+  resultados.cw = { correct, total, done:true };
+}
+document.getElementById('cw-clear').addEventListener('click', ()=>{
+  document.querySelectorAll('#cw-grid input').forEach(inp=>{
+    inp.value=''; inp.classList.remove('correct','incorrect');
+  });
+  document.getElementById('cw-msg').textContent='';
+});
+
+/* =========================================================
+   2) PAREO — banco de 35, se presentan 5
+========================================================= */
+const PAREO_BANK = [
+  {term:'Sistema solar', def:'Conjunto formado por el Sol, ocho planetas y otros cuerpos que lo orbitan'},
+  {term:'Big Bang', def:'Modelo científico más aceptado sobre el origen, evolución y expansión del universo'},
+  {term:'Singularidad', def:'Estado inicial donde materia, energía y espacio estaban extremadamente concentrados'},
+  {term:'Expansión del universo', def:'Alejamiento constante de las galaxias distantes'},
+  {term:'Radiación cósmica de fondo', def:'Remanente enfriado de la fase caliente y densa inicial del universo'},
+  {term:'Hidrógeno y helio', def:'Elementos ligeros formados durante las primeras etapas del universo'},
+  {term:'Nucleosíntesis estelar', def:'Proceso dentro de las estrellas que produce elementos más pesados'},
+  {term:'René Descartes', def:'En el siglo XVII formuló una primera hipótesis sobre el origen del sistema solar'},
+  {term:'Kant y Laplace', def:'Pensadores del siglo XVIII que sentaron bases de teorías posteriores'},
+  {term:'Teoría de la nebulosa', def:'Explicación actualmente más aceptada para la formación del sistema solar'},
+  {term:'Acreción', def:'Condensación y acumulación de partículas de polvo atraídas por gravedad'},
+  {term:'Planetesimales', def:'Cuerpos pequeños que chocan y se atraen hasta formar planetas'},
+  {term:'Protoplaneta', def:'Cuerpo giratorio en formación que puede convertirse en planeta'},
+  {term:'Protosol', def:'Centro de la nebulosa solar que posteriormente dio origen al Sol'},
+  {term:'Teoría de Laplace', def:'Una nebulosa giratoria se enfría y forma anillos que originan planetas'},
+  {term:'Teoría de captura', def:'El Sol extrae un filamento de materia de una protoestrella cercana'},
+  {term:'Planetas rocosos', def:'Planetas que se formaron en las zonas más cercanas al Sol'},
+  {term:'Gigantes gaseosos', def:'Planetas que se formaron más allá de unas tres unidades astronómicas'},
+  {term:'Teoría moderna de la nebulosa', def:'Modelo apoyado por la observación de discos alrededor de estrellas jóvenes'},
+  {term:'Beta Pictoris', def:'Sistema planetario cuya observación apoya la teoría moderna de la nebulosa'},
+  {term:'Colapso gravitacional', def:'Contracción de una parte de la nebulosa gigante por efecto de la gravedad'},
+  {term:'Disco protoplanetario', def:'Material aplanado alrededor del Sol joven del que surgieron varios astros'},
+  {term:'Supernova', def:'Explosión estelar cuya onda de choque pudo iniciar la formación del Sol'},
+  {term:'Protoestrella', def:'Fase temprana de una estrella antes de iniciar la fusión nuclear'},
+  {term:'Astronomía', def:'Ciencia que estudia los cuerpos celestes y el universo'},
+  {term:'Astrofísica', def:'Rama de la astronomía que estudia propiedades físicas de los astros'},
+  {term:'Arno Penzias y Robert Wilson', def:'Descubrieron accidentalmente la radiación cósmica de fondo en 1965'},
+  {term:'Teoría de captura lunar', def:'La Luna se formó lejos y fue atraída por la gravedad terrestre'},
+  {term:'Teoría de fisión', def:'La rotación de la Tierra primitiva expulsó el material que formó la Luna'},
+  {term:'Conformación lunar', def:'La Tierra y la Luna se formaron juntas del mismo material'},
+  {term:'Colisiones planetesimales', def:'Varios choques con la Tierra primitiva originaron material lunar'},
+  {term:'Teoría del gran impacto', def:'Explicación más aceptada actualmente sobre el origen de la Luna'},
+  {term:'Tea', def:'Protoplaneta del tamaño de Marte que chocó con la Tierra'},
+  {term:'Masa fundida', def:'Material expulsado que se reunió, enfrió y formó la Luna'},
+  {term:'Composición lunar', def:'Su semejanza con la Tierra respalda la teoría del gran impacto'}
+];
+
+let pareoCurrent = [];
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function pareoNew(){
+  const idxs = shuffle(PAREO_BANK.map((_,i)=>i)).slice(0,5);
+  pareoCurrent = idxs.map(i=>PAREO_BANK[i]);
+  const shuffledDefs = shuffle(pareoCurrent.map((item,i)=>({def:item.def, correctIndex:i})));
+
+  const listEl = document.getElementById('pareo-list');
+  listEl.innerHTML='';
+  pareoCurrent.forEach((item,i)=>{
+    const row = document.createElement('div');
+    row.className='pareo-row';
+    row.dataset.correct=i;
+    row.innerHTML = `<div class="pareo-term">${item.term}</div>`;
+    const select = document.createElement('select');
+    const opt0 = document.createElement('option');
+    opt0.value=''; opt0.textContent='Selecciona una definición...';
+    select.appendChild(opt0);
+    shuffledDefs.forEach(sd=>{
+      const opt = document.createElement('option');
+      opt.value = sd.correctIndex;
+      opt.textContent = sd.def;
+      select.appendChild(opt);
+    });
+    select.addEventListener('change', ()=> row.classList.remove('correct','incorrect'));
+    row.appendChild(select);
+    listEl.appendChild(row);
+  });
+  document.getElementById('pareo-msg').textContent='';
+}
+
+document.getElementById('pareo-new').addEventListener('click', pareoNew);
+function evaluarPareo(){
+  const rows = document.querySelectorAll('#pareo-list .pareo-row');
+  let correct=0;
+  rows.forEach(row=>{
+    const select = row.querySelector('select');
+    const isCorrect = select.value !== '' && Number(select.value) === Number(row.dataset.correct);
+    row.classList.toggle('correct', isCorrect);
+    row.classList.toggle('incorrect', !isCorrect);
+    if(isCorrect) correct++;
+  });
+  const msg = document.getElementById('pareo-msg');
+  msg.textContent = `Tienes ${correct} de ${rows.length} pareos correctos.`;
+  msg.className = 'result-msg ' + (correct===rows.length ? 'ok':'bad');
+  resultados.pareo = { correct, total: rows.length, done:true };
+}
+
+/* =========================================================
+   3) COMPLETAR — banco de 35, se presentan 10
+========================================================= */
+const FILL_BANK = [
+  {text:'El Sol es la ____ central del sistema solar.', answers:['estrella']},
+  {text:'El sistema solar posee ____ planetas principales.', answers:['ocho','8']},
+  {text:'El modelo científico más aceptado sobre el origen del universo es el ____.', answers:['bigbang']},
+  {text:'El Big Bang ocurrió hace aproximadamente ____ millones de años.', answers:['13800']},
+  {text:'El estado inicial de densidad extrema se denomina ____.', answers:['singularidad']},
+  {text:'El alejamiento de las galaxias demuestra la ____ del universo.', answers:['expansion']},
+  {text:'La radiación cósmica de fondo es un ____ de la etapa caliente del universo.', answers:['remanente','vestigio']},
+  {text:'Los dos elementos ligeros formados primero fueron hidrógeno y ____.', answers:['helio']},
+  {text:'Los elementos pesados se produjeron mediante la nucleosíntesis ____.', answers:['estelar']},
+  {text:'En el siglo XVII, René ____ formuló una hipótesis sobre el sistema solar.', answers:['descartes']},
+  {text:'La explicación más aceptada de la formación del sistema solar es la teoría de la ____.', answers:['nebulosa']},
+  {text:'La acumulación de partículas atraídas por gravedad se llama ____.', answers:['acrecion']},
+  {text:'Los cuerpos de hasta un kilómetro que chocaron para formar planetas se llaman ____.', answers:['planetesimales']},
+  {text:'El centro de la nebulosa solar que dio origen al Sol fue el ____.', answers:['protosol']},
+  {text:'Los planetas ____ se formaron cerca del Sol.', answers:['rocosos']},
+  {text:'Los gigantes gaseosos se formaron más allá de unas ____ unidades astronómicas.', answers:['tres','3']},
+  {text:'Según Laplace, la nebulosa se enfrió y se condensó formando ____.', answers:['anillos']},
+  {text:'La teoría de ____ propone que el Sol extrajo materia de una protoestrella.', answers:['captura']},
+  {text:'La edad estimada del sistema solar es de ____ millones de años.', answers:['4568']},
+  {text:'La formación moderna comenzó con un colapso ____.', answers:['gravitacional']},
+  {text:'El material restante se aplanó y formó un disco ____.', answers:['protoplanetario']},
+  {text:'La onda de choque de una ____ pudo iniciar la formación del Sol.', answers:['supernova']},
+  {text:'Una estrella joven antes de iniciar la fusión nuclear es una ____.', answers:['protoestrella']},
+  {text:'La ciencia que estudia los cuerpos celestes es la ____.', answers:['astronomia']},
+  {text:'La rama que estudia las propiedades físicas de los astros es la ____.', answers:['astrofisica']},
+  {text:'La radiación cósmica de fondo fue descubierta en el año ____.', answers:['1965']},
+  {text:'Arno Penzias y Robert ____ descubrieron la radiación cósmica de fondo.', answers:['wilson']},
+  {text:'El hallazgo de la radiación cósmica de fondo ocurrió de forma ____.', answers:['accidental']},
+  {text:'La teoría lunar más aceptada es la del gran ____.', answers:['impacto']},
+  {text:'El protoplaneta que chocó con la Tierra se llamaba ____.', answers:['tea']},
+  {text:'Tea tenía aproximadamente el tamaño de ____.', answers:['marte']},
+  {text:'La teoría de ____ dice que la Tierra expulsó material por su rápida rotación.', answers:['fision']},
+  {text:'Según la conformación lunar, la Tierra y la Luna se formaron ____.', answers:['juntas']},
+  {text:'El material del gran impacto formó una masa ____.', answers:['fundida']},
+  {text:'La semejanza de la composición de la Luna y la Tierra respalda el gran ____.', answers:['impacto']}
+];
+
+function fillNew(){
+  const idxs = shuffle(FILL_BANK.map((_,i)=>i)).slice(0,10);
+  const listEl = document.getElementById('fill-list');
+  listEl.innerHTML='';
+  idxs.forEach((bankIdx,i)=>{
+    const item = FILL_BANK[bankIdx];
+    const div = document.createElement('div');
+    div.className='fill-item';
+    div.dataset.answers = JSON.stringify(item.answers);
+    const parts = item.text.split('____');
+    div.innerHTML = `<span class="fill-num">${i+1}.</span>${parts[0]}<input type="text" autocomplete="off">${parts[1]||''}`;
+    listEl.appendChild(div);
+  });
+  document.getElementById('fill-msg').textContent='';
+}
+
+document.getElementById('fill-new').addEventListener('click', fillNew);
+function evaluarCompletar(){
+  const items = document.querySelectorAll('#fill-list .fill-item');
+  let correct=0;
+  items.forEach(div=>{
+    const input = div.querySelector('input');
+    const answers = JSON.parse(div.dataset.answers);
+    const val = normalize(input.value);
+    const isCorrect = answers.some(a=>normalize(a)===val);
+    input.classList.toggle('correct', isCorrect);
+    input.classList.toggle('incorrect', !isCorrect);
+    if(isCorrect) correct++;
+  });
+  const msg = document.getElementById('fill-msg');
+  msg.textContent = `Tienes ${correct} de ${items.length} respuestas correctas.`;
+  msg.className = 'result-msg ' + (correct===items.length ? 'ok':'bad');
+  resultados.fill = { correct, total: items.length, done:true };
+}
+
+/* =========================================================
+   INTEGRANTES DEL GRUPO (lista real del salón, no texto libre)
+========================================================= */
+function getIntegrantes(){
+  return Array.from(document.querySelectorAll('.grupo-check input:checked'))
+    .map(chk => chk.dataset.nombre);
+}
+
+function pintarListaIntegrantes(estudiantes){
+  const wrap = document.getElementById('grupo-nombres');
+  if(!estudiantes || estudiantes.length === 0){
+    wrap.innerHTML = `<p class="grupo-aviso">No se encontraron estudiantes en este salón.</p>`;
+    return;
+  }
+  wrap.innerHTML = estudiantes.map((est, i) => `
+    <label class="grupo-check" for="grupo-chk-${i}">
+      <input type="checkbox" id="grupo-chk-${i}" data-nombre="${est.nombre.replace(/"/g,'&quot;')}">
+      <span>${est.nombre}</span>
+    </label>
+  `).join('');
+  wrap.querySelectorAll('.grupo-check').forEach(label=>{
+    const chk = label.querySelector('input');
+    chk.addEventListener('change', ()=>{
+      label.classList.toggle('marcado', chk.checked);
+      document.getElementById('grupo-error').style.display='none';
+    });
+  });
+}
+
+/* =========================================================
+   SALÓN DEL GRUPO (al elegirlo, carga la lista real de
+   estudiantes de ese salón para marcar los integrantes)
+========================================================= */
+let salonSeleccionado = null;
+document.querySelectorAll('.salon-btn').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    document.querySelectorAll('.salon-btn').forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected');
+    salonSeleccionado = btn.dataset.salon;
+    document.getElementById('salon-error').style.display='none';
+
+    const wrap = document.getElementById('grupo-nombres');
+    wrap.innerHTML = `<p class="grupo-aviso">Cargando estudiantes de ${btn.textContent}…</p>`;
+
+    const { data, error } = await window.sbPractica.rpc('obtener_estudiantes_por_salon', { p_salon: salonSeleccionado });
+    if(error){
+      wrap.innerHTML = `<p class="grupo-aviso">No se pudo cargar la lista de este salón. Recarga la página e inténtalo de nuevo.</p>`;
+      return;
+    }
+    pintarListaIntegrantes(data);
+  });
+});
+
+/* =========================================================
+   RESULTADO FINAL Y ENVÍO POR WHATSAPP
+========================================================= */
+const CLASE_NUMERO = 'Clase 1';
+const WHATSAPP_NUMERO = '50769262339'; // Panamá (+507) 6926-2339
+
+function obtenerFechaHoraPanama(){
+  return new Intl.DateTimeFormat('es-PA', {
+    timeZone: 'America/Panama',
+    dateStyle: 'long',
+    timeStyle: 'short'
+  }).format(new Date());
+}
+
+function calcularNota(){
+  const total = resultados.cw.total + resultados.pareo.total + resultados.fill.total;
+  const correct = resultados.cw.correct + resultados.pareo.correct + resultados.fill.correct;
+  if(total === 0) return null;
+  let nota = (correct/total) * 5;
+  nota = Math.max(1, Math.min(5, nota));
+  return Math.round(nota * 10) / 10;
+}
+
+function obtenerMensajeNota(nota){
+  if(nota < 3) return 'Puedes mejorar. Repasa el tema y vuelve a intentarlo.';
+  if(nota <= 4) return '¡Buen trabajo! Sigue esforzándote para alcanzar la excelencia.';
+  return '¡Excelente trabajo! Demostraste un gran dominio del tema.';
+}
+
+function mostrarNota(){
+  const msg = document.getElementById('resultado-msg');
+  const faltantes = [];
+  if(!resultados.cw.done) faltantes.push('Crucigrama');
+  if(!resultados.pareo.done) faltantes.push('Pareo');
+  if(!resultados.fill.done) faltantes.push('Completar');
+
+  if(faltantes.length === 3){
+    msg.textContent = 'Primero verifica al menos un ejercicio.';
+    msg.className = 'result-msg bad';
+    document.getElementById('nota-box').style.display='none';
+    return null;
+  }
+
+  const nota = calcularNota();
+  const notaFormateada = nota.toFixed(1);
+  const mensajeNota = obtenerMensajeNota(nota);
+  document.getElementById('nota-num').textContent = notaFormateada + ' / 5.0';
+  document.getElementById('nota-detalle').innerHTML =
+    `Crucigrama: ${resultados.cw.correct}/${resultados.cw.total}<br>`+
+    `Pareo: ${resultados.pareo.correct}/${resultados.pareo.total}<br>`+
+    `Completar: ${resultados.fill.correct}/${resultados.fill.total}<br>`+
+    `<strong>${mensajeNota}</strong>`;
+  document.getElementById('nota-box').style.display='flex';
+
+  if(faltantes.length > 0){
+    msg.textContent = `Nota: aún falta verificar: ${faltantes.join(', ')}.`;
+    msg.className = 'result-msg bad';
+  } else {
+    msg.textContent = '';
+  }
+  return nota;
+}
+
+document.getElementById('finalizar-ejercicio').addEventListener('click', ()=>{
+  const msg = document.getElementById('resultado-msg');
+
+  if(!salonSeleccionado){
+    document.getElementById('salon-error').style.display='block';
+    document.getElementById('salon-row').scrollIntoView({behavior:'smooth', block:'center'});
+    msg.textContent = 'Falta indicar el salón (9°A, 9°B o 9°C).';
+    msg.className = 'result-msg bad';
+    return;
+  }
+
+  const integrantes = getIntegrantes();
+  if(integrantes.length === 0){
+    document.getElementById('grupo-error').style.display='block';
+    document.getElementById('grupo-nombres').scrollIntoView({behavior:'smooth', block:'center'});
+    msg.textContent = 'Marca al menos un integrante del grupo antes de finalizar.';
+    msg.className = 'result-msg bad';
+    return;
+  }
+
+  if(!confirm('¿Deseas finalizar? Después de continuar se mostrarán la corrección y la nota.')) return;
+
+  evaluarCrucigrama();
+  evaluarPareo();
+  evaluarCompletar();
+
+  document.querySelectorAll('#cw-grid input, #pareo-list select, #fill-list input, .grupo-check input')
+    .forEach(control => control.disabled = true);
+  document.querySelectorAll('#cw-new, #cw-clear, #pareo-new, #fill-new, .salon-btn')
+    .forEach(button => button.disabled = true);
+
+  const nota = mostrarNota();
+  const notaFormateada = nota.toFixed(1);
+  const mensajeNota = obtenerMensajeNota(nota);
+  const fechaHora = obtenerFechaHoraPanama();
+
+  // Guardado en Supabase para que el docente pueda revisar desde el
+  // Panel del Docente ("Tarea en clase") quién la hizo y con qué nota,
+  // sin depender de que el mensaje de WhatsApp llegue o se confirme.
+  // Va en segundo plano (sin "await") y usa la misma cola resistente
+  // que usan los demás ejercicios: si el celular pierde señal, el
+  // intento queda guardado localmente y se reintenta solo.
+  try {
+    const payloadActividad = {
+      codigo_examen: CODIGO_ACTIVIDAD_CLASE,
+      tipo_ejercicio: 'actividad_clase',
+      cedula: integrantes.join(' / '), // no hay login individual: se usa la lista de integrantes como clave de grupo
+      nombre: integrantes.join(', '),
+      salon: salonSeleccionado,
+      integrantes,
+      crucigrama_correctas: resultados.cw.correct, crucigrama_total: resultados.cw.total,
+      pareo_correctas: resultados.pareo.correct, pareo_total: resultados.pareo.total,
+      completar_correctas: resultados.fill.correct, completar_total: resultados.fill.total,
+      nota_meduca: nota,
+      finalizado_at: new Date().toISOString(),
+    };
+    window.guardarIntentoPracticaSeguro(window.sbPractica, 'actividades_clase_intentos', payloadActividad).catch(()=>{});
+  } catch (e) {
+    console.error('No se pudo iniciar el guardado de la actividad en clase:', e);
+  }
+
+  // La nota ya se guarda automáticamente en el sistema (Supabase) para
+  // que el docente la revise en el panel "Práctica en clase". Ya NO se
+  // envía nada por WhatsApp.
+  const boton = document.getElementById('finalizar-ejercicio');
+  boton.disabled = true;
+  boton.textContent = '✅ Ejercicio finalizado';
+  msg.textContent = 'Ejercicio finalizado. Tu calificación quedó registrada automáticamente para el profesor.';
+  msg.className = 'result-msg ok';
+});
+
+/* =========================================================
+   INIT
+========================================================= */
+cwNew();
+pareoNew();
+fillNew();
+</script>
+</body>
+</html>
