@@ -428,7 +428,7 @@
     <h2 class="ex-title">📊 Resultado final</h2>
     <p class="ex-sub">Las respuestas y la calificación permanecerán ocultas hasta finalizar los 3 ejercicios.</p>
     <div class="toolbar">
-      <button class="btn secondary" id="finalizar-ejercicio">✅ Finalizar y enviar por WhatsApp</button>
+      <button class="btn secondary" id="finalizar-ejercicio">✅ Finalizar y guardar</button>
     </div>
     <div id="nota-box" class="nota-box" style="display:none;">
       <div class="nota-num" id="nota-num">-</div>
@@ -1066,24 +1066,13 @@ document.getElementById('finalizar-ejercicio').addEventListener('click', ()=>{
     console.error('No se pudo iniciar el guardado de la actividad en clase:', e);
   }
 
-  const texto =
-    `*Ciencias Naturales 8° - Salón 08*\n`+
-    `*${CLASE_NUMERO}*\n`+
-    `Tema: ${DATOS.titulo}\n`+
-    `Fecha y hora de realización: ${fechaHora}\n`+
-    `Grupo: ${grupo}\n`+
-    `Integrantes: ${integrantes.join(', ')}\n`+
-    `Calificación final: ${notaFormateada} / 5.0\n`+
-    `Mensaje: ${mensajeNota}\n`+
-    `Crucigrama: ${resultados.cw.correct}/${resultados.cw.total}\n`+
-    `Pareo: ${resultados.pareo.correct}/${resultados.pareo.total}\n`+
-    `Completar: ${resultados.fill.correct}/${resultados.fill.total}`;
-  const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(texto)}`;
-  window.open(url, '_blank');
+  // La nota ya se guarda automáticamente en el sistema (Supabase) para
+  // que el docente la revise en el panel "Práctica en clase". Ya NO se
+  // envía nada por WhatsApp.
   const boton = document.getElementById('finalizar-ejercicio');
   boton.disabled = true;
   boton.textContent = '✅ Ejercicio finalizado';
-  msg.textContent = 'Ejercicio finalizado. Se abrió WhatsApp con la nota y los integrantes; confirma allí el envío.';
+  msg.textContent = 'Ejercicio finalizado. Tu calificación quedó registrada automáticamente para el profesor.';
   msg.className = 'result-msg ok';
 });
 
