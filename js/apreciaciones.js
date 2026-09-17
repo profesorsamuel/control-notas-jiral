@@ -185,6 +185,18 @@ function soloDigitosCedula(cedula) {
     return String(cedula ?? "").replace(/\D/g, "");
 }
 
+// Deja un nombre listo para comparar sin depender de tildes, mayúsculas,
+// espacios de más ni del orden en que el estudiante escribió su nombre
+// y apellido (en "Integrantes del grupo" no hay un orden fijo). Se usa
+// SOLO para reconocer al estudiante en "Actividad en clase" automática.
+function normalizarNombre(nombre) {
+    return String(nombre ?? "")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // quita tildes
+        .toLowerCase()
+        .replace(/[^a-z\s]/g, " ")
+        .split(/\s+/).filter(Boolean).sort().join(" ");
+}
+
 // Crea (si faltan) las 3 actividades fijas de "Actividad en casa" para
 // esta Apreciación de Ciencias, y rellena automáticamente la nota de
 // cada estudiante con el resultado de su ÚLTIMO intento en cada uno de
@@ -275,6 +287,98 @@ async function sincronizarActividadesCasaCiencias(materia, salon, trimestre, num
             act.notas[est.id] = nota;
             await guardarCalificacionActividad(act.id, est.id, nota);
         }
+    }
+
+    return actividades;
+}
+
+// =========================================================
+// "ACTIVIDAD EN CLASE" AUTOMÁTICA PARA CIENCIAS NATURALES
+// =========================================================
+// Cada Clase de Ciencias Naturales (9A/9B/9C) tiene su propia página de
+// ejercicios en grupo dentro del salón (crucigrama + pareo + completar,
+// ej. ejercicios-ciencias-origen-universo.html para la Clase 1). Ahí ya
+// se suman los 3 ejercicios en UNA sola nota (0–5) y se guarda en
+// "actividades_clase_intentos" con la lista de integrantes del grupo,
+// sin login individual. Aquí se toma esa nota ya sumada y se reparte a
+// cada estudiante del salón que aparezca como integrante de un grupo,
+// como UNA sola columna automática de "Act. en clase" para esa
+// Apreciación — igual de automático que "Act. en casa", pero con una
+// sola nota (la suma de los 3 ejercicios) en vez de 3 columnas, porque
+// los 3 ejercicios se hacen juntos, el mismo día, una sola vez por Clase.
+//
+// Si un estudiante hace los ejercicios otro día distinto (por ejemplo
+// porque faltó y los hizo después, o porque se abre una Clase nueva),
+// esa es una Clase/Apreciación distinta con su propio código aquí
+// abajo, así que le corresponde su propia columna automática — nunca se
+// mezclan dos días en una sola nota.
+const GRUPOS_ACTIVIDAD_CLASE_CIENCIAS = [
+    {
+        salones: new Set(["9A", "9B", "9C"]),
+        actividadPorClase: {
+            1: { codigo: "cn9-clase1-actividad-origen-universo-2026", nombre: "🧩 Actividad en clase 1: Origen del universo" },
+            // Cuando se cree la página de ejercicios de la Clase 2 (y
+            // luego la 3), se agrega aquí su propio código y nombre —
+            // no hace falta tocar nada más, funciona solo igual que la
+            // Clase 1.
+        },
+    },
+];
+
+function obtenerActividadClaseCiencias(materia, salon, numeroApreciacion) {
+    if (materia !== MATERIA_CIENCIAS) return null;
+    const grupo = GRUPOS_ACTIVIDAD_CLASE_CIENCIAS.find((g) => g.salones.has(salon));
+    if (!grupo) return null;
+    return grupo.actividadPorClase[numeroApreciacion] || null;
+}
+
+// Crea (si falta) la columna automática de "Act. en clase" de esta
+// Apreciación/Clase y le pone a cada estudiante la nota (ya sumada) del
+// grupo en el que aparece como integrante. Si el estudiante todavía no
+// ha hecho el ejercicio, su casilla se deja en blanco (el docente puede
+// completarla a mano) — a diferencia de "Act. en casa", aquí no hay
+// fecha de cierre propia todavía, así que no se pone 1.0 automático.
+async function sincronizarActividadClaseCiencias(materia, salon, trimestre, numeroApreciacion, estudiantes, actividadesClaseActuales) {
+    const info = obtenerActividadClaseCiencias(materia, salon, numeroApreciacion);
+    if (!info) return actividadesClaseActuales;
+
+    const actividades = [...actividadesClaseActuales];
+    let act = actividades.find((a) => a.nombre === info.nombre);
+    if (!act) {
+        const nueva = await crearActividad(materia, salon, trimestre, numeroApreciacion, "clase", info.nombre, 0, null);
+        if (nueva) { actividades.unshift(nueva); act = nueva; }
+    }
+    if (!act) return actividades;
+    act.soloLecturaForzada = true;
+
+    const { data: intentos, error } = await supabase
+        .from("actividades_clase_intentos")
+        .select("integrantes, nota_meduca")
+        .eq("codigo_examen", info.codigo)
+        .eq("salon", salon);
+
+    if (error) {
+        console.error("No se pudieron cargar los intentos de Actividad en clase:", error);
+        return actividades;
+    }
+
+    // Para cada nombre de integrante, ya normalizado, guarda a qué nota
+    // de grupo pertenece (si el mismo nombre aparece en más de un
+    // grupo, se queda con el último — no debería pasar en la práctica).
+    const notaPorNombre = {};
+    (intentos || []).forEach((r) => {
+        (r.integrantes || []).forEach((nom) => {
+            const clave = normalizarNombre(nom);
+            if (clave) notaPorNombre[clave] = r.nota_meduca;
+        });
+    });
+
+    for (const est of estudiantes) {
+        const nota = notaPorNombre[normalizarNombre(est.nombre)];
+        if (nota === undefined) continue; // todavía no aparece en ningún grupo entregado
+        if (act.notas[est.id] === nota) continue;
+        act.notas[est.id] = nota;
+        await guardarCalificacionActividad(act.id, est.id, nota);
     }
 
     return actividades;
@@ -964,7 +1068,7 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
 
     const rango = await obtenerRangoFechas(materia, salon, trimestre, numeroApreciacion);
 
-    const [pesos, asistenciaTabla, comportamientoTabla, actividadesClase, actividadesCasaBase] = await Promise.all([
+    const [pesos, asistenciaTabla, comportamientoTabla, actividadesClaseBase, actividadesCasaBase] = await Promise.all([
         obtenerConfigPesos(materia, salon, trimestre),
         obtenerAsistenciaPorRango(materia, salon, rango.fecha_inicio, rango.fecha_fin, correoProfesor),
         obtenerComportamientoTabla(materia, trimestre, numeroApreciacion),
@@ -973,11 +1077,16 @@ export async function abrirDetalleApreciacion({ materia, salon, trimestre, numer
     ]);
 
     // Ciencias Naturales (9A/9B/9C): "Actividad en casa" se autocompleta
-    // sola con las notas de los 3 ejercicios de práctica de esta Clase.
-    // Para cualquier otra materia/salón/Apreciación, esto no hace nada
-    // y actividadesCasa queda exactamente igual que antes.
+    // sola con las notas de los 3 ejercicios de práctica de esta Clase, y
+    // "Actividad en clase" se autocompleta con la nota (ya sumada) del
+    // ejercicio en grupo hecho en el salón de esa misma Clase. Para
+    // cualquier otra materia/salón/Apreciación, esto no hace nada y las
+    // listas quedan exactamente igual que antes.
     const actividadesCasa = await sincronizarActividadesCasaCiencias(
         materia, salon, trimestre, numeroApreciacion, estudiantes, actividadesCasaBase
+    );
+    const actividadesClase = await sincronizarActividadClaseCiencias(
+        materia, salon, trimestre, numeroApreciacion, estudiantes, actividadesClaseBase
     );
 
     // Notas ya guardadas para esta apreciación (si se está reabriendo
@@ -1724,7 +1833,12 @@ function pintarModal(estado_) {
 
         ${panel("asistencia", "📋 Asistencia", bloqueAsistencia())}
         ${panel("comportamiento", `🙂 Comportamiento <span class="small text-muted fw-normal">(agrega una columna por cada día)</span>`, bloqueComportamiento())}
-        ${panel("clase", "✏️ Actividades en clase", bloqueActividades(actividadesClase, "clase"))}
+        ${panel("clase", "✏️ Actividades en clase", `
+            ${obtenerActividadClaseCiencias(materia, salon, numeroApreciacion)
+                ? `<p class="small text-muted mb-2">🔒 La primera columna se trae automáticamente: es la nota (ya sumada de los 3 ejercicios: crucigrama, pareo y completar) del grupo en el que el estudiante aparezca en <strong>Ciencias Naturales · Clase ${numeroApreciacion}</strong>, y no se puede editar a mano. Se actualiza sola cada vez que abras esta Apreciación. Si el estudiante todavía no lo ha hecho, su casilla queda en blanco. Puedes agregar más columnas con ➕ para otras actividades de ese mismo día u otro día.</p>`
+                : ""}
+            ${bloqueActividades(actividadesClase, "clase", !!obtenerActividadClaseCiencias(materia, salon, numeroApreciacion))}
+        `)}
         ${panel("casa", "🏠 Actividades para la casa", `
             ${obtenerCodigoExamenCiencias(materia, salon, numeroApreciacion)
                 ? (() => {
