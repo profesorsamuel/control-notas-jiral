@@ -83,8 +83,8 @@ function cambiarIdentidad(){
 async function cargarTareas(){
   const [{data: tData, error: tErr}, {data: pData, error: pErr}, {data: fData, error: fErr}] = await Promise.all([
     supabase.from('cuaderno_tareas_9c').select('*').order('materia', {ascending:true}).order('orden', {ascending:true}),
-    supabase.from('cuaderno_tareas_9c_progreso').select('*').eq('usuario_id', usuario.id),
-    supabase.from('cuaderno_tareas_9c_fotos').select('*').eq('usuario_id', usuario.id).order('creado_en', {ascending:true}),
+    supabase.from('cuaderno_tareas_9c_progreso').select('*').eq('usuario_id', usuario.id).eq('estudiante_id', String(estudiante.id)),
+    supabase.from('cuaderno_tareas_9c_fotos').select('*').eq('usuario_id', usuario.id).eq('estudiante_id', String(estudiante.id)).order('creado_en', {ascending:true}),
   ]);
   if (tErr || pErr || fErr){ mensaje('No se pudo cargar el cuaderno. Recarga la página.','error'); return; }
   tareas = tData || [];
@@ -162,8 +162,8 @@ function actualizarProgreso(){
 async function toggleCompletada(tareaId){
   const actual = progresoPorTarea.get(tareaId);
   const nuevoValor = !actual?.completada;
-  const fila = {tarea_id: tareaId, usuario_id: usuario.id, estudiante_id: estudiante.id, nombre_estudiante: estudiante.nombre, completada: nuevoValor, completada_en: nuevoValor ? new Date().toISOString() : null};
-  const {data, error} = await supabase.from('cuaderno_tareas_9c_progreso').upsert(fila, {onConflict: 'tarea_id,usuario_id'}).select().single();
+  const fila = {tarea_id: tareaId, usuario_id: usuario.id, estudiante_id: String(estudiante.id), nombre_estudiante: estudiante.nombre, completada: nuevoValor, completada_en: nuevoValor ? new Date().toISOString() : null};
+  const {data, error} = await supabase.from('cuaderno_tareas_9c_progreso').upsert(fila, {onConflict: 'tarea_id,usuario_id,estudiante_id'}).select().single();
   if (error){ mensaje('No se pudo guardar. Intenta de nuevo.','error'); return; }
   progresoPorTarea.set(tareaId, data);
   await pintarTareas();
@@ -189,18 +189,18 @@ async function subirFotos(tareaId, files){
   try {
     for (const file of files){
       const blob = await comprimirFoto(file);
-      const path = `${usuario.id}/${tareaId}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.webp`;
+      const path = `${usuario.id}/${estudiante.id}/${tareaId}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.webp`;
       const {error: up} = await supabase.storage.from(BUCKET).upload(path, blob, {contentType:'image/webp'});
       if (up) throw up;
-      const {data, error} = await supabase.from('cuaderno_tareas_9c_fotos').insert({tarea_id: tareaId, usuario_id: usuario.id, ruta_storage: path}).select().single();
+      const {data, error} = await supabase.from('cuaderno_tareas_9c_fotos').insert({tarea_id: tareaId, usuario_id: usuario.id, estudiante_id: String(estudiante.id), nombre_estudiante: estudiante.nombre, ruta_storage: path}).select().single();
       if (error) throw error;
       if (!fotosPorTarea.has(tareaId)) fotosPorTarea.set(tareaId, []);
       fotosPorTarea.get(tareaId).push(data);
     }
     // Subir una foto marca la tarea como completa automáticamente si aún no lo estaba.
     if (!progresoPorTarea.get(tareaId)?.completada){
-      const fila = {tarea_id: tareaId, usuario_id: usuario.id, estudiante_id: estudiante.id, nombre_estudiante: estudiante.nombre, completada: true, completada_en: new Date().toISOString()};
-      const {data: pd} = await supabase.from('cuaderno_tareas_9c_progreso').upsert(fila, {onConflict:'tarea_id,usuario_id'}).select().single();
+      const fila = {tarea_id: tareaId, usuario_id: usuario.id, estudiante_id: String(estudiante.id), nombre_estudiante: estudiante.nombre, completada: true, completada_en: new Date().toISOString()};
+      const {data: pd} = await supabase.from('cuaderno_tareas_9c_progreso').upsert(fila, {onConflict:'tarea_id,usuario_id,estudiante_id'}).select().single();
       if (pd) progresoPorTarea.set(tareaId, pd);
     }
     mensaje('Fotos subidas.','ok');
