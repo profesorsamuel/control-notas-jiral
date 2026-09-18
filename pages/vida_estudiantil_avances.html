@@ -7,13 +7,24 @@
 <link rel="icon" href="../img/login-favicon.ico">
 <link rel="stylesheet" href="../css/vida_estudiantil.css">
 <link rel="stylesheet" href="../css/vida_estudiantil_avances.css">
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
 <header class="ve-top"><div class="ve-wrap ve-top-row">
 <div class="ve-brand"><img src="../img/escudo-jiral.png" alt="Escudo"><div><h1>Avances Graduandos 2026</h1><p>Todos los álbumes por salón y estudiante</p></div></div>
-<nav class="ve-nav"><a href="vida_estudiantil.html">← Vida estudiantil</a><a href="vida_estudiantil_admin.html">Revisar archivos</a><a href="vida_estudiantil_galeria.html">Galería</a></nav>
+<nav class="ve-nav"><a href="vida_estudiantil.html">← Vida estudiantil</a><a href="vida_estudiantil_admin.html">Revisar archivos</a></nav>
 </div></header>
-<main class="ve-wrap ve-main">
+<div id="avAcceso" class="av-acceso">
+  <div class="av-acceso-box">
+    <h2>🔒 Revisar archivos</h2>
+    <p>Acceso exclusivo del profesor encargado.</p>
+    <label for="cedulaAdmin">Cédula</label>
+    <div class="av-clave-row"><input id="cedulaAdmin" class="ve-input" type="password" inputmode="text" autocomplete="off" placeholder="Escriba su cédula"><button id="verCedula" class="ve-btn">👁</button></div>
+    <button id="entrarAdmin" class="ve-btn primary">Entrar</button>
+    <p id="errorAcceso" class="av-error"></p>
+  </div>
+</div>
+<main class="ve-wrap ve-main" id="contenidoAvances" hidden>
 <div id="mensajeAvances" class="ve-alert" role="alert"></div>
 <section class="ve-intro av-resumen">
 <div><h2>Panel general de avances</h2><p>Revise en un solo lugar quién comenzó, quién falta y las fotografías de cada graduando.</p></div>
@@ -32,7 +43,7 @@
 <option value="sin-comenzar">Sin comenzar</option>
 </select>
 <input id="buscarAvance" class="ve-input" placeholder="Buscar estudiante">
-<button id="recargarAvances" class="ve-btn primary">↻ Actualizar</button>
+<button id="recargarAvances" class="ve-btn primary">↻ Actualizar</button><button id="pdfSalon" class="ve-btn">⬇ PDF del salón</button><button id="pdfTodos" class="ve-btn">⬇ PDF todos</button>
 </section>
 <div id="resumenSalon" class="av-resumen-salon"></div>
 <section id="listaAvances" class="av-lista"><div class="ve-empty">Cargando estudiantes…</div></section>
