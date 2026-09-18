@@ -100,6 +100,86 @@
     border-radius: 10px; width: 40px; height: 40px; margin-top: 7px; cursor: pointer; font-size: 16px;
   }
   .campo-guardado { display: block; font-size: 12px; font-weight: 800; color: var(--green); margin-top: 4px; }
+
+
+  /* ===== Ajustes responsive: celulares pequeños y orientación vertical ===== */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { max-width: 100%; overflow-x: hidden; }
+  img, video { max-width: 100%; height: auto; }
+  select, input, textarea, button { max-width: 100%; }
+
+  @media (max-width: 600px) {
+    body { font-size: 15px; }
+    .wrap { width: 100%; max-width: 100%; padding: 14px 10px 28px; }
+    .card { width: 100%; max-width: 100%; padding: 18px 14px; border-radius: 16px; }
+
+    .ph-header { align-items: flex-start; gap: 10px; padding-left: 2px; padding-right: 2px; }
+    .ph-escudo { width: 50px; height: auto; flex: 0 0 auto; }
+    .ph-escuela { font-size: 10px; }
+    .ph-header h1 { font-size: clamp(20px, 6vw, 27px); line-height: 1.12; overflow-wrap: anywhere; }
+
+    h2 { font-size: clamp(20px, 5.6vw, 25px); line-height: 1.18; overflow-wrap: anywhere; }
+    .lead { font-size: 14px; line-height: 1.55; }
+    label { overflow-wrap: anywhere; }
+    select, input[type="text"], input[type="number"], textarea { width: 100%; font-size: 16px; }
+
+    .deco-aviso-fecha, .aviso-reglas { font-size: 13px; line-height: 1.45; }
+    .filtro-estado { gap: 6px; }
+    .filtro-estado button { flex: 1 1 auto; min-width: 0; padding: 8px 10px; font-size: 12px; }
+
+    .actividad-card { padding: 13px 12px; }
+    .actividad-titulo { align-items: flex-start; flex-wrap: wrap; }
+    .actividad-zona { white-space: normal; flex: 0 0 auto; }
+    .actividad-desc, .actividad-tomada-por { overflow-wrap: anywhere; }
+
+    /* Modal Reclamar: ocupa la pantalla sin salirse y mantiene botones accesibles */
+    #modal-deco { padding: 8px !important; overflow: hidden; align-items: stretch; }
+    #modal-deco > .card {
+      width: 100% !important; max-width: 100% !important;
+      height: calc(100dvh - 16px); max-height: calc(100dvh - 16px) !important;
+      margin: 0 auto !important; padding: 16px 14px 12px !important;
+      overflow-y: auto !important; overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch; border-radius: 16px;
+    }
+    #modal-deco .integrantes-lista { max-height: 34dvh; min-height: 150px; }
+    #modal-deco .integrante-item { padding: 10px 8px; min-height: 42px; }
+    #modal-deco .integrante-item input { width: 20px; height: 20px; flex: 0 0 auto; }
+    #modal-deco .integrante-item span { font-size: 13px; overflow-wrap: anywhere; }
+    #modal-deco > .card > div:last-child { flex-direction: column; gap: 8px !important; }
+    #btn-guardar-deco, #btn-cerrar-modal-deco { width: 100%; min-height: 46px; margin: 0; white-space: normal; }
+
+    /* Modal de entrega */
+    #modal-entrega > .card {
+      width: 100% !important; max-width: 100% !important; min-height: 100dvh !important;
+      margin: 0 !important; padding: 12px 12px 32px !important;
+    }
+    .entrega-barra-superior { top: 0; padding-top: 4px; }
+    .campo-archivo, .campo-con-eliminar, .eval-profesor-fila { flex-wrap: wrap; }
+    .campo-archivo .input-archivo, .campo-con-eliminar input { min-width: 0; width: calc(100% - 50px); }
+
+    /* Tablas: desplazamiento horizontal solo dentro de la tabla */
+    .rubrica-tabla, .resumen-tabla, .mini-autoeval { min-width: 560px; }
+    .rubrica-tabla { display: table; }
+    .eval-profesor-cont, .entrega-resumen { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+    /* Modal resumen del profesor */
+    #modal-resumen-profesor { padding: 8px !important; overflow: hidden; }
+    #modal-resumen-profesor > .card {
+      width: 100% !important; max-width: 100% !important;
+      height: calc(100dvh - 16px); max-height: calc(100dvh - 16px) !important;
+      margin: 0 !important; padding: 14px 12px !important;
+      overflow: auto !important; -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .wrap { padding-left: 7px; padding-right: 7px; }
+    .card { padding-left: 11px; padding-right: 11px; }
+    .ph-escudo { width: 44px; }
+    .filtro-estado button { flex-basis: 100%; }
+    #modal-deco { padding: 4px !important; }
+    #modal-deco > .card { height: calc(100dvh - 8px); max-height: calc(100dvh - 8px) !important; border-radius: 12px; }
+  }
 </style>
 </head>
 <body>
