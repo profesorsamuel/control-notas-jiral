@@ -405,13 +405,7 @@ function renderTablero() {
       </div>`;
     if (!bloqueado) {
       document.getElementById("btn-abrir-entrega").addEventListener("click", () => abrirModalEntrega(miInscripcion));
-      document.getElementById("btn-liberar-mi-grupo").addEventListener("click", async () => {
-        const ok = window.confirm("¿Liberar tu grupo de esta actividad? Se borra todo lo que llevabas (incluida la entrega si ya habías subido algo) y la actividad queda libre para cualquiera. Esta acción no se puede deshacer.");
-        if (!ok) return;
-        const { error } = await sb.from(TABLA).delete().eq("id", miInscripcion.id);
-        if (error) { alert("No se pudo liberar tu grupo: " + error.message); return; }
-        await cargarTablero();
-      });
+
     }
 
     // Se esconde el resto del catálogo — ya no hace falta.
