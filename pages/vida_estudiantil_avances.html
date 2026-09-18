@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Avances Graduandos 2026 | C.E.B.G. El Jiral</title>
+<link rel="icon" href="../img/login-favicon.ico">
+<link rel="stylesheet" href="../css/vida_estudiantil.css">
+<link rel="stylesheet" href="../css/vida_estudiantil_avances.css">
+</head>
+<body>
+<header class="ve-top"><div class="ve-wrap ve-top-row">
+<div class="ve-brand"><img src="../img/escudo-jiral.png" alt="Escudo"><div><h1>Avances Graduandos 2026</h1><p>Todos los álbumes por salón y estudiante</p></div></div>
+<nav class="ve-nav"><a href="vida_estudiantil.html">← Vida estudiantil</a><a href="vida_estudiantil_admin.html">Revisar archivos</a><a href="vida_estudiantil_galeria.html">Galería</a></nav>
+</div></header>
+<main class="ve-wrap ve-main">
+<div id="mensajeAvances" class="ve-alert" role="alert"></div>
+<section class="ve-intro av-resumen">
+<div><h2>Panel general de avances</h2><p>Revise en un solo lugar quién comenzó, quién falta y las fotografías de cada graduando.</p></div>
+<div id="totalesAvances" class="ve-progress-text">Cargando…</div>
+</section>
+<section class="av-toolbar">
+<div class="av-tabs" id="tabsSalon">
+<button class="av-tab activo" data-salon="9A">9.º A</button>
+<button class="av-tab" data-salon="9B">9.º B</button>
+<button class="av-tab" data-salon="9C">9.º C</button>
+</div>
+<select id="filtroAvance" class="ve-select">
+<option value="todos">Todos los estudiantes</option>
+<option value="completos">Completos (13/13)</option>
+<option value="incompletos">Incompletos</option>
+<option value="sin-comenzar">Sin comenzar</option>
+</select>
+<input id="buscarAvance" class="ve-input" placeholder="Buscar estudiante">
+<button id="recargarAvances" class="ve-btn primary">↻ Actualizar</button>
+</section>
+<div id="resumenSalon" class="av-resumen-salon"></div>
+<section id="listaAvances" class="av-lista"><div class="ve-empty">Cargando estudiantes…</div></section>
+</main>
+<div class="av-modal" id="modalFotos"><div class="av-modal-box">
+<button class="av-cerrar" id="cerrarFotos" aria-label="Cerrar">×</button>
+<h2 id="modalNombre"></h2><p id="modalProgreso"></p><div id="modalCollage" class="av-collage grande"></div>
+</div></div>
+<script type="module" src="../js/vida_estudiantil_avances.js"></script>
+</body></html>
