@@ -168,7 +168,14 @@
             padding: 8px 10px;
             margin-top: 8px;
         }
-    </style>
+    
+        .pcp-tabla-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+        table.pcp-tabla th, table.pcp-tabla td{white-space:nowrap;text-align:center;}
+        table.pcp-tabla .pcp-sticky-col{position:sticky;left:0;z-index:2;background:#fff;text-align:left;min-width:180px;}
+        table.pcp-tabla th.pcp-sticky-col{z-index:4;background:#f1f5f9;}
+        .pcp-nota-fecha{display:inline-block;min-width:38px;padding:5px 7px;border-radius:8px;font-weight:800;}
+        .pcp-sin-nota{color:#94a3b8;}
+</style>
 </head>
 
 <body class="tema-docente">
