@@ -24,6 +24,7 @@ import { pintarCambiarPanel } from "./roles.js";
 
 const NOMBRES_ACTIVIDAD = {
     "cn9-clase1-actividad-origen-universo-2026": "9° · Clase 1 · Origen del universo y sistema solar",
+    "cn9-clase1-actividad-2026": "9° · Clase 1 · Origen del universo y sistema solar",
     "cn8a-clase1-actividad-2026": "8° · Clase 1 · Transformaciones y reacciones químicas",
     "cn8a-clase2-actividad-2026": "8° · Clase 2 · Leyes de Kepler y movimientos de la Tierra",
     "cn8a-clase3-actividad-2026": "8° · Clase 3 · Inclinación terrestre, vida y exploración del universo",
@@ -162,13 +163,13 @@ async function cargarDatos() {
     aplicarFiltrosYPintar();
 }
 
-// Agrupa por actividad + salón + integrantes, y de cada grupo conserva
-// el intento con la NOTA MÁS ALTA (si empatan, el más reciente). Así,
-// aunque un grupo repita la actividad, siempre se ve su mejor nota.
+// Agrupa por actividad + salón + integrantes + FECHA. Cada día conserva
+// su propia nota. Si el mismo grupo repite el mismo día, se conserva la
+// nota más alta de ese día (si empatan, el intento más reciente).
 function construirGrupos(filas) {
     const mapa = new Map();
     const claveDe = (r) =>
-        `${r.codigo_examen}|${r.salon || ""}|${normalizarTexto((r.integrantes || []).join(","))}`;
+        `${r.codigo_examen}|${r.salon || ""}|${normalizarTexto((r.integrantes || []).join(","))}|${fechaSoloDia(fechaDe(r)) || ""}`;
 
     for (const r of filas) {
         const clave = claveDe(r);
@@ -305,28 +306,46 @@ function aplicarFiltrosYPintar() {
     pintarResumen(filas);
     pintarFaltan(filas);
 
+    // Vista tipo libreta: una fila por estudiante y una columna por fecha.
+    // Las fechas van de la más antigua a la más reciente.
+    const fechas = [...new Set(filas.map(g => fechaSoloDia(g.fecha)).filter(Boolean))].sort();
+    const porEstudiante = new Map();
+    for (const g of filas) {
+        for (const nombre of (g.integrantes || [])) {
+            const key = `${g.salon || ""}|${normalizarTexto(nombre)}`;
+            if (!porEstudiante.has(key)) porEstudiante.set(key, { nombre, salon:g.salon || "—", celdas:new Map() });
+            const est = porEstudiante.get(key);
+            const dia = fechaSoloDia(g.fecha);
+            if (!dia) continue;
+            if (!est.celdas.has(dia)) est.celdas.set(dia, []);
+            est.celdas.get(dia).push(g);
+        }
+    }
+
+    const thead = document.querySelector("table.pcp-tabla thead");
+    thead.innerHTML = `<tr><th class="pcp-sticky-col">Estudiante</th><th>Salón</th>${fechas.map(f=>{
+        const [y,m,d]=f.split("-"); return `<th title="${d}/${m}/${y}">${d}/${m}</th>`;
+    }).join("")}</tr>`;
+
     const tbody = document.getElementById("pcp-tbody");
-    tbody.innerHTML = filas.map((g) => {
-        const nota = g.nota !== null && g.nota !== undefined ? Number(g.nota).toFixed(1) : "—";
-        const claseNota = (g.nota !== null && g.nota !== undefined && Number(g.nota) < 3) ? "nota-baja" : "nota-alta";
-        const chipsIntegrantes = (g.integrantes || []).map((n) => `<span class="pcp-integrante-chip">${escapeHtml(n)}</span>`).join("") || "—";
-        const veces = g.veces > 1
-            ? `<b title="El grupo repitió la actividad ${g.veces} veces; se muestra la mejor nota">${g.veces}×</b>`
-            : `${g.veces}`;
-        return `
-            <tr>
-                <td>${formatearFecha(g.fecha)}</td>
-                <td>${escapeHtml(g.salon || "—")}</td>
-                <td>${escapeHtml(tituloActividad(g.codigo_examen))}</td>
-                <td><div class="pcp-integrantes-lista">${chipsIntegrantes}</div></td>
-                <td>${escapeHtml(g.cw)}</td>
-                <td>${escapeHtml(g.pareo)}</td>
-                <td>${escapeHtml(g.completar)}</td>
-                <td class="${claseNota}">${nota}</td>
-                <td>${veces}</td>
-            </tr>
-        `;
-    }).join("");
+    const estudiantes = [...porEstudiante.values()].sort((a,b)=>
+        a.salon.localeCompare(b.salon, "es") || a.nombre.localeCompare(b.nombre, "es")
+    );
+    tbody.innerHTML = estudiantes.map(est => `
+        <tr>
+            <td class="pcp-sticky-col"><b>${escapeHtml(est.nombre)}</b></td>
+            <td>${escapeHtml(est.salon)}</td>
+            ${fechas.map(dia => {
+                const regs = est.celdas.get(dia) || [];
+                if (!regs.length) return `<td class="pcp-sin-nota">—</td>`;
+                return `<td>${regs.map(g=>{
+                    const nota = g.nota != null ? Number(g.nota).toFixed(1) : "—";
+                    const cls = g.nota != null && Number(g.nota) < 3 ? "nota-baja" : "nota-alta";
+                    return `<span class="pcp-nota-fecha ${cls}" title="${escapeHtml(tituloActividad(g.codigo_examen))} · ${formatearFecha(g.fecha)} · ${g.veces} intento(s)">${nota}</span>`;
+                }).join(" ")}</td>`;
+            }).join("")}
+        </tr>`
+    ).join("");
 }
 
 function pintarResumen(filas) {
