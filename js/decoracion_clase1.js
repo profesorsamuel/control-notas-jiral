@@ -222,20 +222,42 @@ document.getElementById("reg-salon-deco").addEventListener("change", async (e) =
     selNombre.innerHTML = `<option value="">Selecciona primero tu salón…</option>`;
     return;
   }
-  const { data, error } = await sb.from("estudiantes").select("id, nombre, cedula").eq("salon", salon).order("nombre", { ascending: true });
+  // IMPORTANTE: todos los estudiantes de 9A, 9B y 9C deben poder
+  // identificarse desde cualquier celular, aunque ya sean integrantes
+  // de un grupo. Estar en un grupo NO bloquea el inicio de sesión; solo
+  // evita que el mismo estudiante quede inscrito en dos actividades.
+  const { data, error } = await sb.from("estudiantes")
+    .select("id, nombre, cedula, salon")
+    .ilike("salon", salon)
+    .order("nombre", { ascending: true });
   if (error || !data || data.length === 0) {
-    selNombre.innerHTML = `<option value="">No se encontraron estudiantes en este salón</option>`;
+    console.error("No se pudo cargar el salón", salon, error);
+    selNombre.innerHTML = `<option value="">No se encontraron estudiantes en ${salon}</option>`;
+    selNombre.disabled = false;
     return;
   }
-  const yaIntegrantes = obtenerNombresYaIntegrantes();
-  const disponibles = data.filter((e2) => !yaIntegrantes.has(e2.nombre));
+  // No mostrar en el desplegable a estudiantes que ya fueron elegidos
+  // en cualquier actividad, ya sea como líder o como integrante.
+  // Se compara también el salón para no ocultar homónimos de otros grupos.
+  const normalizar = (v) => String(v || "").trim().toLowerCase();
+  const yaElegidos = new Set();
+  inscripciones.forEach((i) => {
+    const salonIns = normalizar(i.salon);
+    if (i.nombre) yaElegidos.add(`${salonIns}::${normalizar(i.nombre)}`);
+    if (i.integrantes) {
+      i.integrantes.split(";").map((n) => n.trim()).filter(Boolean).forEach((n) => {
+        yaElegidos.add(`${salonIns}::${normalizar(n)}`);
+      });
+    }
+  });
+  const disponibles = data.filter((e2) => !yaElegidos.has(`${normalizar(e2.salon)}::${normalizar(e2.nombre)}`));
+
   selNombre.disabled = false;
-  if (disponibles.length === 0) {
-    selNombre.innerHTML = `<option value="">Todos en este salón ya están en un grupo</option>`;
-    return;
-  }
   selNombre.innerHTML = `<option value="">Selecciona tu nombre…</option>` +
     disponibles.map((e2) => `<option value="${e2.id}" data-cedula="${e2.cedula || ""}">${e2.nombre}</option>`).join("");
+  if (disponibles.length === 0) {
+    selNombre.innerHTML = `<option value="">Todos los estudiantes de ${salon} ya fueron elegidos</option>`;
+  }
 });
 
 document.getElementById("reg-nombre-deco").addEventListener("change", (e) => {
@@ -284,7 +306,7 @@ document.getElementById("btn-cambiar-usuario-deco").addEventListener("click", ()
 });
 
 function irAlTablero() {
-  document.getElementById("deco-saludo").textContent = `Hola, ${estudiante.nombre.split(" ")[0]} 👋 — Elige una actividad para decorar el salón`;
+  document.getElementById("deco-saludo").textContent = `Hola, ${estudiante.nombre} 👋 — Elige una actividad para decorar el salón`;
   document.getElementById("btn-salir-prueba-estudiante").hidden = !modoPruebaEstudiante;
   mostrarVista(vistaTablero);
   cargarTablero();
@@ -665,8 +687,17 @@ document.getElementById("modal-resumen-profesor").addEventListener("click", (e) 
 const modal = document.getElementById("modal-deco");
 
 function abrirModal(actividadId) {
-  if (inscripciones.some((i) => i.cedula === estudiante.cedula)) {
-    alert("Tu grupo ya tiene una actividad reclamada. Si necesitas cambiar, pídele a tu profesor(a) que la libere primero.");
+  // Puede identificarse cualquier estudiante, pero nadie puede quedar
+  // en dos actividades. Revisamos tanto líderes (por cédula) como
+  // integrantes (por nombre + salón).
+  const yaEstaAsignado = inscripciones.some((i) => {
+    if (normalizarCedula(i.cedula) === normalizarCedula(estudiante.cedula)) return true;
+    if ((i.salon || "").toUpperCase() !== (estudiante.salon || "").toUpperCase()) return false;
+    const integrantes = (i.integrantes || "").split(";").map((n) => n.trim()).filter(Boolean);
+    return integrantes.some((n) => n.toLowerCase() === (estudiante.nombre || "").trim().toLowerCase());
+  });
+  if (yaEstaAsignado) {
+    alert("Ya apareces inscrito en un grupo. Puedes entrar y revisar las actividades, pero no puedes quedar en dos grupos. Si necesitas cambiar, pídele al profesor que libere tu grupo primero.");
     return;
   }
   actividadEligiendo = actividadId;

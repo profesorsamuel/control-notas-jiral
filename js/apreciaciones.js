@@ -343,44 +343,84 @@ async function sincronizarActividadClaseCiencias(materia, salon, trimestre, nume
     if (!info) return actividadesClaseActuales;
 
     const actividades = [...actividadesClaseActuales];
-    let act = actividades.find((a) => a.nombre === info.nombre);
-    if (!act) {
-        const nueva = await crearActividad(materia, salon, trimestre, numeroApreciacion, "clase", info.nombre, 0, null);
-        if (nueva) { actividades.unshift(nueva); act = nueva; }
-    }
-    if (!act) return actividades;
-    act.soloLecturaForzada = true;
-
     const { data: intentos, error } = await supabase
         .from("actividades_clase_intentos")
-        .select("integrantes, nota_meduca")
+        .select("integrantes, nota_meduca, finalizado_at")
         .eq("codigo_examen", info.codigo)
-        .eq("salon", salon);
+        .eq("salon", salon)
+        .order("finalizado_at", { ascending: true });
 
     if (error) {
         console.error("No se pudieron cargar los intentos de Actividad en clase:", error);
         return actividades;
     }
+    if (!intentos?.length) return actividades;
 
-    // Para cada nombre de integrante, ya normalizado, guarda a qué nota
-    // de grupo pertenece (si el mismo nombre aparece en más de un
-    // grupo, se queda con el último — no debería pasar en la práctica).
-    const notaPorNombre = {};
-    (intentos || []).forEach((r) => {
-        (r.integrantes || []).forEach((nom) => {
+    // Convierte el instante guardado por Supabase al día real de Panamá.
+    // Así un intento hecho de noche no termina accidentalmente en la fecha
+    // UTC del día siguiente.
+    const fechaPanama = (iso) => {
+        if (!iso) return obtenerFechaHoyISOApreciacion();
+        const partes = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "America/Panama", year: "numeric", month: "2-digit", day: "2-digit"
+        }).formatToParts(new Date(iso));
+        const v = Object.fromEntries(partes.map((x) => [x.type, x.value]));
+        return `${v.year}-${v.month}-${v.day}`;
+    };
+
+    // Una columna automática por FECHA. Dentro del mismo día, si el grupo
+    // repite la actividad varias veces, cada estudiante conserva solamente
+    // la NOTA MÁS ALTA obtenida ese día.
+    const notasPorFecha = {};
+    for (const r of intentos) {
+        const fecha = fechaPanama(r.finalizado_at);
+        const mapa = (notasPorFecha[fecha] ??= {});
+        for (const nom of (r.integrantes || [])) {
             const clave = normalizarNombre(nom);
-            if (clave) notaPorNombre[clave] = r.nota_meduca;
-        });
-    });
-
-    for (const est of estudiantes) {
-        const nota = notaPorNombre[normalizarNombre(est.nombre)];
-        if (nota === undefined) continue; // todavía no aparece en ningún grupo entregado
-        if (act.notas[est.id] === nota) continue;
-        act.notas[est.id] = nota;
-        await guardarCalificacionActividad(act.id, est.id, nota);
+            if (!clave) continue;
+            const nota = Number(r.nota_meduca);
+            if (!Number.isFinite(nota)) continue;
+            if (mapa[clave] === undefined || nota > mapa[clave]) mapa[clave] = nota;
+        }
     }
 
+    const fechas = Object.keys(notasPorFecha).sort();
+    const automaticas = actividades.filter((a) => a.nombre === info.nombre);
+
+    // Compatibilidad con la columna automática creada por la versión
+    // anterior: si no tenía fecha, la convertimos en la primera fecha real.
+    const antiguaSinFecha = automaticas.find((a) => !a.fecha);
+    if (antiguaSinFecha && fechas.length) {
+        const primera = fechas[0];
+        const { error: errFecha } = await supabase.from("actividades_apreciacion")
+            .update({ fecha: primera }).eq("id", antiguaSinFecha.id);
+        if (!errFecha) antiguaSinFecha.fecha = primera;
+    }
+
+    for (const fecha of fechas) {
+        let act = actividades.find((a) => a.nombre === info.nombre && a.fecha === fecha);
+        if (!act) {
+            const nueva = await crearActividad(materia, salon, trimestre, numeroApreciacion, "clase", info.nombre, 0, fecha);
+            if (nueva) { actividades.unshift(nueva); act = nueva; }
+        }
+        if (!act) continue;
+        act.soloLecturaForzada = true;
+
+        const mapa = notasPorFecha[fecha];
+        for (const est of estudiantes) {
+            const nota = mapa[normalizarNombre(est.nombre)];
+            if (nota === undefined) continue;
+            if (Number(act.notas?.[est.id]) === Number(nota)) continue;
+            act.notas ??= {};
+            act.notas[est.id] = nota;
+            await guardarCalificacionActividad(act.id, est.id, nota);
+        }
+    }
+
+    // Todas las columnas automáticas quedan bloqueadas para edición manual.
+    actividades.forEach((a) => {
+        if (a.nombre === info.nombre) a.soloLecturaForzada = true;
+    });
     return actividades;
 }
 
@@ -1835,7 +1875,7 @@ function pintarModal(estado_) {
         ${panel("comportamiento", `🙂 Comportamiento <span class="small text-muted fw-normal">(agrega una columna por cada día)</span>`, bloqueComportamiento())}
         ${panel("clase", "✏️ Actividades en clase", `
             ${obtenerActividadClaseCiencias(materia, salon, numeroApreciacion)
-                ? `<p class="small text-muted mb-2">🔒 La primera columna se trae automáticamente: es la nota (ya sumada de los 3 ejercicios: crucigrama, pareo y completar) del grupo en el que el estudiante aparezca en <strong>Ciencias Naturales · Clase ${numeroApreciacion}</strong>, y no se puede editar a mano. Se actualiza sola cada vez que abras esta Apreciación. Si el estudiante todavía no lo ha hecho, su casilla queda en blanco. Puedes agregar más columnas con ➕ para otras actividades de ese mismo día u otro día.</p>`
+                ? `<p class="small text-muted mb-2">🔒 La actividad se guarda automáticamente en una columna con la <strong>fecha del día</strong>. Si el estudiante la repite varias veces el mismo día, se conserva solamente la <strong>nota más alta</strong>. Si la realiza otro día, se crea otra columna con esa nueva fecha. La nota corresponde a los 3 ejercicios juntos: crucigrama, pareo y completar.</p>`
                 : ""}
             ${bloqueActividades(actividadesClase, "clase", !!obtenerActividadClaseCiencias(materia, salon, numeroApreciacion))}
         `)}
