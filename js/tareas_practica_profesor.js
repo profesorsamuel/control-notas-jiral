@@ -151,6 +151,7 @@ async function cargarDatos() {
     pintarFiltros();
     aplicarFiltrosYPintar();
     pintarEnVivo();
+    pintarTablaPromedios();
 
     if (SIN_TABLAS_NUEVAS) {
         error.hidden = false;
@@ -188,8 +189,12 @@ function construirFilas(historial, presencia) {
     }
 
     const ahora = Date.now();
+    // El salón oficial se reconcilia con el roster por cédula. Esto corrige
+    // registros antiguos que llegaron sin salón o con un salón desactualizado.
+    const rosterPorCedula = new Map(ESTUDIANTES.map(e => [normalizarCedula(e.cedula), e]));
     FILAS = Array.from(mapa.values()).map((f) => {
         const ultimo = f.intentos.length ? f.intentos[f.intentos.length - 1] : null;
+        const roster = rosterPorCedula.get(normalizarCedula(f.cedula));
         let estado = "completo";
         if (f.presencia && f.presencia.estado === "en_progreso") {
             const segundos = (ahora - new Date(f.presencia.ultima_actividad_at).getTime()) / 1000;
@@ -199,8 +204,8 @@ function construirFilas(historial, presencia) {
         }
         return {
             ...f,
-            nombre: ultimo?.nombre || f.presencia?.nombre || f.nombre,
-            salon: ultimo?.salon || f.presencia?.salon || f.salon,
+            nombre: roster?.nombre || ultimo?.nombre || f.presencia?.nombre || f.nombre,
+            salon: roster?.salon || ultimo?.salon || f.presencia?.salon || f.salon,
             veces: f.intentos.length,
             nota_meduca: ultimo ? ultimo.nota_meduca : null,
             fecha: ultimo ? (ultimo.finalizado_at || ultimo.registrado_at) : (f.presencia?.ultima_actividad_at || null),
@@ -215,7 +220,9 @@ function construirFilas(historial, presencia) {
 function pintarFiltros() {
     const clasesPresentes = [...new Set(FILAS.map((f) => f.codigo_examen))];
     const tiposPresentes = [...new Set(FILAS.map((f) => f.tipo_ejercicio))];
-    const salonesPresentes = [...new Set(FILAS.map((f) => f.salon))].filter(Boolean).sort();
+    // Mantener visibles los salones oficiales aunque todavía no tengan registros.
+    // Así 9B nunca desaparece del filtro por no haber enviado prácticas aún.
+    const salonesPresentes = [...new Set(["8A", "9A", "9B", "9C", ...FILAS.map((f) => f.salon)])].filter(Boolean).sort();
 
     const gradosPresentes = [...new Set(clasesPresentes.map(gradoDeClase))].sort();
     const contGrado = document.getElementById("tp-filtro-grado");
@@ -516,13 +523,122 @@ async function refrescarPanel() {
         pintarFiltros();
         pintarEnVivo();
         aplicarFiltrosYPintar();
+        pintarTablaPromedios();
     } finally {
         REFRESCANDO = false;
     }
 }
 
+
 // =========================================================
-// 8) ORDEN AL HACER CLIC EN ENCABEZADOS
+// 8) PESTAÑA PROMEDIOS · TODAS LAS CLASES
+// Una fila por estudiante y clase. FILAS ya contiene la última nota
+// de cada tipo de ejercicio, por lo que el promedio no duplica intentos.
+// Queda preparado automáticamente para Clase 1, 2, 3, 4 y futuras clases.
+// =========================================================
+let promOrden = "salon";
+
+function numeroClase(codigo) {
+    const nombre = NOMBRES_CLASE[codigo] || codigo || "";
+    const m = nombre.match(/Clase\s*(\d+)/i) || String(codigo || "").match(/clase[-_ ]?(\d+)/i);
+    return m ? Number(m[1]) : 999;
+}
+
+function etiquetaClaseCorta(codigo) {
+    const n = numeroClase(codigo);
+    return n !== 999 ? `Clase ${n}` : (NOMBRES_CLASE[codigo] || codigo || "—");
+}
+
+function datosPromediosTodasClases() {
+    const porEstudianteClase = new Map();
+    for (const f of FILAS) {
+        if (!/clase[-_ ]?\d+/i.test(String(f.codigo_examen || ""))) continue;
+        if (f.nota_meduca === null || f.nota_meduca === undefined || Number.isNaN(Number(f.nota_meduca))) continue;
+        const key = `${normalizarCedula(f.cedula)}|${f.codigo_examen}`;
+        if (!porEstudianteClase.has(key)) {
+            porEstudianteClase.set(key, {
+                salon: f.salon || "—", nombre: f.nombre || "—",
+                grado: gradoDeClase(f.codigo_examen), codigo: f.codigo_examen, notas: []
+            });
+        }
+        porEstudianteClase.get(key).notas.push(Number(f.nota_meduca));
+    }
+    return [...porEstudianteClase.values()].map(r => ({
+        ...r, promedio: r.notas.reduce((a,b)=>a+b,0) / r.notas.length
+    }));
+}
+
+function actualizarFiltroClasesPromedio() {
+    const sel = document.getElementById("tp-prom-clase");
+    if (!sel) return;
+    const anterior = sel.value || "todas";
+    const grado = document.getElementById("tp-prom-grado")?.value || "todos";
+    const codigos = [...new Set(FILAS.map(f => f.codigo_examen))]
+        .filter(c => /clase[-_ ]?\d+/i.test(String(c || "")))
+        .filter(c => grado === "todos" || gradoDeClase(c) === grado)
+        .sort((a,b) => gradoDeClase(a).localeCompare(gradoDeClase(b)) || numeroClase(a)-numeroClase(b));
+    sel.innerHTML = `<option value="todas">Todas las clases</option>` + codigos.map(c =>
+        `<option value="${escapeHtml(c)}">${escapeHtml(NOMBRES_CLASE[c] || etiquetaClaseCorta(c))}</option>`
+    ).join("");
+    if ([...sel.options].some(o => o.value === anterior)) sel.value = anterior;
+}
+
+function pintarTablaPromedios() {
+    const tbody = document.getElementById("tp-prom-tbody");
+    if (!tbody) return;
+    actualizarFiltroClasesPromedio();
+    const grado = document.getElementById("tp-prom-grado")?.value || "todos";
+    const salon = document.getElementById("tp-prom-salon")?.value || "todos";
+    const clase = document.getElementById("tp-prom-clase")?.value || "todas";
+    const buscar = (document.getElementById("tp-prom-estudiante")?.value || "").trim().toLowerCase();
+    const orden = document.getElementById("tp-prom-orden")?.value || promOrden;
+    let datos = datosPromediosTodasClases().filter(r =>
+        (grado === "todos" || r.grado === grado) &&
+        (salon === "todos" || r.salon === salon) &&
+        (clase === "todas" || r.codigo === clase) &&
+        (!buscar || r.nombre.toLowerCase().includes(buscar))
+    );
+    datos.sort((a,b) => {
+        if (orden === "nombre") return a.nombre.localeCompare(b.nombre, "es") || numeroClase(a.codigo)-numeroClase(b.codigo);
+        if (orden === "clase") return numeroClase(a.codigo)-numeroClase(b.codigo) || a.salon.localeCompare(b.salon,"es",{numeric:true}) || a.nombre.localeCompare(b.nombre,"es");
+        if (orden === "prom_desc") return b.promedio-a.promedio || a.nombre.localeCompare(b.nombre,"es");
+        if (orden === "prom_asc") return a.promedio-b.promedio || a.nombre.localeCompare(b.nombre,"es");
+        return a.salon.localeCompare(b.salon,"es",{numeric:true}) || a.nombre.localeCompare(b.nombre,"es") || numeroClase(a.codigo)-numeroClase(b.codigo);
+    });
+    tbody.innerHTML = datos.map(r => `<tr><td>${escapeHtml(r.salon)}</td><td>${escapeHtml(r.nombre)}</td><td>${escapeHtml(etiquetaClaseCorta(r.codigo))}</td><td class="tp-prom-nota ${r.promedio < 3 ? "nota-baja" : "nota-alta"}">${r.promedio.toFixed(1)}</td></tr>`).join("");
+    document.getElementById("tp-prom-conteo").textContent = `${datos.length} registro${datos.length===1?"":"s"}`;
+    document.getElementById("tp-prom-vacio").hidden = datos.length !== 0;
+    document.querySelector("#tp-vista-promedios .tp-tabla-scroll").hidden = datos.length === 0;
+}
+
+function activarPestanaPromedios() {
+    document.getElementById("tp-vista-registros").hidden = true;
+    document.getElementById("tp-vista-promedios").hidden = false;
+    document.getElementById("tp-tab-registros").classList.remove("activa");
+    document.getElementById("tp-tab-promedios").classList.add("activa");
+    pintarTablaPromedios();
+}
+function activarPestanaRegistros() {
+    document.getElementById("tp-vista-registros").hidden = false;
+    document.getElementById("tp-vista-promedios").hidden = true;
+    document.getElementById("tp-tab-registros").classList.add("activa");
+    document.getElementById("tp-tab-promedios").classList.remove("activa");
+}
+
+document.getElementById("tp-tab-promedios")?.addEventListener("click", activarPestanaPromedios);
+document.getElementById("tp-tab-registros")?.addEventListener("click", activarPestanaRegistros);
+document.getElementById("tp-prom-grado")?.addEventListener("change", ()=>{ document.getElementById("tp-prom-clase").value="todas"; pintarTablaPromedios(); });
+document.getElementById("tp-prom-salon")?.addEventListener("change", pintarTablaPromedios);
+document.getElementById("tp-prom-clase")?.addEventListener("change", pintarTablaPromedios);
+document.getElementById("tp-prom-estudiante")?.addEventListener("input", pintarTablaPromedios);
+document.getElementById("tp-prom-orden")?.addEventListener("change", pintarTablaPromedios);
+document.getElementById("tp-prom-th-salon")?.addEventListener("click", ()=>{document.getElementById("tp-prom-orden").value="salon";pintarTablaPromedios();});
+document.getElementById("tp-prom-th-nombre")?.addEventListener("click", ()=>{document.getElementById("tp-prom-orden").value="nombre";pintarTablaPromedios();});
+document.getElementById("tp-prom-th-clase")?.addEventListener("click", ()=>{document.getElementById("tp-prom-orden").value="clase";pintarTablaPromedios();});
+document.getElementById("tp-prom-th-promedio")?.addEventListener("click", ()=>{const e=document.getElementById("tp-prom-orden");e.value=e.value==="prom_desc"?"prom_asc":"prom_desc";pintarTablaPromedios();});
+
+// =========================================================
+// 9) ORDEN AL HACER CLIC EN ENCABEZADOS
 // =========================================================
 document.querySelectorAll("table.tp-tabla th[data-orden]").forEach((th) => {
     th.addEventListener("click", () => {
@@ -537,7 +653,7 @@ document.querySelectorAll("table.tp-tabla th[data-orden]").forEach((th) => {
 });
 
 // =========================================================
-// 9) ARRANQUE
+// 10) ARRANQUE
 // =========================================================
 (async function init() {
     const ok = await verificarSesion();
