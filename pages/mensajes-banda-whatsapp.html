@@ -82,6 +82,7 @@
       header{padding-top:19px}.panel{padding:14px}.controles{grid-template-columns:1fr}.pestanas{grid-template-columns:1fr}.contacto{grid-template-columns:1fr}.telefonos{justify-content:stretch}.whatsapp{width:100%}.botones-lista button{width:100%}
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <section id="acceso" class="acceso" hidden>
@@ -127,7 +128,7 @@
       <p class="ayuda">Puede usar <code>{nombre}</code> y <code>{seccion}</code>. La página los sustituye por los datos de cada integrante. El mensaje queda guardado automáticamente en este dispositivo.</p>
       <div class="estado">
         <span id="guardado" class="guardado" aria-live="polite"></span>
-        <button type="button" id="borrar">Limpiar mensaje</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" id="descargarExcel" style="background:#1d6f42;color:#fff">📊 Descargar Excel completo</button><button type="button" id="borrar">Limpiar mensaje</button></div>
       </div>
     </section>
 
@@ -178,15 +179,16 @@
       {nombre:'Kathlyn Victoria',nota:'',seccion:'Batallón',telefonos:['67641002']},
       {nombre:'Nathaly Díaz',nota:'',seccion:'Batallón',telefonos:['67737740']},
       {nombre:'Rosa Martínez',nota:'Donación',seccion:'Batallón',telefonos:['63062053','66401797']},
-      {nombre:'Daneth Acevedo',nota:'',seccion:'Batutera',telefonos:['68106102']},
-      {nombre:'Danna Guerra',nota:'',seccion:'Batutera',telefonos:['61828302']},
-      {nombre:'Jesuanis Solís',nota:'',seccion:'Batutera',telefonos:['63128377']},
-      {nombre:'Maritzelis López',nota:'',seccion:'Batutera',telefonos:['62267353']},
+      {nombre:'Amy Jiménez',nota:'',seccion:'Banderolas',telefonos:[]},
+      {nombre:'Jesuanis Solís',nota:'',seccion:'Banderolas',telefonos:['63128377']},
+      {nombre:'Maritzelis López',nota:'',seccion:'Banderolas',telefonos:['62267353']},
+      {nombre:'Daneth Acevedo',nota:'',seccion:'Banderolas',telefonos:['68106102']},
       {nombre:'Alvin Urieta',nota:'Pantalón',seccion:'Bombo',telefonos:['66025251']},
       {nombre:'Erubiel Leones',nota:'Pantalón',seccion:'Bombo',telefonos:['69029894']},
       {nombre:'Moisés Corales',nota:'Pantalón',seccion:'Bombo',telefonos:['64422534']},
       {nombre:'Tomás Gutiérrez',nota:'Pantalón',seccion:'Bombo',telefonos:[]},
       {nombre:'Tomás Vásquez',nota:'Pantalón',seccion:'Bombo',telefonos:['65998979']},
+      {nombre:'Josafat Peralta',nota:'',seccion:'Bombo',telefonos:['63682251']},
       {nombre:'Josmar López',nota:'Ropa',seccion:'Caja',telefonos:['62614610']},
       {nombre:'Osmar López',nota:'Ropa',seccion:'Caja',telefonos:['62614610']},
       {nombre:'Amy Betancur',nota:'',seccion:'Caja',telefonos:['68905212']},
@@ -224,6 +226,8 @@
       {nombre:'Mía Sánchez',nota:'',seccion:'Lira',telefonos:['64814365']},
       {nombre:'Rosa Yaribel',nota:'',seccion:'Lira',telefonos:[]},
       {nombre:'Yamilka González',nota:'Instructor',seccion:'Lira',telefonos:['63178903','64558426']},
+      {nombre:'Hilma Guerra',nota:'',seccion:'Lira',telefonos:['64558426']},
+      {nombre:'Yibellys',nota:'',seccion:'Lira',telefonos:['64656517']},
       {nombre:'Itzel López',nota:'Semi',seccion:'Platillo',telefonos:['62267353']},
       {nombre:'Maily Solís',nota:'Semi',seccion:'Platillo',telefonos:['63128377']},
       {nombre:'Yahirianis Rodríguez',nota:'',seccion:'Platillo',telefonos:['67737740']},
@@ -242,6 +246,7 @@
       {nombre:'Luis Herrera',nota:'',seccion:'Tenor',telefonos:['67877891','68205675']},
       {nombre:'Moisés Ortega',nota:'',seccion:'Tenor',telefonos:['63062053','66401797']},
       {nombre:'Víctor Ramos',nota:'',seccion:'Tenor',telefonos:['63062053','66401797']},
+      {nombre:'Yisaac',nota:'',seccion:'Tenor',telefonos:['64656517']},
       {nombre:'Integrante sin nombre',nota:'Nombre pendiente',seccion:'Sin asignar',telefonos:['68205675']},
       {nombre:'Rubiela Sánchez',nota:'',seccion:'Sin asignar',telefonos:['62922374']},
       {nombre:'Integrante sin nombre 2',nota:'Nombre pendiente',seccion:'Sin asignar',telefonos:['68305675']},
@@ -277,6 +282,16 @@
     const enviados = new Set(JSON.parse(localStorage.getItem('mensajesEnviadosBandaJiral') || '[]'));
     const confirmados = new Set(JSON.parse(localStorage.getItem('confirmadosBandaJiral') || '[]'));
     const retirados = new Set(JSON.parse(localStorage.getItem('retiradosBandaJiral') || '[]'));
+
+    // Conserva el estado de confirmación/retiro de quienes antes estaban en Batutera.
+    ['Jesuanis Solís','Maritzelis López','Daneth Acevedo'].forEach(nombre=>{
+      const n=nombre.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+      const anterior=`${n}|batutera`, nuevo=`${n}|banderolas`;
+      if(confirmados.delete(anterior)) confirmados.add(nuevo);
+      if(retirados.delete(anterior)) retirados.add(nuevo);
+    });
+    localStorage.setItem('confirmadosBandaJiral',JSON.stringify([...confirmados]));
+    localStorage.setItem('retiradosBandaJiral',JSON.stringify([...retirados]));
     let aviso;
     let vistaActual='todos';
 
@@ -433,7 +448,7 @@
         vacio.textContent=vistaActual==='confirmados'?'Todavía no hay integrantes confirmados con esos filtros.':vistaActual==='pendientes'?'Todos han confirmado, se retiraron o no hay resultados con esos filtros.':vistaActual==='retirados'?'Todavía no hay integrantes marcados como retirados.':'No se encontraron integrantes con esos filtros.';
         lista.appendChild(vacio); return;
       }
-      const orden=['Director','Batallón','Batutera','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
+      const orden=['Director','Batallón','Banderolas','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
       const secciones=[...new Set(visibles.map(c=>c.seccion))].sort((a,b)=>{
         const ia=orden.indexOf(a),ib=orden.indexOf(b);
         return (ia<0?999:ia)-(ib<0?999:ib)||a.localeCompare(b,'es');
@@ -483,6 +498,33 @@
       });
     }
 
+    function descargarExcelCompleto(){
+      if(!esAdministrador()) return;
+      if(typeof XLSX==='undefined'){
+        alert('No se pudo cargar el módulo de Excel. Verifique su conexión a internet e intente nuevamente.');
+        return;
+      }
+      const libro=XLSX.utils.book_new();
+      const orden=['Director','Batallón','Banderolas','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
+      const filasTodos=contactos.map(c=>{
+        const id=claveIntegrante(c), retirado=retirados.has(id), confirmado=confirmados.has(id)&&!retirado;
+        return {Nombre:c.nombre,Sección:c.seccion,Teléfono:c.telefonos.map(t=>'+507 '+t).join(' / '),Nota:c.nota||'',Estado:retirado?'Retirado':confirmado?'Confirmado':'No ha confirmado'};
+      });
+      const crearHoja=(nombre,filas)=>{
+        const ws=XLSX.utils.json_to_sheet(filas.length?filas:[{Nombre:'Sin integrantes'}]);
+        ws['!cols']=[{wch:28},{wch:18},{wch:26},{wch:22},{wch:20}];
+        XLSX.utils.book_append_sheet(libro,ws,nombre.substring(0,31));
+      };
+      crearHoja('Todos',filasTodos);
+      orden.filter(sec=>contactos.some(c=>c.seccion===sec)).forEach(sec=>crearHoja(sec,filasTodos.filter(f=>f.Sección===sec)));
+      crearHoja('Confirmados',filasTodos.filter(f=>f.Estado==='Confirmado'));
+      crearHoja('No confirmados',filasTodos.filter(f=>f.Estado==='No ha confirmado'));
+      crearHoja('Retirados',filasTodos.filter(f=>f.Estado==='Retirado'));
+      XLSX.writeFile(libro,'Banda_El_Jiral_lista_completa.xlsx');
+    }
+
+    document.querySelector('#descargarExcel').addEventListener('click',descargarExcelCompleto);
+
     mensaje.addEventListener('input',()=>{
       localStorage.setItem('mensajeBandaJiral',mensaje.value);
       guardado.textContent='✓ Mensaje guardado'; clearTimeout(aviso); aviso=setTimeout(()=>guardado.textContent='',1800);
@@ -500,7 +542,7 @@
         return !estaConfirmado&&!estaRetirado;
       });
       const titulo=vistaActual==='confirmados'?'✅ *INTEGRANTES CONFIRMADOS EN LA BANDA* 😄':vistaActual==='retirados'?'🚪 *INTEGRANTES RETIRADOS DE LA BANDA*':'⏳ *INTEGRANTES QUE AÚN NO HAN CONFIRMADO*';
-      const orden=['Director','Batallón','Batutera','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
+      const orden=['Director','Batallón','Banderolas','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
       const secciones=[...new Set(miembros.map(c=>c.seccion))].sort((a,b)=>{
         const ia=orden.indexOf(a),ib=orden.indexOf(b);
         return (ia<0?999:ia)-(ib<0?999:ib)||a.localeCompare(b,'es');
