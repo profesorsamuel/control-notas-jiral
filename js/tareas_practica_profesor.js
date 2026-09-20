@@ -133,6 +133,7 @@ async function cargarDatos() {
     cargando.hidden = true;
 
     ESTUDIANTES = estudiantesRes.data || [];
+    await cargarFechasClases();
 
     let historial = historialRes.data;
     if (historialRes.error) {
@@ -538,6 +539,54 @@ async function refrescarPanel() {
 // =========================================================
 let promOrden = "salon";
 
+// Fechas del 3.er trimestre. Se cargan desde Supabase y se pueden editar
+// en la pestaña "Fechas de clases". Mientras no venza la clase, lo no
+// realizado queda pendiente; al vencer, cada ejercicio faltante vale 1.0.
+let FECHAS_CLASES = {};
+const SALONES_POR_CLASE = (codigo) => codigo?.startsWith("cn8") ? ["8A"] : codigo?.startsWith("cn9") ? ["9A","9B","9C"] : [];
+
+async function cargarFechasClases() {
+    const { data, error } = await supabase.from("config_fechas_practica").select("codigo_examen,fecha_inicio,fecha_fin");
+    FECHAS_CLASES = {};
+    if (!error) for (const r of (data || [])) FECHAS_CLASES[r.codigo_examen] = { inicio:r.fecha_inicio, fin:r.fecha_fin };
+    pintarControlFechas();
+}
+
+function claseVencida(codigo) {
+    const fin = FECHAS_CLASES[codigo]?.fin;
+    if (!fin) return false;
+    const limite = new Date(fin + "T23:59:59");
+    return Date.now() > limite.getTime();
+}
+
+function estadoFecha(codigo) {
+    const f=FECHAS_CLASES[codigo]||{};
+    if (!f.inicio || !f.fin) return "⚪ Sin configurar";
+    const hoy=new Date(); const ini=new Date(f.inicio+"T00:00:00"); const fin=new Date(f.fin+"T23:59:59");
+    if (hoy < ini) return "🔵 Próxima";
+    if (hoy > fin) return "🔴 Finalizada";
+    return "🟢 En curso";
+}
+
+function codigosClasesProyecto() {
+    return Object.keys(NOMBRES_CLASE).filter(c=>/clase[-_ ]?\d+/i.test(c)).sort((a,b)=>gradoDeClase(a).localeCompare(gradoDeClase(b))||numeroClase(a)-numeroClase(b));
+}
+
+function pintarControlFechas() {
+    const tb=document.getElementById("tp-fechas-tbody"); if(!tb) return;
+    tb.innerHTML=codigosClasesProyecto().map(c=>{const f=FECHAS_CLASES[c]||{};return `<tr data-codigo="${escapeHtml(c)}"><td>${escapeHtml(gradoDeClase(c))}</td><td><b>${escapeHtml(etiquetaClaseCorta(c))}</b><br><small>${escapeHtml(NOMBRES_CLASE[c]||c)}</small></td><td>${SALONES_POR_CLASE(c).join(", ")}</td><td><input class="tp-fecha-inicio" type="date" value="${escapeHtml(f.inicio||"")}"></td><td><input class="tp-fecha-fin" type="date" value="${escapeHtml(f.fin||"")}"></td><td>${estadoFecha(c)}</td></tr>`}).join("");
+}
+
+async function guardarFechasClases() {
+    const msg=document.getElementById("tp-fechas-msg"); msg.textContent="Guardando…";
+    const rows=[...document.querySelectorAll("#tp-fechas-tbody tr")].map(tr=>({codigo_examen:tr.dataset.codigo,fecha_inicio:tr.querySelector(".tp-fecha-inicio").value||null,fecha_fin:tr.querySelector(".tp-fecha-fin").value||null,actualizado_at:new Date().toISOString()}));
+    for(const r of rows){ if(r.fecha_inicio && r.fecha_fin && r.fecha_fin<r.fecha_inicio){msg.textContent=`⚠️ ${etiquetaClaseCorta(r.codigo_examen)}: la fecha final no puede ser anterior al inicio.`;return;} }
+    const {error}=await supabase.from("config_fechas_practica").upsert(rows,{onConflict:"codigo_examen"});
+    if(error){msg.textContent="⚠️ Falta crear la tabla de fechas en Supabase. Ejecute el archivo SQL incluido.";return;}
+    msg.textContent="✅ Fechas guardadas para todos los dispositivos."; await cargarFechasClases(); pintarTablaPromedios();
+}
+
+
 function numeroClase(codigo) {
     const nombre = NOMBRES_CLASE[codigo] || codigo || "";
     const m = nombre.match(/Clase\s*(\d+)/i) || String(codigo || "").match(/clase[-_ ]?(\d+)/i);
@@ -550,39 +599,28 @@ function etiquetaClaseCorta(codigo) {
 }
 
 function datosPromediosTodasClases() {
-    const porEstudianteClase = new Map();
-    for (const f of FILAS) {
-        if (!/clase[-_ ]?\d+/i.test(String(f.codigo_examen || ""))) continue;
-        if (f.nota_meduca === null || f.nota_meduca === undefined || Number.isNaN(Number(f.nota_meduca))) continue;
-        const key = `${normalizarCedula(f.cedula)}|${f.codigo_examen}`;
-        if (!porEstudianteClase.has(key)) {
-            porEstudianteClase.set(key, {
-                salon: f.salon || "—", nombre: f.nombre || "—",
-                grado: gradoDeClase(f.codigo_examen), codigo: f.codigo_examen, ejercicios: []
-            });
+    // Incluye también estudiantes que aún no han realizado ejercicios cuando
+    // la clase está configurada. Así, al vencer, sus faltantes pasan a 1.0.
+    const mapa = new Map();
+    const codigos = codigosClasesProyecto();
+    for (const codigo of codigos) {
+        for (const e of ESTUDIANTES.filter(x => SALONES_POR_CLASE(codigo).includes(x.salon))) {
+            const key=`${normalizarCedula(e.cedula)}|${codigo}`;
+            mapa.set(key,{salon:e.salon||"—",nombre:e.nombre||"—",cedula:e.cedula,grado:gradoDeClase(codigo),codigo,ejercicios:[]});
         }
-        porEstudianteClase.get(key).ejercicios.push({
-            tipo: f.tipo_ejercicio || "quiz",
-            nota: Number(f.nota_meduca),
-            fecha: f.fecha || null
-        });
     }
-    return [...porEstudianteClase.values()].map(r => {
-        // Los tres ejercicios se muestran en el orden en que fueron completados.
-        // Si no hay fecha, se usa el tipo como criterio estable para evitar cambios al recargar.
-        r.ejercicios.sort((a,b) => {
-            const ta = a.fecha ? new Date(a.fecha).getTime() : Number.MAX_SAFE_INTEGER;
-            const tb = b.fecha ? new Date(b.fecha).getTime() : Number.MAX_SAFE_INTEGER;
-            return ta - tb || String(a.tipo).localeCompare(String(b.tipo), "es");
-        });
-        const notas = r.ejercicios.slice(0, 3).map(e => e.nota);
-        return {
-            ...r,
-            ejercicio1: notas[0] ?? null,
-            ejercicio2: notas[1] ?? null,
-            ejercicio3: notas[2] ?? null,
-            promedio: notas.length ? notas.reduce((a,b)=>a+b,0) / notas.length : null
-        };
+    for (const f of FILAS) {
+        if (!/clase[-_ ]?\d+/i.test(String(f.codigo_examen||""))) continue;
+        const key=`${normalizarCedula(f.cedula)}|${f.codigo_examen}`;
+        if(!mapa.has(key)) mapa.set(key,{salon:f.salon||"—",nombre:f.nombre||"—",cedula:f.cedula,grado:gradoDeClase(f.codigo_examen),codigo:f.codigo_examen,ejercicios:[]});
+        if(f.nota_meduca!==null && f.nota_meduca!==undefined && !Number.isNaN(Number(f.nota_meduca))) mapa.get(key).ejercicios.push({tipo:f.tipo_ejercicio||"quiz",nota:Number(f.nota_meduca),fecha:f.fecha||null});
+    }
+    return [...mapa.values()].map(r=>{
+        r.ejercicios.sort((a,b)=>{const ta=a.fecha?new Date(a.fecha).getTime():Number.MAX_SAFE_INTEGER;const tb=b.fecha?new Date(b.fecha).getTime():Number.MAX_SAFE_INTEGER;return ta-tb||String(a.tipo).localeCompare(String(b.tipo),"es")});
+        let notas=r.ejercicios.slice(0,3).map(e=>e.nota);
+        while(notas.length<3) notas.push(claseVencida(r.codigo)?1:null);
+        const validas=notas.filter(n=>n!==null);
+        return {...r,ejercicio1:notas[0],ejercicio2:notas[1],ejercicio3:notas[2],promedio:validas.length?validas.reduce((a,b)=>a+b,0)/validas.length:null};
     });
 }
 
@@ -641,19 +679,29 @@ function pintarTablaPromedios() {
 function activarPestanaPromedios() {
     document.getElementById("tp-vista-registros").hidden = true;
     document.getElementById("tp-vista-promedios").hidden = false;
+    document.getElementById("tp-vista-fechas").hidden = true;
     document.getElementById("tp-tab-registros").classList.remove("activa");
     document.getElementById("tp-tab-promedios").classList.add("activa");
+    document.getElementById("tp-tab-fechas").classList.remove("activa");
     pintarTablaPromedios();
 }
 function activarPestanaRegistros() {
     document.getElementById("tp-vista-registros").hidden = false;
     document.getElementById("tp-vista-promedios").hidden = true;
+    document.getElementById("tp-vista-fechas").hidden = true;
     document.getElementById("tp-tab-registros").classList.add("activa");
     document.getElementById("tp-tab-promedios").classList.remove("activa");
+    document.getElementById("tp-tab-fechas").classList.remove("activa");
+}
+function activarPestanaFechas(){
+    document.getElementById("tp-vista-registros").hidden=true; document.getElementById("tp-vista-promedios").hidden=true; document.getElementById("tp-vista-fechas").hidden=false;
+    document.getElementById("tp-tab-registros").classList.remove("activa"); document.getElementById("tp-tab-promedios").classList.remove("activa"); document.getElementById("tp-tab-fechas").classList.add("activa"); pintarControlFechas();
 }
 
 document.getElementById("tp-tab-promedios")?.addEventListener("click", activarPestanaPromedios);
 document.getElementById("tp-tab-registros")?.addEventListener("click", activarPestanaRegistros);
+document.getElementById("tp-tab-fechas")?.addEventListener("click", activarPestanaFechas);
+document.getElementById("tp-fechas-guardar")?.addEventListener("click", guardarFechasClases);
 document.getElementById("tp-prom-grado")?.addEventListener("change", ()=>{ document.getElementById("tp-prom-clase").value="todas"; pintarTablaPromedios(); });
 document.getElementById("tp-prom-salon")?.addEventListener("change", pintarTablaPromedios);
 document.getElementById("tp-prom-clase")?.addEventListener("change", pintarTablaPromedios);
