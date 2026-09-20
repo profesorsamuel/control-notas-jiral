@@ -228,6 +228,7 @@
         <div class="tp-tabs">
             <button class="tp-tab-btn activa" id="tp-tab-registros" type="button">📋 Registros</button>
             <button class="tp-tab-btn" id="tp-tab-promedios" type="button">📊 Promedios prácticas</button>
+            <button class="tp-tab-btn" id="tp-tab-fechas" type="button">📅 Fechas de clases</button>
         </div>
 
         <section id="tp-vista-registros">
@@ -321,6 +322,24 @@
                     </table>
                 </div>
                 <div id="tp-prom-vacio" hidden style="padding:25px;text-align:center;color:#64748b;">No hay estudiantes con prácticas completadas para este filtro.</div>
+            </div>
+        </section>
+
+        <section id="tp-vista-fechas" hidden>
+            <div class="tp-panel">
+                <h2 style="font-size:1.15rem;margin:0 0 4px;">📅 Control de fechas · 3.er trimestre</h2>
+                <p style="margin:0 0 14px;color:#64748b;font-size:13px;">Defina cuándo comienza y cuándo termina cada clase. Después de la fecha final, todo ejercicio no realizado se calificará automáticamente con 1.0 en la tabla de promedios.</p>
+                <div class="tp-tabla-scroll">
+                    <table class="tp-tabla">
+                        <thead><tr><th>Grado</th><th>Clase</th><th>Salones</th><th>Fecha de inicio</th><th>Fecha final</th><th>Estado</th></tr></thead>
+                        <tbody id="tp-fechas-tbody"></tbody>
+                    </table>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;">
+                    <button id="tp-fechas-guardar" type="button" class="tp-tab-btn activa">💾 Guardar fechas</button>
+                    <span id="tp-fechas-msg" style="font-size:13px;color:#64748b;"></span>
+                </div>
+                <p style="margin:12px 0 0;color:#64748b;font-size:12px;">Las fechas se guardan en Supabase para que funcionen en computadora y celular. Si todavía no creó la tabla, ejecute una sola vez <code>supabase/config_fechas_practica.sql</code>.</p>
             </div>
         </section>
 
