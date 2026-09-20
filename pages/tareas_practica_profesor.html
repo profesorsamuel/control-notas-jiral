@@ -195,6 +195,14 @@
             font-size: 12.5px;
         }
 
+        .tp-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+        .tp-tab-btn { border:1px solid var(--color-borde); background:#fff; border-radius:10px; padding:9px 14px; font-weight:700; font-size:13px; cursor:pointer; }
+        .tp-tab-btn.activa { background:var(--color-primario); color:#fff; border-color:var(--color-primario); }
+        .tp-prom-filtros { display:grid; grid-template-columns: 140px minmax(220px,1fr) 170px; gap:10px; margin-bottom:12px; }
+        .tp-prom-filtros select, .tp-prom-filtros input { width:100%; border:1px solid var(--color-borde); border-radius:9px; padding:8px 10px; font-size:13px; background:#fff; }
+        .tp-prom-nota { font-weight:800; font-size:15px; }
+        @media (max-width: 650px) { .tp-prom-filtros { grid-template-columns:1fr; } }
+
         .tp-toggle-link {
             font-size: 12.5px;
             color: var(--color-primario);
@@ -217,6 +225,12 @@
 
     <div class="tp-contenedor">
 
+        <div class="tp-tabs">
+            <button class="tp-tab-btn activa" id="tp-tab-registros" type="button">📋 Registros</button>
+            <button class="tp-tab-btn" id="tp-tab-promedios" type="button">📊 Promedios prácticas</button>
+        </div>
+
+        <section id="tp-vista-registros">
         <div id="tp-en-vivo" class="tp-en-vivo" hidden>
             <h3>🟢 Haciendo la tarea en este momento</h3>
             <div class="tp-en-vivo-lista" id="tp-en-vivo-lista"></div>
@@ -285,6 +299,30 @@
                 </table>
             </div>
         </div>
+        </section>
+
+        <section id="tp-vista-promedios" hidden>
+            <div class="tp-panel">
+                <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+                    <div><h2 style="font-size:1.15rem;margin:0;">Promedios de prácticas en casa</h2><p style="margin:3px 0 0;color:#64748b;font-size:13px;">Filtre por grado, salón y clase. El promedio usa la última nota de cada tipo de ejercicio completado en la clase seleccionada.</p></div>
+                    <b id="tp-prom-conteo" style="font-size:13px;"></b>
+                </div>
+                <div class="tp-prom-filtros">
+                    <select id="tp-prom-grado" aria-label="Filtrar por grado"><option value="todos">Todos los grados</option><option value="8°">8°</option><option value="9°">9°</option></select>
+                    <select id="tp-prom-salon" aria-label="Filtrar por salón"><option value="todos">Todos los salones</option><option>8A</option><option>8B</option><option>8C</option><option>9A</option><option>9B</option><option>9C</option></select>
+                    <select id="tp-prom-clase" aria-label="Filtrar por clase"><option value="todas">Todas las clases</option></select>
+                    <input id="tp-prom-estudiante" type="search" placeholder="Filtrar por estudiante…">
+                    <select id="tp-prom-orden" aria-label="Ordenar promedio"><option value="salon">Orden: salón</option><option value="nombre">Orden: estudiante</option><option value="prom_desc">Promedio: mayor a menor</option><option value="prom_asc">Promedio: menor a mayor</option></select>
+                </div>
+                <div class="tp-tabla-scroll">
+                    <table class="tp-tabla">
+                        <thead><tr><th id="tp-prom-th-salon">Salón ↕</th><th id="tp-prom-th-nombre">Estudiante ↕</th><th id="tp-prom-th-clase">Clase ↕</th><th id="tp-prom-th-promedio">Promedio práctica en casa ↕</th></tr></thead>
+                        <tbody id="tp-prom-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="tp-prom-vacio" hidden style="padding:25px;text-align:center;color:#64748b;">No hay estudiantes con prácticas completadas para este filtro.</div>
+            </div>
+        </section>
 
     </div>
 
