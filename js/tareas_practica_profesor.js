@@ -558,14 +558,32 @@ function datosPromediosTodasClases() {
         if (!porEstudianteClase.has(key)) {
             porEstudianteClase.set(key, {
                 salon: f.salon || "—", nombre: f.nombre || "—",
-                grado: gradoDeClase(f.codigo_examen), codigo: f.codigo_examen, notas: []
+                grado: gradoDeClase(f.codigo_examen), codigo: f.codigo_examen, ejercicios: []
             });
         }
-        porEstudianteClase.get(key).notas.push(Number(f.nota_meduca));
+        porEstudianteClase.get(key).ejercicios.push({
+            tipo: f.tipo_ejercicio || "quiz",
+            nota: Number(f.nota_meduca),
+            fecha: f.fecha || null
+        });
     }
-    return [...porEstudianteClase.values()].map(r => ({
-        ...r, promedio: r.notas.reduce((a,b)=>a+b,0) / r.notas.length
-    }));
+    return [...porEstudianteClase.values()].map(r => {
+        // Los tres ejercicios se muestran en el orden en que fueron completados.
+        // Si no hay fecha, se usa el tipo como criterio estable para evitar cambios al recargar.
+        r.ejercicios.sort((a,b) => {
+            const ta = a.fecha ? new Date(a.fecha).getTime() : Number.MAX_SAFE_INTEGER;
+            const tb = b.fecha ? new Date(b.fecha).getTime() : Number.MAX_SAFE_INTEGER;
+            return ta - tb || String(a.tipo).localeCompare(String(b.tipo), "es");
+        });
+        const notas = r.ejercicios.slice(0, 3).map(e => e.nota);
+        return {
+            ...r,
+            ejercicio1: notas[0] ?? null,
+            ejercicio2: notas[1] ?? null,
+            ejercicio3: notas[2] ?? null,
+            promedio: notas.length ? notas.reduce((a,b)=>a+b,0) / notas.length : null
+        };
+    });
 }
 
 function actualizarFiltroClasesPromedio() {
@@ -605,7 +623,16 @@ function pintarTablaPromedios() {
         if (orden === "prom_asc") return a.promedio-b.promedio || a.nombre.localeCompare(b.nombre,"es");
         return a.salon.localeCompare(b.salon,"es",{numeric:true}) || a.nombre.localeCompare(b.nombre,"es") || numeroClase(a.codigo)-numeroClase(b.codigo);
     });
-    tbody.innerHTML = datos.map(r => `<tr><td>${escapeHtml(r.salon)}</td><td>${escapeHtml(r.nombre)}</td><td>${escapeHtml(etiquetaClaseCorta(r.codigo))}</td><td class="tp-prom-nota ${r.promedio < 3 ? "nota-baja" : "nota-alta"}">${r.promedio.toFixed(1)}</td></tr>`).join("");
+    const notaCelda = (n) => n === null || n === undefined ? "—" : Number(n).toFixed(1);
+    tbody.innerHTML = datos.map(r => `<tr>
+        <td>${escapeHtml(r.salon)}</td>
+        <td>${escapeHtml(r.nombre)}</td>
+        <td>${escapeHtml(etiquetaClaseCorta(r.codigo))}</td>
+        <td>${notaCelda(r.ejercicio1)}</td>
+        <td>${notaCelda(r.ejercicio2)}</td>
+        <td>${notaCelda(r.ejercicio3)}</td>
+        <td class="tp-prom-nota ${r.promedio !== null && r.promedio < 3 ? "nota-baja" : "nota-alta"}">${r.promedio === null ? "—" : r.promedio.toFixed(1)}</td>
+    </tr>`).join("");
     document.getElementById("tp-prom-conteo").textContent = `${datos.length} registro${datos.length===1?"":"s"}`;
     document.getElementById("tp-prom-vacio").hidden = datos.length !== 0;
     document.querySelector("#tp-vista-promedios .tp-tabla-scroll").hidden = datos.length === 0;
