@@ -1129,3 +1129,92 @@ document.getElementById("btn-guardar-entrega").addEventListener("click", async (
   modalEntrega.hidden = true;
   await cargarTablero();
 });
+
+// =========================================================
+// PDF: quién tiene grupo (y qué actividad) y quién todavía no,
+// por salón — disponible para cualquiera, sin necesidad de sesión.
+// =========================================================
+async function generarPDFGruposPorSalon() {
+  const btn = document.getElementById("btn-descargar-pdf-grupos");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Generando PDF…";
+  try {
+    // Trae a TODOS los estudiantes de los 3 salones en una sola consulta.
+    const { data: todosEstudiantes, error } = await sb.from("estudiantes")
+      .select("nombre, salon")
+      .in("salon", CONFIG.salones)
+      .order("nombre", { ascending: true });
+    if (error) throw error;
+
+    // Refresca inscripciones por si acaban de cambiar.
+    await precargarInscripciones();
+
+    const normalizar = (v) => String(v || "").trim().toLowerCase();
+    const porActividad = {};
+    CATALOGO.forEach((a) => { porActividad[a.id] = a; });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text("Decoremos el salón — Grupos por salón (9A, 9B, 9C)", 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Generado: ${new Date().toLocaleString("es-PA")}`, 14, 22);
+
+    let cursorY = 30;
+
+    CONFIG.salones.forEach((salon, idx) => {
+      const estudiantesSalon = todosEstudiantes.filter((e) => normalizar(e.salon) === normalizar(salon));
+
+      // Mapa nombre -> {actividad, rol} para este salón.
+      const conGrupo = new Map();
+      inscripciones.filter((i) => normalizar(i.salon) === normalizar(salon)).forEach((i) => {
+        const actividad = porActividad[i.actividad_id];
+        const titulo = actividad ? actividad.titulo : i.actividad_id;
+        if (i.nombre) conGrupo.set(normalizar(i.nombre), { nombre: i.nombre, actividad: titulo, rol: "Líder" });
+        if (i.integrantes) {
+          i.integrantes.split(";").map((n) => n.trim()).filter(Boolean).forEach((n) => {
+            conGrupo.set(normalizar(n), { nombre: n, actividad: titulo, rol: "Integrante" });
+          });
+        }
+      });
+
+      const filas = estudiantesSalon.map((e) => {
+        const info = conGrupo.get(normalizar(e.nombre));
+        return info
+          ? [e.nombre, info.rol, info.actividad]
+          : [e.nombre, "Sin grupo", "—"];
+      });
+
+      if (idx > 0) doc.addPage();
+      const salonBonito = salon.replace(/(\d+)([A-Z])/, "$1°$2");
+      doc.setFontSize(13);
+      doc.text(`Salón ${salonBonito}`, 14, cursorY);
+
+      doc.autoTable({
+        startY: cursorY + 4,
+        head: [["Estudiante", "Estado", "Actividad"]],
+        body: filas,
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [23, 35, 53] },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 1 && data.cell.raw === "Sin grupo") {
+            data.cell.styles.textColor = [180, 40, 40];
+            data.cell.styles.fontStyle = "bold";
+          }
+        },
+      });
+      cursorY = 30;
+    });
+
+    doc.save(`grupos-decoracion-salon-${new Date().toISOString().slice(0, 10)}.pdf`);
+  } catch (e) {
+    console.error("No se pudo generar el PDF:", e);
+    alert("No se pudo generar el PDF. Verifica tu conexión e inténtalo de nuevo.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
+}
+
+document.getElementById("btn-descargar-pdf-grupos").addEventListener("click", generarPDFGruposPorSalon);
