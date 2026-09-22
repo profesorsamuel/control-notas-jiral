@@ -1016,6 +1016,15 @@ footer .school{
 #reinas-cuadro .enviar-cuadro-wa{background:#168c45;color:#fff;flex:1}
 @media(max-width:760px){#reinas-cuadro .wa-reinas-actions{display:grid;grid-template-columns:1fr}#reinas-cuadro .wa-reinas-actions button{width:100%}}
 </style>
+
+<style>
+.reinas-individual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+.reina-individual-card{background:#fff;border:1px solid #d8c79e;border-radius:13px;padding:13px;display:grid;gap:7px}
+.reina-individual-card .reina-prof{font-size:12.5px;color:#5b654f}
+.reina-individual-card .enviar-reina-individual{background:#168c45;color:#fff;width:100%;margin-top:3px}
+@media(max-width:700px){.reinas-individual-grid{grid-template-columns:1fr}}
+</style>
+
 </head>
 <body>
 
@@ -1408,21 +1417,20 @@ footer .school{
             <textarea id="cuadro-reinas-primaria" class="wa-reinas-text" readonly>👑 *REINAS DE PRIMARIA – DÍA DEL CAMPESINO 2026*
 🏫 *C.E.B.G. EL JIRAL*
 
-Provincia — Salones — Nombre de la reina
+Provincia — Salones — Reina — Profesor(a) encargado(a)
 
-1. Bocas del Toro — Prejardín A + V-B — Por confirmar
-2. Chiriquí — Jardín C + I-A — Por confirmar
-3. Coclé — Prejardín B + V-A — Por confirmar
-4. Colón — Jardín A + IV-C — Por confirmar
-5. Comarcas Indígenas — II-C + III-A — Por confirmar
-6. Darién — Jardín B + VI-B — Por confirmar
-7. Herrera — I-B + V-C — Por confirmar
-8. Los Santos — I-C + VI-A — Por confirmar
-9. Panamá — II-A + II-B — Por confirmar
-10. Panamá Oeste — III-B + III-C — Por confirmar
-11. Veraguas — IV-A + IV-B — Por confirmar
+1. Bocas del Toro — Prejardín A + V-B — Por confirmar — Lesbia Muñoz / Yessenia Clark
+2. Chiriquí — Jardín C + I-A — Por confirmar — Tilsa Garibaldi / Heidi De León
+3. Coclé — Prejardín B + V-A — Por confirmar — Milvia Ortega / Geraldine Magallón
+4. Colón — Jardín A + IV-C — Por confirmar — Albertina Ortiz / Anabelis Gallardo
+5. Comarcas Indígenas — II-C + III-A — Por confirmar — Carmen Gaitán / Betzaida Rodríguez
+6. Darién — Jardín B + VI-B — Por confirmar — Ángela Hall / Alejandrina Salazar
+7. Herrera — I-B + V-C — Por confirmar — Zulma Becerra / Elaisa Jaramillo
+8. Los Santos — I-C + VI-A — Por confirmar — Ananías Benítes / Viodelka Goitía
+9. Panamá — II-A + II-B — Por confirmar — Telma Grenald / Ana Grenard
+10. Panamá Oeste — III-B + III-C — Por confirmar — Jenifer Dean / Telma Escobar
+11. Veraguas — IV-A + IV-B — Por confirmar — Angélica Jiménez / Rosa Perea
 
-✏️ Si una reina está “Por confirmar”, el administrador puede agregar su nombre.
 📅 Día del Campesino: 16 de octubre de 2026</textarea>
             <div class="wa-reinas-actions"><button type="button" class="msg-btn enviar-cuadro-wa" data-copy="cuadro-reinas-primaria">📲 Enviar cuadro de Primaria por WhatsApp</button><button type="button" class="msg-btn copiar-cuadro" data-copy="cuadro-reinas-primaria">📋 Copiar</button></div>
           </article>
@@ -1431,23 +1439,318 @@ Provincia — Salones — Nombre de la reina
             <textarea id="cuadro-reinas-premedia" class="wa-reinas-text" readonly>👑 *REINAS DE PREMEDIA – DÍA DEL CAMPESINO 2026*
 🏫 *C.E.B.G. EL JIRAL*
 
-Salón — Provincia — Nombre de la reina
+Salón — Provincia — Reina — Profesor(a) encargado(a)
 
-1. 7°A — Bocas del Toro — Por confirmar
-2. 7°B — Coclé — Por confirmar
-3. 7°C — Los Santos — Yisnoris Quintero
-4. 8°A — Veraguas — Por confirmar
-5. 8°B — Herrera — Por confirmar
-6. 8°C — Colón — Reyna Gomez
-7. 9°A — Panamá — Arianys Lobos
-8. 9°B — Panamá Oeste — Yemilis Luzcando
-9. 9°C — Chiriquí — Marieth Muñoz
+1. 7°A — Bocas del Toro — Por confirmar — Leticia de Palacios
+2. 7°B — Coclé — Por confirmar — Erika Pimentel
+3. 7°C — Los Santos — Yisnoris Quintero — Ronald González
+4. 8°A — Veraguas — Por confirmar — Juana Brown
+5. 8°B — Herrera — Por confirmar — Leonela Rivera
+6. 8°C — Colón — Reyna Gomez — Nairobys Sáenz
+7. 9°A — Panamá — Arianys Lobos — Miriam Valencia
+8. 9°B — Panamá Oeste — Yemilis Luzcando — Wendy Harren
+9. 9°C — Chiriquí — Marieth Muñoz — Samuel Ortega
 
-✏️ Si una reina está “Por confirmar”, el administrador puede agregar su nombre.
 📅 Día del Campesino: 16 de octubre de 2026</textarea>
             <div class="wa-reinas-actions"><button type="button" class="msg-btn enviar-cuadro-wa" data-copy="cuadro-reinas-premedia">📲 Enviar cuadro de Premedia por WhatsApp</button><button type="button" class="msg-btn copiar-cuadro" data-copy="cuadro-reinas-premedia">📋 Copiar</button></div>
           </article>
         </div>
+<div class="reinas-individuales-wrap">
+  <div class="section-head" style="margin-top:26px;margin-bottom:14px">
+    <span class="num">Envío uno a uno</span>
+    <h3>Enviar cada reina individualmente</h3>
+    <p>Seleccione Primaria o Premedia y envíe por WhatsApp la información de una sola reina, incluyendo su profesor(a) encargado(a).</p>
+  </div>
+  <div class="subtabs reinas-envio-tabs">
+    <button type="button" class="subtab-btn active" data-reinas-envio="primaria">👑 Primaria</button>
+    <button type="button" class="subtab-btn" data-reinas-envio="premedia">👑 Premedia</button>
+  </div>
+  <div id="reinas-envio-primaria" class="reinas-envio-panel">
+    <div class="reinas-individual-grid"><div class="reina-individual-card">
+      <div><strong>Prejardín A + V-B</strong> · Bocas del Toro</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Lesbia Muñoz / Yessenia Clark</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PRIMARIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: Prejardín A + V-B
+Provincia: Bocas del Toro
+Reina: Por confirmar
+Profesor(a) encargado(a): Lesbia Muñoz / Yessenia Clark
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>Jardín C + I-A</strong> · Chiriquí</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Tilsa Garibaldi / Heidi De León</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PRIMARIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: Jardín C + I-A
+Provincia: Chiriquí
+Reina: Por confirmar
+Profesor(a) encargado(a): Tilsa Garibaldi / Heidi De León
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>Prejardín B + V-A</strong> · Coclé</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Milvia Ortega / Geraldine Magallón</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PRIMARIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: Prejardín B + V-A
+Provincia: Coclé
+Reina: Por confirmar
+Profesor(a) encargado(a): Milvia Ortega / Geraldine Magallón
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>Jardín A + IV-C</strong> · Colón</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Albertina Ortiz / Anabelis Gallardo</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PRIMARIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: Jardín A + IV-C
+Provincia: Colón
+Reina: Por confirmar
+Profesor(a) encargado(a): Albertina Ortiz / Anabelis Gallardo
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>II-C + III-A</strong> · Comarcas Indígenas</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Carmen Gaitán / Betzaida Rodríguez</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PRIMARIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: II-C + III-A
+Provincia: Comarcas Indígenas
+Reina: Por confirmar
+Profesor(a) encargado(a): Carmen Gaitán / Betzaida Rodríguez
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>Jardín B + VI-B</strong> · Darién</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Ángela Hall / Alejandrina Salazar</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PRIMARIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: Jardín B + VI-B
+Provincia: Darién
+Reina: Por confirmar
+Profesor(a) encargado(a): Ángela Hall / Alejandrina Salazar
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>I-B + V-C</strong> · Herrera</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Zulma Becerra / Elaisa Jaramillo</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PRIMARIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: I-B + V-C
+Provincia: Herrera
+Reina: Por confirmar
+Profesor(a) encargado(a): Zulma Becerra / Elaisa Jaramillo
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>I-C + VI-A</strong> · Los Santos</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Ananías Benítes / Viodelka Goitía</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PRIMARIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: I-C + VI-A
+Provincia: Los Santos
+Reina: Por confirmar
+Profesor(a) encargado(a): Ananías Benítes / Viodelka Goitía
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>II-A + II-B</strong> · Panamá</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Telma Grenald / Ana Grenard</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PRIMARIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: II-A + II-B
+Provincia: Panamá
+Reina: Por confirmar
+Profesor(a) encargado(a): Telma Grenald / Ana Grenard
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>III-B + III-C</strong> · Panamá Oeste</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Jenifer Dean / Telma Escobar</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PRIMARIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: III-B + III-C
+Provincia: Panamá Oeste
+Reina: Por confirmar
+Profesor(a) encargado(a): Jenifer Dean / Telma Escobar
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>IV-A + IV-B</strong> · Veraguas</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Angélica Jiménez / Rosa Perea</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PRIMARIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: IV-A + IV-B
+Provincia: Veraguas
+Reina: Por confirmar
+Profesor(a) encargado(a): Angélica Jiménez / Rosa Perea
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div></div>
+  </div>
+  <div id="reinas-envio-premedia" class="reinas-envio-panel" style="display:none">
+    <div class="reinas-individual-grid"><div class="reina-individual-card">
+      <div><strong>7°A</strong> · Bocas del Toro</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Leticia de Palacios</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PREMEDIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: 7°A
+Provincia: Bocas del Toro
+Reina: Por confirmar
+Profesor(a) encargado(a): Leticia de Palacios
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>7°B</strong> · Coclé</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Erika Pimentel</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PREMEDIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: 7°B
+Provincia: Coclé
+Reina: Por confirmar
+Profesor(a) encargado(a): Erika Pimentel
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>7°C</strong> · Los Santos</div>
+      <div>👑 Yisnoris Quintero</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Ronald González</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PREMEDIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: 7°C
+Provincia: Los Santos
+Reina: Yisnoris Quintero
+Profesor(a) encargado(a): Ronald González
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>8°A</strong> · Veraguas</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Juana Brown</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PREMEDIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: 8°A
+Provincia: Veraguas
+Reina: Por confirmar
+Profesor(a) encargado(a): Juana Brown
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>8°B</strong> · Herrera</div>
+      <div>👑 Por confirmar</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Leonela Rivera</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PREMEDIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: 8°B
+Provincia: Herrera
+Reina: Por confirmar
+Profesor(a) encargado(a): Leonela Rivera
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>8°C</strong> · Colón</div>
+      <div>👑 Reyna Gomez</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Nairobys Sáenz</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PREMEDIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: 8°C
+Provincia: Colón
+Reina: Reyna Gomez
+Profesor(a) encargado(a): Nairobys Sáenz
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>9°A</strong> · Panamá</div>
+      <div>👑 Arianys Lobos</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Miriam Valencia</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PREMEDIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: 9°A
+Provincia: Panamá
+Reina: Arianys Lobos
+Profesor(a) encargado(a): Miriam Valencia
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>9°B</strong> · Panamá Oeste</div>
+      <div>👑 Yemilis Luzcando</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Wendy Harren</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PREMEDIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: 9°B
+Provincia: Panamá Oeste
+Reina: Yemilis Luzcando
+Profesor(a) encargado(a): Wendy Harren
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div>
+<div class="reina-individual-card">
+      <div><strong>9°C</strong> · Chiriquí</div>
+      <div>👑 Marieth Muñoz</div>
+      <div class="reina-prof">👩‍🏫 Encargado(a): Samuel Ortega</div>
+      <button type="button" class="msg-btn enviar-reina-individual" data-message="👑 REINA DE PREMEDIA – DÍA DEL CAMPESINO 2026
+🏫 C.E.B.G. EL JIRAL
+
+Salón: 9°C
+Provincia: Chiriquí
+Reina: Marieth Muñoz
+Profesor(a) encargado(a): Samuel Ortega
+
+📅 Día del Campesino: 16 de octubre de 2026">📲 Enviar por WhatsApp</button>
+    </div></div>
+  </div>
+</div>
+
       </div>
     </div>
   </div>
@@ -2562,6 +2865,28 @@ Muchas gracias por su apoyo y colaboración.">📲 WhatsApp</button></td></tr>
       var el=document.getElementById(btn.getAttribute('data-copy'));
       if(!el)return;
       window.open('https://wa.me/?text='+encodeURIComponent(el.value||''),'_blank','noopener,noreferrer');
+    });
+  });
+})();
+</script>
+
+
+<script>
+(function(){
+  document.querySelectorAll('[data-reinas-envio]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var type=btn.getAttribute('data-reinas-envio');
+      document.querySelectorAll('[data-reinas-envio]').forEach(function(b){b.classList.toggle('active',b===btn);});
+      var p=document.getElementById('reinas-envio-primaria');
+      var m=document.getElementById('reinas-envio-premedia');
+      if(p)p.style.display=type==='primaria'?'block':'none';
+      if(m)m.style.display=type==='premedia'?'block':'none';
+    });
+  });
+  document.querySelectorAll('.enviar-reina-individual').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var msg=btn.getAttribute('data-message')||'';
+      window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank','noopener,noreferrer');
     });
   });
 })();
