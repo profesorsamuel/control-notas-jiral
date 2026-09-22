@@ -134,6 +134,7 @@ function mostrarVista(vista) {
 // lo ve un estudiante).
 function actualizarBannerProfesor() {
   document.getElementById("deco-modo-profesor").hidden = !(esProfesor && !modoPruebaEstudiante);
+  document.getElementById("btn-entrar-como-estudiante-top").hidden = !(esProfesor && !modoPruebaEstudiante);
 }
 
 // =========================================================
@@ -347,7 +348,7 @@ async function cargarCompanerosSalon() {
   cargarSalones();
 })();
 
-document.getElementById("btn-entrar-como-estudiante").addEventListener("click", () => {
+document.getElementById("btn-entrar-como-estudiante-top").addEventListener("click", () => {
   sessionStorage.setItem(LS_KEY_PRUEBA, "1");
   modoPruebaEstudiante = true;
   localStorage.removeItem(LS_KEY); // empieza limpio, no arrastra una identidad vieja
