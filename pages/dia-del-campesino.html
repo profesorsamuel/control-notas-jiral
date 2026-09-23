@@ -1061,6 +1061,13 @@ footer .school{
 .topon-reina-info strong{color:var(--green-deep);font-weight:700;}
 .topon-reina-info .reina-dato{color:var(--clay-dark);font-weight:700;}
 @media(max-width:560px){.topon-reina{width:145px}.topon-reina-info{font-size:9.5px}}
+
+/* ===== CUADROS DE CONFIRMACIÓN OCULTOS ===== */
+.queen-toggle-btn{border:0;border-radius:999px;background:#214b2d;color:#fff;padding:10px 16px;font-weight:800;cursor:pointer;margin:8px 0 14px;box-shadow:0 4px 10px rgba(0,0,0,.12)}
+.queen-toggle-btn:hover{filter:brightness(.95)}
+.queen-hidden-box{display:none;margin-top:6px}
+.queen-hidden-box.open{display:block}
+.primary-status-box{margin:8px 0 24px}
 </style>
 </head>
 <body>
@@ -1125,6 +1132,14 @@ footer .school{
       </div>
 
       <div id="reinas-primaria" class="subtab-panel">
+<button type="button" class="queen-toggle-btn" id="toggle-primary-queen" onclick="toggleQueenBox('primary-confirm-box',this,'Primaria')">📋 Ver cuadro de confirmación – Primaria</button>
+<div id="primary-confirm-box" class="queen-hidden-box">
+<div class="primary-status-box">
+  <div class="section-head"><span class="num">Cuadro de Primaria</span><h3>👑 Reinas de Primaria · Confirmación por profesor</h3><p>Este cuadro permanece oculto. Ábralo solo cuando necesite revisar las reinas o enviar mensajes por WhatsApp.</p></div>
+  <div class="pre-table-wrap"><table class="pre-queen-table"><thead><tr><th>Salón</th><th>Provincia</th><th>¿Ya nombró reina?</th><th>Profesor encargado</th><th>WhatsApp</th></tr></thead><tbody><tr><td>Prejardín A + V-B</td><td>Bocas del Toro</td><td><span class="queen-pending">⚠️ No — falta nombrarla</span></td><td>Lesbia Muñoz / Yessenia Clark</td><td><div class="teacher-buttons"><button type="button" class="pre-wa-one" data-phone="67364513" data-message="Buenos días, profesor(a) Lesbia Muñoz. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Bocas del Toro, correspondiente a Prejardín A + V-B. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Lesbia Muñoz</button><button type="button" class="pre-wa-one" data-phone="62331472" data-message="Buenos días, profesor(a) Yessenia Clark. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Bocas del Toro, correspondiente a Prejardín A + V-B. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Yessenia Clark</button></div></td></tr><tr><td>Jardín C + I-A</td><td>Chiriquí</td><td><span class="queen-pending">⚠️ No — falta nombrarla</span></td><td>Tilsa Garibaldi / Heidi De León</td><td><div class="teacher-buttons"><button type="button" class="pre-wa-one" data-phone="63772807" data-message="Buenos días, profesor(a) Tilsa Garibaldi. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Chiriquí, correspondiente a Jardín C + I-A. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Tilsa Garibaldi</button></div></td></tr><tr><td>Prejardín B + V-A</td><td>Coclé</td><td><span class="queen-ok">✅ Sí — Jocieys Gonzales</span></td><td>Milvia Ortega / Geraldine Magallón</td><td><div class="teacher-buttons"><button type="button" class="pre-wa-one" data-phone="62122635" data-message="Buenos días, profesor(a) Milvia Ortega. 🌽👑\n\nTenemos registrada como reina de Coclé a Jocieys Gonzales. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Milvia Ortega</button><button type="button" class="pre-wa-one" data-phone="63746282" data-message="Buenos días, profesor(a) Geraldine Magallón. 🌽👑\n\nTenemos registrada como reina de Coclé a Jocieys Gonzales. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Geraldine Magallón</button></div></td></tr><tr><td>Jardín A + IV-C</td><td>Colón</td><td><span class="queen-pending">⚠️ No — falta nombrarla</span></td><td>Albertina Ortiz / Anabelis Gallardo</td><td><div class="teacher-buttons"><button type="button" class="pre-wa-one" data-phone="67619025" data-message="Buenos días, profesor(a) Albertina Ortiz. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Colón, correspondiente a Jardín A + IV-C. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Albertina Ortiz</button><button type="button" class="pre-wa-one" data-phone="65486638" data-message="Buenos días, profesor(a) Anabelis Gallardo. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Colón, correspondiente a Jardín A + IV-C. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Anabelis Gallardo</button></div></td></tr><tr><td>II-C + III-A</td><td>Comarcas Indígenas</td><td><span class="queen-pending">⚠️ No — falta nombrarla</span></td><td>Ana / Betzaida Rodríguez</td><td><div class="teacher-buttons"><button type="button" class="pre-wa-one" data-phone="68836634" data-message="Buenos días, profesor(a) Betzaida Rodríguez. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Comarcas Indígenas, correspondiente a II-C + III-A. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Betzaida Rodríguez</button></div></td></tr><tr><td>Jardín B + VI-B</td><td>Darién</td><td><span class="queen-pending">⚠️ No — falta nombrarla</span></td><td>Ángela Hall / Alejandrina Salazar</td><td><div class="teacher-buttons"><button type="button" class="pre-wa-one" data-phone="64242243" data-message="Buenos días, profesor(a) Alejandrina Salazar. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Darién, correspondiente a Jardín B + VI-B. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Alejandrina Salazar</button></div></td></tr><tr><td>I-B + V-C</td><td>Herrera</td><td><span class="queen-pending">⚠️ No — falta nombrarla</span></td><td>Zulma Becerra / Elaisa Jaramillo</td><td><div class="teacher-buttons"><button type="button" class="pre-wa-one" data-phone="64916990" data-message="Buenos días, profesor(a) Zulma Becerra. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Herrera, correspondiente a I-B + V-C. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Zulma Becerra</button></div></td></tr><tr><td>I-C + VI-A</td><td>Los Santos</td><td><span class="queen-pending">⚠️ No — falta nombrarla</span></td><td>Ananías Benítes / Viodelka Goitía</td><td><div class="teacher-buttons"><button type="button" class="pre-wa-one" data-phone="66698080" data-message="Buenos días, profesor(a) Viodelka Goitía. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Los Santos, correspondiente a I-C + VI-A. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Viodelka Goitía</button></div></td></tr><tr><td>II-A + II-B</td><td>Panamá</td><td><span class="queen-pending">⚠️ No — falta nombrarla</span></td><td>Telma Grenald / Ana Grenard</td><td><div class="teacher-buttons"><button type="button" class="pre-wa-one" data-phone="69503463" data-message="Buenos días, profesor(a) Telma Grenald. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Panamá, correspondiente a II-A + II-B. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Telma Grenald</button></div></td></tr><tr><td>III-B + III-C</td><td>Panamá Oeste</td><td><span class="queen-pending">⚠️ No — falta nombrarla</span></td><td>Jenifer Dean / Telma Escobar</td><td><div class="teacher-buttons"><button type="button" class="pre-wa-one" data-phone="60396482" data-message="Buenos días, profesor(a) Jenifer Dean. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Panamá Oeste, correspondiente a III-B + III-C. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Jenifer Dean</button><button type="button" class="pre-wa-one" data-phone="63010917" data-message="Buenos días, profesor(a) Telma Escobar. 🌽👑\n\nEn nuestro cuadro todavía NO aparece nombrada la reina de Panamá Oeste, correspondiente a III-B + III-C. Por favor, confirmar la información y prepararse para la presentación y los topones de reinados.\n\nComité del Día del Campesino 2026\nC.E.B.G. El Jiral">📲 Telma Escobar</button></div></td></tr><tr><td>IV-A + IV-B</td><td>Veraguas</td><td><span class="queen-pending">⚠️ No — falta nombrarla</span></td><td>Docentes de IV-A / IV-B</td><td><span class="food-no-phone">Teléfono pendiente</span></td></tr></tbody></table></div>
+</div>
+</div>
+
     <div class="section-head" style="margin-top:22px;">
       <span class="num">11 provincias y comarcas</span>
       <h3>Candidatas de Primaria</h3>
@@ -1174,7 +1189,7 @@ footer .school{
         <div class="topon-versus">
           <a href="campesino-galeria.html?reina=primaria-veraguas" class="topon-reina"><div class="topon-reina-foto" data-reina-foto="primaria-veraguas"><span class="reina-grande-emoji">🌼</span></div><span class="topon-reina-nombre">👑 Veraguas</span><span class="topon-reina-info"><strong>IV-A + IV-B</strong><br>Angélica Jiménez / Rosa Perea<br><span class="reina-dato">👑 Reina: Por confirmar</span></span></a>
           <span class="topon-vs">🔥 VS 🔥</span>
-          <a href="campesino-galeria.html?reina=primaria-cocle" class="topon-reina"><div class="topon-reina-foto" data-reina-foto="primaria-cocle"><span class="reina-grande-emoji">🌼</span></div><span class="topon-reina-nombre">👑 Coclé</span><span class="topon-reina-info"><strong>Prejardín B + V-A</strong><br>Milvia Ortega / Geraldine Magallón<br><span class="reina-dato">👑 Reina: Por confirmar</span></span></a>
+          <a href="campesino-galeria.html?reina=primaria-cocle" class="topon-reina"><div class="topon-reina-foto" data-reina-foto="primaria-cocle"><span class="reina-grande-emoji">🌼</span></div><span class="topon-reina-nombre">👑 Coclé</span><span class="topon-reina-info"><strong>Prejardín B + V-A</strong><br>Milvia Ortega / Geraldine Magallón<br><span class="reina-dato">👑 Reina: Jocieys Gonzales</span></span></a>
         </div>
       </article>
       <article class="topon-grande">
@@ -1197,6 +1212,8 @@ footer .school{
       </div>
 
       <div id="reinas-premedia" class="subtab-panel" style="display:none;">
+<button type="button" class="queen-toggle-btn" id="toggle-premedia-queen" onclick="toggleQueenBox('premedia-confirm-box',this,'Premedia')">📋 Ver cuadro de confirmación – Premedia</button>
+<div id="premedia-confirm-box" class="queen-hidden-box">
 <div class="premedia-status-box">
   <div class="section-head">
     <span class="num">Cuadro de Premedia</span>
@@ -1261,16 +1278,14 @@ Por favor, confirmar lo antes posible el nombre de su reina.
 Comité del Día del Campesino 2026
 C.E.B.G. El Jiral">📲 Enviar a Juana Brown</button></td>
 </tr><tr>
-<td>8°B</td><td>Herrera</td><td><span class="queen-pending">⚠️ No — falta nombrarla</span></td><td>Leonela Rivera</td>
+<td>8°B</td><td>Herrera</td><td><span class="queen-ok">✅ Sí — Kendra Jimenez</span></td><td>Leonela Rivera</td>
 <td><button type="button" class="pre-wa-one" data-phone="67055124" data-message="Buenos días, profesor(a) Leonela Rivera. 🌽👑
 
-En nuestro cuadro todavía NO aparece nombrada la reina del salón 8°B, representante de Herrera.
+Tenemos registrada como reina del salón 8°B, representante de Herrera, a Kendra Jimenez.
 
-📌 El lunes tenemos la presentación de las reinas, por lo que necesitamos designarla y prepararse con tiempo.
+📌 El lunes tenemos la presentación de las reinas. Por favor, confirmar que la estudiante participará y prepararse con tiempo.
 
-🥊 También deben prepararse para los topones de reinados.
-
-Por favor, confirmar lo antes posible el nombre de su reina.
+🥊 Recuerde también prepararse para los topones de reinados.
 
 Comité del Día del Campesino 2026
 C.E.B.G. El Jiral">📲 Enviar a Leonela Rivera</button></td>
@@ -1327,7 +1342,9 @@ C.E.B.G. El Jiral">📲 Enviar a Samuel Ortega</button></td>
   </div>
 </div>
 
-    <div class="section-head" style="margin-top:22px;">
+    </div>
+
+<div class="section-head" style="margin-top:22px;">
       <span class="num">9 salones</span>
       <h3>Candidatas de Premedia</h3>
       <p>Una candidata por cada salón de Premedia. A cada salón se le asigna su provincia al azar, mediante sorteo.</p>
@@ -3797,6 +3814,15 @@ Muchas gracias por su apoyo y colaboración.">📲 WhatsApp</button></td></tr>
    });
  });
 })();
+</script>
+
+<script>
+function toggleQueenBox(id, btn, nivel){
+  var box=document.getElementById(id);
+  if(!box) return;
+  var open=box.classList.toggle('open');
+  btn.textContent=open ? '✖ Ocultar cuadro de confirmación – '+nivel : '📋 Ver cuadro de confirmación – '+nivel;
+}
 </script>
 </body>
 </html>
