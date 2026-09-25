@@ -376,6 +376,7 @@ async function cargarTablero() {
   if (error) { console.error("No se pudo cargar el tablero:", error); return; }
   inscripciones = data || [];
   renderTablero();
+  if (typeof renderGruposPublico === "function") renderGruposPublico();
 }
 
 document.querySelectorAll(".filtro-btn").forEach((btn) => {
@@ -437,7 +438,12 @@ function renderTablero() {
     return;
   }
 
-  filtroCont.hidden = false;
+  // El estudiante (o el profesor probando como estudiante) solo ve las
+  // actividades que todavía NO tienen dueño, para elegir directo de ahí.
+  // Lo que ya tomaron los demás lo puede ver en "¿Cómo van los grupos?".
+  const vistaSoloDisponibles = !esProfesor || modoPruebaEstudiante;
+  filtroCont.hidden = vistaSoloDisponibles;
+  filtroCont.style.display = vistaSoloDisponibles ? "none" : "";
   grid.hidden = false;
 
   if (miInscripcion) {
@@ -452,8 +458,15 @@ function renderTablero() {
   inscripciones.forEach((i) => { porActividad[i.actividad_id] = i; });
 
   let lista = CATALOGO;
-  if (filtroActual === "disponibles") lista = CATALOGO.filter((a) => !porActividad[a.id]);
-  if (filtroActual === "tomadas") lista = CATALOGO.filter((a) => porActividad[a.id]);
+  if (vistaSoloDisponibles) {
+    lista = CATALOGO.filter((a) => !porActividad[a.id]);
+    cont.innerHTML = lista.length
+      ? `<p class="lead" style="margin-top:12px;">Estas son las <b>${lista.length} actividades que todavía nadie ha escogido</b>. Toca la que quieras para reclamarla con tu grupo. 👇</p>`
+      : `<div class="entrega-bloqueada">😕 Ya todas las actividades fueron escogidas. Habla con tu profesor para que te asigne a un grupo.</div>`;
+  } else {
+    if (filtroActual === "disponibles") lista = CATALOGO.filter((a) => !porActividad[a.id]);
+    if (filtroActual === "tomadas") lista = CATALOGO.filter((a) => porActividad[a.id]);
+  }
 
   grid.innerHTML = lista.map((a) => {
     const tomada = porActividad[a.id];
@@ -462,6 +475,7 @@ function renderTablero() {
         <div class="actividad-card disponible" data-actividad="${a.id}">
           <div class="actividad-titulo"><span>${escapeHtml(a.titulo)}</span><span class="actividad-zona">${escapeHtml(a.zona)}</span></div>
           <p class="actividad-desc">${escapeHtml(a.descripcion)}</p>
+          ${vistaSoloDisponibles ? `<button type="button" class="btn" style="margin-top:10px; width:100%;">✋ Elegir esta actividad</button>` : ""}
         </div>`;
     }
     const entregoInfo = tomada.entregado_at
@@ -528,6 +542,7 @@ function renderTablero() {
 // estudiante". Muestra todo: quién tomó qué, entregas y el botón de
 // liberar cupos.
 function renderPanelProfesor() {
+  setTimeout(() => { if (typeof renderGruposPublico === "function") renderGruposPublico(); }, 0);
   const grid = document.getElementById("actividades-grid-profesor");
   const porActividad = {};
   inscripciones.forEach((i) => { porActividad[i.actividad_id] = i; });
@@ -1219,3 +1234,150 @@ async function generarPDFGruposPorSalon() {
 }
 
 document.getElementById("btn-descargar-pdf-grupos").addEventListener("click", generarPDFGruposPorSalon);
+
+// =========================================================
+// TABLERO PÚBLICO: "¿Cómo van los grupos?" — visible para todos,
+// sin identificarse. Muestra, por salón, qué actividad tomó cada
+// grupo, su líder e integrantes, y quiénes siguen sin grupo.
+// =========================================================
+let gpEstudiantes = null;        // cache de la lista de estudiantes (9A, 9B, 9C)
+let gpSalonActivo = null;
+let gpUltimaActualizacion = null;
+
+const gpNorm = (v) => String(v || "").trim().toLowerCase();
+const gpEsPrueba = (nombre) => /estudiante\s*prueba|prueba\s*estudiante/i.test(String(nombre || ""));
+const gpSalonBonito = (s) => String(s).replace(/(\d+)([A-Z])/, "$1°$2");
+
+// En la base los nombres vienen como "Apellido, Nombre"; aquí se
+// muestran en orden natural ("Nombre Apellido") para que sea fácil
+// que cada estudiante se encuentre.
+function gpNombreBonito(nombre) {
+  const n = String(nombre || "").trim();
+  if (!n.includes(",")) return n;
+  const [apellidos, nombres] = n.split(",").map((p) => p.trim());
+  return nombres ? `${nombres} ${apellidos}` : apellidos;
+}
+
+async function gpCargarEstudiantes() {
+  const { data, error } = await sb.from("estudiantes")
+    .select("nombre, salon")
+    .in("salon", CONFIG.salones)
+    .order("nombre", { ascending: true });
+  if (error) { console.error("Tablero público: no se pudo cargar estudiantes", error); return; }
+  gpEstudiantes = (data || []).filter((e) => !gpEsPrueba(e.nombre));
+}
+
+function gpDatosSalon(salon) {
+  const indiceCatalogo = {};
+  CATALOGO.forEach((a, i) => { indiceCatalogo[a.id] = i; });
+
+  const grupos = inscripciones
+    .filter((i) => gpNorm(i.salon) === gpNorm(salon) && !gpEsPrueba(i.nombre))
+    .map((i) => {
+      const act = CATALOGO.find((a) => a.id === i.actividad_id);
+      const integrantes = (i.integrantes || "").split(";").map((n) => n.trim())
+        .filter((n) => n && !gpEsPrueba(n));
+      return {
+        titulo: act ? act.titulo : i.actividad_id,
+        zona: act ? act.zona : "",
+        lider: i.nombre,
+        integrantes,
+        entregado: !!i.entregado_at,
+        orden: indiceCatalogo[i.actividad_id] ?? 999,
+      };
+    })
+    .sort((a, b) => a.orden - b.orden);
+
+  const conGrupo = new Set();
+  grupos.forEach((g) => { conGrupo.add(gpNorm(g.lider)); g.integrantes.forEach((n) => conGrupo.add(gpNorm(n))); });
+
+  const lista = (gpEstudiantes || []).filter((e) => gpNorm(e.salon) === gpNorm(salon));
+  const sinGrupo = lista.filter((e) => !conGrupo.has(gpNorm(e.nombre))).map((e) => e.nombre);
+  return { grupos, sinGrupo, total: lista.length, conGrupo: lista.length - sinGrupo.length };
+}
+
+function renderGruposPublico() {
+  const tabs = document.getElementById("gp-tabs");
+  const cont = document.getElementById("gp-contenido");
+  if (!tabs || !cont) return;
+  if (!gpSalonActivo) {
+    // Si el estudiante ya se identificó, abre directo en su salón.
+    gpSalonActivo = (estudiante && CONFIG.salones.includes(estudiante.salon)) ? estudiante.salon : CONFIG.salones[0];
+  }
+
+  tabs.innerHTML = CONFIG.salones.map((s) => {
+    const d = gpDatosSalon(s);
+    return `<button type="button" class="gp-tab ${s === gpSalonActivo ? "activo" : ""}" data-salon="${s}">
+      <b>${gpSalonBonito(s)}</b><small>${d.grupos.length} grupo${d.grupos.length === 1 ? "" : "s"}${gpEstudiantes ? ` · ${d.sinGrupo.length} sin grupo` : ""}</small>
+    </button>`;
+  }).join("");
+  tabs.querySelectorAll(".gp-tab").forEach((b) => b.addEventListener("click", () => {
+    gpSalonActivo = b.dataset.salon;
+    renderGruposPublico();
+  }));
+
+  const d = gpDatosSalon(gpSalonActivo);
+  const stats = gpEstudiantes
+    ? `<div class="gp-stats">
+         <span class="gp-stat">${d.grupos.length} grupo${d.grupos.length === 1 ? "" : "s"}</span>
+         <span class="gp-stat ok">✅ ${d.conGrupo} con grupo</span>
+         <span class="gp-stat falta">⏳ ${d.sinGrupo.length} sin grupo</span>
+       </div>`
+    : "";
+
+  const gruposHtml = d.grupos.length
+    ? `<div class="gp-grupos">${d.grupos.map((g) => `
+        <div class="gp-grupo">
+          <div class="gp-grupo-top">
+            <div class="gp-grupo-titulo">${escapeHtml(g.titulo)}</div>
+            <div class="gp-grupo-meta">
+              ${g.zona ? `<span class="gp-chip">📍 ${escapeHtml(g.zona)}</span>` : ""}
+              ${g.entregado ? `<span class="gp-chip entregado">✅ Entregado</span>` : ""}
+            </div>
+          </div>
+          <div class="gp-integrantes">
+            <span class="gp-persona lider">👑 ${escapeHtml(gpNombreBonito(g.lider))}</span>
+            ${g.integrantes.map((n) => `<span class="gp-persona">${escapeHtml(gpNombreBonito(n))}</span>`).join("")}
+          </div>
+        </div>`).join("")}</div>`
+    : `<p class="gp-vacio">Todavía ningún grupo de ${gpSalonBonito(gpSalonActivo)} ha escogido actividad.</p>`;
+
+  const sinGrupoHtml = gpEstudiantes && d.sinGrupo.length
+    ? `<div class="gp-sin-grupo">
+         <h3>⏳ Sin grupo todavía (${d.sinGrupo.length})</h3>
+         <div class="gp-integrantes">${d.sinGrupo.map((n) => `<span class="gp-persona">${escapeHtml(gpNombreBonito(n))}</span>`).join("")}</div>
+       </div>`
+    : (gpEstudiantes && d.total ? `<p class="gp-stat ok" style="display:inline-block;margin-top:14px;">🎉 Todo ${gpSalonBonito(gpSalonActivo)} ya tiene grupo</p>` : "");
+
+  cont.innerHTML = stats + gruposHtml + sinGrupoHtml;
+
+  const marca = document.getElementById("gp-actualizado");
+  if (marca && gpUltimaActualizacion) {
+    marca.textContent = `Actualizado: ${gpUltimaActualizacion.toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" })}`;
+  }
+}
+
+async function refrescarGruposPublico() {
+  const btn = document.getElementById("gp-btn-actualizar");
+  if (btn) { btn.disabled = true; btn.textContent = "Actualizando…"; }
+  try {
+    const tareas = [sb.from(TABLA).select("*")];
+    if (!gpEstudiantes) tareas.push(gpCargarEstudiantes());
+    const [{ data, error }] = await Promise.all(tareas);
+    if (!error && data) inscripciones = data;
+    gpUltimaActualizacion = new Date();
+    renderGruposPublico();
+    // Si el estudiante está viendo el catálogo, también se refresca, para
+    // que desaparezcan las actividades que otros acaban de escoger.
+    if (estudiante && !vistaTablero.hidden && document.getElementById("modal-deco").hidden) renderTablero();
+  } catch (e) {
+    console.error("Tablero público: error al actualizar", e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "🔄 Actualizar"; }
+  }
+}
+
+document.getElementById("gp-btn-actualizar").addEventListener("click", refrescarGruposPublico);
+refrescarGruposPublico();
+// Se refresca solo cada minuto mientras la página esté abierta y visible.
+setInterval(() => { if (!document.hidden) refrescarGruposPublico(); }, 60000);
