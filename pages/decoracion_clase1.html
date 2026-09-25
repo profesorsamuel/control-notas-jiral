@@ -101,6 +101,47 @@
   }
   .campo-guardado { display: block; font-size: 12px; font-weight: 800; color: var(--green); margin-top: 4px; }
 
+  /* ===== Tablero público: cómo van los grupos (sin iniciar sesión) ===== */
+  .gp-encabezado { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+  .gp-actualizado { font-size:12px; color:var(--muted); font-weight:700; margin:4px 0 0; }
+  .gp-btn-actualizar {
+    background:#fff; color:var(--navy); border:1px solid var(--line); border-radius:99px;
+    padding:7px 14px; font-weight:800; font-size:13px; cursor:pointer;
+  }
+  .gp-btn-actualizar:hover { border-color:var(--blue); }
+  .gp-tabs { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+  .gp-tab {
+    flex:1 1 0; min-width:90px; background:#fff; border:1px solid var(--line); border-radius:14px;
+    padding:10px 8px; cursor:pointer; text-align:center; font:inherit; color:var(--navy);
+  }
+  .gp-tab b { display:block; font-size:17px; font-weight:900; }
+  .gp-tab small { display:block; font-size:11px; font-weight:700; color:var(--muted); margin-top:2px; }
+  .gp-tab.activo { background:var(--navy); border-color:var(--navy); color:#fff; }
+  .gp-tab.activo small { color:#c9d6e6; }
+  .gp-stats { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .gp-stat { font-size:12px; font-weight:800; padding:5px 12px; border-radius:99px; background:#eef3f9; color:var(--navy); }
+  .gp-stat.ok { background:var(--green-bg); color:var(--green); }
+  .gp-stat.falta { background:#fdecee; color:var(--red); }
+  .gp-grupos { display:grid; gap:10px; margin-top:14px; }
+  .gp-grupo { border:1px solid var(--line); border-left:5px solid var(--blue); border-radius:14px; padding:12px 14px; background:#fff; }
+  .gp-grupo-top { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  .gp-grupo-titulo { font-weight:900; color:var(--navy); line-height:1.3; overflow-wrap:anywhere; }
+  .gp-grupo-meta { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; flex:0 0 auto; }
+  .gp-chip { font-size:11px; font-weight:800; padding:3px 9px; border-radius:99px; background:var(--line); color:var(--muted); white-space:nowrap; }
+  .gp-chip.entregado { background:var(--green-bg); color:var(--green); }
+  .gp-integrantes { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .gp-persona { font-size:13px; padding:4px 10px; border-radius:99px; background:#f3f6fa; color:var(--ink); }
+  .gp-persona.lider { background:var(--amber-bg); color:var(--amber); font-weight:800; }
+  .gp-sin-grupo { margin-top:16px; border:1px dashed #f3c3ca; background:#fff8f8; border-radius:14px; padding:12px 14px; }
+  .gp-sin-grupo h3 { margin:0; font-size:15px; color:var(--red); }
+  .gp-sin-grupo .gp-persona { background:#fff; border:1px solid #f3c3ca; }
+  .gp-vacio { font-size:14px; color:var(--muted); margin-top:14px; font-style:italic; }
+  @media (max-width: 600px) {
+    .gp-grupo-top { flex-direction:column; }
+    .gp-grupo-meta { justify-content:flex-start; }
+    .gp-tab { padding:9px 4px; }
+  }
+
 
   /* ===== Ajustes responsive: celulares pequeños y orientación vertical ===== */
   *, *::before, *::after { box-sizing: border-box; }
@@ -395,6 +436,21 @@
     </div>
   </div>
 
+  <!-- ===================== TABLERO PÚBLICO: CÓMO VAN LOS GRUPOS ===================== -->
+  <section id="grupos-publico" class="card">
+    <div class="gp-encabezado">
+      <div>
+        <p class="tag">EN VIVO · SIN INICIAR SESIÓN</p>
+        <h2 style="margin-bottom:0;">¿Cómo van los grupos?</h2>
+        <p id="gp-actualizado" class="gp-actualizado">Cargando…</p>
+      </div>
+      <button id="gp-btn-actualizar" class="gp-btn-actualizar" type="button">🔄 Actualizar</button>
+    </div>
+    <p class="lead" style="margin-top:10px;">Aquí puedes ver qué actividad le tocó a cada grupo, quiénes lo forman (👑 = líder) y quiénes todavía no tienen grupo. Toca tu salón.</p>
+    <div id="gp-tabs" class="gp-tabs"></div>
+    <div id="gp-contenido"></div>
+  </section>
+
   <footer class="ph-footer">
     <a href="salon09-unidad-completa.html">← Volver a la Clase 1</a>
   </footer>
@@ -407,6 +463,6 @@
 <script src="../js/portal-config.js"></script>
 <script src="../js/prueba_config_clase1.js"></script>
 <script src="../js/decoracion_actividades_clase1.js"></script>
-<script src="../js/decoracion_clase1.js?v=20260918-4"></script>
+<script src="../js/decoracion_clase1.js?v=20260925-2"></script>
 </body>
 </html>
