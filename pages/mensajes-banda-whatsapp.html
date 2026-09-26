@@ -172,86 +172,73 @@
   <script>
     const contactos = [
       {nombre:'Francisco',nota:'Instructor',seccion:'Director',telefonos:['68905212']},
-      {nombre:'Abigail Pallares',nota:'Instructor',seccion:'Batallón',telefonos:['69952478']},
-      {nombre:'Angelina Guerra',nota:'',seccion:'Batallón',telefonos:['60621881']},
+      {nombre:'Nathaly Díaz',nota:'',seccion:'Batallón',telefonos:['67737740']},
       {nombre:'Brittany Guevara',nota:'',seccion:'Batallón',telefonos:['68213046']},
+      {nombre:'Mía Jiménez',nota:'',seccion:'Batallón',telefonos:['66053426']},
       {nombre:'Isabel Toribio',nota:'',seccion:'Batallón',telefonos:['67641002']},
       {nombre:'Kathlyn Victoria',nota:'',seccion:'Batallón',telefonos:['67641002']},
-      {nombre:'Nathaly Díaz',nota:'',seccion:'Batallón',telefonos:['67737740']},
       {nombre:'Rosa Martínez',nota:'Donación',seccion:'Batallón',telefonos:['63062053','66401797']},
-      {nombre:'Amy Jiménez',nota:'',seccion:'Banderolas',telefonos:[]},
       {nombre:'Jesuanis Solís',nota:'',seccion:'Banderolas',telefonos:['63128377']},
       {nombre:'Maritzelis López',nota:'',seccion:'Banderolas',telefonos:['62267353']},
       {nombre:'Daneth Acevedo',nota:'',seccion:'Banderolas',telefonos:['68106102']},
-      {nombre:'Alvin Urieta',nota:'Pantalón',seccion:'Bombo',telefonos:['66025251']},
-      {nombre:'Erubiel Leones',nota:'Pantalón',seccion:'Bombo',telefonos:['69029894']},
+      {nombre:'Amy Jiménez',nota:'',seccion:'Banderolas',telefonos:['66053426']},
       {nombre:'Moisés Corales',nota:'Pantalón',seccion:'Bombo',telefonos:['64422534']},
+      {nombre:'Alvin Urieta',nota:'Pantalón',seccion:'Bombo',telefonos:['66025251']},
+      {nombre:'Josafat Peralta',nota:'',seccion:'Bombo',telefonos:['63682251']},
       {nombre:'Tomás Gutiérrez',nota:'Pantalón',seccion:'Bombo',telefonos:[]},
       {nombre:'Tomás Vásquez',nota:'Pantalón',seccion:'Bombo',telefonos:['65998979']},
-      {nombre:'Josafat Peralta',nota:'',seccion:'Bombo',telefonos:['63682251']},
       {nombre:'Josmar López',nota:'Ropa',seccion:'Caja',telefonos:['62614610']},
       {nombre:'Osmar López',nota:'Ropa',seccion:'Caja',telefonos:['62614610']},
-      {nombre:'Amy Betancur',nota:'',seccion:'Caja',telefonos:['68905212']},
       {nombre:'Daniel Urieta',nota:'',seccion:'Caja',telefonos:['64099685','68685247']},
-      {nombre:'Edgar Ortega',nota:'',seccion:'Caja',telefonos:[]},
       {nombre:'Emmanuel Charris',nota:'',seccion:'Caja',telefonos:['64558426']},
-      {nombre:'Erick Wright',nota:'',seccion:'Caja',telefonos:['66925646']},
-      {nombre:'Francisco Macías',nota:'Devolver',seccion:'Caja',telefonos:['62173638']},
+      {nombre:'Jeyco Cortés',nota:'',seccion:'Caja',telefonos:['69645322']},
       {nombre:'Magdiel Guevara',nota:'',seccion:'Caja',telefonos:['65588943']},
       {nombre:'Yanki Moreno',nota:'',seccion:'Caja',telefonos:['60211228']},
-      {nombre:'Jeyco Cortés',nota:'',seccion:'Caja',telefonos:['69645322']},
-      {nombre:'Keiyanis Moreno',nota:'Ropa',seccion:'Guaripola',telefonos:[]},
-      {nombre:'Daryanis Díaz',nota:'',seccion:'Guaripola',telefonos:['65157541','67923615']},
-      {nombre:'Jennifer Meneses',nota:'',seccion:'Guaripola',telefonos:['62652920','67321514']},
-      {nombre:'Johelys Jaén',nota:'',seccion:'Guaripola',telefonos:['67321514','62652920']},
-      {nombre:'Kairianys Víquez',nota:'',seccion:'Guaripola',telefonos:['65511428']},
-      {nombre:'Mía Jiménez',nota:'',seccion:'Guaripola',telefonos:['66053426']},
+      {nombre:'Amy Betancur',nota:'',seccion:'Caja',telefonos:['68905212']},
+      {nombre:'Edgar Ortega',nota:'',seccion:'Caja',telefonos:[]},
+      {nombre:'Erick Wright',nota:'',seccion:'Caja',telefonos:['66925646']},
+      {nombre:'Francisco Macías',nota:'Devolver',seccion:'Caja',telefonos:['62173638']},
+      {nombre:'Aldair López',nota:'',seccion:'Caja',telefonos:['69559486']},
+      {nombre:'Yahidelis Rodríguez',nota:'',seccion:'Guaripola',telefonos:['67737740']},
+      {nombre:'Keiyanis Moreno',nota:'Ropa',seccion:'Guaripola',telefonos:['63178903','64558426']},
+      {nombre:'Sofía Moreno',nota:'Devolver',seccion:'Guaripola',telefonos:['68638810']},
       {nombre:'Milagros Hernández',nota:'',seccion:'Guaripola',telefonos:['67737601']},
       {nombre:'Rosalín Guerra',nota:'',seccion:'Guaripola',telefonos:['60621881']},
-      {nombre:'Sofía Moreno',nota:'Devolver',seccion:'Guaripola',telefonos:['68638810']},
-      {nombre:'Yahidelis Rodríguez',nota:'',seccion:'Guaripola',telefonos:['67737740']},
+      {nombre:'Jennifer Meneses',nota:'',seccion:'Guaripola',telefonos:['62652920','67321514']},
       {nombre:'Yenifer Cruz',nota:'',seccion:'Guaripola',telefonos:['65495262']},
-      {nombre:'Dayanis Mendezas',nota:'',seccion:'Guaripola',telefonos:[]},
       {nombre:'Eymeleth Wright',nota:'Instructor',seccion:'Guaripola',telefonos:['67604083']},
+      {nombre:'Johelys Jaén',nota:'',seccion:'Guaripola-SOLAS',telefonos:['67321514','62652920']},
+      {nombre:'Kairianys Víquez',nota:'',seccion:'Guaripola-SOLAS',telefonos:['65511428']},
       {nombre:'Joel Rodríguez',nota:'',seccion:'Güiro',telefonos:['62606812','63183799']},
-      {nombre:'José Mitre',nota:'',seccion:'Güiro',telefonos:['65495262']},
       {nombre:'Zair Urrieta',nota:'',seccion:'Güiro',telefonos:['68685247']},
+      {nombre:'José Mitre',nota:'',seccion:'Güiro',telefonos:['65495262']},
       {nombre:'Noemy Valdez',nota:'Donación',seccion:'Güiro',telefonos:['67326455']},
       {nombre:'Otoniel Rodríguez',nota:'Instructor',seccion:'Güiro',telefonos:['65791302']},
-      {nombre:'Alina',nota:'Ropa',seccion:'Lira',telefonos:[]},
-      {nombre:'Lineth Guerra',nota:'Ropa',seccion:'Lira',telefonos:['69274294']},
-      {nombre:'Ashley Austin',nota:'',seccion:'Lira',telefonos:['64814365']},
-      {nombre:'Hellen Flores',nota:'',seccion:'Lira',telefonos:[]},
-      {nombre:'Glorielis Ruiz',nota:'Semi',seccion:'Lira',telefonos:['61657045']},
-      {nombre:'Mía Sánchez',nota:'',seccion:'Lira',telefonos:['64814365']},
-      {nombre:'Rosa Yaribel',nota:'',seccion:'Lira',telefonos:[]},
-      {nombre:'Yamilka González',nota:'Instructor',seccion:'Lira',telefonos:['63178903','64558426']},
+      {nombre:'Alina Guerra',nota:'Ropa',seccion:'Lira',telefonos:['62651238']},
       {nombre:'Hilma Guerra',nota:'',seccion:'Lira',telefonos:['64558426']},
-      {nombre:'Yibellys',nota:'',seccion:'Lira',telefonos:['64656517']},
-      {nombre:'Itzel López',nota:'Semi',seccion:'Platillo',telefonos:['62267353']},
-      {nombre:'Maily Solís',nota:'Semi',seccion:'Platillo',telefonos:['63128377']},
+      {nombre:'Lineth Guerra',nota:'Ropa',seccion:'Lira',telefonos:['69274294']},
+      {nombre:'Yibellys Toribio',nota:'',seccion:'Lira',telefonos:['64656517']},
+      {nombre:'Ashley Austin',nota:'',seccion:'Lira',telefonos:['64814365']},
+      {nombre:'Mía Sánchez',nota:'',seccion:'Lira',telefonos:['64814365']},
+      {nombre:'Hellen Flores',nota:'',seccion:'Lira',telefonos:['67990227']},
+      {nombre:'Yamilka González',nota:'Instructor',seccion:'Lira',telefonos:['63178903','64558426']},
+      {nombre:'Glorielis Ruiz',nota:'Semi',seccion:'Lira',telefonos:['61657045']},
       {nombre:'Yahirianis Rodríguez',nota:'',seccion:'Platillo',telefonos:['67737740']},
+      {nombre:'Maily Solís',nota:'Semi',seccion:'Platillo',telefonos:['63128377']},
       {nombre:'Yeily López',nota:'Devolver',seccion:'Platillo',telefonos:['62059234']},
-      {nombre:'Abdel Edwin Chiru',nota:'Semi',seccion:'Tenor',telefonos:['62267353']},
-      {nombre:'Abdías Guevara',nota:'',seccion:'Tenor',telefonos:['61887991']},
-      {nombre:'Adrián Beguido',nota:'Teléfono por averiguar',seccion:'Tenor',telefonos:[]},
-      {nombre:'Alberto Adams',nota:'',seccion:'Tenor',telefonos:['63062053']},
-      {nombre:'Aldair López',nota:'',seccion:'Caja',telefonos:['69559486']},
-      {nombre:'César Jordan',nota:'',seccion:'Tenor',telefonos:['69614921']},
-      {nombre:'Dilan Sánchez',nota:'',seccion:'Tenor',telefonos:['65137065']},
-      {nombre:'Ehimar Macías',nota:'Devolver',seccion:'Tenor',telefonos:['62173638']},
-      {nombre:'Isac Sánchez',nota:'',seccion:'Tenor',telefonos:['62136138']},
-      {nombre:'José Celada',nota:'',seccion:'Tenor',telefonos:['67629470','69177413']},
-      {nombre:'Kenneth Ramos',nota:'',seccion:'Tenor',telefonos:['63062053','66401797']},
-      {nombre:'Luis Herrera',nota:'',seccion:'Tenor',telefonos:['67877891','68205675']},
+      {nombre:'Itzel López',nota:'Semi',seccion:'Platillo',telefonos:['62267353']},
       {nombre:'Moisés Ortega',nota:'',seccion:'Tenor',telefonos:['63062053','66401797']},
+      {nombre:'Abdías Guevara',nota:'',seccion:'Tenor',telefonos:['61887991']},
+      {nombre:'César Jordan',nota:'',seccion:'Tenor',telefonos:['69614921']},
+      {nombre:'Luis Herrera',nota:'',seccion:'Tenor',telefonos:['67877891','68205675']},
       {nombre:'Víctor Ramos',nota:'',seccion:'Tenor',telefonos:['63062053','66401797']},
+      {nombre:'Kenneth Ramos',nota:'',seccion:'Tenor',telefonos:['63062053','66401797']},
       {nombre:'Yisaac',nota:'',seccion:'Tenor',telefonos:['64656517']},
-      {nombre:'Integrante sin nombre',nota:'Nombre pendiente',seccion:'Sin asignar',telefonos:['68205675']},
-      {nombre:'Rubiela Sánchez',nota:'',seccion:'Sin asignar',telefonos:['62922374']},
-      {nombre:'Integrante sin nombre 2',nota:'Nombre pendiente',seccion:'Sin asignar',telefonos:['68305675']},
-      {nombre:'Itzel',nota:'Encargada de ropa',seccion:'Ropa',telefonos:['67459119']},
-      {nombre:'Yariela Austin',nota:'',seccion:'Sin asignar',telefonos:['62807510']}
+      {nombre:'Alberto Adams',nota:'',seccion:'Tenor',telefonos:['63062053']},
+      {nombre:'Abdel Edwin Chiru',nota:'Semi',seccion:'Tenor',telefonos:['62267353']},
+      {nombre:'Ehimar Macías',nota:'Devolver',seccion:'Tenor',telefonos:['62173638']},
+      {nombre:'Ameth Ortega',nota:'',seccion:'Tenor',telefonos:[]},
+      {nombre:'Itzel',nota:'Encargada de ropa',seccion:'Ropa',telefonos:['67459119']}
     ];
 
     const mensaje = document.querySelector('#mensaje');
@@ -287,6 +274,13 @@
     ['Jesuanis Solís','Maritzelis López','Daneth Acevedo'].forEach(nombre=>{
       const n=nombre.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
       const anterior=`${n}|batutera`, nuevo=`${n}|banderolas`;
+      if(confirmados.delete(anterior)) confirmados.add(nuevo);
+      if(retirados.delete(anterior)) retirados.add(nuevo);
+    });
+    // Conserva confirmaciones/retiros de integrantes que cambiaron de nombre o sección.
+    [['Alina|Lira','Alina Guerra|Lira'],['Yibellys|Lira','Yibellys Toribio|Lira'],['Mía Jiménez|Guaripola','Mía Jiménez|Batallón'],['Johelys Jaén|Guaripola','Johelys Jaén|Guaripola-SOLAS'],['Kairianys Víquez|Guaripola','Kairianys Víquez|Guaripola-SOLAS']].forEach(([a,b])=>{
+      const p=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+      const anterior=a.split('|').map(p).join('|'), nuevo=b.split('|').map(p).join('|');
       if(confirmados.delete(anterior)) confirmados.add(nuevo);
       if(retirados.delete(anterior)) retirados.add(nuevo);
     });
@@ -448,7 +442,7 @@
         vacio.textContent=vistaActual==='confirmados'?'Todavía no hay integrantes confirmados con esos filtros.':vistaActual==='pendientes'?'Todos han confirmado, se retiraron o no hay resultados con esos filtros.':vistaActual==='retirados'?'Todavía no hay integrantes marcados como retirados.':'No se encontraron integrantes con esos filtros.';
         lista.appendChild(vacio); return;
       }
-      const orden=['Director','Batallón','Banderolas','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
+      const orden=['Director','Batallón','Banderolas','Bombo','Caja','Guaripola','Guaripola-SOLAS','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
       const secciones=[...new Set(visibles.map(c=>c.seccion))].sort((a,b)=>{
         const ia=orden.indexOf(a),ib=orden.indexOf(b);
         return (ia<0?999:ia)-(ib<0?999:ib)||a.localeCompare(b,'es');
@@ -505,7 +499,7 @@
         return;
       }
       const libro=XLSX.utils.book_new();
-      const orden=['Director','Batallón','Banderolas','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
+      const orden=['Director','Batallón','Banderolas','Bombo','Caja','Guaripola','Guaripola-SOLAS','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
       const filasTodos=contactos.map(c=>{
         const id=claveIntegrante(c), retirado=retirados.has(id), confirmado=confirmados.has(id)&&!retirado;
         return {Nombre:c.nombre,Sección:c.seccion,Teléfono:c.telefonos.map(t=>'+507 '+t).join(' / '),Nota:c.nota||'',Estado:retirado?'Retirado':confirmado?'Confirmado':'No ha confirmado'};
@@ -542,7 +536,7 @@
         return !estaConfirmado&&!estaRetirado;
       });
       const titulo=vistaActual==='confirmados'?'✅ *INTEGRANTES CONFIRMADOS EN LA BANDA* 😄':vistaActual==='retirados'?'🚪 *INTEGRANTES RETIRADOS DE LA BANDA*':'⏳ *INTEGRANTES QUE AÚN NO HAN CONFIRMADO*';
-      const orden=['Director','Batallón','Banderolas','Bombo','Caja','Guaripola','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
+      const orden=['Director','Batallón','Banderolas','Bombo','Caja','Guaripola','Guaripola-SOLAS','Güiro','Lira','Platillo','Tenor','Ropa','Sin asignar'];
       const secciones=[...new Set(miembros.map(c=>c.seccion))].sort((a,b)=>{
         const ia=orden.indexOf(a),ib=orden.indexOf(b);
         return (ia<0?999:ia)-(ib<0?999:ib)||a.localeCompare(b,'es');
