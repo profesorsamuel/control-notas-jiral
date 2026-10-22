@@ -43,7 +43,7 @@
         rel="stylesheet"
     >
 
-    <!-- Tipografías (misma identidad que Control de Timbre) -->
+    <!-- Tipografías -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -374,78 +374,6 @@ body {
 
         .insignia-destacada i { font-size: .62rem; }
 
-        .imagen-destacada {
-            display: block;
-            width: calc(100% + 42px);
-            margin: -21px -21px 14px -21px;
-            max-width: none;
-            aspect-ratio: 16 / 9;
-            object-fit: cover;
-            object-position: center 20%;
-        }
-
-        .boton-timbre {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border-radius: var(--radio-sm);
-            border: 1px solid var(--bronce);
-            background: linear-gradient(135deg, var(--bronce-claro), var(--bronce));
-            padding: 16px 20px;
-            text-decoration: none;
-            color: #fff;
-            transition: transform .15s ease, box-shadow .15s ease;
-        }
-
-        .boton-timbre:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 14px 28px rgba(140,100,37,.35);
-            color: #fff;
-        }
-
-        .boton-timbre .campana-marca {
-            display: inline-flex;
-            flex-shrink: 0;
-        }
-
-        .boton-timbre .campana-marca svg { display: block; }
-
-        .boton-timbre .campana-cuerpo {
-            transform-origin: 50% 15%;
-            animation: balanceo-campana 4.5s ease-in-out infinite;
-        }
-
-        @keyframes balanceo-campana {
-            0%, 100% { transform: rotate(0deg); }
-            4% { transform: rotate(-9deg); }
-            9% { transform: rotate(7deg); }
-            14% { transform: rotate(-5deg); }
-            19% { transform: rotate(3deg); }
-            24% { transform: rotate(0deg); }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .boton-timbre .campana-cuerpo { animation: none; }
-        }
-
-        .boton-timbre .texto strong {
-            display: block;
-            font-family: "Fraunces", Georgia, serif;
-            font-size: 1rem;
-            font-weight: 600;
-        }
-
-        .boton-timbre .texto span {
-            display: block;
-            font-size: .8rem;
-            color: rgba(255,255,255,.85);
-        }
-
-        .boton-timbre .flecha {
-            margin-left: auto;
-            font-size: 1rem;
-        }
-
         .pie-inicio {
             text-align: center;
             margin-top: 22px;
@@ -579,18 +507,6 @@ body {
                     <button type="button" class="btn-instalar" id="btnInstalarApp">Instalar</button>
                 </div>
 
-                <!-- DÍA DEL CAMPESINO 2026 -->
-                <a href="dia-del-campesino.html" class="tarjeta-docente tarjeta-destacada">
-                    <img src="../img/dia-campesino-2026.jpg" alt="Día del Campesino 2026 - C.E.B.G. El Jiral" class="imagen-destacada" loading="lazy">
-                    <span class="insignia-destacada"><i class="fa-solid fa-seedling"></i> 2 de octubre</span>
-                    <div class="icono">
-                        <i class="fa-solid fa-wheat-awn" aria-hidden="true"></i>
-                    </div>
-                    <h2>🌽 Día del Campesino 2026</h2>
-                    <p>Programa completo: topones de reinas, agenda del día, ranchos por provincia y galería de fotos.</p>
-                    <span class="ir">Ver programa <i class="fa-solid fa-arrow-right ms-1"></i></span>
-                </a>
-
                 <!-- VER MIS NOTAS (por cédula, sin contraseña) -->
                 <div class="tarjeta-consulta">
                     <div class="titulo-con-icono">
@@ -667,26 +583,6 @@ body {
                     <h2>Docente</h2>
                     <p>Ingresa con tu cédula y contraseña para registrar notas de tus materias.</p>
                     <span class="ir">Iniciar sesión <i class="fa-solid fa-arrow-right ms-1"></i></span>
-                </a>
-
-                <!-- ACCESO A CONTROL DE TIMBRE -->
-                <p class="seccion-titulo">Dirección</p>
-
-                <a href="timbre.html" class="boton-timbre">
-                    <span class="campana-marca" aria-hidden="true">
-                        <svg width="30" height="30" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <g class="campana-cuerpo">
-                                <path d="M24 6C22.9 6 22 6.9 22 8V9.3C16.6 10.3 12.5 15 12.5 20.7V27.5C12.5 29 11.9 30.4 10.8 31.5L9 33.3C8.2 34.1 8.7 35.5 9.9 35.5H38.1C39.3 35.5 39.8 34.1 39 33.3L37.2 31.5C36.1 30.4 35.5 29 35.5 27.5V20.7C35.5 15 31.4 10.3 26 9.3V8C26 6.9 25.1 6 24 6Z" fill="#fff" stroke="#fff" stroke-width="1.2"/>
-                                <circle cx="24" cy="8" r="1.6" fill="#fff"/>
-                            </g>
-                            <path d="M19 38.5C19.6 40.5 21.6 42 24 42C26.4 42 28.4 40.5 29 38.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
-                        </svg>
-                    </span>
-                    <span class="texto">
-                        <strong>Control de Timbre</strong>
-                        <span>Horarios y alertas sonoras del plantel</span>
-                    </span>
-                    <span class="flecha"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
                 </a>
 
                 <!-- OTROS ENLACES -->
