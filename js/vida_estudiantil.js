@@ -1,3 +1,4 @@
+import { prepararVideo } from './vida_estudiantil_video.js';
 import { supabase } from './supabase.js';
 
 const BUCKET = 'vida-estudiantil';
@@ -29,13 +30,32 @@ function estadoTexto(v){return v==='aprobado'?'Aprobado':v==='rechazado'?'Debe c
 function escapeHtml(s=''){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 async function urlFirmada(path){const {data}=await supabase.storage.from(BUCKET).createSignedUrl(path,3600);return data?.signedUrl||'';}
 
+async function decodificarFoto(file){
+  try { if(window.createImageBitmap)return await createImageBitmap(file,{imageOrientation:'from-image'}); } catch {}
+  const url=URL.createObjectURL(file);
+  try { const img=await cargarImagen(url);return {width:img.naturalWidth,height:img.naturalHeight,imagen:img,close(){}}; }
+  catch { throw new Error('Este teléfono no puede leer esta foto. Elige una imagen JPG, PNG o una captura de pantalla.'); }
+  finally { URL.revokeObjectURL(url); }
+}
+let ocupado=false;
+async function operacion(tarea){
+  if(ocupado)return;
+  ocupado=true;
+  const controles=[...document.querySelectorAll('#cuadriculaFotos input,#cuadriculaFotos textarea,#cuadriculaFotos select,#cuadriculaFotos button,#seccionVideo input,#seccionVideo button,#cambiarIdentidad')];
+  const anteriores=controles.map(e=>e.disabled);controles.forEach(e=>e.disabled=true);
+  document.body.classList.add('ve-ocupado');
+  try { await tarea(); } catch(e) { mensaje(e.message||'No se pudo completar la operación.','error'); }
+  finally { controles.forEach((e,i)=>e.disabled=anteriores[i]);ocupado=false;document.body.classList.remove('ve-ocupado'); }
+}
+window.addEventListener('beforeunload',e=>{if(ocupado){e.preventDefault();e.returnValue='';}});
+
 async function comprimirFoto(file){
   if(!file.type.startsWith('image/')) throw new Error('Selecciona una fotografía válida.');
   if(file.size>MAX_FOTO) throw new Error('La fotografía original supera 25 MB.');
-  const bmp=await createImageBitmap(file,{imageOrientation:'from-image'});let w=bmp.width,h=bmp.height;const max=1920;
+  const bmp=await decodificarFoto(file);let w=bmp.width,h=bmp.height;const max=1920;
   if(Math.max(w,h)>max){const k=max/Math.max(w,h);w=Math.round(w*k);h=Math.round(h*k)}
-  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(bmp,0,0,w,h);bmp.close();
-  return await new Promise((ok,no)=>canvas.toBlob(b=>b?ok(b):no(new Error('No se pudo preparar la fotografía.')),'image/webp',.84));
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(bmp.imagen||bmp,0,0,w,h);bmp.close();
+  return await new Promise((ok,no)=>canvas.toBlob(b=>b?ok(b):no(new Error('No se pudo preparar la fotografía.')),'image/jpeg',.86));
 }
 
 function tarjeta([id,titulo,ayuda]){
@@ -43,11 +63,12 @@ function tarjeta([id,titulo,ayuda]){
   return `<article class="ve-card" data-categoria="${id}"><div class="ve-card-head"><h3>${titulo}</h3><p>${ayuda}</p></div><div class="ve-preview"><div class="ve-placeholder"><strong>📷</strong>Falta esta fotografía</div></div><div class="ve-card-body">${profesor}<textarea class="ve-textarea descripcion" maxlength="180" placeholder="Escribe una breve historia (opcional). Se guarda sola."></textarea><input class="ve-file archivo" id="foto-${id}" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"><label class="ve-upload-label" for="foto-${id}">Elegir fotografía</label><div class="ve-meta">Se sube sola en cuanto la eliges: se reduce automáticamente sin perder buena calidad.</div><div class="ve-actions"><button class="ve-btn primary guardar" hidden>Reintentar subida</button><button class="ve-btn danger eliminar" hidden>Eliminar</button></div></div></article>`;
 }
 
+function vistaFoto(blob){const url=URL.createObjectURL(blob);setTimeout(()=>URL.revokeObjectURL(url),60000);return url;}
 async function pintarArchivo(card, dato){
   const preview=card.querySelector('.ve-preview');const eliminar=card.querySelector('.eliminar');
-  if(!dato){preview.innerHTML='<div class="ve-placeholder"><strong>📷</strong>Falta esta fotografía</div>';eliminar.hidden=true;return;}
+  if(!dato){card.querySelector('.descripcion').value='';const pro=card.querySelector('.profesor');if(pro)pro.value='';preview.innerHTML='<div class="ve-placeholder"><strong>📷</strong>Falta esta fotografía</div>';eliminar.hidden=true;return;}
   const url=await urlFirmada(dato.ruta_storage);preview.innerHTML=`<img src="${url}" alt="${escapeHtml(dato.titulo)}"><span class="ve-status ${dato.estado}">${estadoTexto(dato.estado)}</span>`;
-  card.querySelector('.descripcion').value=dato.descripcion||'';const pro=card.querySelector('.profesor');if(pro)pro.value=dato.profesor||'';eliminar.hidden=dato.estado==='aprobado';
+  card.querySelector('.descripcion').value=dato.descripcion||'';const pro=card.querySelector('.profesor');if(pro)pro.value=dato.profesor||'';eliminar.hidden=false;
 }
 
 function salonBonito(salon){return String(salon||'').replace('9','9.º ');}
@@ -56,7 +77,7 @@ function actualizarProgreso(){const completos=CATEGORIAS.filter(([id])=>archivos
 async function pintarCollage(){
   const titulo=$('collageTitulo');if(titulo&&estudiante)titulo.textContent=`GRADUACIÓN 2026 · C.E.B.G. EL JIRAL · SALÓN ${salonBonito(estudiante.salon).toUpperCase()} · ${estudiante.nombre.toUpperCase()}`;
   const caja=$('collageVista');caja.innerHTML=CATEGORIAS.map(([id,t])=>`<div class="ve-collage-item" data-collage="${id}"><div class="ve-collage-falta">✕</div><div class="ve-collage-label">${t}</div></div>`).join('');
-  await Promise.all(CATEGORIAS.map(async([id])=>{const d=archivos.get(id);if(!d)return;const url=await urlFirmada(d.ruta_storage);const item=caja.querySelector(`[data-collage="${id}"]`);item.insertAdjacentHTML('afterbegin',`<img src="${url}" alt="">`);item.querySelector('.ve-collage-falta').remove();}));
+  await Promise.all(CATEGORIAS.map(async([id])=>{const d=archivos.get(id);if(!d)return;const url=await urlFirmada(d.ruta_storage);const item=caja.querySelector(`[data-collage="${id}"]`);if(!item||!item.isConnected)return;item.insertAdjacentHTML('afterbegin',`<img src="${url}" alt="">`);item.querySelector('.ve-collage-falta').remove();}));
 }
 
 async function cargar(){
@@ -165,10 +186,10 @@ async function cargarArchivosDelEstudiante(){
 
 function conectarEventosFijos(){
   document.querySelectorAll('.ve-card').forEach(card=>{const id=card.dataset.categoria,input=card.querySelector('.archivo'),guardar=card.querySelector('.guardar'),descripcion=card.querySelector('.descripcion'),profesor=card.querySelector('.profesor');
-    input.addEventListener('change',async()=>{const f=input.files[0];if(!f)return;try{const blob=await comprimirFoto(f);seleccion.set(id,blob);card.querySelector('.ve-preview').innerHTML=`<img src="${URL.createObjectURL(blob)}" alt="Vista previa"><span class="ve-status pendiente">Subiendo…</span>`;card.querySelector('.ve-meta').textContent=`Preparada: ${(blob.size/1024).toFixed(0)} KB`;guardar.hidden=true;await subirFoto(card,id);}catch(e){mensaje(e.message,'error');input.value=''}});
-    guardar.addEventListener('click',()=>subirFoto(card,id));card.querySelector('.eliminar').addEventListener('click',()=>eliminar(id));
-    descripcion.addEventListener('blur',()=>guardarComentario(card,id));
-    if(profesor)profesor.addEventListener('change',()=>guardarComentario(card,id));
+    input.addEventListener('change',()=>operacion(async()=>{const f=input.files[0];if(!f)return;try{const blob=await comprimirFoto(f);seleccion.set(id,blob);card.querySelector('.ve-preview').innerHTML=`<img src="${vistaFoto(blob)}" alt="Vista previa"><span class="ve-status pendiente">Subiendo…</span>`;card.querySelector('.ve-meta').textContent=`Preparada: ${(blob.size/1024).toFixed(0)} KB`;guardar.hidden=true;await subirFoto(card,id);}catch(e){mensaje(e.message,'error');input.value=''}finally{input.value=''}}));
+    guardar.addEventListener('click',()=>operacion(()=>subirFoto(card,id)));card.querySelector('.eliminar').addEventListener('click',()=>operacion(()=>eliminar(id)));
+    descripcion.addEventListener('blur',()=>operacion(()=>guardarComentario(card,id)));
+    if(profesor)profesor.addEventListener('change',()=>operacion(()=>guardarComentario(card,id)));
   });
   $('salonVida').addEventListener('change',cargarNombresDelSalon);
   document.querySelectorAll('#grupoSalonVida .ve-salon-btn').forEach(b=>{
@@ -179,7 +200,7 @@ function conectarEventosFijos(){
   $('cedulaVida').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();verificarIdentidad();}});
   $('verificarIdentidad').addEventListener('click',verificarIdentidad);
   $('cambiarIdentidad').addEventListener('click',cambiarIdentidad);
-  $('archivoVideo').addEventListener('change',validarVideo);$('guardarVideo').addEventListener('click',subirVideo);$('eliminarVideo').addEventListener('click',()=>eliminar('video-agradecimiento'));
+  $('archivoVideo').addEventListener('change',()=>operacion(validarVideo));$('guardarVideo').addEventListener('click',()=>operacion(subirVideo));$('eliminarVideo').addEventListener('click',()=>operacion(()=>eliminar('video-agradecimiento')));
   $('descargarCollage').addEventListener('click',descargarCollage);$('btnSalirVida').addEventListener('click',async e=>{e.preventDefault();await supabase.auth.signOut();location.replace('portal-clase.html')});
 }
 
@@ -195,18 +216,39 @@ async function guardarComentario(card,id){
 
 function exigirEstudiante(){if(!estudiante)throw new Error('Primero elige tu grupo, tu nombre y escribe tu cédula para verificar tu identidad.');return estudiante.salon;}
 async function subirFoto(card,id){
-  const blob=seleccion.get(id);if(!blob)return;const btn=card.querySelector('.guardar');try{const salon=exigirEstudiante();btn.disabled=true;btn.textContent='Subiendo…';const path=`${usuario.id}/${String(estudiante.id)}/fotos/${id}.webp`;const {error:up}=await supabase.storage.from(BUCKET).upload(path,blob,{contentType:'image/webp',upsert:true});if(up)throw up;
-    const cat=CATEGORIAS.find(x=>x[0]===id);const fila={usuario_id:usuario.id,estudiante_id:String(estudiante.id),nombre_estudiante:estudiante.nombre,salon,categoria:id,titulo:cat[1],tipo:'foto',ruta_storage:path,mime_type:'image/webp',peso_bytes:blob.size,descripcion:card.querySelector('.descripcion').value.trim(),profesor:card.querySelector('.profesor')?.value||null,estado:'pendiente',motivo_rechazo:null};
+  const blob=seleccion.get(id);if(!blob)return;const btn=card.querySelector('.guardar');try{const salon=exigirEstudiante();btn.disabled=true;btn.textContent='Subiendo…';const path=`${usuario.id}/${String(estudiante.id)}/fotos/${id}-${crypto.randomUUID()}.jpg`;const {error:up}=await supabase.storage.from(BUCKET).upload(path,blob,{contentType:'image/jpeg',upsert:true});if(up)throw up;
+    const cat=CATEGORIAS.find(x=>x[0]===id);const fila={usuario_id:usuario.id,estudiante_id:String(estudiante.id),nombre_estudiante:estudiante.nombre,salon,categoria:id,titulo:cat[1],tipo:'foto',ruta_storage:path,mime_type:'image/jpeg',peso_bytes:blob.size,descripcion:card.querySelector('.descripcion').value.trim(),profesor:card.querySelector('.profesor')?.value||null,estado:'pendiente',motivo_rechazo:null};
     const existente=archivos.get(id);let data,error;
     if(existente){({data,error}=await supabase.from('vida_estudiantil_recuerdos').update(fila).eq('id',existente.id).eq('estudiante_id',String(estudiante.id)).select().single());}
     else{({data,error}=await supabase.from('vida_estudiantil_recuerdos').insert(fila).select().single());}
-    if(error)throw error;archivos.set(id,data);seleccion.delete(id);await pintarArchivo(card,data);actualizarProgreso();mensaje('Fotografía subida y agregada a tu collage.','ok');btn.hidden=true;
+    if(error){await supabase.storage.from(BUCKET).remove([path]);throw error;}if(existente&&existente.ruta_storage!==path)await supabase.storage.from(BUCKET).remove([existente.ruta_storage]);archivos.set(id,data);seleccion.delete(id);await pintarArchivo(card,data);actualizarProgreso();mensaje('Fotografía subida y agregada a tu collage.','ok');btn.hidden=true;
   }catch(e){mensaje(e.message||'No se pudo subir la fotografía. Toca "Reintentar subida".','error');btn.hidden=false;const estado=card.querySelector('.ve-status');if(estado){estado.textContent='Error, reintenta';estado.className='ve-status rechazado'}}finally{btn.textContent='Reintentar subida';btn.disabled=!seleccion.has(id)}}
 
-async function validarVideo(){const f=$('archivoVideo').files[0];$('guardarVideo').disabled=true;$('guardarVideo').hidden=true;if(!f)return;if(f.size>MAX_VIDEO){mensaje('El video supera 25 MB. Redúcelo antes de subirlo.','error');return}const url=URL.createObjectURL(f),v=document.createElement('video');v.preload='metadata';v.src=url;v.onloadedmetadata=async()=>{if(v.duration>60.5){mensaje('El video debe durar un minuto o menos.','error');URL.revokeObjectURL(url);return}if(v.videoWidth<=v.videoHeight){mensaje('El video debe estar grabado horizontalmente.','error');URL.revokeObjectURL(url);return}videoSeleccionado=f;$('previewVideo').innerHTML=`<video controls src="${url}"></video><span class="ve-status pendiente">Subiendo…</span>`;$('metaVideo').textContent=`${Math.ceil(v.duration)} segundos · ${(f.size/1024/1024).toFixed(1)} MB`;await subirVideo();};}
-async function subirVideo(){const f=videoSeleccionado;if(!f)return;const btn=$('guardarVideo');try{const salon=exigirEstudiante();btn.disabled=true;btn.textContent='Subiendo…';const ext=(f.name.split('.').pop()||'mp4').toLowerCase();const path=`${usuario.id}/${String(estudiante.id)}/video/agradecimiento.${ext}`;const {error:up}=await supabase.storage.from(BUCKET).upload(path,f,{contentType:f.type||'video/mp4',upsert:true});if(up)throw up;const fila={usuario_id:usuario.id,estudiante_id:String(estudiante.id),nombre_estudiante:estudiante.nombre,salon,categoria:'video-agradecimiento',titulo:'Video final de agradecimiento',tipo:'video',ruta_storage:path,mime_type:f.type||'video/mp4',peso_bytes:f.size,estado:'pendiente',motivo_rechazo:null};const existente=archivos.get('video-agradecimiento');let data,error;if(existente){({data,error}=await supabase.from('vida_estudiantil_recuerdos').update(fila).eq('id',existente.id).eq('estudiante_id',String(estudiante.id)).select().single());}else{({data,error}=await supabase.from('vida_estudiantil_recuerdos').insert(fila).select().single());}if(error)throw error;archivos.set('video-agradecimiento',data);videoSeleccionado=null;await pintarVideo();actualizarProgreso();mensaje('Video subido y agregado a tu álbum.','ok');btn.hidden=true;}catch(e){mensaje(e.message||'No se pudo subir el video. Toca "Reintentar subida".','error');btn.hidden=false;const estado=document.querySelector('#previewVideo .ve-status');if(estado){estado.textContent='Error, reintenta';estado.className='ve-status rechazado'}}finally{btn.textContent='Reintentar subida';btn.disabled=!videoSeleccionado}}
-async function pintarVideo(){const d=archivos.get('video-agradecimiento');if(!d)return;const url=await urlFirmada(d.ruta_storage);$('previewVideo').innerHTML=`<video controls src="${url}"></video><span class="ve-status ${d.estado}">${estadoTexto(d.estado)}</span>`;$('eliminarVideo').hidden=d.estado==='aprobado';}
-async function eliminar(id){const d=archivos.get(id);if(!d||!confirm('¿Seguro que deseas eliminar este archivo?'))return;const {error:a}=await supabase.storage.from(BUCKET).remove([d.ruta_storage]);if(a){mensaje(a.message,'error');return}const {error:b}=await supabase.from('vida_estudiantil_recuerdos').delete().eq('id',d.id);if(b){mensaje(b.message,'error');return}archivos.delete(id);if(id==='video-agradecimiento'){$('previewVideo').innerHTML='<div class="ve-placeholder"><strong>🎬</strong>Agrega tu video horizontal</div>';$('eliminarVideo').hidden=true}else await pintarArchivo(document.querySelector(`[data-categoria="${id}"]`),null);actualizarProgreso();mensaje('Archivo eliminado.','ok');}
+async function validarVideo(){
+  const input=$('archivoVideo'),f=input.files[0]; videoSeleccionado=null;
+  $('guardarVideo').hidden=true;if(!f)return;
+  try {
+    exigirEstudiante();
+    const preparado=await prepararVideo(f,t=>$('metaVideo').textContent=t);
+    videoSeleccionado=preparado;
+    await subirVideo();
+  } catch(e){mensaje(e.message,'error');$('metaVideo').textContent='No se subió el archivo. Elige otro video para continuar.';}
+  finally {input.value='';}
+}
+async function subirVideo(){const f=videoSeleccionado;if(!f)return;const btn=$('guardarVideo');try{const salon=exigirEstudiante();btn.disabled=true;btn.textContent='Subiendo…';const ext=(f.name.split('.').pop()||'mp4').toLowerCase();const path=`${usuario.id}/${String(estudiante.id)}/video/agradecimiento-${crypto.randomUUID()}.${ext}`;const {error:up}=await supabase.storage.from(BUCKET).upload(path,f,{contentType:f.type||'video/mp4',upsert:true});if(up)throw up;const fila={usuario_id:usuario.id,estudiante_id:String(estudiante.id),nombre_estudiante:estudiante.nombre,salon,categoria:'video-agradecimiento',titulo:'Video final de agradecimiento',tipo:'video',ruta_storage:path,mime_type:f.type||'video/mp4',peso_bytes:f.size,estado:'pendiente',motivo_rechazo:null};const existente=archivos.get('video-agradecimiento');let data,error;if(existente){({data,error}=await supabase.from('vida_estudiantil_recuerdos').update(fila).eq('id',existente.id).eq('estudiante_id',String(estudiante.id)).select().single());}else{({data,error}=await supabase.from('vida_estudiantil_recuerdos').insert(fila).select().single());}if(error){await supabase.storage.from(BUCKET).remove([path]);throw error;}if(existente&&existente.ruta_storage!==path)await supabase.storage.from(BUCKET).remove([existente.ruta_storage]);archivos.set('video-agradecimiento',data);videoSeleccionado=null;await pintarVideo();actualizarProgreso();mensaje('Video subido y agregado a tu álbum.','ok');btn.hidden=true;}catch(e){mensaje(e.message||'No se pudo subir el video. Toca "Reintentar subida".','error');btn.hidden=false;const estado=document.querySelector('#previewVideo .ve-status');if(estado){estado.textContent='Error, reintenta';estado.className='ve-status rechazado'}}finally{btn.textContent='Reintentar subida';btn.disabled=!videoSeleccionado}}
+async function pintarVideo(){const previo=$('previewVideo').querySelector('video');if(previo?.src.startsWith('blob:'))URL.revokeObjectURL(previo.src);const d=archivos.get('video-agradecimiento');if(!d)return;const url=await urlFirmada(d.ruta_storage);$('previewVideo').innerHTML=`<video controls playsinline preload="metadata" src="${url}"></video><span class="ve-status ${d.estado}">${estadoTexto(d.estado)}</span>`;$('eliminarVideo').hidden=false;}
+async function eliminar(id){
+  const d=archivos.get(id);if(!d||!confirm('¿Eliminar este archivo de tu álbum? Podrás subir el correcto después.'))return;
+  const {data,error}=await supabase.from('vida_estudiantil_recuerdos').delete().eq('id',d.id).eq('usuario_id',usuario.id).select('id');
+  if(error||!data?.length)throw new Error(error?.message||'No se permitió eliminar. Pide al profesor ejecutar la actualización SQL incluida.');
+  const {error:limpieza}=await supabase.storage.from(BUCKET).remove([d.ruta_storage]);
+  archivos.delete(id);seleccion.delete(id);
+  if(id==='video-agradecimiento'){
+    videoSeleccionado=null;$('archivoVideo').value='';$('guardarVideo').hidden=true;
+    $('previewVideo').innerHTML='<div class="ve-placeholder"><strong>🎬</strong>Agrega tu video horizontal</div>';$('eliminarVideo').hidden=true;
+  } else {const card=document.querySelector(`[data-categoria="${id}"]`);card.querySelector('.archivo').value='';card.querySelector('.descripcion').value='';card.querySelector('.guardar').hidden=true;await pintarArchivo(card,null);}
+  actualizarProgreso();mensaje(limpieza?'Quitado del álbum. No se pudo limpiar el archivo almacenado; avisa al profesor.':'Archivo eliminado. Ya puedes subir el correcto.',limpieza?'info':'ok');
+}
 
 function cargarImagen(url){return new Promise((ok,no)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>ok(i);i.onerror=no;i.src=url})}
 function cover(ctx,img,x,y,w,h){const k=Math.max(w/img.width,h/img.height),sw=w/k,sh=h/k,sx=(img.width-sw)/2,sy=(img.height-sh)/2;ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h)}
@@ -217,4 +259,4 @@ async function descargarCollage(){
       x.fillStyle='#001b33d9';x.fillRect(px,py+cellH-58,cellW,58);x.fillStyle='#fff';x.font='bold 24px Arial';x.textAlign='center';x.fillText(titulo.length>38?titulo.slice(0,36)+'…':titulo,px+cellW/2,py+cellH-21);
     }x.fillStyle='#073b67';x.fillRect(0,1380,2400,120);x.fillStyle='#fff';x.font='bold 34px Arial';x.fillText('MI VIDA ESTUDIANTIL · RECUERDOS QUE LLEVARÉ SIEMPRE',1200,1452);const a=document.createElement('a');a.download=`collage-graduando-${estudiante.nombre.replace(/\s+/g,'-')}.jpg`;a.href=c.toDataURL('image/jpeg',.92);a.click();mensaje('Collage horizontal descargado.','ok');}catch(e){mensaje(e.message||'No se pudo crear el collage.','error')}finally{btn.disabled=false;btn.textContent='✨ Descargar collage horizontal'}}
 
-cargar();
+cargar().catch(e=>mensaje(e.message||'No se pudo abrir el álbum. Recarga la página.','error'));
