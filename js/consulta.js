@@ -1,13 +1,6 @@
 import { supabase } from "./supabase.js";
 import { cedulaAEmail } from "./utils.js";
-import { obtenerTodasLasLeyendas } from "./leyendas.js";
-import { obtenerDetalleApreciacionesCiencias } from "./detalle_apreciacion_estudiante.js";
 
-// Texto explicativo por materia (ej. "Nota 1 es de la clase 1...") que
-// el/la docente escribe desde su panel. Se carga una vez por consulta
-// y se reutiliza en cada render() (cambiar de trimestre no cambia el
-// texto, así que no hace falta pedirlo de nuevo cada vez).
-let leyendasPorMateria = {};
 
 // =====================================================
 // LISTA BASE DE MATERIAS (igual que en el panel del estudiante)
@@ -34,12 +27,6 @@ const MATERIAS_BASE = [
 // Nota mínima para aprobar (igual que en el panel del estudiante)
 const NOTA_MINIMA_APROBAR = 3;
 
-// Materias que tienen el sistema de Apreciaciones (asistencia +
-// comportamiento + actividades) con detalle por clase en vivo. Por
-// ahora Ciencias Naturales (9A/9B/9C y 8A) e Informática (8A/8B).
-// Agregar una materia aquí es lo único que hace falta para que su
-// "control de nota" en vivo aparezca también en esta pantalla.
-const MATERIAS_CON_DETALLE_APRECIACION = new Set(["Ciencias Naturales", "Informática"]);
 
 // Frases de felicitación para materias que van bien (promedio >= 3).
 // Se elige una al azar cada vez que se genera el PDF, así que si se
@@ -228,7 +215,6 @@ async function buscar() {
 
     estudianteActual = estudiante;
     notasCrudas = await quitarNotasOcultasParaEstudiante(notas || [], estudiante.salon);
-    notasCrudas = await ocultarApreciacionesNoCompletadas(notasCrudas, estudiante.salon);
     cedulaConsultada = cedula;
 
     nombreEstudianteEl.textContent = estudiante.nombre || "Estudiante";
@@ -278,7 +264,6 @@ async function buscar() {
     }
 
     resultado.style.display = "block";
-    leyendasPorMateria = await obtenerTodasLasLeyendas();
     render();
 }
 
@@ -315,55 +300,6 @@ async function quitarNotasOcultasParaEstudiante(notas, salon) {
     return notas.filter((n) => {
         const clave = `${n.materia}|${n.trimestre}|${(n.tipo || "").toLowerCase()}|${n.numero}`;
         return !clavesOcultas.has(clave);
-    });
-}
-
-// =====================================================
-// NO MOSTRAR LA NOTA DE "APRECIACIÓN" HASTA QUE ESTÉ COMPLETADA
-// =====================================================
-//
-// "Guardar apreciación" (y el cierre automático por fecha) publican en
-// "notas" la nota YA CALCULADA con lo que haya hasta el momento, para
-// que nunca quede una columna en blanco. Pero eso significa que, si el
-// docente todavía sigue trabajando esa Apreciación (no la ha marcado
-// como completada), esa nota "de avance" no debería verse todavía como
-// nota oficial en "buscar notas" — sino solo cuando el docente la
-// cierre con "Marcar como completada" (o se cierre sola por fecha).
-//
-// Por eso, aquí se tapa cualquier nota de tipo "apreciacion" cuya
-// Apreciación (en apreciaciones_estado) exista pero todavía NO esté
-// "completada". Si el docente la reabre por error con "↩️ Reabrir para
-// editar" (que solo cambia el estado, sin borrar la nota vieja), esta
-// misma función la vuelve a tapar automáticamente — no hace falta
-// borrar nada a mano para "corregir" una Apreciación completada por
-// error: basta con reabrirla.
-//
-// Ojo: las Apreciaciones "clásicas" (Aprec. 1/2/3 escritas a mano
-// desde la tabla de siempre, en materias que nunca usaron este modal)
-// NO tienen fila en apreciaciones_estado — esas se muestran igual que
-// siempre, sin ningún cambio.
-async function ocultarApreciacionesNoCompletadas(notas, salon) {
-    const tieneApreciaciones = notas.some((n) => (n.tipo || "").toLowerCase() === "apreciacion");
-    if (!tieneApreciaciones || !salon) return notas;
-
-    const { data: estados, error } = await supabase
-        .from("apreciaciones_estado")
-        .select("materia, trimestre, numero, estado")
-        .eq("salon", salon);
-
-    if (error) {
-        console.warn("⚠️ No se pudo consultar el estado de las Apreciaciones:", error);
-        return notas;
-    }
-    if (!estados || estados.length === 0) return notas;
-
-    const estadoPorClave = {};
-    estados.forEach((e) => { estadoPorClave[`${e.materia}|${e.trimestre}|${e.numero}`] = e.estado; });
-
-    return notas.filter((n) => {
-        if ((n.tipo || "").toLowerCase() !== "apreciacion") return true;
-        const estado = estadoPorClave[`${n.materia}|${n.trimestre}|${n.numero}`];
-        return estado === undefined || estado === "completada";
     });
 }
 
@@ -415,16 +351,7 @@ function materiasParaMostrar(porMateria) {
 // promedio de apreciación/ejercicio/final de cada materia con notas.
 // Se usa tanto para pintar la pantalla como para armar el PDF.
 //
-// "incluirCienciasVacia": SOLO la usa render() (nunca el PDF). Cuando
-// está en true, Ciencias Naturales aparece aunque todavía no tenga
-// NINGUNA nota oficial guardada (Apreciación/Ejercicio/Examen) — así
-// el estudiante puede ver su "control de nota" en vivo (asistencia,
-// comportamiento, actividades) mientras la Apreciación sigue abierta,
-// sin que el/la docente tenga que guardarla ni completarla todavía.
-// La nota OFICIAL de la tabla de arriba sigue en "-" hasta que sí se
-// guarde — esto solo destapa la tarjeta para que el detalle de abajo
-// pueda cargar.
-function calcularResumenMaterias(filas, { incluirCienciasVacia = false } = {}) {
+function calcularResumenMaterias(filas) {
     const porMateria = agruparPorMateria(filas);
     const materias = materiasParaMostrar(porMateria);
     const resumen = [];
@@ -432,8 +359,7 @@ function calcularResumenMaterias(filas, { incluirCienciasVacia = false } = {}) {
     materias.forEach((materia) => {
         const datos = porMateria[materia] || { apreciacion: [], ejercicio: [], examen: [] };
         const sinNotas = datos.apreciacion.length === 0 && datos.ejercicio.length === 0 && datos.examen.length === 0;
-        const esCienciasVaciaPermitida = sinNotas && incluirCienciasVacia && MATERIAS_CON_DETALLE_APRECIACION.has(materia);
-        if (sinNotas && !esCienciasVaciaPermitida) return;
+        if (sinNotas) return;
 
         const promApr = calcularPromedio(datos.apreciacion.map((x) => x.valor));
         const promEje = calcularPromedio(datos.ejercicio.map((x) => x.valor));
@@ -465,7 +391,7 @@ function calcularResumenMaterias(filas, { incluirCienciasVacia = false } = {}) {
 function render() {
     const trimestre = filtroTrimestre.value;
     const filas = filasParaTrimestre(trimestre);
-    const resumen = calcularResumenMaterias(filas, { incluirCienciasVacia: trimestre !== "todos" });
+    const resumen = calcularResumenMaterias(filas);
 
     let html = "";
 
@@ -475,15 +401,17 @@ function render() {
         const notasExa = datos.examen.slice().sort((a, b) => a.numero - b.numero);
         const maxCols = Math.max(notasApr.length, notasEje.length, notasExa.length, 1);
 
-        const celdasNota = (lista) => {
-            const celdas = lista.map((n) => `<td>${n.valor.toFixed(1)}</td>`);
+        // Cada casilla muestra su nota y debajo su nombre real (Aprec. 2,
+        // Ejer. 1...), igual que en el panel del docente.
+        const celdasNota = (lista, etiqueta) => {
+            const celdas = lista.map((n) => `<td><span class="etiqueta-casilla">${etiqueta} ${n.numero}</span><br>${n.valor.toFixed(1)}</td>`);
             while (celdas.length < maxCols) celdas.push(`<td>-</td>`);
             return celdas.join("");
         };
 
-        const filasApr = celdasNota(notasApr);
-        const filasEje = celdasNota(notasEje);
-        const filasExa = celdasNota(notasExa);
+        const filasApr = celdasNota(notasApr, "Aprec.");
+        const filasEje = celdasNota(notasEje, "Ejer.");
+        const filasExa = celdasNota(notasExa, "Exam.");
 
         const claseAprFallo = promApr !== null && promApr < NOTA_MINIMA_APROBAR ? "promedio promedio-fracaso" : "promedio";
         const claseEjeFallo = promEje !== null && promEje < NOTA_MINIMA_APROBAR ? "promedio promedio-fracaso" : "promedio";
@@ -499,7 +427,7 @@ function render() {
                         <thead>
                             <tr>
                                 <th>Tipo</th>
-                                ${Array.from({ length: maxCols }, (_, i) => `<th>N°${i + 1}</th>`).join("")}
+                                <th colspan="${maxCols}">Notas</th>
                                 <th>Promedio</th>
                             </tr>
                         </thead>
@@ -532,17 +460,6 @@ function render() {
                         promedio puede cambiar.
                     </p>
                 ` : ""}
-                ${leyendasPorMateria[`${estudianteActual?.salon}|${materia}`] ? `
-                    <p class="aviso-leyenda-card">
-                        ℹ️ ${escapeHtml(leyendasPorMateria[`${estudianteActual?.salon}|${materia}`]).replace(/\n/g, "<br>")}
-                    </p>
-                ` : ""}
-                ${MATERIAS_CON_DETALLE_APRECIACION.has(materia) && trimestre !== "todos" ? `
-                    <div class="detalle-clase-ciencias-contenedor" data-trimestre="${escapeHtml(trimestre)}" data-materia="${escapeHtml(materia)}">
-                        <p class="detalle-clase-titulo-seccion">📚 Detalle por clase — asistencia, comportamiento y actividades</p>
-                        <p class="small" style="color:#64748b;">Cargando detalle por clase…</p>
-                    </div>
-                ` : ""}
             </div>
         `;
     });
@@ -552,125 +469,6 @@ function render() {
     }
 
     contenedorMaterias.innerHTML = html;
-
-    contenedorMaterias.querySelectorAll(".detalle-clase-ciencias-contenedor").forEach((contenedor) => {
-        cargarDetalleClaseCiencias(contenedor);
-    });
-}
-
-// =====================================================
-// DETALLE POR CLASE (Ciencias Naturales) — asistencia,
-// comportamiento, actividades en clase y en casa de cada
-// Apreciación (= cada Clase: Apreciación 1 = Clase 1, etc.)
-// Se carga solo, sin que el estudiante tenga que tocar nada.
-// =====================================================
-
-function formatearNotaDetalle(valor) {
-    return (valor === null || valor === undefined || isNaN(valor)) ? "–" : Number(valor).toFixed(1);
-}
-
-function claseNotaBadge(valor) {
-    if (valor === null || valor === undefined || isNaN(valor)) return "nota-pendiente";
-    return Number(valor) < NOTA_MINIMA_APROBAR ? "nota-baja" : "nota-ok";
-}
-
-async function cargarDetalleClaseCiencias(contenedor) {
-    try {
-        const trimestre = contenedor.dataset.trimestre;
-        const materia = contenedor.dataset.materia || "Ciencias Naturales";
-        const detalle = await obtenerDetalleApreciacionesCiencias(
-            { id: estudianteActual.id, correo: estudianteActual.correo },
-            estudianteActual.salon,
-            trimestre,
-            materia
-        );
-
-        if (!detalle || detalle.length === 0) {
-            contenedor.innerHTML = `
-                <p class="detalle-clase-titulo-seccion">📚 Detalle por clase — asistencia, comportamiento y actividades</p>
-                <p class="small" style="color:#64748b;">Todavía no hay clases con detalle registrado en este trimestre.</p>`;
-            return;
-        }
-
-        const tarjetas = detalle.map((d) => {
-            const pesos = d.pesos || {};
-            const notaFinalClaseValida = (d.notaFinal !== null && d.notaFinal !== undefined);
-            return `
-            <div class="tarjeta-clase-ciencias">
-                <div class="clase-ciencias-header">
-                    <span class="clase-ciencias-nombre">${escapeHtml(d.claseNombre)}</span>
-                    <span class="clase-ciencias-nota-badge ${claseNotaBadge(d.notaFinal)}">Nota final: ${formatearNotaDetalle(d.notaFinal)}</span>
-                </div>
-                ${d.fechaInicio && d.fechaFin ? `<p class="clase-ciencias-fechas">Del ${d.fechaInicio} al ${d.fechaFin}</p>` : ""}
-                <p class="clase-ciencias-explicacion">
-                    La nota de esta clase se calcula combinando estos 4 componentes según su porcentaje:
-                    Asistencia (${pesos.peso_asistencia ?? "–"}%) + Comportamiento (${pesos.peso_comportamiento ?? "–"}%) +
-                    Participación en clase (${pesos.peso_actividades_clase ?? "–"}%) + Actividad en casa (${pesos.peso_actividades_casa ?? "–"}%) = 100%.
-                </p>
-                <table class="tabla-detalle-clase">
-                    <thead>
-                        <tr>
-                            <th>Componente</th>
-                            <th style="text-align:center;">% de la nota</th>
-                            <th>Detalle</th>
-                            <th style="text-align:center;">Nota</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="col-componente">📋 Asistencia</td>
-                            <td class="col-peso">${pesos.peso_asistencia ?? "–"}%</td>
-                            <td>
-                                ${d.asistencia.clasesDadas} clase(s) dada(s) · ${d.asistencia.presentes} presente(s)<br>
-                                ${d.asistencia.ausencias} ausencia(s) · ${d.asistencia.tardanzas} tardanza(s)${d.asistencia.permisos ? ` · ${d.asistencia.permisos} permiso(s)` : ""}
-                            </td>
-                            <td class="col-nota">${formatearNotaDetalle(d.asistencia.promedio)}</td>
-                        </tr>
-                        <tr>
-                            <td class="col-componente">🙂 Comportamiento</td>
-                            <td class="col-peso">${pesos.peso_comportamiento ?? "–"}%</td>
-                            <td>
-                                ${d.comportamiento.buenos} día(s) bueno(s)<br>
-                                ${d.comportamiento.malos} día(s) con llamado de atención
-                            </td>
-                            <td class="col-nota">${formatearNotaDetalle(d.comportamiento.promedio)}</td>
-                        </tr>
-                        <tr>
-                            <td class="col-componente">✏️ Participación en clase</td>
-                            <td class="col-peso">${pesos.peso_actividades_clase ?? "–"}%</td>
-                            <td>${d.actClase.cantidad ? `${d.actClase.cantidad} actividad(es) registrada(s)` : "Sin actividades registradas todavía"}</td>
-                            <td class="col-nota">${formatearNotaDetalle(d.actClase.promedio)}</td>
-                        </tr>
-                        <tr>
-                            <td class="col-componente">🏠 Actividad en casa</td>
-                            <td class="col-peso">${pesos.peso_actividades_casa ?? "–"}%</td>
-                            <td>
-                                ${d.actCasa.detalle.length
-                                    ? d.actCasa.detalle.map((a) => `${escapeHtml(a.nombre.replace(/^[^\w]*\s*/, ""))}: <strong>${formatearNotaDetalle(a.nota)}</strong>`).join("<br>")
-                                    : "Sin ejercicios registrados todavía"}
-                            </td>
-                            <td class="col-nota">${formatearNotaDetalle(d.actCasa.promedio)}</td>
-                        </tr>
-                        <tr class="fila-nota-final">
-                            <td colspan="3">Nota final de la clase</td>
-                            <td class="col-nota">${notaFinalClaseValida ? formatearNotaDetalle(d.notaFinal) : "Pendiente"}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        `;
-        }).join("");
-
-        contenedor.innerHTML = `
-            <p class="detalle-clase-titulo-seccion">📚 Detalle por clase — asistencia, comportamiento y actividades</p>
-            ${tarjetas}
-        `;
-    } catch (err) {
-        console.error("No se pudo cargar el detalle por clase de Ciencias:", err);
-        contenedor.innerHTML = `
-            <p class="detalle-clase-titulo-seccion">📚 Detalle por clase — asistencia, comportamiento y actividades</p>
-            <p class="small" style="color:#b91c1c;">❌ No se pudo cargar el detalle. Intenta de nuevo más tarde.</p>`;
-    }
 }
 
 function escapeHtml(str) {
