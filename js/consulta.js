@@ -24,6 +24,9 @@ const MATERIAS_BASE = [
     "Religión, Moral y Valores"
 ];
 
+// Salones donde la materia "Contabilidad" se reemplaza por "Informática".
+const SALONES_CON_INFORMATICA = ["8A", "8B"];
+
 // Nota mínima para aprobar (igual que en el panel del estudiante)
 const NOTA_MINIMA_APROBAR = 3;
 
@@ -336,13 +339,16 @@ function agruparPorMateria(filas) {
 }
 
 function materiasParaMostrar(porMateria) {
-    const extras = Object.keys(porMateria)
-        .filter((m) => !MATERIAS_BASE.includes(m) && m !== "Informática")
-        .sort();
-
-    const base = estudianteActual?.salon === "8A"
+    // Salones que llevan Informática en lugar de Contabilidad (8A y 8B).
+    const base = SALONES_CON_INFORMATICA.includes(estudianteActual?.salon)
         ? MATERIAS_BASE.map((m) => (m === "Contabilidad" ? "Informática" : m))
         : MATERIAS_BASE;
+
+    // Cualquier otra materia que tenga notas (incluida Informática en
+    // un salón no listado arriba, o Contabilidad en 8A/8B) también se muestra.
+    const extras = Object.keys(porMateria)
+        .filter((m) => !base.includes(m))
+        .sort();
 
     return [...base, ...extras];
 }

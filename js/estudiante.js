@@ -31,7 +31,7 @@ function notasDe(materia, tipo) {
   return notas.filter(n => n.materia === materia && n.tipo === tipo).sort((a, b) => Number(a.numero) - Number(b.numero));
 }
 function materiasVisibles() {
-  const base = estudiante?.salon === "8A" ? MATERIAS.map(m => m === "Contabilidad" ? "Informática" : m) : MATERIAS;
+  const base = ["8A", "8B"].includes(estudiante?.salon) ? MATERIAS.map(m => m === "Contabilidad" ? "Informática" : m) : MATERIAS;
   return [...new Set([...base, ...notas.map(n => n.materia).filter(Boolean)])];
 }
 

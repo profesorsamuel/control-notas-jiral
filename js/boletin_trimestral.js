@@ -230,13 +230,14 @@ function promedioMateriaTrimestre(materia, trimestre) {
 
 function materiasParaMostrar() {
     const materiasConNotas = new Set(notasCrudas.map((n) => n.materia));
-    const extras = [...materiasConNotas]
-        .filter((m) => !MATERIAS_BASE.includes(m) && m !== "Informática")
-        .sort();
-
-    const base = estudianteActual?.salon === "8A"
+    // Salones que llevan Informática en lugar de Contabilidad (8A y 8B).
+    const base = ["8A", "8B"].includes(estudianteActual?.salon)
         ? MATERIAS_BASE.map((m) => (m === "Contabilidad" ? "Informática" : m))
         : MATERIAS_BASE;
+
+    const extras = [...materiasConNotas]
+        .filter((m) => !base.includes(m))
+        .sort();
 
     return [...base, ...extras].filter((m) => materiasConNotas.has(m));
 }
