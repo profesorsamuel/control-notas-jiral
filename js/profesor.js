@@ -1384,7 +1384,7 @@ function renderTabla() {
                     <th class="text-center small ${claveCas === claveSel ? "table-primary text-primary" : "text-muted"}" style="width:90px;">
                         <div>${candadoManual ? "🔒" : iconoApreciacion(infoCol.estado)} ${etiquetaMostrada}</div>
                         ${btnCandado}
-                        ${(!candadoManual && infoCol.estado === "activa") ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
+                        ${(!candadoManual && infoCol.estado !== "bloqueada") ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" data-estado="${infoCol.estado}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
                     </th>`;
                 return;
             }
@@ -1404,7 +1404,7 @@ function renderTabla() {
                         <span style="font-size:14px;">${candadoManual ? "🔒" : iconoApreciacion(infoCol.estado)}</span> ${etiquetaMostrada}
                     </div>
                     ${btnCandado}
-                    ${(!candadoManual && infoCol.estado === "activa") ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
+                    ${(!candadoManual && infoCol.estado !== "bloqueada") ? `<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-reiniciar-apreciacion" data-numero="${c.numero}" data-estado="${infoCol.estado}" title="Eliminar por completo esta apreciación">🗑️</button>` : ""}
                 </th>`;
             return;
         }
@@ -1569,8 +1569,11 @@ function renderTabla() {
         btn.addEventListener("click", async (e) => {
             e.stopPropagation();
             const numeroApreciacion = parseInt(btn.dataset.numero, 10);
+            const yaElaborada = btn.dataset.estado === "completada";
             const ok = window.confirm(
-                `¿Eliminar por completo la Apreciación ${numeroApreciacion}? Esto borra sus notas, comportamiento y actividades, y la columna desaparece de la tabla (solo esta, no toca Aprec. 1, 2 ni 3). Esto solo afecta a este salón — los demás salones no se ven afectados.`
+                `¿Eliminar por completo la Apreciación ${numeroApreciacion}?` +
+                (yaElaborada ? `\n\n⚠️ Esta apreciación YA ESTÁ ELABORADA (completada). Se borrarán definitivamente sus notas, comportamiento y actividades, y no se pueden recuperar.` : ` Esto borra sus notas, comportamiento y actividades.`) +
+                `\n\nLa columna desaparece de la tabla (solo esta, no toca las demás apreciaciones). Solo afecta a este salón — los demás salones no se ven afectados.`
             );
             if (!ok) return;
             const materia = selectMateriaNota.value, salon = selectSalonNota.value, trimestre = selectTrimestreNota.value;
