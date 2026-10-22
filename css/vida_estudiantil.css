@@ -38,3 +38,25 @@
   .ve-card-head h3{font-size:.95rem}
   .ve-upload-label{min-height:50px;font-size:.9rem}
 }
+
+/* Presentación adaptable y controles táctiles */
+.ve-brand,.ve-campo,.ve-card,.ve-video-box,.ve-video-rules{min-width:0}
+.ve-intro h2,.ve-person,.ve-collage-titulo{overflow-wrap:anywhere}
+.ve-select,.ve-input,.ve-textarea{font-size:16px;min-height:48px}
+.ve-btn,.ve-nav a{min-height:46px;touch-action:manipulation}
+.ve-preview img{object-fit:contain;background:#e9f0f6}
+.ve-preview video{object-fit:contain;background:#101b2b}
+.ve-card-head{border-bottom:1px solid #e6edf4;background:linear-gradient(120deg,#fff,#f0f7ff)}
+.ve-card-head h3{line-height:1.4}.ve-meta{line-height:1.5}
+.ve-upload-label{background:#eff7ff;border-style:solid;border-color:#b7d4ec}
+.ve-upload-label:active{background:#dbeeff}
+.ve-file:focus-visible + .ve-upload-label,:focus-visible{outline:3px solid #d28b00;outline-offset:3px}
+.ve-ocupado .ve-upload-label{opacity:.55;pointer-events:none}
+.ve-alert.show{position:sticky;top:8px;z-index:20;box-shadow:0 5px 20px #18354d22}
+@media(max-width:560px){
+ .ve-video-section,.ve-collage{padding:12px}.ve-video-grid{grid-template-columns:minmax(0,1fr)}
+ .ve-nav{display:grid;grid-template-columns:1fr 1fr}.ve-nav a:last-child{grid-column:1/-1}
+ .ve-collage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ve-collage-label{font-size:.7rem}
+ .ve-filter>*{min-width:0;width:100%}.ve-modal-box{max-height:90dvh;overflow:auto}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
