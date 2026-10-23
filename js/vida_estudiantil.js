@@ -20,7 +20,7 @@ const CATEGORIAS = [
 ];
 const PROFESORES = ['Yadira de Gracia — Español','Leonela Rivera — Matemática','Faustina Rodríguez — Historia / Geografía','Wendy Warren — Inglés','Nairobys Saez — Ciencias Naturales','Samuel Ortega — Ciencias Naturales','Juana Browns — Cívica','Leticia Cortes — Español','Guiliam Barría — Educación Física','Miriam Valencia — Artística','Alexis Del Mar — Agropecuaria','Erika Pimentel — Familia y Desarrollo','Willian Mitzi — Orientación','Thelma Alvarez — Religión'];
 const SALONES = ['9A','9B','9C'];
-let usuario, estudiante, archivos = new Map(), seleccion = new Map(), videoSeleccionado = null, estudiantesDelSalon = [];
+let usuario, estudianteDeCuenta = null, estudiante, archivos = new Map(), seleccion = new Map(), videoSeleccionado = null, estudiantesDelSalon = [];
 const $ = (id) => document.getElementById(id);
 function normalizarCedula(c){return String(c||'').trim().toLowerCase().replace(/[\s-]/g,'');}
 function mostrarAlbum(mostrar){$('cuadriculaFotos').hidden=!mostrar;$('seccionVideo').hidden=!mostrar;$('seccionCollage').hidden=!mostrar;}
@@ -121,6 +121,7 @@ async function seleccionarSalon(salon){
 async function precargarSalonDesdeCuenta(email){
   const {data:e}=await supabase.from('estudiantes').select('id,nombre,salon,correo').eq('correo',email).maybeSingle();
   if(!e||!SALONES.includes(e.salon))return;
+  estudianteDeCuenta=e;
   $('salonVida').value=e.salon;
   actualizarBotonesSalon(e.salon);
   await cargarNombresDelSalon();
@@ -157,6 +158,8 @@ async function verificarIdentidad(){
   const cedulaGuardada=normalizarCedula(registro.cedula);
   if(!cedulaGuardada){mensaje('Tu cédula todavía no está registrada en el sistema. Avisa a la dirección para que la agreguen.','error');return}
   if(cedulaEscrita!==cedulaGuardada){mensaje('La cédula no coincide con el nombre seleccionado. Verifica e intenta de nuevo.','error');return}
+  if(!estudianteDeCuenta){mensaje('Esta cuenta no está asociada a ningún estudiante. Entra con la cuenta del estudiante.','error');return}
+  if(String(registro.id)!==String(estudianteDeCuenta.id)){mensaje('Esta cuenta pertenece a otro estudiante. Entra con tu propia cuenta.','error');return}
   estudiante={id:registro.id,nombre:registro.nombre,salon:$('salonVida').value};
   $('nombreVida').textContent=estudiante.nombre;
   $('salonVida').disabled=true;bloquearBotonesSalon(true);$('estudianteVida').disabled=true;$('cedulaVida').disabled=true;$('verCedula').disabled=true;
