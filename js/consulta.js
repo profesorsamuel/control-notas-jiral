@@ -217,7 +217,7 @@ async function buscar() {
     }
 
     estudianteActual = estudiante;
-    notasCrudas = await quitarNotasOcultasParaEstudiante(notas || [], estudiante.salon);
+    notasCrudas = await quitarNotasOcultasParaEstudiante(depurarNotasDuplicadas(notas), estudiante.salon);
     cedulaConsultada = cedula;
 
     nombreEstudianteEl.textContent = estudiante.nombre || "Estudiante";
@@ -280,6 +280,26 @@ async function buscar() {
 // vive en temas_casillas.oculta_estudiante. Aquí se consultan las casillas
 // ocultas del salón del estudiante y se descartan esas notas antes de
 // armar la tabla, así esa casilla le sale en blanco al consultar.
+// =====================================================
+// NOTAS DUPLICADAS / BORRADAS
+// =====================================================
+// El panel del docente no borra de verdad: manda a la papelera las
+// casillas (eliminado_en). Si la consulta del estudiante recibe esas
+// copias viejas, una misma casilla (ej. "Aprec. 3") sale repetida.
+// Aquí se descartan las notas marcadas como eliminadas y, si aun así
+// llegan varias para la misma casilla, se deja solo la más reciente
+// (la de mayor id), igual que ve el docente.
+function depurarNotasDuplicadas(notas) {
+    const vigentes = (notas || []).filter((n) => !n.eliminado_en);
+    const porCasilla = new Map();
+    vigentes.forEach((n) => {
+        const clave = `${n.materia}|${n.trimestre}|${(n.tipo || "").toLowerCase()}|${n.numero}`;
+        const previa = porCasilla.get(clave);
+        if (!previa || Number(n.id) > Number(previa.id)) porCasilla.set(clave, n);
+    });
+    return Array.from(porCasilla.values());
+}
+
 async function quitarNotasOcultasParaEstudiante(notas, salon) {
     if (!notas.length || !salon) return notas;
 
