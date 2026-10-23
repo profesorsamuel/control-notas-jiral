@@ -158,8 +158,9 @@ async function verificarIdentidad(){
   const cedulaGuardada=normalizarCedula(registro.cedula);
   if(!cedulaGuardada){mensaje('Tu cédula todavía no está registrada en el sistema. Avisa a la dirección para que la agreguen.','error');return}
   if(cedulaEscrita!==cedulaGuardada){mensaje('La cédula no coincide con el nombre seleccionado. Verifica e intenta de nuevo.','error');return}
-  if(!estudianteDeCuenta){mensaje('Esta cuenta no está asociada a ningún estudiante. Entra con la cuenta del estudiante.','error');return}
-  if(String(registro.id)!==String(estudianteDeCuenta.id)){mensaje('Esta cuenta pertenece a otro estudiante. Entra con tu propia cuenta.','error');return}
+  if(estudianteDeCuenta&&String(registro.id)!==String(estudianteDeCuenta.id)){mensaje('Esta cuenta pertenece a otro estudiante. Entra con tu propia cuenta.','error');return}
+  const {data:okClaim,error:errClaim}=await supabase.rpc('vida_reclamar_estudiante',{p_estudiante_id:String(registro.id),p_cedula:$('cedulaVida').value});
+  if(errClaim||!okClaim){mensaje('No se pudo confirmar tu identidad en el servidor. Verifica tu cédula o avisa a tu profesor.','error');return}
   estudiante={id:registro.id,nombre:registro.nombre,salon:$('salonVida').value};
   $('nombreVida').textContent=estudiante.nombre;
   $('salonVida').disabled=true;bloquearBotonesSalon(true);$('estudianteVida').disabled=true;$('cedulaVida').disabled=true;$('verCedula').disabled=true;
