@@ -180,7 +180,7 @@ function cambiarIdentidad(){
 }
 
 async function cargarArchivosDelEstudiante(){
-  const {data,error}=await supabase.from('vida_estudiantil_recuerdos').select('*').eq('usuario_id',usuario.id).eq('estudiante_id',String(estudiante.id));
+  const {data,error}=await supabase.from('vida_estudiantil_recuerdos').select('*').eq('estudiante_id',String(estudiante.id));
   if(error){mensaje('Primero debes ejecutar el archivo de configuración de Supabase.','error');return}
   archivos=new Map();(data||[]).forEach(d=>archivos.set(d.categoria,d));
   for(const [id] of CATEGORIAS) await pintarArchivo(document.querySelector(`[data-categoria="${id}"]`),archivos.get(id));
@@ -212,7 +212,7 @@ async function guardarComentario(card,id){
   const descripcion=card.querySelector('.descripcion').value.trim();
   const profesorEl=card.querySelector('.profesor');const profesor=profesorEl?(profesorEl.value||null):(dato.profesor||null);
   if(descripcion===(dato.descripcion||'')&&profesor===(dato.profesor||null))return;
-  const {data,error}=await supabase.from('vida_estudiantil_recuerdos').update({descripcion,profesor,estado:'pendiente',motivo_rechazo:null}).eq('id',dato.id).select().single();
+  const {data,error}=await supabase.from('vida_estudiantil_recuerdos').update({descripcion,profesor,estado:'pendiente',motivo_rechazo:null}).eq('id',dato.id).eq('estudiante_id',String(estudiante.id)).select().single();
   if(error){mensaje('No se pudo guardar el comentario. Intenta de nuevo.','error');return}
   archivos.set(id,data);await pintarArchivo(card,data);mensaje('Comentario guardado.','ok');
 }
@@ -242,7 +242,7 @@ async function subirVideo(){const f=videoSeleccionado;if(!f)return;const btn=$('
 async function pintarVideo(){const previo=$('previewVideo').querySelector('video');if(previo?.src.startsWith('blob:'))URL.revokeObjectURL(previo.src);const d=archivos.get('video-agradecimiento');if(!d)return;const url=await urlFirmada(d.ruta_storage);$('previewVideo').innerHTML=`<video controls playsinline preload="metadata" src="${url}"></video><span class="ve-status ${d.estado}">${estadoTexto(d.estado)}</span>`;$('eliminarVideo').hidden=false;}
 async function eliminar(id){
   const d=archivos.get(id);if(!d||!confirm('¿Eliminar este archivo de tu álbum? Podrás subir el correcto después.'))return;
-  const {data,error}=await supabase.from('vida_estudiantil_recuerdos').delete().eq('id',d.id).eq('usuario_id',usuario.id).select('id');
+  const {data,error}=await supabase.from('vida_estudiantil_recuerdos').delete().eq('id',d.id).eq('estudiante_id',String(estudiante.id)).select('id');
   if(error||!data?.length)throw new Error(error?.message||'No se permitió eliminar. Pide al profesor ejecutar la actualización SQL incluida.');
   const {error:limpieza}=await supabase.storage.from(BUCKET).remove([d.ruta_storage]);
   archivos.delete(id);seleccion.delete(id);
